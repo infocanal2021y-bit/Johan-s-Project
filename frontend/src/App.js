@@ -1,54 +1,105 @@
-import { useEffect } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { Toaster } from "./components/ui/sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Pages
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { AccountsPage } from "./pages/AccountsPage";
+import { TransactionsPage } from "./pages/TransactionsPage";
+import { DepositPage } from "./pages/DepositPage";
+import { WithdrawPage } from "./pages/WithdrawPage";
+import { TransferPage } from "./pages/TransferPage";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+// Admin Pages
+import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { AdminTransactionsPage } from "./pages/admin/AdminTransactionsPage";
+import { AdminWithdrawalsPage } from "./pages/admin/AdminWithdrawalsPage";
+
+// Protected Route Component
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+    const { isAuthenticated, isAdmin, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
     }
-  };
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
 
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
+    if (adminOnly && !isAdmin) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return children;
 };
 
-function App() {
-  return (
-    <div className="App">
-      <BrowserRouter>
+// Public Route (redirect to dashboard if already logged in)
+const PublicRoute = ({ children }) => {
+    const { isAuthenticated, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return children;
+};
+
+function AppRoutes() {
+    return (
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
+            {/* Public Routes */}
+            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+
+            {/* Protected User Routes */}
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/accounts" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
+            <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
+            <Route path="/deposit" element={<ProtectedRoute><DepositPage /></ProtectedRoute>} />
+            <Route path="/withdraw" element={<ProtectedRoute><WithdrawPage /></ProtectedRoute>} />
+            <Route path="/transfer" element={<ProtectedRoute><TransferPage /></ProtectedRoute>} />
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>} />
+            <Route path="/admin/transactions" element={<ProtectedRoute adminOnly><AdminTransactionsPage /></ProtectedRoute>} />
+            <Route path="/admin/withdrawals" element={<ProtectedRoute adminOnly><AdminWithdrawalsPage /></ProtectedRoute>} />
+
+            {/* Default redirect */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </BrowserRouter>
-    </div>
-  );
+    );
+}
+
+function App() {
+    return (
+        <div className="App">
+            <BrowserRouter>
+                <AuthProvider>
+                    <AppRoutes />
+                    <Toaster position="top-right" richColors />
+                </AuthProvider>
+            </BrowserRouter>
+        </div>
+    );
 }
 
 export default App;
