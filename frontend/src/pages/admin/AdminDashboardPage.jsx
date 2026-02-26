@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layout } from '../components/layout/Layout';
-import { adminAPI } from '../lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Layout } from '../../components/layout/Layout';
+import { adminAPI } from '../../lib/api';
+import { Card, CardContent } from '../../components/ui/card';
 import { Users, FileText, Clock, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
