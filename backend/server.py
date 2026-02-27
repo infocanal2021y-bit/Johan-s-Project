@@ -527,7 +527,8 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
     
     await db.transactions.insert_one(transaction)
     
-    return transaction
+    # Return transaction without MongoDB _id field
+    return {k: v for k, v in transaction.items() if k != '_id'}
 
 @api_router.get("/transactions")
 async def get_transactions(
