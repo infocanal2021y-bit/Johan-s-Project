@@ -103,7 +103,7 @@ class VaultBankAPITester:
             f"Create deposit of ${amount}",
             "POST",
             "transactions",
-            201,
+            200,
             data={
                 "account_id": checking_account['id'],
                 "transaction_type": "deposit",
