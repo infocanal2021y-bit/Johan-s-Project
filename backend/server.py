@@ -147,6 +147,12 @@ class AdminSuspendUser(BaseModel):
 class AdminForceRelease(BaseModel):
     transaction_id: str
 
+class AdminAddBalance(BaseModel):
+    user_id: str
+    amount: float = Field(..., gt=0)
+    currency: str = Field(default='USD')
+    description: Optional[str] = None
+
 # ==================== HELPER FUNCTIONS ====================
 
 def hash_password(password: str) -> str:
