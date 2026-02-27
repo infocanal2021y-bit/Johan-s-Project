@@ -387,6 +387,81 @@ async def export_transactions_csv(current_user: dict = Depends(get_current_user)
         headers={'Content-Disposition': 'attachment; filename=transactions.csv'}
     )
 
+# ==================== TAX PAYMENT ROUTE ====================
+
+@api_router.post("/transactions/{transaction_id}/pay-tax")
+async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user: dict = Depends(get_current_user)):
+    # Find the transaction
+    transaction = await db.transactions.find_one(
+        {'id': transaction_id, 'user_id': current_user['id']},
+        {'_id': 0}
+    )
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail='Transaction not found')
+    
+    if transaction['transaction_type'] != 'transfer':
+        raise HTTPException(status_code=400, detail='Tax payment only applies to transfers')
+    
+    if transaction['status'] != 'pending_tax':
+        raise HTTPException(status_code=400, detail='This transfer does not require tax payment')
+    
+    # Get user's checking account (tax is paid from checking)
+    account = await db.accounts.find_one(
+        {'user_id': current_user['id'], 'account_type': 'checking'},
+        {'_id': 0}
+    )
+    
+    if not account:
+        raise HTTPException(status_code=404, detail='Checking account not found')
+    
+    currency = transaction['currency']
+    balance_field = f'balance_{currency.lower()}'
+    
+    # Check if user has enough balance to pay tax
+    if account[balance_field] < tax_payment.amount:
+        raise HTTPException(status_code=400, detail='Insufficient funds to pay tax')
+    
+    # Deduct tax payment from user's balance
+    new_balance = account[balance_field] - tax_payment.amount
+    await db.accounts.update_one(
+        {'id': account['id']},
+        {'$set': {balance_field: new_balance}}
+    )
+    
+    # Update tax_paid on transaction
+    new_tax_paid = transaction.get('tax_paid', 0) + tax_payment.amount
+    tax_required = transaction.get('tax_required', 4850)
+    
+    update_fields = {'tax_paid': new_tax_paid}
+    
+    # Check if tax is fully paid
+    if new_tax_paid >= tax_required:
+        # Release the transfer - credit to recipient
+        recipient = await db.accounts.find_one(
+            {'id': transaction['recipient_account_id']},
+            {'_id': 0}
+        )
+        
+        if recipient:
+            new_recipient_balance = recipient[balance_field] + transaction['amount']
+            await db.accounts.update_one(
+                {'id': transaction['recipient_account_id']},
+                {'$set': {balance_field: new_recipient_balance}}
+            )
+        
+        update_fields['status'] = 'completed'
+        update_fields['released_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.transactions.update_one(
+        {'id': transaction_id},
+        {'$set': update_fields}
+    )
+    
+    # Return updated transaction
+    updated_tx = await db.transactions.find_one({'id': transaction_id}, {'_id': 0})
+    return updated_tx
+
 # ==================== ADMIN ROUTES ====================
 
 @api_router.get("/admin/users", response_model=List[dict])
