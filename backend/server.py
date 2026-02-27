@@ -51,7 +51,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app
-app = FastAPI(title="VaultBank API")
+app = FastAPI(title="LIONSBIT BANK API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -300,7 +300,7 @@ async def register(user_data: UserCreate):
         }
         await db.accounts.insert_one(account)
     
-    await create_notification(user_id, 'Welcome to VaultBank!', 
+    await create_notification(user_id, 'Welcome to LIONSBIT BANK!', 
         'Your account has been created. Please complete KYC verification to unlock all features.')
     
     token = create_token(user_id, user_data.email, 'user')
@@ -672,7 +672,7 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
     elements = []
     
     # Header
-    elements.append(Paragraph("VaultBank", title_style))
+    elements.append(Paragraph("LIONSBIT BANK", title_style))
     elements.append(Paragraph("Transfer Receipt", styles['Heading2']))
     elements.append(Spacer(1, 20))
     
@@ -710,7 +710,7 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         fontSize=9,
         textColor=colors.HexColor('#94a3b8')
     )
-    elements.append(Paragraph("This is an official VaultBank transaction receipt.", footer_style))
+    elements.append(Paragraph("This is an official LIONSBIT BANK transaction receipt.", footer_style))
     elements.append(Paragraph(f"Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}", footer_style))
     
     doc.build(elements)
@@ -1161,7 +1161,7 @@ async def get_exchange_rates():
 
 @api_router.get("/")
 async def root():
-    return {"message": "VaultBank API", "version": "2.0.0"}
+    return {"message": "LIONSBIT BANK API", "version": "2.0.0"}
 
 # Include the router in the main app
 app.include_router(api_router)
