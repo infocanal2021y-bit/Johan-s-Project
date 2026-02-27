@@ -5,7 +5,6 @@ import {
     LayoutDashboard, 
     Wallet, 
     ArrowLeftRight, 
-    Download, 
     Upload, 
     Users, 
     ClipboardList,
@@ -15,7 +14,8 @@ import {
     X,
     BadgeCheck,
     Vault,
-    AlertTriangle
+    AlertTriangle,
+    PlusCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -40,18 +40,19 @@ export const Sidebar = () => {
         return null;
     };
 
+    // User links - removed Deposit (only admin can add balance now)
     const userLinks = [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/accounts', icon: Wallet, label: 'Accounts' },
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
-        { to: '/deposit', icon: Download, label: 'Deposit' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
     ];
 
     const adminLinks = [
         { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
+        { to: '/admin/credits', icon: PlusCircle, label: 'Add Balance' },
         { to: '/admin/users', icon: Users, label: 'Users' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'All Transactions' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Pending Withdrawals' },
