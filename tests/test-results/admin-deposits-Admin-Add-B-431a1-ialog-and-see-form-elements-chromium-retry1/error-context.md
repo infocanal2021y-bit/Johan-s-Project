@@ -1,0 +1,353 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - complementary:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - heading [level=1]: VaultBank
+                    - paragraph: Secure Banking
+                - button:
+                  - img
+            - generic:
+              - paragraph: Banking
+              - navigation:
+                - generic:
+                  - link:
+                    - /url: /dashboard
+                    - img
+                    - generic: Dashboard
+                  - link:
+                    - /url: /accounts
+                    - img
+                    - generic: Accounts
+                  - link:
+                    - /url: /transactions
+                    - img
+                    - generic: Transactions
+                  - link:
+                    - /url: /transfer
+                    - img
+                    - generic: Transfer
+                  - link:
+                    - /url: /withdraw
+                    - img
+                    - generic: Withdraw
+                  - link:
+                    - /url: /kyc
+                    - img
+                    - generic: Verification
+              - generic:
+                - paragraph: Administration
+                - navigation:
+                  - generic:
+                    - link:
+                      - /url: /admin
+                      - img
+                      - generic: Admin Dashboard
+                    - link:
+                      - /url: /admin/credits
+                      - img
+                      - generic: Add Balance
+                    - link:
+                      - /url: /admin/users
+                      - img
+                      - generic: Users
+                    - link:
+                      - /url: /admin/transactions
+                      - img
+                      - generic: All Transactions
+                    - link:
+                      - /url: /admin/withdrawals
+                      - img
+                      - generic: Pending Withdrawals
+                    - link:
+                      - /url: /admin/kyc
+                      - img
+                      - generic: KYC Requests
+                    - link:
+                      - /url: /admin/treasury
+                      - img
+                      - generic: Treasury
+            - generic:
+              - generic:
+                - generic:
+                  - generic: A
+                - generic:
+                  - generic:
+                    - paragraph: Admin User
+                    - generic:
+                      - img
+                  - paragraph: admin@vaultbank.com
+                - generic:
+                  - generic: Admin
+              - button:
+                - img
+                - text: Logout
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Balance Management
+                    - paragraph: Add balance to user accounts
+                  - button:
+                    - img
+                    - text: Add Balance
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - paragraph: Total Users
+                            - paragraph: "8"
+                          - generic:
+                            - img
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - paragraph: Credits Issued (USD)
+                            - paragraph: $ 647.00
+                          - generic:
+                            - img
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - paragraph: Total Credits
+                            - paragraph: "7"
+                          - generic:
+                            - img
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                        - text: Users (8)
+                    - generic:
+                      - generic:
+                        - generic:
+                          - table:
+                            - rowgroup:
+                              - row:
+                                - columnheader: User
+                                - columnheader: Email
+                                - columnheader: Checking Balance
+                                - columnheader: Total Balance
+                                - columnheader: Actions
+                            - rowgroup:
+                              - row:
+                                - cell:
+                                  - generic:
+                                    - generic:
+                                      - generic: T
+                                    - generic: Test User
+                                - cell: test_user_e6727a95@example.com
+                                - cell: $850.00
+                                - cell: $1000.00
+                                - cell:
+                                  - button:
+                                    - img
+                                    - text: Add Balance
+                              - row:
+                                - cell:
+                                  - generic:
+                                    - generic:
+                                      - generic: J
+                                    - generic: Jane Smith
+                                - cell: jane.smith.frontend@example.com
+                                - cell: $0.00
+                                - cell: $0.00
+                                - cell:
+                                  - button:
+                                    - img
+                                    - text: Add Balance
+                              - row:
+                                - cell:
+                                  - generic:
+                                    - generic:
+                                      - generic: D
+                                    - generic: Demo User
+                                - cell: demo@vaultbank.com
+                                - cell: $15697.00
+                                - cell: $17697.00
+                                - cell:
+                                  - button:
+                                    - img
+                                    - text: Add Balance
+                              - row:
+                                - cell:
+                                  - generic:
+                                    - generic:
+                                      - generic: J
+                                    - generic: juan antonio gomez
+                                - cell: infocanal2021y@gmail.com
+                                - cell: $100.00
+                                - cell: $100.00
+                                - cell:
+                                  - button:
+                                    - img
+                                    - text: Add Balance
+                              - row:
+                                - cell:
+                                  - generic:
+                                    - generic:
+                                      - generic: T
+                                    - generic: Test User 1772156398
+                                - cell: testuser1772156398@vaultbank.com
+                                - cell: $0.00
+                                - cell: $0.00
+                                - cell:
+                                  - button:
+                                    - img
+                                    - text: Add Balance
+                              - row:
+                                - cell:
+                                  - generic:
+                                    - generic:
+                                      - generic: T
+                                    - generic: TestUser
+                                - cell: testuser_1772159477@test.com
+                                - cell: $500.00
+                                - cell: $500.00
+                                - cell:
+                                  - button:
+                                    - img
+                                    - text: Add Balance
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                        - text: Admin Credits History
+                    - generic:
+                      - generic:
+                        - generic:
+                          - table:
+                            - rowgroup:
+                              - row:
+                                - columnheader: Reference
+                                - columnheader: User
+                                - columnheader: Amount
+                                - columnheader: Admin
+                                - columnheader: Description
+                                - columnheader: Date
+                            - rowgroup:
+                              - row:
+                                - cell: TRX-2026-89A520
+                                - cell:
+                                  - generic:
+                                    - paragraph: TestUser
+                                    - paragraph: testuser_1772159477@test.com
+                                - cell: +$500.00
+                                - cell: AdminUser
+                                - cell: Test credit
+                                - cell: Feb 27, 2026, 02:33 AM
+                              - row:
+                                - cell: TRX-2026-28183C
+                                - cell:
+                                  - generic:
+                                    - paragraph: Demo User
+                                    - paragraph: demo@vaultbank.com
+                                - cell: +$25.00
+                                - cell: Admin User
+                                - cell: E2E_TEST_1772158588891
+                                - cell: Feb 27, 2026, 02:16 AM
+                              - row:
+                                - cell: TRX-2026-B3C029
+                                - cell:
+                                  - generic:
+                                    - paragraph: Demo User
+                                    - paragraph: demo@vaultbank.com
+                                - cell: +$37.00
+                                - cell: Admin User
+                                - cell: E2E_TEST_1772158143415
+                                - cell: Feb 27, 2026, 02:09 AM
+                              - row:
+                                - cell: TRX-2026-BD2B2C
+                                - cell:
+                                  - generic:
+                                    - paragraph: Demo User
+                                    - paragraph: demo@vaultbank.com
+                                - cell: +$10.00
+                                - cell: Admin User
+                                - cell: TEST_NOTIF_4f3d0074
+                                - cell: Feb 27, 2026, 02:05 AM
+                              - row:
+                                - cell: TRX-2026-533578
+                                - cell:
+                                  - generic:
+                                    - paragraph: Demo User
+                                    - paragraph: demo@vaultbank.com
+                                - cell: +€75.00
+                                - cell: Admin User
+                                - cell: TEST_EUR_CREDIT_51e2beac
+                                - cell: Feb 27, 2026, 02:05 AM
+                              - row:
+                                - cell: TRX-2026-D37577
+                                - cell:
+                                  - generic:
+                                    - paragraph: Demo User
+                                    - paragraph: demo@vaultbank.com
+                                - cell: +$25.00
+                                - cell: Admin User
+                                - cell: TEST_ADMIN_CREDIT_8d40784e
+                                - cell: Feb 27, 2026, 02:05 AM
+                              - row:
+                                - cell: TRX-2026-05CE3C
+                                - cell:
+                                  - generic:
+                                    - paragraph: Demo User
+                                    - paragraph: demo@vaultbank.com
+                                - cell: +$50.00
+                                - cell: Admin User
+                                - cell: TEST_CREDIT_c80d2aeb
+                                - cell: Feb 27, 2026, 02:05 AM
+        - region "Notifications alt+T"
+      - region "Notifications alt+T"
+  - link:
+    - /url: https://app.emergent.sh/?utm_source=emergent-badge
+    - img
+    - paragraph: Made with Emergent
+  - dialog "Add Balance to User" [ref=e2]:
+    - heading "Add Balance to User" [level=2] [ref=e4]:
+      - img [ref=e5]
+      - text: Add Balance to User
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - text: Select User
+        - combobox [active] [ref=e9] [cursor=pointer]:
+          - generic: Choose a user
+          - img [ref=e10]
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - text: Amount
+          - spinbutton [ref=e14]
+        - generic [ref=e15]:
+          - text: Currency
+          - combobox [ref=e16] [cursor=pointer]:
+            - generic: USD
+            - img [ref=e17]
+      - generic [ref=e19]:
+        - text: Description (Optional)
+        - textbox "e.g., Initial deposit, Bonus credit..." [ref=e20]
+      - button "Add Balance" [disabled]:
+        - img
+        - text: Add Balance
+    - button "Close" [ref=e21] [cursor=pointer]:
+      - img [ref=e22]
+      - generic [ref=e25]: Close
+```
