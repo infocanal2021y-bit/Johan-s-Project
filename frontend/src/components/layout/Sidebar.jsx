@@ -15,7 +15,8 @@ import {
     BadgeCheck,
     Vault,
     AlertTriangle,
-    PlusCircle
+    PlusCircle,
+    Bitcoin
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
