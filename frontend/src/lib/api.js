@@ -53,6 +53,7 @@ export const transactionsAPI = {
     getAll: (params) => api.get('/transactions', { params }),
     getAllHistory: () => api.get('/transactions/all'),
     exportCSV: () => api.get('/transactions/export/csv', { responseType: 'blob' }),
+    payTax: (transactionId, data) => api.post(`/transactions/${transactionId}/pay-tax`, data),
 };
 
 // Admin API
