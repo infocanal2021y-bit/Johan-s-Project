@@ -25,6 +25,7 @@ const typeConfig = {
 const statusConfig = {
     completed: 'bg-emerald-500',
     pending: 'bg-amber-500',
+    pending_tax: 'bg-orange-500',
     rejected: 'bg-red-500',
 };
 
