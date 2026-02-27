@@ -111,8 +111,17 @@ Create a full-stack web application that simulates a professional online banking
 - POST /api/admin/transfer/force-release
 - GET /api/admin/treasury
 - GET /api/admin/kyc/pending
-- POST /api/admin/add-balance (NEW - admin-only deposits)
-- GET /api/admin/credits (NEW - admin credit history)
+- POST /api/admin/add-balance (admin-only deposits)
+- GET /api/admin/credits (admin credit history)
+- GET /api/admin/crypto-payments/pending (NEW - pending crypto payments)
+- POST /api/admin/crypto-payments/action (NEW - approve/reject)
+- GET /api/admin/crypto-payments/{id}/proof (NEW - view proof image)
+- GET /api/admin/crypto-payments/history (NEW - all crypto payments)
+
+### Crypto
+- GET /api/crypto-wallets (corporate wallet addresses)
+- POST /api/transactions/{id}/pay-tax-crypto (submit crypto payment)
+- GET /api/transactions/{id}/crypto-payment (check payment status)
 
 ## Constants
 - TAX_AMOUNT: $4,850 per transfer
