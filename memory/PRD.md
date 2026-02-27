@@ -20,7 +20,7 @@ Create a full-stack web application that simulates a professional online banking
 - [x] JWT authentication (register, login)
 - [x] User dashboard with balance cards
 - [x] Checking/Savings accounts with multi-currency
-- [x] Deposit, Withdraw, Transfer operations
+- [x] Withdraw, Transfer operations
 - [x] Transfer tax system ($4,850 per transfer)
 - [x] Transaction history with CSV export
 
@@ -37,6 +37,14 @@ Create a full-stack web application that simulates a professional online banking
 - [x] Unique transaction references (TRX-YYYY-XXXXXX)
 - [x] Visual improvements (progress bars, status badges)
 
+### Phase 3 - Admin-Only Deposits (Complete - Feb 27, 2026)
+- [x] Removed user deposit functionality
+- [x] Admin-only balance management via POST /api/admin/add-balance
+- [x] Admin Credits page at /admin/credits with user list and history
+- [x] Transactions logged as 'admin_credit' type
+- [x] User notifications when admin adds balance
+- [x] Sidebar updated: no "Deposit" for users, "Add Balance" for admins
+
 ### Admin Features
 - [x] User management (view, edit balances, change roles)
 - [x] Suspend/Activate users
@@ -45,6 +53,7 @@ Create a full-stack web application that simulates a professional online banking
 - [x] Force release transfers
 - [x] View Government Treasury balance
 - [x] Transaction status management
+- [x] Add Balance to users (admin_credit)
 
 ## API Endpoints (v2.0)
 
@@ -83,6 +92,8 @@ Create a full-stack web application that simulates a professional online banking
 - POST /api/admin/transfer/force-release
 - GET /api/admin/treasury
 - GET /api/admin/kyc/pending
+- POST /api/admin/add-balance (NEW - admin-only deposits)
+- GET /api/admin/credits (NEW - admin credit history)
 
 ## Constants
 - TAX_AMOUNT: $4,850 per transfer
