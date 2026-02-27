@@ -49,6 +49,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    min-height: 100vh;
+}
+
+#root {
+    min-height: 100vh;
+    background-color: hsl(var(--background));
 }
 
 h1, h2, h3, h4, h5, h6 {
