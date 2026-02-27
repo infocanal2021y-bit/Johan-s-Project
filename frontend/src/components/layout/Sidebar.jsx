@@ -56,6 +56,7 @@ export const Sidebar = () => {
         { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
         { to: '/admin/credits', icon: PlusCircle, label: 'Add Balance' },
         { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Crypto Payments' },
+        { to: '/admin/crypto-stats', icon: BarChart3, label: 'Crypto Analytics' },
         { to: '/admin/users', icon: Users, label: 'Users' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'All Transactions' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Pending Withdrawals' },
