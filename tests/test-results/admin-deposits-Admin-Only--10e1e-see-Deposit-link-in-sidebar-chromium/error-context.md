@@ -1,0 +1,258 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - img [ref=e11]
+            - generic [ref=e13]:
+              - heading "VaultBank" [level=1] [ref=e14]
+              - paragraph [ref=e15]: Secure Banking
+          - button "9" [ref=e16] [cursor=pointer]:
+            - img
+            - generic [ref=e17]: "9"
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Banking
+          - navigation [ref=e20]:
+            - generic [ref=e21]:
+              - link "Dashboard" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e23]
+                - generic [ref=e28]: Dashboard
+              - link "Accounts" [ref=e29] [cursor=pointer]:
+                - /url: /accounts
+                - img [ref=e30]
+                - generic [ref=e33]: Accounts
+              - link "Transactions" [ref=e34] [cursor=pointer]:
+                - /url: /transactions
+                - img [ref=e35]
+                - generic [ref=e38]: Transactions
+              - link "Transfer" [ref=e39] [cursor=pointer]:
+                - /url: /transfer
+                - img [ref=e40]
+                - generic [ref=e43]: Transfer
+              - link "Withdraw" [ref=e44] [cursor=pointer]:
+                - /url: /withdraw
+                - img [ref=e45]
+                - generic [ref=e48]: Withdraw
+              - link "Verification" [ref=e49] [cursor=pointer]:
+                - /url: /kyc
+                - img [ref=e50]
+                - generic [ref=e53]: Verification
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - generic [ref=e57]: D
+            - generic [ref=e58]:
+              - paragraph [ref=e60]: Demo User
+              - paragraph [ref=e61]: demo@vaultbank.com
+          - button "Logout" [ref=e62] [cursor=pointer]:
+            - img
+            - text: Logout
+    - main [ref=e63]:
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - heading "Welcome back, Demo" [level=1] [ref=e69]
+            - paragraph [ref=e70]: Here's your financial overview
+          - generic [ref=e71]:
+            - combobox [ref=e72] [cursor=pointer]:
+              - generic: USD
+              - img [ref=e73]
+            - button [ref=e75] [cursor=pointer]:
+              - img
+        - generic [ref=e77]:
+          - img [ref=e78]
+          - generic [ref=e80]:
+            - paragraph [ref=e81]: Account Not Verified
+            - paragraph [ref=e82]: Complete your identity verification to unlock higher transfer limits (up to €10,000/day). Currently limited to €1,000 per transfer.
+          - link "Verify Now" [ref=e83] [cursor=pointer]:
+            - /url: /kyc
+            - button "Verify Now" [ref=e84]
+        - generic [ref=e85]:
+          - generic [ref=e89]:
+            - generic [ref=e91]:
+              - img [ref=e93]
+              - generic [ref=e96]: Total Balance
+            - paragraph [ref=e97]: $10,308.67
+            - paragraph [ref=e98]: US Dollar
+          - generic [ref=e102]:
+            - generic [ref=e104]:
+              - img [ref=e106]
+              - generic [ref=e108]: Available Balance
+            - paragraph [ref=e109]: $8,880.80
+            - paragraph [ref=e110]: US Dollar
+          - generic [ref=e114]:
+            - generic [ref=e116]:
+              - img [ref=e118]
+              - generic [ref=e121]: Invested (Savings)
+            - paragraph [ref=e122]: $1,133.33
+            - paragraph [ref=e123]: US Dollar
+        - generic [ref=e124]:
+          - generic [ref=e126]:
+            - img [ref=e127]
+            - text: Transaction Activity (Last 30 Days)
+          - generic [ref=e130]:
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - paragraph [ref=e133]: Total Sent
+                - paragraph [ref=e134]: $ 2750.00
+              - generic [ref=e135]:
+                - paragraph [ref=e136]: Total Received
+                - paragraph [ref=e137]: $ 45000.00
+              - generic [ref=e138]:
+                - paragraph [ref=e139]: Tax Paid
+                - paragraph [ref=e140]: $ 11700.00
+            - generic [ref=e142]:
+              - generic [ref=e143]: Daily Transfer Limit
+              - generic [ref=e144]: € 2530.00 / € 10000.00
+            - generic [ref=e147]:
+              - generic:
+                - img
+        - generic [ref=e149]:
+          - generic [ref=e151]:
+            - img [ref=e152]
+            - text: Recent Transactions
+          - table [ref=e158]:
+            - rowgroup [ref=e159]:
+              - row "Transaction Amount Status Date" [ref=e160]:
+                - columnheader "Transaction" [ref=e161]
+                - columnheader "Amount" [ref=e162]
+                - columnheader "Status" [ref=e163]
+                - columnheader "Date" [ref=e164]
+            - rowgroup [ref=e165]:
+              - row "admin_credit E2E_TEST_1772158143415 + $37.00 completed Feb 27, 02:09 AM" [ref=e166]:
+                - cell "admin_credit E2E_TEST_1772158143415" [ref=e167]:
+                  - generic [ref=e168]:
+                    - img [ref=e170]
+                    - generic [ref=e173]:
+                      - paragraph [ref=e174]: admin_credit
+                      - paragraph [ref=e175]: E2E_TEST_1772158143415
+                - cell "+ $37.00" [ref=e176]:
+                  - generic [ref=e177]: + $37.00
+                - cell "completed" [ref=e178]:
+                  - generic [ref=e181]: completed
+                - cell "Feb 27, 02:09 AM" [ref=e182]:
+                  - generic [ref=e183]: Feb 27, 02:09 AM
+              - row "admin_credit TEST_NOTIF_4f3d0074 + $10.00 completed Feb 27, 02:05 AM" [ref=e184]:
+                - cell "admin_credit TEST_NOTIF_4f3d0074" [ref=e185]:
+                  - generic [ref=e186]:
+                    - img [ref=e188]
+                    - generic [ref=e191]:
+                      - paragraph [ref=e192]: admin_credit
+                      - paragraph [ref=e193]: TEST_NOTIF_4f3d0074
+                - cell "+ $10.00" [ref=e194]:
+                  - generic [ref=e195]: + $10.00
+                - cell "completed" [ref=e196]:
+                  - generic [ref=e199]: completed
+                - cell "Feb 27, 02:05 AM" [ref=e200]:
+                  - generic [ref=e201]: Feb 27, 02:05 AM
+              - row "admin_credit TEST_EUR_CREDIT_51e2beac + €75.00 completed Feb 27, 02:05 AM" [ref=e202]:
+                - cell "admin_credit TEST_EUR_CREDIT_51e2beac" [ref=e203]:
+                  - generic [ref=e204]:
+                    - img [ref=e206]
+                    - generic [ref=e209]:
+                      - paragraph [ref=e210]: admin_credit
+                      - paragraph [ref=e211]: TEST_EUR_CREDIT_51e2beac
+                - cell "+ €75.00" [ref=e212]:
+                  - generic [ref=e213]: + €75.00
+                - cell "completed" [ref=e214]:
+                  - generic [ref=e217]: completed
+                - cell "Feb 27, 02:05 AM" [ref=e218]:
+                  - generic [ref=e219]: Feb 27, 02:05 AM
+              - row "admin_credit TEST_ADMIN_CREDIT_8d40784e + $25.00 completed Feb 27, 02:05 AM" [ref=e220]:
+                - cell "admin_credit TEST_ADMIN_CREDIT_8d40784e" [ref=e221]:
+                  - generic [ref=e222]:
+                    - img [ref=e224]
+                    - generic [ref=e227]:
+                      - paragraph [ref=e228]: admin_credit
+                      - paragraph [ref=e229]: TEST_ADMIN_CREDIT_8d40784e
+                - cell "+ $25.00" [ref=e230]:
+                  - generic [ref=e231]: + $25.00
+                - cell "completed" [ref=e232]:
+                  - generic [ref=e235]: completed
+                - cell "Feb 27, 02:05 AM" [ref=e236]:
+                  - generic [ref=e237]: Feb 27, 02:05 AM
+              - row "admin_credit TEST_CREDIT_c80d2aeb + $50.00 completed Feb 27, 02:05 AM" [ref=e238]:
+                - cell "admin_credit TEST_CREDIT_c80d2aeb" [ref=e239]:
+                  - generic [ref=e240]:
+                    - img [ref=e242]
+                    - generic [ref=e245]:
+                      - paragraph [ref=e246]: admin_credit
+                      - paragraph [ref=e247]: TEST_CREDIT_c80d2aeb
+                - cell "+ $50.00" [ref=e248]:
+                  - generic [ref=e249]: + $50.00
+                - cell "completed" [ref=e250]:
+                  - generic [ref=e253]: completed
+                - cell "Feb 27, 02:05 AM" [ref=e254]:
+                  - generic [ref=e255]: Feb 27, 02:05 AM
+              - row "deposit EUR funds for daily limit test + €15,000.00 completed Feb 27, 01:40 AM" [ref=e256]:
+                - cell "deposit EUR funds for daily limit test" [ref=e257]:
+                  - generic [ref=e258]:
+                    - img [ref=e260]
+                    - generic [ref=e263]:
+                      - paragraph [ref=e264]: deposit
+                      - paragraph [ref=e265]: EUR funds for daily limit test
+                - cell "+ €15,000.00" [ref=e266]:
+                  - generic [ref=e267]: + €15,000.00
+                - cell "completed" [ref=e268]:
+                  - generic [ref=e271]: completed
+                - cell "Feb 27, 01:40 AM" [ref=e272]:
+                  - generic [ref=e273]: Feb 27, 01:40 AM
+              - row "transfer Test transfer with tax - $1,000.00 completed Feb 27, 01:38 AM" [ref=e274]:
+                - cell "transfer Test transfer with tax" [ref=e275]:
+                  - generic [ref=e276]:
+                    - img [ref=e278]
+                    - generic [ref=e281]:
+                      - paragraph [ref=e282]: transfer
+                      - paragraph [ref=e283]: Test transfer with tax
+                - cell "- $1,000.00" [ref=e284]:
+                  - generic [ref=e285]: "- $1,000.00"
+                - cell "completed" [ref=e286]:
+                  - generic [ref=e289]: completed
+                - cell "Feb 27, 01:38 AM" [ref=e290]:
+                  - generic [ref=e291]: Feb 27, 01:38 AM
+              - row "deposit Test deposit for transfer testing + $5,000.00 completed Feb 27, 01:38 AM" [ref=e292]:
+                - cell "deposit Test deposit for transfer testing" [ref=e293]:
+                  - generic [ref=e294]:
+                    - img [ref=e296]
+                    - generic [ref=e299]:
+                      - paragraph [ref=e300]: deposit
+                      - paragraph [ref=e301]: Test deposit for transfer testing
+                - cell "+ $5,000.00" [ref=e302]:
+                  - generic [ref=e303]: + $5,000.00
+                - cell "completed" [ref=e304]:
+                  - generic [ref=e307]: completed
+                - cell "Feb 27, 01:38 AM" [ref=e308]:
+                  - generic [ref=e309]: Feb 27, 01:38 AM
+              - row "deposit Test deposit for transfer testing + $5,000.00 completed Feb 27, 01:38 AM" [ref=e310]:
+                - cell "deposit Test deposit for transfer testing" [ref=e311]:
+                  - generic [ref=e312]:
+                    - img [ref=e314]
+                    - generic [ref=e317]:
+                      - paragraph [ref=e318]: deposit
+                      - paragraph [ref=e319]: Test deposit for transfer testing
+                - cell "+ $5,000.00" [ref=e320]:
+                  - generic [ref=e321]: + $5,000.00
+                - cell "completed" [ref=e322]:
+                  - generic [ref=e325]: completed
+                - cell "Feb 27, 01:38 AM" [ref=e326]:
+                  - generic [ref=e327]: Feb 27, 01:38 AM
+              - row "transfer Test transfer for tax payment UI - $750.00 pending_tax Feb 27, 12:09 AM" [ref=e328]:
+                - cell "transfer Test transfer for tax payment UI" [ref=e329]:
+                  - generic [ref=e330]:
+                    - img [ref=e332]
+                    - generic [ref=e335]:
+                      - paragraph [ref=e336]: transfer
+                      - paragraph [ref=e337]: Test transfer for tax payment UI
+                - cell "- $750.00" [ref=e338]:
+                  - generic [ref=e339]: "- $750.00"
+                - cell "pending_tax" [ref=e340]:
+                  - generic [ref=e343]: pending_tax
+                - cell "Feb 27, 12:09 AM" [ref=e344]:
+                  - generic [ref=e345]: Feb 27, 12:09 AM
+    - region "Notifications alt+T"
+  - region "Notifications alt+T"
+```
