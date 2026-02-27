@@ -1329,14 +1329,14 @@ async def admin_get_pending_crypto_payments(admin: dict = Depends(get_admin_user
     for payment in payments:
         user = await db.users.find_one(
             {'id': payment['user_id']},
-            {'_id': 0, 'password': 0, 'id': 1, 'name': 1, 'email': 1}
+            {'_id': 0, 'password': 0}
         )
         transaction = await db.transactions.find_one(
             {'id': payment['transaction_id']},
-            {'_id': 0, 'amount': 1, 'currency': 1, 'transaction_reference': 1, 'tax_required': 1}
+            {'_id': 0}
         )
-        payment['user'] = user
-        payment['transaction'] = transaction
+        payment['user'] = {'id': user.get('id'), 'name': user.get('name'), 'email': user.get('email')} if user else None
+        payment['transaction'] = {'amount': transaction.get('amount'), 'currency': transaction.get('currency'), 'transaction_reference': transaction.get('transaction_reference'), 'tax_required': transaction.get('tax_required')} if transaction else None
     
     return payments
 
