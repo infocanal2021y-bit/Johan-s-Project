@@ -1299,6 +1299,172 @@ async def admin_get_pending_kyc(admin: dict = Depends(get_admin_user)):
     ).to_list(1000)
     return users
 
+# ==================== ADMIN CRYPTO PAYMENT ROUTES ====================
+
+@api_router.get("/admin/crypto-payments/pending")
+async def admin_get_pending_crypto_payments(admin: dict = Depends(get_admin_user)):
+    """Get all pending crypto tax payments for review"""
+    payments = await db.crypto_payments.find(
+        {'status': 'under_review'},
+        {'_id': 0}
+    ).sort('submitted_at', -1).to_list(1000)
+    
+    # Enrich with user and transaction info
+    for payment in payments:
+        user = await db.users.find_one(
+            {'id': payment['user_id']},
+            {'_id': 0, 'password': 0, 'id': 1, 'name': 1, 'email': 1}
+        )
+        transaction = await db.transactions.find_one(
+            {'id': payment['transaction_id']},
+            {'_id': 0, 'amount': 1, 'currency': 1, 'transaction_reference': 1, 'tax_required': 1}
+        )
+        payment['user'] = user
+        payment['transaction'] = transaction
+    
+    return payments
+
+@api_router.post("/admin/crypto-payments/action")
+async def admin_crypto_payment_action(
+    data: AdminCryptoPaymentAction,
+    admin: dict = Depends(get_admin_user)
+):
+    """Approve or reject a crypto tax payment"""
+    payment = await db.crypto_payments.find_one(
+        {'id': data.payment_id},
+        {'_id': 0}
+    )
+    
+    if not payment:
+        raise HTTPException(status_code=404, detail='Crypto payment not found')
+    
+    if payment['status'] != 'under_review':
+        raise HTTPException(status_code=400, detail='Payment is not under review')
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if data.action == 'approve':
+        # Get the original transaction
+        transaction = await db.transactions.find_one(
+            {'id': payment['transaction_id']},
+            {'_id': 0}
+        )
+        
+        if not transaction:
+            raise HTTPException(status_code=404, detail='Original transaction not found')
+        
+        # Release the transfer to recipient
+        currency = transaction['currency']
+        balance_field = f'balance_{currency.lower()}'
+        
+        recipient = await db.accounts.find_one(
+            {'id': transaction['recipient_account_id']},
+            {'_id': 0}
+        )
+        
+        if recipient:
+            new_recipient_balance = recipient[balance_field] + transaction['amount']
+            await db.accounts.update_one(
+                {'id': transaction['recipient_account_id']},
+                {'$set': {balance_field: new_recipient_balance}}
+            )
+        
+        # Update transaction status
+        await db.transactions.update_one(
+            {'id': payment['transaction_id']},
+            {'$set': {
+                'status': 'completed',
+                'released_at': now,
+                'tax_paid_crypto': payment['amount_sent'],
+                'crypto_type': payment['crypto_type'],
+                'crypto_txid': payment['txid']
+            }}
+        )
+        
+        # Update crypto payment status
+        await db.crypto_payments.update_one(
+            {'id': data.payment_id},
+            {'$set': {
+                'status': 'approved',
+                'reviewed_at': now,
+                'reviewed_by': admin['id']
+            }}
+        )
+        
+        # Create history record
+        history_record = {
+            'id': str(uuid.uuid4()),
+            'type': 'crypto_tax_payment_approved',
+            'payment_id': data.payment_id,
+            'transaction_id': payment['transaction_id'],
+            'user_id': payment['user_id'],
+            'admin_id': admin['id'],
+            'admin_name': admin['name'],
+            'crypto_type': payment['crypto_type'],
+            'txid': payment['txid'],
+            'amount_sent': payment['amount_sent'],
+            'created_at': now
+        }
+        await db.payment_history.insert_one(history_record)
+        
+        # Notify user
+        await create_notification(
+            payment['user_id'],
+            'Crypto Payment Approved',
+            f'Your {payment["crypto_type"]} tax payment has been approved. Transfer released!'
+        )
+        
+        return {'message': 'Crypto payment approved and transfer released', 'status': 'approved'}
+    
+    elif data.action == 'reject':
+        # Update crypto payment status
+        await db.crypto_payments.update_one(
+            {'id': data.payment_id},
+            {'$set': {
+                'status': 'rejected',
+                'reviewed_at': now,
+                'reviewed_by': admin['id'],
+                'rejection_reason': data.rejection_reason or 'Payment could not be verified'
+            }}
+        )
+        
+        # Revert transaction to pending_tax
+        await db.transactions.update_one(
+            {'id': payment['transaction_id']},
+            {'$set': {'status': 'pending_tax'}}
+        )
+        
+        # Notify user
+        reason = data.rejection_reason or 'Payment could not be verified'
+        await create_notification(
+            payment['user_id'],
+            'Crypto Payment Rejected',
+            f'Your {payment["crypto_type"]} payment was rejected. Reason: {reason}'
+        )
+        
+        return {'message': 'Crypto payment rejected', 'status': 'rejected', 'reason': reason}
+    
+    else:
+        raise HTTPException(status_code=400, detail='Invalid action. Use "approve" or "reject"')
+
+@api_router.get("/admin/crypto-payments/history")
+async def admin_get_crypto_payments_history(admin: dict = Depends(get_admin_user)):
+    """Get all crypto payment history"""
+    payments = await db.crypto_payments.find(
+        {},
+        {'_id': 0, 'proof_image': 0}
+    ).sort('submitted_at', -1).to_list(1000)
+    
+    # Enrich with user info
+    for payment in payments:
+        user = await db.users.find_one(
+            {'id': payment['user_id']},
+            {'_id': 0, 'name': 1, 'email': 1}
+        )
+        payment['user'] = user
+    
+    return payments
+
 # ==================== UTILITY ROUTES ====================
 
 @api_router.get("/exchange-rates")
