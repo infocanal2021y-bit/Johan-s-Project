@@ -1162,7 +1162,7 @@ async def admin_get_credits(admin: dict = Depends(get_admin_user)):
 
 @api_router.put("/admin/transaction-status")
 async def admin_update_transaction_status(data: AdminUpdateTransactionStatus, admin: dict = Depends(get_admin_user)):
-    if data.status not in ['completed', 'pending', 'pending_tax', 'rejected', 'under_review']:
+    if data.status not in ['completed', 'pending', 'pending_tax', 'rejected', 'under_review', 'crypto_payment_under_review']:
         raise HTTPException(status_code=400, detail='Invalid status')
     
     result = await db.transactions.update_one(
