@@ -93,6 +93,13 @@ class TransactionResponse(BaseModel):
     description: Optional[str]
     recipient_account_id: Optional[str]
     created_at: str
+    # Tax fields for transfers
+    tax_required: Optional[float] = None
+    tax_paid: Optional[float] = None
+    released_at: Optional[str] = None
+
+class PayTaxRequest(BaseModel):
+    amount: float = Field(..., gt=0)
 
 class AdminUpdateBalance(BaseModel):
     account_id: str
@@ -295,13 +302,13 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         if not recipient:
             raise HTTPException(status_code=404, detail='Recipient account not found')
         
-        # Deduct from sender
+        # Deduct from sender (funds are held until tax is paid)
         new_sender_balance = account[balance_field] - tx_data.amount
         await db.accounts.update_one({'id': tx_data.account_id}, {'$set': {balance_field: new_sender_balance}})
         
-        # Add to recipient
-        new_recipient_balance = recipient[balance_field] + tx_data.amount
-        await db.accounts.update_one({'id': tx_data.recipient_account_id}, {'$set': {balance_field: new_recipient_balance}})
+        # DO NOT credit recipient yet - transfer requires tax payment first
+        # Set status to pending_tax
+        status = 'pending_tax'
     else:
         raise HTTPException(status_code=400, detail='Invalid transaction type')
     
@@ -318,6 +325,13 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         'recipient_account_id': tx_data.recipient_account_id,
         'created_at': now
     }
+    
+    # Add tax fields for transfers
+    if tx_data.transaction_type == 'transfer':
+        transaction['tax_required'] = 4850.0
+        transaction['tax_paid'] = 0.0
+        transaction['released_at'] = None
+    
     await db.transactions.insert_one(transaction)
     
     return TransactionResponse(**transaction)
