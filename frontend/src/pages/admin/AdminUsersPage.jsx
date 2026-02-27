@@ -9,7 +9,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Users, Edit, Shield, User } from 'lucide-react';
+import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const AdminUsersPage = () => {
@@ -81,6 +81,38 @@ export const AdminUsersPage = () => {
         }
     };
 
+    const handleSuspendUser = async (userId, action) => {
+        try {
+            await adminAPI.suspendUser({ user_id: userId, action });
+            toast.success(action === 'suspend' ? 'User suspended' : 'User activated');
+            fetchUsers();
+        } catch (error) {
+            toast.error('Failed to update user status');
+        }
+    };
+
+    const getVerificationBadge = (status) => {
+        switch (status) {
+            case 'verified':
+                return <span className="px-2 py-1 rounded text-xs bg-emerald-500/20 text-emerald-400 flex items-center gap-1"><BadgeCheck className="w-3 h-3" /> Verified</span>;
+            case 'pending_verification':
+                return <span className="px-2 py-1 rounded text-xs bg-cyan-500/20 text-cyan-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Pending</span>;
+            default:
+                return <span className="px-2 py-1 rounded text-xs bg-slate-700 text-slate-400">Unverified</span>;
+        }
+    };
+
+    const getAccountStatusBadge = (status) => {
+        switch (status) {
+            case 'suspended':
+                return <span className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400">Suspended</span>;
+            case 'under_review':
+                return <span className="px-2 py-1 rounded text-xs bg-purple-500/20 text-purple-400">Under Review</span>;
+            default:
+                return <span className="px-2 py-1 rounded text-xs bg-emerald-500/20 text-emerald-400">Active</span>;
+        }
+    };
+
     return (
         <Layout>
             <div className="max-w-7xl mx-auto space-y-8" data-testid="admin-users-page">
@@ -117,10 +149,10 @@ export const AdminUsersPage = () => {
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">User</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Email</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Role</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Checking (USD/EUR)</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Savings (USD/EUR)</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">KYC Status</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Account Status</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Balances</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -138,10 +170,12 @@ export const AdminUsersPage = () => {
                                                                         {user.name?.charAt(0).toUpperCase()}
                                                                     </span>
                                                                 </div>
-                                                                <span className="font-medium text-white">{user.name}</span>
+                                                                <div>
+                                                                    <span className="font-medium text-white">{user.name}</span>
+                                                                    <p className="text-xs text-slate-500">{user.email}</p>
+                                                                </div>
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="text-slate-400">{user.email}</TableCell>
                                                         <TableCell>
                                                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                                                                 user.role === 'admin' 
@@ -151,45 +185,75 @@ export const AdminUsersPage = () => {
                                                                 {user.role}
                                                             </span>
                                                         </TableCell>
-                                                        <TableCell className="font-mono text-sm">
-                                                            ${checkingAcc?.balance_usd.toFixed(2) || '0.00'} / €{checkingAcc?.balance_eur.toFixed(2) || '0.00'}
-                                                            {checkingAcc && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="ml-2 h-6 w-6"
-                                                                    onClick={() => handleEditBalance(user, checkingAcc)}
-                                                                    data-testid={`edit-checking-${user.id}`}
-                                                                >
-                                                                    <Edit className="w-3 h-3 text-slate-400" />
-                                                                </Button>
-                                                            )}
+                                                        <TableCell>
+                                                            {getVerificationBadge(user.verification_status)}
                                                         </TableCell>
-                                                        <TableCell className="font-mono text-sm">
-                                                            ${savingsAcc?.balance_usd.toFixed(2) || '0.00'} / €{savingsAcc?.balance_eur.toFixed(2) || '0.00'}
-                                                            {savingsAcc && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="ml-2 h-6 w-6"
-                                                                    onClick={() => handleEditBalance(user, savingsAcc)}
-                                                                    data-testid={`edit-savings-${user.id}`}
-                                                                >
-                                                                    <Edit className="w-3 h-3 text-slate-400" />
-                                                                </Button>
-                                                            )}
+                                                        <TableCell>
+                                                            {getAccountStatusBadge(user.account_status)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="space-y-1 text-xs font-mono">
+                                                                <p className="text-slate-400">
+                                                                    Checking: <span className="text-white">${checkingAcc?.balance_usd.toFixed(2) || '0.00'}</span>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-5 w-5 ml-1"
+                                                                        onClick={() => handleEditBalance(user, checkingAcc)}
+                                                                        data-testid={`edit-checking-${user.id}`}
+                                                                    >
+                                                                        <Edit className="w-3 h-3 text-slate-400" />
+                                                                    </Button>
+                                                                </p>
+                                                                <p className="text-slate-400">
+                                                                    Savings: <span className="text-white">${savingsAcc?.balance_usd.toFixed(2) || '0.00'}</span>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-5 w-5 ml-1"
+                                                                        onClick={() => handleEditBalance(user, savingsAcc)}
+                                                                        data-testid={`edit-savings-${user.id}`}
+                                                                    >
+                                                                        <Edit className="w-3 h-3 text-slate-400" />
+                                                                    </Button>
+                                                                </p>
+                                                            </div>
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="border-slate-700 hover:bg-slate-800"
-                                                                onClick={() => handleEditRole(user)}
-                                                                data-testid={`edit-role-${user.id}`}
-                                                            >
-                                                                {user.role === 'admin' ? <Shield className="w-4 h-4 mr-1" /> : <User className="w-4 h-4 mr-1" />}
-                                                                Change Role
-                                                            </Button>
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-slate-700 hover:bg-slate-800"
+                                                                    onClick={() => handleEditRole(user)}
+                                                                    data-testid={`edit-role-${user.id}`}
+                                                                >
+                                                                    {user.role === 'admin' ? <Shield className="w-4 h-4 mr-1" /> : <User className="w-4 h-4 mr-1" />}
+                                                                    Role
+                                                                </Button>
+                                                                {user.account_status === 'active' || user.account_status === 'under_review' ? (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                                                                        onClick={() => handleSuspendUser(user.id, 'suspend')}
+                                                                        data-testid={`suspend-${user.id}`}
+                                                                    >
+                                                                        <Ban className="w-4 h-4 mr-1" />
+                                                                        Suspend
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        className="bg-emerald-500 hover:bg-emerald-600"
+                                                                        onClick={() => handleSuspendUser(user.id, 'activate')}
+                                                                        data-testid={`activate-${user.id}`}
+                                                                    >
+                                                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                                                        Activate
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
                                                 );
