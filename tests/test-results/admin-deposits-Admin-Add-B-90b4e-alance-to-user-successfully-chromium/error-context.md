@@ -21,14 +21,14 @@
                 - img [ref=e23]
                 - textbox "Email" [ref=e26]:
                   - /placeholder: Enter your email
-                  - text: demo@vaultbank.com
+                  - text: admin@vaultbank.com
             - generic [ref=e27]:
               - text: Password
               - generic [ref=e28]:
                 - img [ref=e29]
                 - textbox "Password" [ref=e32]:
                   - /placeholder: Enter your password
-                  - text: Password123
+                  - text: Admin123!
             - button "Signing in..." [disabled]:
               - img
               - text: Signing in...
