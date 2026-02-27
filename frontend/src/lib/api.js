@@ -3,7 +3,6 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_URL = `${BACKEND_URL}/api`;
 
-// Create axios instance
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -11,7 +10,6 @@ const api = axios.create({
     },
 });
 
-// Add auth token to requests
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -20,7 +18,6 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Handle auth errors
 api.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -40,6 +37,12 @@ export const authAPI = {
     getMe: () => api.get('/auth/me'),
 };
 
+// KYC API
+export const kycAPI = {
+    submit: (data) => api.post('/kyc/submit', data),
+    getStatus: () => api.get('/kyc/status'),
+};
+
 // Accounts API
 export const accountsAPI = {
     getAll: () => api.get('/accounts'),
@@ -52,8 +55,17 @@ export const transactionsAPI = {
     create: (data) => api.post('/transactions', data),
     getAll: (params) => api.get('/transactions', { params }),
     getAllHistory: () => api.get('/transactions/all'),
+    getStats: () => api.get('/transactions/stats'),
     exportCSV: () => api.get('/transactions/export/csv', { responseType: 'blob' }),
     payTax: (transactionId, data) => api.post(`/transactions/${transactionId}/pay-tax`, data),
+    getReceipt: (transactionId) => api.get(`/transactions/${transactionId}/receipt`, { responseType: 'blob' }),
+};
+
+// Notifications API
+export const notificationsAPI = {
+    getAll: () => api.get('/notifications'),
+    markRead: (id) => api.put(`/notifications/${id}/read`),
+    markAllRead: () => api.put('/notifications/read-all'),
 };
 
 // Admin API
@@ -66,9 +78,17 @@ export const adminAPI = {
     updateBalance: (data) => api.put('/admin/balance', data),
     updateTransactionStatus: (data) => api.put('/admin/transaction-status', data),
     updateUserRole: (data) => api.put('/admin/user-role', data),
+    // KYC
+    getPendingKYC: () => api.get('/admin/kyc/pending'),
+    kycAction: (data) => api.post('/admin/kyc/action', data),
+    // User management
+    suspendUser: (data) => api.post('/admin/user/suspend', data),
+    // Transfer management
+    forceRelease: (data) => api.post('/admin/transfer/force-release', data),
+    // Treasury
+    getTreasury: () => api.get('/admin/treasury'),
 };
 
-// Exchange rates
 export const getExchangeRates = () => api.get('/exchange-rates');
 
 export default api;
