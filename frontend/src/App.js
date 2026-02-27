@@ -9,7 +9,6 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AccountsPage } from "./pages/AccountsPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
-import { DepositPage } from "./pages/DepositPage";
 import { WithdrawPage } from "./pages/WithdrawPage";
 import { TransferPage } from "./pages/TransferPage";
 import { KYCPage } from "./pages/KYCPage";
@@ -21,6 +20,7 @@ import { AdminTransactionsPage } from "./pages/admin/AdminTransactionsPage";
 import { AdminWithdrawalsPage } from "./pages/admin/AdminWithdrawalsPage";
 import { AdminKYCPage } from "./pages/admin/AdminKYCPage";
 import { AdminTreasuryPage } from "./pages/admin/AdminTreasuryPage";
+import { AdminCreditsPage } from "./pages/admin/AdminCreditsPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -75,13 +75,13 @@ function AppRoutes() {
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
             <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
-            <Route path="/deposit" element={<ProtectedRoute><DepositPage /></ProtectedRoute>} />
             <Route path="/withdraw" element={<ProtectedRoute><WithdrawPage /></ProtectedRoute>} />
             <Route path="/transfer" element={<ProtectedRoute><TransferPage /></ProtectedRoute>} />
             <Route path="/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
+            <Route path="/admin/credits" element={<ProtectedRoute adminOnly><AdminCreditsPage /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>} />
             <Route path="/admin/transactions" element={<ProtectedRoute adminOnly><AdminTransactionsPage /></ProtectedRoute>} />
             <Route path="/admin/withdrawals" element={<ProtectedRoute adminOnly><AdminWithdrawalsPage /></ProtectedRoute>} />
