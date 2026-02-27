@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
-import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
+import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 
 export const TransactionsPage = () => {
     const [transactions, setTransactions] = useState([]);
