@@ -109,7 +109,7 @@ export const TransferPage = () => {
                     <div>
                         <p className="text-cyan-400 font-medium">Instant Transfers</p>
                         <p className="text-sm text-cyan-400/70 mt-1">
-                            Transfers between VaultBank accounts are processed instantly. 
+                            Transfers between LIONSBIT BANK accounts are processed instantly. 
                             Enter the recipient's account ID to send funds.
                         </p>
                     </div>

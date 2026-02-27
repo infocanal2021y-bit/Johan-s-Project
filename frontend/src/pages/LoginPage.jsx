@@ -55,9 +55,9 @@ export const LoginPage = () => {
                         <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center glow-emerald">
                             <Shield className="w-7 h-7 text-emerald-400" />
                         </div>
-                        <h1 className="font-heading text-3xl font-bold text-white">VaultBank</h1>
+                        <h1 className="font-heading text-2xl font-bold text-white tracking-wide">LIONSBIT BANK</h1>
                     </motion.div>
-                    <p className="text-slate-500">Secure Digital Banking</p>
+                    <p className="text-slate-500">Private Digital Banking Platform</p>
                 </div>
 
                 <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">

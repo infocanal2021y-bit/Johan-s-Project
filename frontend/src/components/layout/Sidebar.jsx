@@ -92,8 +92,8 @@ export const Sidebar = () => {
                             <Shield className="w-6 h-6 text-emerald-400" />
                         </div>
                         <div>
-                            <h1 className="font-heading text-xl font-bold text-white">VaultBank</h1>
-                            <p className="text-xs text-slate-500">Secure Banking</p>
+                            <h1 className="font-heading text-lg font-bold text-white tracking-wide">LIONSBIT BANK</h1>
+                            <p className="text-xs text-slate-500">Private Digital Banking Platform</p>
                         </div>
                     </div>
                     <NotificationBell />
