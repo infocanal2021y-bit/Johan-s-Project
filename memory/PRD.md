@@ -63,6 +63,14 @@ Create a full-stack web application that simulates a professional online banking
 - [x] Payment history tracking with admin attribution
 - [x] User notifications on submission, approval, rejection
 - [x] Both EUR and Crypto payment options coexist
+- [x] **Crypto Analytics Dashboard** (/admin/crypto-stats) with:
+  - Total payments, approval rate, avg processing time
+  - Status breakdown (approved/rejected/under review)
+  - Payment trend chart (last 14 days)
+  - Cryptocurrency distribution doughnut chart
+  - Approval rate by crypto bar chart
+  - Top users by payment count
+  - Cryptocurrency breakdown cards
 
 ### Admin Features
 - [x] User management (view, edit balances, change roles)
@@ -122,6 +130,7 @@ Create a full-stack web application that simulates a professional online banking
 - GET /api/crypto-wallets (corporate wallet addresses)
 - POST /api/transactions/{id}/pay-tax-crypto (submit crypto payment)
 - GET /api/transactions/{id}/crypto-payment (check payment status)
+- GET /api/admin/crypto-payments/stats (comprehensive statistics)
 
 ## Constants
 - TAX_AMOUNT: $4,850 per transfer
