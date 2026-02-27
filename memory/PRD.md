@@ -1,111 +1,74 @@
 # VaultBank - Online Banking System PRD
 
 ## Original Problem Statement
-Create a full-stack web application that simulates a professional online banking system with:
-- User registration/login with JWT authentication
-- User Dashboard with balance cards (Total, Available, Invested)
-- Account system with Checking/Savings and multi-currency (USD/EUR)
-- Transactions: Deposit, Withdraw, Transfer
-- Withdraw system requiring admin approval (Pending → Approved/Rejected)
-- Admin Panel for user management and withdrawal approvals
-- CSV export for transactions
-- Professional fintech design (dark navy + emerald green)
+Create a full-stack web application that simulates a professional online banking system with comprehensive features including authentication, transactions, admin panel, KYC verification, anti-fraud, and more.
 
 ## Tech Stack
-- **Frontend**: React + TailwindCSS + Framer Motion
-- **Backend**: FastAPI (Python)
+- **Frontend**: React + TailwindCSS + Framer Motion + Chart.js
+- **Backend**: FastAPI (Python) + ReportLab (PDF)
 - **Database**: MongoDB
 - **Authentication**: JWT with bcrypt password hashing
 - **UI Components**: Shadcn/UI
 
 ## User Personas
-1. **Regular User**: Can register, login, view dashboard, manage accounts, deposit/withdraw/transfer funds, view transaction history, export CSV
-2. **Admin User**: All regular user capabilities plus: view all users, edit user balances, approve/reject withdrawals, change user roles, view all transactions
+1. **Regular User**: Banking operations, KYC verification, transfers with tax system
+2. **Admin User**: Full control over users, KYC approvals, transaction management, treasury
 
-## Core Requirements (Static)
-- Secure authentication with JWT tokens
-- Role-based access control (admin/user)
-- Multi-currency support (USD/EUR)
-- Pending withdrawal approval system
-- Transaction history with status tracking
-- CSV export functionality
-- Responsive design (mobile + desktop)
+## What's Been Implemented (Feb 27, 2026)
 
-## What's Been Implemented (Feb 26, 2026)
+### Phase 1 - Core Banking (Complete)
+- [x] JWT authentication (register, login)
+- [x] User dashboard with balance cards
+- [x] Checking/Savings accounts with multi-currency
+- [x] Deposit, Withdraw, Transfer operations
+- [x] Transfer tax system ($4,850 per transfer)
+- [x] Transaction history with CSV export
 
-### Backend (FastAPI)
-- [x] JWT authentication (register, login, token validation)
-- [x] User model with role system (admin/user)
-- [x] Account model (checking/savings per user)
-- [x] Transaction model (deposit/withdraw/transfer)
-- [x] Balance management with multi-currency (USD/EUR)
-- [x] Withdrawal approval system (pending status)
-- [x] Admin endpoints for user/transaction management
-- [x] CSV export endpoint
-- [x] Exchange rates endpoint (static rates)
+### Phase 2 - Professional Extensions (Complete)
+- [x] KYC Verification System (unverified → pending → verified)
+- [x] Daily transfer limit: €10,000
+- [x] Unverified user limit: €1,000 per transfer
+- [x] Internal notifications with bell icon
+- [x] Government Treasury account (collects all taxes)
+- [x] PDF receipt generation for completed transfers
+- [x] Dashboard charts (Chart.js - 30 days)
+- [x] Anti-fraud detection (3+ transfers >€5,000 in 5min = under_review)
+- [x] Enhanced admin panel (suspend users, force release, KYC approval)
+- [x] Unique transaction references (TRX-YYYY-XXXXXX)
+- [x] Visual improvements (progress bars, status badges)
 
-### Frontend (React)
-- [x] Login/Register pages with animations
-- [x] Protected routes with role-based access
-- [x] Dashboard with animated balance cards
-- [x] Currency toggle (USD/EUR)
-- [x] Accounts page showing checking/savings
-- [x] Deposit page with instant processing
-- [x] Withdraw page with pending status
-- [x] Transfer page for inter-account transfers
-- [x] Transaction history with filters
-- [x] CSV export button
-- [x] Admin Dashboard
-- [x] Admin Users management (edit balances, roles)
-- [x] Admin Transactions management
-- [x] Admin Withdrawals approval page
-- [x] Responsive sidebar navigation
-- [x] Toast notifications (sonner)
-- [x] Professional dark theme design
+### Admin Features
+- [x] User management (view, edit balances, change roles)
+- [x] Suspend/Activate users
+- [x] KYC approval/rejection
+- [x] View pending withdrawals
+- [x] Force release transfers
+- [x] View Government Treasury balance
+- [x] Transaction status management
 
-## Prioritized Backlog
+## API Endpoints (v2.0)
 
-### P0 (Critical) - All Complete ✓
-- User authentication ✓
-- Basic transaction operations ✓
-- Dashboard with balances ✓
-
-### P1 (High Priority) - All Complete ✓
-- Admin panel ✓
-- Withdrawal approval flow ✓
-- Multi-currency support ✓
-
-### P2 (Medium Priority)
-- [ ] Seed admin user on first deployment
-- [ ] Transaction filtering by date range
-- [ ] User profile settings page
-- [ ] Password change functionality
-- [ ] Email notifications for transactions
-
-### P3 (Low Priority)
-- [ ] Live exchange rate API integration
-- [ ] Two-factor authentication (2FA)
-- [ ] Transaction categories/tags
-- [ ] Monthly statements generation
-- [ ] Dark/Light theme toggle
-
-## API Endpoints
-
-### Auth
+### Auth & KYC
 - POST /api/auth/register
 - POST /api/auth/login
 - GET /api/auth/me
+- POST /api/kyc/submit
+- GET /api/kyc/status
 
-### Accounts
+### Accounts & Transactions
 - GET /api/accounts
-- GET /api/accounts/{id}
 - GET /api/accounts/summary/total
-
-### Transactions
 - POST /api/transactions
 - GET /api/transactions
-- GET /api/transactions/all
+- GET /api/transactions/stats
 - GET /api/transactions/export/csv
+- GET /api/transactions/{id}/receipt
+- POST /api/transactions/{id}/pay-tax
+
+### Notifications
+- GET /api/notifications
+- PUT /api/notifications/{id}/read
+- PUT /api/notifications/read-all
 
 ### Admin
 - GET /api/admin/users
@@ -114,12 +77,21 @@ Create a full-stack web application that simulates a professional online banking
 - POST /api/admin/withdrawals/approve/{id}
 - POST /api/admin/withdrawals/reject/{id}
 - PUT /api/admin/balance
-- PUT /api/admin/transaction-status
 - PUT /api/admin/user-role
+- POST /api/admin/kyc/action
+- POST /api/admin/user/suspend
+- POST /api/admin/transfer/force-release
+- GET /api/admin/treasury
+- GET /api/admin/kyc/pending
 
-## Next Tasks
-1. Create initial admin user setup script
-2. Add date range filtering to transactions
-3. Implement user profile/settings page
-4. Add email notifications for withdrawal status
-5. Consider live exchange rate integration (Alpha Vantage)
+## Constants
+- TAX_AMOUNT: $4,850 per transfer
+- DAILY_TRANSFER_LIMIT: €10,000
+- UNVERIFIED_TRANSFER_LIMIT: €1,000
+- FRAUD_THRESHOLD: 3+ transfers > €5,000 in 5 minutes
+
+## Next Action Items
+1. Email notifications for important events
+2. Two-factor authentication (2FA)
+3. Transaction categories and analytics
+4. Mobile app version
