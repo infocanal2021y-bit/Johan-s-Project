@@ -946,6 +946,22 @@ async def get_crypto_payment_status(
     
     return payment
 
+@api_router.get("/admin/crypto-payments/{payment_id}/proof")
+async def admin_get_crypto_payment_proof(
+    payment_id: str,
+    admin: dict = Depends(get_admin_user)
+):
+    """Get proof image for a crypto payment (admin only)"""
+    payment = await db.crypto_payments.find_one(
+        {'id': payment_id},
+        {'_id': 0, 'proof_image': 1}
+    )
+    
+    if not payment:
+        raise HTTPException(status_code=404, detail='Payment not found')
+    
+    return {'proof_image': payment.get('proof_image')}
+
 # ==================== NOTIFICATIONS ROUTES ====================
 
 @api_router.get("/notifications")
