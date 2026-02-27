@@ -87,6 +87,9 @@ export const adminAPI = {
     forceRelease: (data) => api.post('/admin/transfer/force-release', data),
     // Treasury
     getTreasury: () => api.get('/admin/treasury'),
+    // Admin Credits (add balance)
+    addBalance: (data) => api.post('/admin/add-balance', data),
+    getCredits: () => api.get('/admin/credits'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');
