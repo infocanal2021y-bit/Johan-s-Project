@@ -9,7 +9,8 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
-import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2 } from 'lucide-react';
+import { Progress } from '../components/ui/progress';
+import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const TransactionsPage = () => {
@@ -54,6 +55,24 @@ export const TransactionsPage = () => {
         }
     };
 
+    const handleDownloadReceipt = async (tx) => {
+        try {
+            const response = await transactionsAPI.getReceipt(tx.id);
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `receipt_${tx.transaction_reference || tx.id.slice(0, 8)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Receipt downloaded');
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Failed to download receipt');
+        }
+    };
+
     const handleOpenTaxDialog = (tx) => {
         setSelectedTransaction(tx);
         setTaxAmount('');
@@ -71,7 +90,7 @@ export const TransactionsPage = () => {
             await transactionsAPI.payTax(selectedTransaction.id, { amount: parseFloat(taxAmount) });
             toast.success('Tax payment processed successfully');
             setTaxDialogOpen(false);
-            fetchTransactions(); // Refresh transactions
+            fetchTransactions();
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Failed to process tax payment');
         } finally {
@@ -109,10 +128,11 @@ export const TransactionsPage = () => {
     };
 
     const statusConfig = {
-        completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-        pending_tax: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-        rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
+        completed: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Completed' },
+        pending: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Pending' },
+        pending_tax: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30', label: 'Pending Tax' },
+        rejected: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30', label: 'Rejected' },
+        under_review: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30', label: 'Under Review' },
     };
 
     return (
@@ -182,12 +202,12 @@ export const TransactionsPage = () => {
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Reference</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Type</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Amount</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Status</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Tax Info</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Description</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider text-right">Date</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Tax Progress</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -195,9 +215,11 @@ export const TransactionsPage = () => {
                                                 const config = typeConfig[tx.transaction_type] || typeConfig.deposit;
                                                 const Icon = config.icon;
                                                 const isPendingTax = tx.status === 'pending_tax';
+                                                const isCompleted = tx.status === 'completed';
                                                 const taxRequired = tx.tax_required || 0;
                                                 const taxPaid = tx.tax_paid || 0;
-                                                const taxRemaining = Math.max(0, taxRequired - taxPaid);
+                                                const taxProgress = taxRequired > 0 ? (taxPaid / taxRequired) * 100 : 0;
+                                                const statusCfg = statusConfig[tx.status] || statusConfig.pending;
 
                                                 return (
                                                     <TableRow
@@ -206,13 +228,23 @@ export const TransactionsPage = () => {
                                                         data-testid={`transaction-row-${tx.id}`}
                                                     >
                                                         <TableCell className="py-4">
+                                                            <span className="font-mono text-sm text-slate-300">
+                                                                {tx.transaction_reference || tx.id.slice(0, 12)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <div className={`w-10 h-10 rounded-lg ${config.bg} flex items-center justify-center`}>
                                                                     <Icon className={`w-5 h-5 ${config.color}`} />
                                                                 </div>
-                                                                <span className="font-medium text-white capitalize">
-                                                                    {tx.transaction_type}
-                                                                </span>
+                                                                <div>
+                                                                    <span className="font-medium text-white capitalize">
+                                                                        {tx.transaction_type}
+                                                                    </span>
+                                                                    <p className="text-xs text-slate-500">
+                                                                        {formatDate(tx.created_at)}
+                                                                    </p>
+                                                                </div>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
@@ -221,51 +253,52 @@ export const TransactionsPage = () => {
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig[tx.status] || statusConfig.pending}`}>
-                                                                {tx.status === 'pending_tax' ? 'Pending Tax' : tx.status}
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                                                {statusCfg.label}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            {isPendingTax ? (
-                                                                <div className="space-y-2">
-                                                                    <div className="text-xs space-y-1">
-                                                                        <p className="text-slate-400">
-                                                                            Required: <span className="text-orange-400 font-mono">${taxRequired.toFixed(2)}</span>
-                                                                        </p>
-                                                                        <p className="text-slate-400">
-                                                                            Paid: <span className="text-emerald-400 font-mono">${taxPaid.toFixed(2)}</span>
-                                                                        </p>
-                                                                        <p className="text-slate-400">
-                                                                            Remaining: <span className="text-red-400 font-mono">${taxRemaining.toFixed(2)}</span>
-                                                                        </p>
+                                                            {tx.transaction_type === 'transfer' && taxRequired > 0 ? (
+                                                                <div className="space-y-2 min-w-[180px]">
+                                                                    <div className="flex justify-between text-xs">
+                                                                        <span className="text-slate-500">Tax Progress</span>
+                                                                        <span className={isPendingTax ? 'text-orange-400' : 'text-emerald-400'}>
+                                                                            ${taxPaid.toFixed(0)} / ${taxRequired.toFixed(0)}
+                                                                        </span>
                                                                     </div>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleOpenTaxDialog(tx)}
-                                                                        className="bg-orange-500 hover:bg-orange-600 text-white text-xs"
-                                                                        data-testid={`pay-tax-btn-${tx.id}`}
-                                                                    >
-                                                                        <AlertTriangle className="w-3 h-3 mr-1" />
-                                                                        Pay Tax
-                                                                    </Button>
+                                                                    <Progress 
+                                                                        value={taxProgress} 
+                                                                        className="h-2 bg-slate-700"
+                                                                    />
+                                                                    {isPendingTax && (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => handleOpenTaxDialog(tx)}
+                                                                            className="w-full bg-orange-500 hover:bg-orange-600 text-white text-xs"
+                                                                            data-testid={`pay-tax-btn-${tx.id}`}
+                                                                        >
+                                                                            <AlertTriangle className="w-3 h-3 mr-1" />
+                                                                            Pay Tax (${(taxRequired - taxPaid).toFixed(0)} remaining)
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
-                                                            ) : tx.transaction_type === 'transfer' && tx.released_at ? (
-                                                                <span className="text-xs text-emerald-400">
-                                                                    Released: {formatDate(tx.released_at)}
-                                                                </span>
                                                             ) : (
                                                                 <span className="text-slate-600">-</span>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell className="max-w-[200px]">
-                                                            <span className="text-slate-400 truncate block">
-                                                                {tx.description || '-'}
-                                                            </span>
-                                                        </TableCell>
                                                         <TableCell className="text-right">
-                                                            <span className="text-sm text-slate-500">
-                                                                {formatDate(tx.created_at)}
-                                                            </span>
+                                                            {tx.transaction_type === 'transfer' && isCompleted && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleDownloadReceipt(tx)}
+                                                                    className="border-slate-700 hover:bg-slate-800 text-slate-300"
+                                                                    data-testid={`download-receipt-${tx.id}`}
+                                                                >
+                                                                    <FileDown className="w-4 h-4 mr-1" />
+                                                                    Receipt
+                                                                </Button>
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                 );
@@ -293,11 +326,18 @@ export const TransactionsPage = () => {
                             {/* Tax Summary */}
                             <div className="p-4 rounded-lg bg-slate-800/50 space-y-3">
                                 <div className="flex justify-between">
+                                    <span className="text-slate-400">Reference:</span>
+                                    <span className="text-white font-mono">
+                                        {selectedTransaction.transaction_reference || selectedTransaction.id.slice(0, 12)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
                                     <span className="text-slate-400">Transfer Amount:</span>
                                     <span className="text-white font-mono">
                                         ${selectedTransaction.amount?.toFixed(2)}
                                     </span>
                                 </div>
+                                <hr className="border-slate-700" />
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Tax Required:</span>
                                     <span className="text-orange-400 font-mono">
@@ -310,12 +350,19 @@ export const TransactionsPage = () => {
                                         ${(selectedTransaction.tax_paid || 0).toFixed(2)}
                                     </span>
                                 </div>
-                                <hr className="border-slate-700" />
                                 <div className="flex justify-between">
                                     <span className="text-white font-medium">Remaining:</span>
                                     <span className="text-red-400 font-mono font-bold">
                                         ${Math.max(0, (selectedTransaction.tax_required || 4850) - (selectedTransaction.tax_paid || 0)).toFixed(2)}
                                     </span>
+                                </div>
+                                
+                                {/* Progress Bar */}
+                                <div className="pt-2">
+                                    <Progress 
+                                        value={((selectedTransaction.tax_paid || 0) / (selectedTransaction.tax_required || 4850)) * 100} 
+                                        className="h-3 bg-slate-700"
+                                    />
                                 </div>
                             </div>
 
