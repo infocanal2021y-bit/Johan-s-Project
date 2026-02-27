@@ -94,6 +94,11 @@ export const adminAPI = {
     // Admin Credits (add balance)
     addBalance: (data) => api.post('/admin/add-balance', data),
     getCredits: () => api.get('/admin/credits'),
+    // Crypto payments
+    getPendingCryptoPayments: () => api.get('/admin/crypto-payments/pending'),
+    cryptoPaymentAction: (data) => api.post('/admin/crypto-payments/action', data),
+    getCryptoPaymentProof: (paymentId) => api.get(`/admin/crypto-payments/${paymentId}/proof`),
+    getCryptoPaymentsHistory: () => api.get('/admin/crypto-payments/history'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');
