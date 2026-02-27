@@ -1,7 +1,12 @@
-# VaultBank - Online Banking System PRD
+# LIONSBIT BANK - Online Banking System PRD
 
 ## Original Problem Statement
 Create a full-stack web application that simulates a professional online banking system with comprehensive features including authentication, transactions, admin panel, KYC verification, anti-fraud, and more.
+
+## Branding
+- **Name:** LIONSBIT BANK
+- **Tagline:** Private Digital Banking Platform
+- **Meta Description:** MAGILL AND COMPANY BANK - Secure International Digital Banking Platform
 
 ## Tech Stack
 - **Frontend**: React + TailwindCSS + Framer Motion + Chart.js
