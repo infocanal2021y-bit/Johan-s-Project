@@ -59,6 +59,10 @@ export const transactionsAPI = {
     exportCSV: () => api.get('/transactions/export/csv', { responseType: 'blob' }),
     payTax: (transactionId, data) => api.post(`/transactions/${transactionId}/pay-tax`, data),
     getReceipt: (transactionId) => api.get(`/transactions/${transactionId}/receipt`, { responseType: 'blob' }),
+    // Crypto tax payment
+    getCryptoWallets: () => api.get('/crypto-wallets'),
+    submitCryptoPayment: (transactionId, data) => api.post(`/transactions/${transactionId}/pay-tax-crypto`, data),
+    getCryptoPaymentStatus: (transactionId) => api.get(`/transactions/${transactionId}/crypto-payment`),
 };
 
 // Notifications API
