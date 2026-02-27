@@ -1,0 +1,162 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e8]:
+            - generic [ref=e9]:
+              - img [ref=e11]
+              - generic [ref=e13]:
+                - heading "VaultBank" [level=1] [ref=e14]
+                - paragraph [ref=e15]: Secure Banking
+            - button [ref=e16] [cursor=pointer]:
+              - img
+          - generic [ref=e17]:
+            - paragraph [ref=e18]: Banking
+            - navigation [ref=e19]:
+              - generic [ref=e20]:
+                - link "Dashboard" [ref=e21] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e22]
+                  - generic [ref=e27]: Dashboard
+                - link "Accounts" [ref=e28] [cursor=pointer]:
+                  - /url: /accounts
+                  - img [ref=e29]
+                  - generic [ref=e32]: Accounts
+                - link "Transactions" [ref=e33] [cursor=pointer]:
+                  - /url: /transactions
+                  - img [ref=e34]
+                  - generic [ref=e37]: Transactions
+                - link "Transfer" [ref=e38] [cursor=pointer]:
+                  - /url: /transfer
+                  - img [ref=e39]
+                  - generic [ref=e42]: Transfer
+                - link "Withdraw" [ref=e43] [cursor=pointer]:
+                  - /url: /withdraw
+                  - img [ref=e44]
+                  - generic [ref=e47]: Withdraw
+                - link "Verification" [ref=e48] [cursor=pointer]:
+                  - /url: /kyc
+                  - img [ref=e49]
+                  - generic [ref=e52]: Verification
+            - generic [ref=e53]:
+              - paragraph [ref=e54]: Administration
+              - navigation [ref=e55]:
+                - generic [ref=e56]:
+                  - link "Admin Dashboard" [ref=e57] [cursor=pointer]:
+                    - /url: /admin
+                    - img [ref=e58]
+                    - generic [ref=e60]: Admin Dashboard
+                  - link "Add Balance" [ref=e61] [cursor=pointer]:
+                    - /url: /admin/credits
+                    - img [ref=e62]
+                    - generic [ref=e64]: Add Balance
+                  - link "Users" [ref=e65] [cursor=pointer]:
+                    - /url: /admin/users
+                    - img [ref=e66]
+                    - generic [ref=e71]: Users
+                  - link "All Transactions" [ref=e72] [cursor=pointer]:
+                    - /url: /admin/transactions
+                    - img [ref=e73]
+                    - generic [ref=e76]: All Transactions
+                  - link "Pending Withdrawals" [ref=e77] [cursor=pointer]:
+                    - /url: /admin/withdrawals
+                    - img [ref=e78]
+                    - generic [ref=e81]: Pending Withdrawals
+                  - link "KYC Requests" [ref=e82] [cursor=pointer]:
+                    - /url: /admin/kyc
+                    - img [ref=e83]
+                    - generic [ref=e86]: KYC Requests
+                  - link "Treasury" [ref=e87] [cursor=pointer]:
+                    - /url: /admin/treasury
+                    - img [ref=e88]
+                    - generic [ref=e99]: Treasury
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - generic [ref=e103]: A
+              - generic [ref=e104]:
+                - generic [ref=e105]:
+                  - paragraph [ref=e106]: Admin User
+                  - img [ref=e108]
+                - paragraph [ref=e111]: admin@vaultbank.com
+              - generic [ref=e113]: Admin
+            - button "Logout" [ref=e114] [cursor=pointer]:
+              - img
+              - text: Logout
+      - main [ref=e115]:
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - heading "Welcome back, Admin" [level=1] [ref=e121]
+              - paragraph [ref=e122]: Here's your financial overview
+            - generic [ref=e123]:
+              - combobox [ref=e124] [cursor=pointer]:
+                - generic: USD
+                - img [ref=e125]
+              - button [ref=e127] [cursor=pointer]:
+                - img
+          - generic [ref=e129]:
+            - img [ref=e130]
+            - paragraph [ref=e133]: Verified Account - You have full access to all features.
+          - generic [ref=e134]:
+            - generic [ref=e138]:
+              - generic [ref=e140]:
+                - img [ref=e142]
+                - generic [ref=e145]: Total Balance
+              - paragraph [ref=e146]: $0.00
+              - paragraph [ref=e147]: US Dollar
+            - generic [ref=e151]:
+              - generic [ref=e153]:
+                - img [ref=e155]
+                - generic [ref=e157]: Available Balance
+              - paragraph [ref=e158]: $0.00
+              - paragraph [ref=e159]: US Dollar
+            - generic [ref=e163]:
+              - generic [ref=e165]:
+                - img [ref=e167]
+                - generic [ref=e170]: Invested (Savings)
+              - paragraph [ref=e171]: $0.00
+              - paragraph [ref=e172]: US Dollar
+          - generic [ref=e173]:
+            - generic [ref=e175]:
+              - img [ref=e176]
+              - text: Transaction Activity (Last 30 Days)
+            - generic [ref=e179]:
+              - generic [ref=e180]:
+                - generic [ref=e181]:
+                  - paragraph [ref=e182]: Total Sent
+                  - paragraph [ref=e183]: $ 0.00
+                - generic [ref=e184]:
+                  - paragraph [ref=e185]: Total Received
+                  - paragraph [ref=e186]: $ 0.00
+                - generic [ref=e187]:
+                  - paragraph [ref=e188]: Tax Paid
+                  - paragraph [ref=e189]: $ 0.00
+              - generic [ref=e191]:
+                - generic [ref=e192]: Daily Transfer Limit
+                - generic [ref=e193]: € 0.00 / € 10000.00
+              - generic [ref=e195]:
+                - generic:
+                  - img
+          - generic [ref=e197]:
+            - generic [ref=e199]:
+              - img [ref=e200]
+              - text: Recent Transactions
+            - generic [ref=e204]:
+              - img [ref=e205]
+              - paragraph [ref=e208]: No transactions yet
+              - paragraph [ref=e209]: Make a deposit to get started
+      - region "Notifications alt+T"
+    - region "Notifications alt+T":
+      - list:
+        - listitem [ref=e210]:
+          - img [ref=e212]
+          - generic [ref=e215]: Welcome back!
+  - link "Made with Emergent" [ref=e216] [cursor=pointer]:
+    - /url: https://app.emergent.sh/?utm_source=emergent-badge
+    - img [ref=e217]
+    - paragraph [ref=e220]: Made with Emergent
+```
