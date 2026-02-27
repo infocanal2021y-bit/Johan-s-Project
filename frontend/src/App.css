@@ -1,4 +1,15 @@
-/* VaultBank - Executive Dark Theme Styles */
+/* LIONSBIT BANK - Executive Dark Theme Styles */
+
+/* Base body styling to prevent black screen */
+html, body, #root {
+    min-height: 100vh;
+    background-color: #020617; /* slate-950 */
+}
+
+/* Ensure smooth page transitions */
+#root > div {
+    min-height: 100vh;
+}
 
 /* Status badges */
 .status-completed {
