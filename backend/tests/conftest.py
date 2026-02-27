@@ -12,9 +12,11 @@ def api_client():
     return session
 
 @pytest.fixture
-def demo_user_token(api_client):
+def demo_user_token():
     """Get auth token for demo user"""
-    response = api_client.post(f"{BASE_URL}/api/auth/login", json={
+    session = requests.Session()
+    session.headers.update({"Content-Type": "application/json"})
+    response = session.post(f"{BASE_URL}/api/auth/login", json={
         "email": "demo@vaultbank.com",
         "password": "Password123"
     })
@@ -23,15 +25,21 @@ def demo_user_token(api_client):
     pytest.skip("Demo user login failed — skipping authenticated tests")
 
 @pytest.fixture
-def demo_user_client(api_client, demo_user_token):
+def demo_user_client(demo_user_token):
     """Session with demo user auth header"""
-    api_client.headers.update({"Authorization": f"Bearer {demo_user_token}"})
-    return api_client
+    session = requests.Session()
+    session.headers.update({
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {demo_user_token}"
+    })
+    return session
 
 @pytest.fixture
-def admin_user_token(api_client):
+def admin_user_token():
     """Get auth token for admin user"""
-    response = api_client.post(f"{BASE_URL}/api/auth/login", json={
+    session = requests.Session()
+    session.headers.update({"Content-Type": "application/json"})
+    response = session.post(f"{BASE_URL}/api/auth/login", json={
         "email": "admin@vaultbank.com",
         "password": "Admin123!"
     })
@@ -40,7 +48,11 @@ def admin_user_token(api_client):
     pytest.skip("Admin user login failed — skipping admin tests")
 
 @pytest.fixture
-def admin_client(api_client, admin_user_token):
+def admin_client(admin_user_token):
     """Session with admin auth header"""
-    api_client.headers.update({"Authorization": f"Bearer {admin_user_token}"})
-    return api_client
+    session = requests.Session()
+    session.headers.update({
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {admin_user_token}"
+    })
+    return session
