@@ -1,5 +1,4 @@
 import { Sidebar } from './Sidebar';
-import { Toaster } from '../ui/sonner';
 
 export const Layout = ({ children }) => {
     return (
@@ -10,7 +9,6 @@ export const Layout = ({ children }) => {
                     {children}
                 </div>
             </main>
-            <Toaster position="top-right" richColors />
         </div>
     );
 };
