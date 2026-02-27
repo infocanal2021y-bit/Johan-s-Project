@@ -317,7 +317,7 @@ export const TransactionsPage = () => {
 
             {/* Tax Payment Dialog */}
             <Dialog open={taxDialogOpen} onOpenChange={setTaxDialogOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800">
+                <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-orange-400" />
@@ -369,40 +369,65 @@ export const TransactionsPage = () => {
                                 </div>
                             </div>
 
-                            {/* Payment Input */}
-                            <div className="space-y-2">
-                                <Label className="text-slate-300">Payment Amount (USD)</Label>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    placeholder="Enter amount to pay"
-                                    value={taxAmount}
-                                    onChange={(e) => setTaxAmount(e.target.value)}
-                                    className="bg-slate-950 border-slate-800 text-white font-mono"
-                                    data-testid="tax-amount-input"
-                                />
-                                <p className="text-xs text-slate-500">
-                                    You can pay in parts. Once the full tax is paid, the transfer will be completed.
-                                </p>
-                            </div>
+                            {/* Payment Methods Tabs */}
+                            <Tabs defaultValue="fiat" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 bg-slate-800">
+                                    <TabsTrigger value="fiat" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
+                                        Pay with EUR Balance
+                                    </TabsTrigger>
+                                    <TabsTrigger value="crypto" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+                                        <Bitcoin className="w-4 h-4 mr-2" />
+                                        Pay with Crypto
+                                    </TabsTrigger>
+                                </TabsList>
+                                
+                                <TabsContent value="fiat" className="space-y-4 pt-4">
+                                    {/* Payment Input */}
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-300">Payment Amount (USD)</Label>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            min="0.01"
+                                            placeholder="Enter amount to pay"
+                                            value={taxAmount}
+                                            onChange={(e) => setTaxAmount(e.target.value)}
+                                            className="bg-slate-950 border-slate-800 text-white font-mono"
+                                            data-testid="tax-amount-input"
+                                        />
+                                        <p className="text-xs text-slate-500">
+                                            You can pay in parts. Once the full tax is paid, the transfer will be completed.
+                                        </p>
+                                    </div>
 
-                            {/* Submit Button */}
-                            <Button
-                                onClick={handlePayTax}
-                                disabled={payingTax || !taxAmount || parseFloat(taxAmount) <= 0}
-                                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                                data-testid="confirm-tax-payment-btn"
-                            >
-                                {payingTax ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    'Confirm Payment'
-                                )}
-                            </Button>
+                                    {/* Submit Button */}
+                                    <Button
+                                        onClick={handlePayTax}
+                                        disabled={payingTax || !taxAmount || parseFloat(taxAmount) <= 0}
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+                                        data-testid="confirm-tax-payment-btn"
+                                    >
+                                        {payingTax ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Processing...
+                                            </>
+                                        ) : (
+                                            'Confirm EUR Payment'
+                                        )}
+                                    </Button>
+                                </TabsContent>
+                                
+                                <TabsContent value="crypto" className="pt-4">
+                                    <CryptoPaymentSection 
+                                        transaction={selectedTransaction}
+                                        onPaymentSubmitted={() => {
+                                            setTaxDialogOpen(false);
+                                            fetchTransactions();
+                                        }}
+                                    />
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     )}
                 </DialogContent>
