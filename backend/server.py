@@ -153,6 +153,42 @@ class AdminAddBalance(BaseModel):
     currency: str = Field(default='USD')
     description: Optional[str] = None
 
+class CryptoPaymentSubmission(BaseModel):
+    transaction_id: str
+    crypto_type: str  # BTC, ETH, USDT, LTC
+    txid: str = Field(..., min_length=10)
+    amount_sent: str
+    proof_image: Optional[str] = None  # base64 encoded image
+
+class AdminCryptoPaymentAction(BaseModel):
+    payment_id: str
+    action: str  # approve, reject
+    rejection_reason: Optional[str] = None
+
+# Corporate Crypto Wallets (Fixed addresses for tax payments)
+CRYPTO_WALLETS = {
+    'BTC': {
+        'address': 'bc1q5qaunggmt6ckrhw928g3v0fkzuklnwveflfred',
+        'network': 'Bitcoin (Native SegWit)',
+        'name': 'Bitcoin'
+    },
+    'ETH': {
+        'address': '0x0F81928fc5a41bA7A65BaCEB971028fe9ac0674f',
+        'network': 'Ethereum (ERC20)',
+        'name': 'Ethereum'
+    },
+    'USDT': {
+        'address': 'TP6mjP8s2vXAN8NuxfPiBZUq88Z6oznHCx',
+        'network': 'Tron (TRC20)',
+        'name': 'Tether USDT'
+    },
+    'LTC': {
+        'address': 'ltc1qtaa2re5wfzj8fwxnykumrdamrn77apradd83d6',
+        'network': 'Litecoin',
+        'name': 'Litecoin'
+    }
+}
+
 # ==================== HELPER FUNCTIONS ====================
 
 def hash_password(password: str) -> str:
