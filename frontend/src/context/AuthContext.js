@@ -64,6 +64,15 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const refreshUser = async () => {
+        try {
+            const response = await authAPI.getMe();
+            setUser(response.data);
+        } catch (err) {
+            // Ignore errors
+        }
+    };
+
     const value = {
         user,
         loading,
@@ -71,6 +80,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        refreshUser,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',
     };
