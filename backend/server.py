@@ -1481,6 +1481,108 @@ async def admin_get_crypto_payments_history(admin: dict = Depends(get_admin_user
     
     return payments
 
+@api_router.get("/admin/crypto-payments/stats")
+async def admin_get_crypto_stats(admin: dict = Depends(get_admin_user)):
+    """Get comprehensive crypto payment statistics"""
+    from datetime import timedelta
+    
+    all_payments = await db.crypto_payments.find({}, {'_id': 0, 'proof_image': 0}).to_list(10000)
+    
+    # Initialize stats
+    stats = {
+        'total_payments': len(all_payments),
+        'by_status': {'under_review': 0, 'approved': 0, 'rejected': 0},
+        'by_crypto': {},
+        'recent_trend': [],
+        'top_users': [],
+        'approval_rate': 0,
+        'avg_processing_time': None
+    }
+    
+    # Process payments
+    crypto_totals = {'BTC': {'count': 0, 'approved': 0}, 'ETH': {'count': 0, 'approved': 0}, 
+                    'USDT': {'count': 0, 'approved': 0}, 'LTC': {'count': 0, 'approved': 0}}
+    user_counts = {}
+    processing_times = []
+    
+    for payment in all_payments:
+        # Status counts
+        status = payment.get('status', 'under_review')
+        stats['by_status'][status] = stats['by_status'].get(status, 0) + 1
+        
+        # Crypto type counts
+        crypto = payment.get('crypto_type', 'BTC')
+        if crypto not in crypto_totals:
+            crypto_totals[crypto] = {'count': 0, 'approved': 0}
+        crypto_totals[crypto]['count'] += 1
+        if status == 'approved':
+            crypto_totals[crypto]['approved'] += 1
+        
+        # User counts
+        user_id = payment.get('user_id')
+        if user_id:
+            user_counts[user_id] = user_counts.get(user_id, 0) + 1
+        
+        # Processing time (for approved/rejected)
+        if payment.get('reviewed_at') and payment.get('submitted_at'):
+            try:
+                submitted = datetime.fromisoformat(payment['submitted_at'].replace('Z', '+00:00'))
+                reviewed = datetime.fromisoformat(payment['reviewed_at'].replace('Z', '+00:00'))
+                diff = (reviewed - submitted).total_seconds() / 3600  # hours
+                processing_times.append(diff)
+            except:
+                pass
+    
+    # Calculate by crypto stats
+    for crypto, data in crypto_totals.items():
+        if data['count'] > 0:
+            stats['by_crypto'][crypto] = {
+                'total': data['count'],
+                'approved': data['approved'],
+                'rate': round((data['approved'] / data['count']) * 100, 1)
+            }
+    
+    # Approval rate
+    total_processed = stats['by_status'].get('approved', 0) + stats['by_status'].get('rejected', 0)
+    if total_processed > 0:
+        stats['approval_rate'] = round((stats['by_status'].get('approved', 0) / total_processed) * 100, 1)
+    
+    # Average processing time
+    if processing_times:
+        stats['avg_processing_time'] = round(sum(processing_times) / len(processing_times), 2)
+    
+    # Top users
+    top_user_ids = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    for user_id, count in top_user_ids:
+        user = await db.users.find_one({'id': user_id}, {'_id': 0, 'name': 1, 'email': 1})
+        if user:
+            stats['top_users'].append({
+                'name': user.get('name'),
+                'email': user.get('email'),
+                'payment_count': count
+            })
+    
+    # Recent trend (last 30 days)
+    now = datetime.now(timezone.utc)
+    for i in range(30):
+        day = now - timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        
+        day_payments = [p for p in all_payments 
+                       if p.get('submitted_at') and 
+                       day_start <= datetime.fromisoformat(p['submitted_at'].replace('Z', '+00:00')) < day_end]
+        
+        stats['recent_trend'].append({
+            'date': day_start.strftime('%Y-%m-%d'),
+            'count': len(day_payments),
+            'approved': len([p for p in day_payments if p.get('status') == 'approved'])
+        })
+    
+    stats['recent_trend'].reverse()  # Oldest first
+    
+    return stats
+
 # ==================== UTILITY ROUTES ====================
 
 @api_router.get("/exchange-rates")
