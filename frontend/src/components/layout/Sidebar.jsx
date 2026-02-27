@@ -54,6 +54,7 @@ export const Sidebar = () => {
     const adminLinks = [
         { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
         { to: '/admin/credits', icon: PlusCircle, label: 'Add Balance' },
+        { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Crypto Payments' },
         { to: '/admin/users', icon: Users, label: 'Users' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'All Transactions' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Pending Withdrawals' },
