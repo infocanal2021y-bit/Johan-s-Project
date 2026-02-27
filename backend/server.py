@@ -836,6 +836,116 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     updated_tx = await db.transactions.find_one({'id': transaction_id}, {'_id': 0})
     return updated_tx
 
+# ==================== CRYPTO TAX PAYMENT ROUTES ====================
+
+@api_router.get("/crypto-wallets")
+async def get_crypto_wallets():
+    """Get corporate crypto wallet addresses for tax payments"""
+    return CRYPTO_WALLETS
+
+@api_router.post("/transactions/{transaction_id}/pay-tax-crypto")
+async def submit_crypto_tax_payment(
+    transaction_id: str, 
+    payment: CryptoPaymentSubmission,
+    current_user: dict = Depends(get_current_user)
+):
+    """Submit crypto tax payment for admin review"""
+    # Validate transaction belongs to user
+    transaction = await db.transactions.find_one(
+        {'id': transaction_id, 'user_id': current_user['id']},
+        {'_id': 0}
+    )
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail='Transaction not found')
+    
+    if transaction['transaction_type'] != 'transfer':
+        raise HTTPException(status_code=400, detail='Tax payment only applies to transfers')
+    
+    if transaction['status'] not in ['pending_tax']:
+        raise HTTPException(status_code=400, detail='This transfer does not require tax payment or is already under review')
+    
+    # Check if there's already a pending crypto payment for this transaction
+    existing_payment = await db.crypto_payments.find_one({
+        'transaction_id': transaction_id,
+        'status': 'under_review'
+    })
+    
+    if existing_payment:
+        raise HTTPException(status_code=400, detail='A crypto payment is already under review for this transaction')
+    
+    # Validate crypto type
+    if payment.crypto_type not in CRYPTO_WALLETS:
+        raise HTTPException(status_code=400, detail='Invalid cryptocurrency type')
+    
+    # Validate proof image size (max 5MB base64)
+    if payment.proof_image and len(payment.proof_image) > 7000000:
+        raise HTTPException(status_code=400, detail='Proof image too large (max 5MB)')
+    
+    # Create crypto payment record
+    now = datetime.now(timezone.utc).isoformat()
+    payment_id = str(uuid.uuid4())
+    
+    crypto_payment = {
+        'id': payment_id,
+        'transaction_id': transaction_id,
+        'user_id': current_user['id'],
+        'crypto_type': payment.crypto_type,
+        'wallet_address': CRYPTO_WALLETS[payment.crypto_type]['address'],
+        'network': CRYPTO_WALLETS[payment.crypto_type]['network'],
+        'txid': payment.txid,
+        'amount_sent': payment.amount_sent,
+        'proof_image': payment.proof_image,
+        'status': 'under_review',
+        'submitted_at': now,
+        'reviewed_at': None,
+        'reviewed_by': None,
+        'rejection_reason': None
+    }
+    
+    await db.crypto_payments.insert_one(crypto_payment)
+    
+    # Update transaction status
+    await db.transactions.update_one(
+        {'id': transaction_id},
+        {'$set': {'status': 'crypto_payment_under_review'}}
+    )
+    
+    # Notify user
+    await create_notification(
+        current_user['id'],
+        'Crypto Payment Submitted',
+        f'Your {payment.crypto_type} payment is under review. TXID: {payment.txid[:20]}...'
+    )
+    
+    return {
+        'message': 'Crypto payment submitted for review',
+        'payment_id': payment_id,
+        'status': 'under_review'
+    }
+
+@api_router.get("/transactions/{transaction_id}/crypto-payment")
+async def get_crypto_payment_status(
+    transaction_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get crypto payment status for a transaction"""
+    # Verify ownership
+    transaction = await db.transactions.find_one(
+        {'id': transaction_id, 'user_id': current_user['id']},
+        {'_id': 0}
+    )
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail='Transaction not found')
+    
+    payment = await db.crypto_payments.find_one(
+        {'transaction_id': transaction_id},
+        {'_id': 0, 'proof_image': 0}  # Exclude large image data
+    )
+    
+    return payment
+
 # ==================== NOTIFICATIONS ROUTES ====================
 
 @api_router.get("/notifications")
