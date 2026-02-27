@@ -21,6 +21,7 @@ import { AdminWithdrawalsPage } from "./pages/admin/AdminWithdrawalsPage";
 import { AdminKYCPage } from "./pages/admin/AdminKYCPage";
 import { AdminTreasuryPage } from "./pages/admin/AdminTreasuryPage";
 import { AdminCreditsPage } from "./pages/admin/AdminCreditsPage";
+import { AdminCryptoPaymentsPage } from "./pages/admin/AdminCryptoPaymentsPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
