@@ -102,7 +102,8 @@ Create a full-stack web application that simulates a professional online banking
 - FRAUD_THRESHOLD: 3+ transfers > €5,000 in 5 minutes
 
 ## Next Action Items
-1. Email notifications for important events
-2. Two-factor authentication (2FA)
-3. Transaction categories and analytics
-4. Mobile app version
+1. Backend refactoring: Split server.py into modules (models, routes, services)
+2. Email notifications for important events
+3. Two-factor authentication (2FA)
+4. Transaction categories and analytics
+5. Mobile app version
