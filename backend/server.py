@@ -442,8 +442,8 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
     transaction_reference = None
     
     if tx_data.transaction_type == 'deposit':
-        new_balance = account[balance_field] + tx_data.amount
-        await db.accounts.update_one({'id': tx_data.account_id}, {'$set': {balance_field: new_balance}})
+        # Deposits are disabled for regular users - only admin can add balance
+        raise HTTPException(status_code=403, detail='Deposits are disabled. Contact administrator to add funds to your account.')
         
     elif tx_data.transaction_type == 'withdraw':
         if account[balance_field] < tx_data.amount:
