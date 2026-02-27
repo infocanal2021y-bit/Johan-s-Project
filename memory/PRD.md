@@ -50,6 +50,20 @@ Create a full-stack web application that simulates a professional online banking
 - [x] User notifications when admin adds balance
 - [x] Sidebar updated: no "Deposit" for users, "Add Balance" for admins
 
+### Phase 4 - Crypto Tax Payment System (Complete - Feb 27, 2026)
+- [x] Corporate crypto wallets configured (BTC, ETH, USDT, LTC)
+- [x] Crypto payment section in tax dialog (only when status=pending_tax)
+- [x] QR codes generated dynamically for each crypto address
+- [x] Copy address button functionality
+- [x] Payment form: TXID, amount, proof image upload
+- [x] Backend validation: ownership, no duplicate submissions, image size limit
+- [x] New transaction status: crypto_payment_under_review
+- [x] Admin panel: /admin/crypto-payments for reviewing payments
+- [x] Admin actions: Approve (releases transfer), Reject (returns to pending_tax)
+- [x] Payment history tracking with admin attribution
+- [x] User notifications on submission, approval, rejection
+- [x] Both EUR and Crypto payment options coexist
+
 ### Admin Features
 - [x] User management (view, edit balances, change roles)
 - [x] Suspend/Activate users
