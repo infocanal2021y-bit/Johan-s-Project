@@ -99,6 +99,7 @@ export const adminAPI = {
     cryptoPaymentAction: (data) => api.post('/admin/crypto-payments/action', data),
     getCryptoPaymentProof: (paymentId) => api.get(`/admin/crypto-payments/${paymentId}/proof`),
     getCryptoPaymentsHistory: () => api.get('/admin/crypto-payments/history'),
+    getCryptoPaymentsStats: () => api.get('/admin/crypto-payments/stats'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');
