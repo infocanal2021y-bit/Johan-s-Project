@@ -936,6 +936,84 @@ async def admin_update_balance(data: AdminUpdateBalance, admin: dict = Depends(g
     
     return {'message': 'Balance updated', 'account_id': data.account_id}
 
+@api_router.post("/admin/add-balance")
+async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_admin_user)):
+    """Add balance to a user's checking account (admin_credit transaction)"""
+    # Find user
+    user = await db.users.find_one({'id': data.user_id}, {'_id': 0})
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    # Get user's checking account
+    account = await db.accounts.find_one(
+        {'user_id': data.user_id, 'account_type': 'checking'},
+        {'_id': 0}
+    )
+    if not account:
+        raise HTTPException(status_code=404, detail='Checking account not found')
+    
+    currency = data.currency.upper()
+    balance_field = f'balance_{currency.lower()}'
+    
+    # Update balance
+    new_balance = account[balance_field] + data.amount
+    await db.accounts.update_one(
+        {'id': account['id']},
+        {'$set': {balance_field: new_balance}}
+    )
+    
+    # Create admin_credit transaction record
+    now = datetime.now(timezone.utc).isoformat()
+    tx_id = str(uuid.uuid4())
+    
+    transaction = {
+        'id': tx_id,
+        'account_id': account['id'],
+        'user_id': data.user_id,
+        'transaction_type': 'admin_credit',
+        'amount': data.amount,
+        'currency': currency,
+        'status': 'completed',
+        'description': data.description or f'Administrative credit by {admin["name"]}',
+        'recipient_account_id': None,
+        'transaction_reference': generate_transaction_reference(),
+        'admin_id': admin['id'],
+        'admin_name': admin['name'],
+        'created_at': now
+    }
+    await db.transactions.insert_one(transaction)
+    
+    # Notify user
+    await create_notification(
+        data.user_id,
+        'Balance Added',
+        f'An administrator has added {data.amount} {currency} to your account.'
+    )
+    
+    return {
+        'message': 'Balance added successfully',
+        'transaction_id': tx_id,
+        'user_id': data.user_id,
+        'amount': data.amount,
+        'currency': currency,
+        'new_balance': new_balance
+    }
+
+@api_router.get("/admin/credits")
+async def admin_get_credits(admin: dict = Depends(get_admin_user)):
+    """Get all admin_credit transactions"""
+    credits = await db.transactions.find(
+        {'transaction_type': 'admin_credit'},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(1000)
+    
+    # Enrich with user info
+    for credit in credits:
+        user = await db.users.find_one({'id': credit['user_id']}, {'_id': 0, 'password': 0})
+        credit['user'] = user
+    
+    return credits
+
 @api_router.put("/admin/transaction-status")
 async def admin_update_transaction_status(data: AdminUpdateTransactionStatus, admin: dict = Depends(get_admin_user)):
     if data.status not in ['completed', 'pending', 'pending_tax', 'rejected', 'under_review']:
