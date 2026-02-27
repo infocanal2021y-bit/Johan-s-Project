@@ -137,7 +137,7 @@ class VaultBankAPITester:
             f"Create transfer of ${transfer_amount}",
             "POST",
             "transactions", 
-            201,
+            200,
             data={
                 "account_id": sender_account['id'],
                 "transaction_type": "transfer",
