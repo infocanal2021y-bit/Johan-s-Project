@@ -12,6 +12,8 @@ import { TransactionsPage } from "./pages/TransactionsPage";
 import { WithdrawPage } from "./pages/WithdrawPage";
 import { TransferPage } from "./pages/TransferPage";
 import { KYCPage } from "./pages/KYCPage";
+import { SupportPage } from "./pages/SupportPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -23,6 +25,7 @@ import { AdminTreasuryPage } from "./pages/admin/AdminTreasuryPage";
 import { AdminCreditsPage } from "./pages/admin/AdminCreditsPage";
 import { AdminCryptoPaymentsPage } from "./pages/admin/AdminCryptoPaymentsPage";
 import { AdminCryptoStatsPage } from "./pages/admin/AdminCryptoStatsPage";
+import { AdminSupportPage } from "./pages/admin/AdminSupportPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -80,6 +83,8 @@ function AppRoutes() {
             <Route path="/withdraw" element={<ProtectedRoute><WithdrawPage /></ProtectedRoute>} />
             <Route path="/transfer" element={<ProtectedRoute><TransferPage /></ProtectedRoute>} />
             <Route path="/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
+            <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
@@ -91,6 +96,7 @@ function AppRoutes() {
             <Route path="/admin/withdrawals" element={<ProtectedRoute adminOnly><AdminWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/kyc" element={<ProtectedRoute adminOnly><AdminKYCPage /></ProtectedRoute>} />
             <Route path="/admin/treasury" element={<ProtectedRoute adminOnly><AdminTreasuryPage /></ProtectedRoute>} />
+            <Route path="/admin/support" element={<ProtectedRoute adminOnly><AdminSupportPage /></ProtectedRoute>} />
 
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

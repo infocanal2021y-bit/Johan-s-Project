@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -164,6 +164,28 @@ class AdminCryptoPaymentAction(BaseModel):
     payment_id: str
     action: str  # approve, reject
     rejection_reason: Optional[str] = None
+
+# ==================== NEW MODELS ====================
+
+class SupportTicket(BaseModel):
+    subject: str = Field(..., min_length=5, max_length=200)
+    message: str = Field(..., min_length=10)
+    category: str = Field(default='general')  # general, transfer, account, technical
+
+class TicketReply(BaseModel):
+    ticket_id: str
+    message: str = Field(..., min_length=1)
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=6)
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=6)
 
 # Corporate Crypto Wallets (Fixed addresses for tax payments)
 CRYPTO_WALLETS = {
@@ -354,10 +376,53 @@ async def register(user_data: UserCreate):
     }
 
 @api_router.post("/auth/login", response_model=dict)
-async def login(credentials: UserLogin):
+async def login(credentials: UserLogin, request: Request):
     user = await db.users.find_one({'email': credentials.email}, {'_id': 0})
     if not user or not verify_password(credentials.password, user['password']):
         raise HTTPException(status_code=401, detail='Invalid credentials')
+    
+    # Capture login info
+    client_ip = request.headers.get('X-Forwarded-For', request.client.host if request.client else 'Unknown')
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    
+    # Parse device info from user agent
+    device_info = 'Unknown Device'
+    if 'Windows' in user_agent:
+        device_info = 'Windows'
+    elif 'Mac' in user_agent:
+        device_info = 'macOS'
+    elif 'Linux' in user_agent:
+        device_info = 'Linux'
+    elif 'Android' in user_agent:
+        device_info = 'Android'
+    elif 'iPhone' in user_agent or 'iPad' in user_agent:
+        device_info = 'iOS'
+    
+    browser_info = 'Unknown Browser'
+    if 'Chrome' in user_agent and 'Edg' not in user_agent:
+        browser_info = 'Chrome'
+    elif 'Firefox' in user_agent:
+        browser_info = 'Firefox'
+    elif 'Safari' in user_agent and 'Chrome' not in user_agent:
+        browser_info = 'Safari'
+    elif 'Edg' in user_agent:
+        browser_info = 'Edge'
+    
+    # Save login history
+    login_record = {
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'ip_address': client_ip,
+        'device': device_info,
+        'browser': browser_info,
+        'user_agent': user_agent,
+        'location': 'Spain',  # Default, can be enhanced with IP geolocation
+        'logged_in_at': datetime.now(timezone.utc).isoformat()
+    }
+    await db.login_history.insert_one(login_record)
     
     token = create_token(user['id'], user['email'], user['role'])
     
@@ -370,6 +435,12 @@ async def login(credentials: UserLogin):
             'role': user['role'],
             'verification_status': user.get('verification_status', 'unverified'),
             'account_status': user.get('account_status', 'active')
+        },
+        'login_info': {
+            'ip': client_ip,
+            'device': f"{browser_info} on {device_info}",
+            'location': 'Spain',
+            'time': login_record['logged_in_at']
         }
     }
 
@@ -384,6 +455,268 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         'account_status': current_user.get('account_status', 'active'),
         'created_at': current_user['created_at']
     }
+
+@api_router.get("/auth/login-history")
+async def get_login_history(current_user: dict = Depends(get_current_user)):
+    """Get last 5 login sessions for the current user"""
+    history = await db.login_history.find(
+        {'user_id': current_user['id']},
+        {'_id': 0}
+    ).sort('logged_in_at', -1).limit(5).to_list(5)
+    return history
+
+@api_router.post("/auth/change-password")
+async def change_password(data: ChangePassword, current_user: dict = Depends(get_current_user)):
+    """Change password for logged in user"""
+    user = await db.users.find_one({'id': current_user['id']}, {'_id': 0})
+    
+    if not verify_password(data.current_password, user['password']):
+        raise HTTPException(status_code=400, detail='Current password is incorrect')
+    
+    new_hashed = hash_password(data.new_password)
+    await db.users.update_one(
+        {'id': current_user['id']},
+        {'$set': {'password': new_hashed}}
+    )
+    
+    await create_notification(
+        current_user['id'],
+        'Password Changed',
+        'Your password has been successfully changed.'
+    )
+    
+    return {'message': 'Password changed successfully'}
+
+@api_router.post("/auth/request-password-reset")
+async def request_password_reset(data: PasswordResetRequest):
+    """Request password reset link (MOCK - shows in admin panel)"""
+    user = await db.users.find_one({'email': data.email}, {'_id': 0})
+    
+    if not user:
+        # Don't reveal if email exists
+        return {'message': 'If the email exists, a reset link has been sent'}
+    
+    # Generate reset token
+    reset_token = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    
+    # Save reset request
+    reset_request = {
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'email': data.email,
+        'token': reset_token,
+        'expires_at': expires_at.isoformat(),
+        'used': False,
+        'created_at': datetime.now(timezone.utc).isoformat()
+    }
+    await db.password_resets.insert_one(reset_request)
+    
+    # In production, send email. For now, log it and show in admin
+    reset_link = f"/reset-password?token={reset_token}"
+    logger.info(f"[MOCK EMAIL] Password reset link for {data.email}: {reset_link}")
+    
+    # Create admin notification
+    await db.admin_notifications.insert_one({
+        'id': str(uuid.uuid4()),
+        'type': 'password_reset_request',
+        'user_email': data.email,
+        'reset_link': reset_link,
+        'reset_token': reset_token,
+        'created_at': datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {'message': 'If the email exists, a reset link has been sent', 'mock_link': reset_link}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: PasswordResetConfirm):
+    """Reset password using token"""
+    reset_request = await db.password_resets.find_one({
+        'token': data.token,
+        'used': False
+    }, {'_id': 0})
+    
+    if not reset_request:
+        raise HTTPException(status_code=400, detail='Invalid or expired reset token')
+    
+    # Check if expired
+    expires_at = datetime.fromisoformat(reset_request['expires_at'].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail='Reset token has expired')
+    
+    # Update password
+    new_hashed = hash_password(data.new_password)
+    await db.users.update_one(
+        {'id': reset_request['user_id']},
+        {'$set': {'password': new_hashed}}
+    )
+    
+    # Mark token as used
+    await db.password_resets.update_one(
+        {'token': data.token},
+        {'$set': {'used': True}}
+    )
+    
+    return {'message': 'Password has been reset successfully'}
+
+# ==================== SUPPORT TICKET ROUTES ====================
+
+@api_router.post("/support/tickets")
+async def create_ticket(ticket: SupportTicket, current_user: dict = Depends(get_current_user)):
+    """Create a new support ticket"""
+    ticket_id = str(uuid.uuid4())
+    ticket_number = f"TKT-{datetime.now().strftime('%Y%m%d')}-{ticket_id[:6].upper()}"
+    
+    new_ticket = {
+        'id': ticket_id,
+        'ticket_number': ticket_number,
+        'user_id': current_user['id'],
+        'user_name': current_user['name'],
+        'user_email': current_user['email'],
+        'subject': ticket.subject,
+        'message': ticket.message,
+        'category': ticket.category,
+        'status': 'open',  # open, in_progress, resolved, closed
+        'replies': [],
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.support_tickets.insert_one(new_ticket)
+    
+    await create_notification(
+        current_user['id'],
+        'Ticket Created',
+        f'Your support ticket {ticket_number} has been created. We will respond shortly.'
+    )
+    
+    return {'message': 'Ticket created successfully', 'ticket_number': ticket_number, 'id': ticket_id}
+
+@api_router.get("/support/tickets")
+async def get_my_tickets(current_user: dict = Depends(get_current_user)):
+    """Get all tickets for current user"""
+    tickets = await db.support_tickets.find(
+        {'user_id': current_user['id']},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(100)
+    return tickets
+
+@api_router.get("/support/tickets/{ticket_id}")
+async def get_ticket(ticket_id: str, current_user: dict = Depends(get_current_user)):
+    """Get specific ticket"""
+    ticket = await db.support_tickets.find_one(
+        {'id': ticket_id, 'user_id': current_user['id']},
+        {'_id': 0}
+    )
+    if not ticket:
+        raise HTTPException(status_code=404, detail='Ticket not found')
+    return ticket
+
+@api_router.post("/support/tickets/{ticket_id}/reply")
+async def reply_to_ticket(ticket_id: str, reply: TicketReply, current_user: dict = Depends(get_current_user)):
+    """Add reply to ticket (user)"""
+    ticket = await db.support_tickets.find_one(
+        {'id': ticket_id, 'user_id': current_user['id']},
+        {'_id': 0}
+    )
+    if not ticket:
+        raise HTTPException(status_code=404, detail='Ticket not found')
+    
+    new_reply = {
+        'id': str(uuid.uuid4()),
+        'message': reply.message,
+        'from_admin': False,
+        'author_name': current_user['name'],
+        'created_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.support_tickets.update_one(
+        {'id': ticket_id},
+        {
+            '$push': {'replies': new_reply},
+            '$set': {'updated_at': datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {'message': 'Reply added successfully'}
+
+# ==================== ADMIN SUPPORT ROUTES ====================
+
+@api_router.get("/admin/support/tickets")
+async def admin_get_all_tickets(admin: dict = Depends(get_admin_user)):
+    """Get all support tickets (admin)"""
+    tickets = await db.support_tickets.find(
+        {},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(1000)
+    return tickets
+
+@api_router.post("/admin/support/tickets/{ticket_id}/reply")
+async def admin_reply_to_ticket(ticket_id: str, reply: TicketReply, admin: dict = Depends(get_admin_user)):
+    """Admin reply to ticket"""
+    ticket = await db.support_tickets.find_one({'id': ticket_id}, {'_id': 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail='Ticket not found')
+    
+    new_reply = {
+        'id': str(uuid.uuid4()),
+        'message': reply.message,
+        'from_admin': True,
+        'author_name': f"Support ({admin['name']})",
+        'created_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.support_tickets.update_one(
+        {'id': ticket_id},
+        {
+            '$push': {'replies': new_reply},
+            '$set': {
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'status': 'in_progress'
+            }
+        }
+    )
+    
+    # Notify user
+    await create_notification(
+        ticket['user_id'],
+        'New Reply on Ticket',
+        f'Support has replied to your ticket {ticket["ticket_number"]}'
+    )
+    
+    return {'message': 'Reply added successfully'}
+
+@api_router.put("/admin/support/tickets/{ticket_id}/status")
+async def admin_update_ticket_status(ticket_id: str, status: str, admin: dict = Depends(get_admin_user)):
+    """Update ticket status"""
+    if status not in ['open', 'in_progress', 'resolved', 'closed']:
+        raise HTTPException(status_code=400, detail='Invalid status')
+    
+    ticket = await db.support_tickets.find_one({'id': ticket_id}, {'_id': 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail='Ticket not found')
+    
+    await db.support_tickets.update_one(
+        {'id': ticket_id},
+        {'$set': {'status': status, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    await create_notification(
+        ticket['user_id'],
+        'Ticket Status Updated',
+        f'Your ticket {ticket["ticket_number"]} status changed to: {status}'
+    )
+    
+    return {'message': f'Ticket status updated to {status}'}
+
+@api_router.get("/admin/password-resets")
+async def admin_get_password_resets(admin: dict = Depends(get_admin_user)):
+    """Get pending password reset requests (MOCK)"""
+    resets = await db.admin_notifications.find(
+        {'type': 'password_reset_request'},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(100)
+    return resets
 
 # ==================== KYC ROUTES ====================
 
@@ -492,6 +825,22 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             raise HTTPException(status_code=400, detail='Insufficient funds')
         status = 'pending'
         
+        # Create notification about withdrawal in process
+        await create_notification(current_user['id'], 'Withdrawal In Process',
+            f'Your withdrawal request of {tx_data.amount} {currency} is being processed. You will be notified once approved.')
+        
+        # Log withdrawal request for admin notification
+        await db.admin_notifications.insert_one({
+            'id': str(uuid.uuid4()),
+            'type': 'withdrawal_request',
+            'user_id': current_user['id'],
+            'user_email': current_user['email'],
+            'user_name': current_user['name'],
+            'amount': tx_data.amount,
+            'currency': currency,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        })
+        
     elif tx_data.transaction_type == 'transfer':
         if not tx_data.recipient_account_id:
             raise HTTPException(status_code=400, detail='Recipient account required for transfer')
@@ -535,6 +884,10 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         recipient = await db.accounts.find_one({'id': tx_data.recipient_account_id}, {'_id': 0})
         if not recipient:
             raise HTTPException(status_code=404, detail='Recipient account not found')
+        
+        # Validate account number format (10-20 alphanumeric characters)
+        if not tx_data.recipient_account_id or len(tx_data.recipient_account_id) < 10:
+            raise HTTPException(status_code=400, detail='Invalid account number format. Must be at least 10 characters.')
         
         # Deduct from sender
         new_sender_balance = account[balance_field] - tx_data.amount

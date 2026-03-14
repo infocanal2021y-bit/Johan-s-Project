@@ -35,6 +35,18 @@ export const authAPI = {
     register: (data) => api.post('/auth/register', data),
     login: (data) => api.post('/auth/login', data),
     getMe: () => api.get('/auth/me'),
+    getLoginHistory: () => api.get('/auth/login-history'),
+    changePassword: (data) => api.post('/auth/change-password', data),
+    requestPasswordReset: (data) => api.post('/auth/request-password-reset', data),
+    resetPassword: (data) => api.post('/auth/reset-password', data),
+};
+
+// Support API
+export const supportAPI = {
+    createTicket: (data) => api.post('/support/tickets', data),
+    getMyTickets: () => api.get('/support/tickets'),
+    getTicket: (id) => api.get(`/support/tickets/${id}`),
+    replyToTicket: (id, data) => api.post(`/support/tickets/${id}/reply`, data),
 };
 
 // KYC API
@@ -100,6 +112,11 @@ export const adminAPI = {
     getCryptoPaymentProof: (paymentId) => api.get(`/admin/crypto-payments/${paymentId}/proof`),
     getCryptoPaymentsHistory: () => api.get('/admin/crypto-payments/history'),
     getCryptoPaymentsStats: () => api.get('/admin/crypto-payments/stats'),
+    // Support tickets
+    getAllTickets: () => api.get('/admin/support/tickets'),
+    replyToTicket: (id, data) => api.post(`/admin/support/tickets/${id}/reply`, data),
+    updateTicketStatus: (id, status) => api.put(`/admin/support/tickets/${id}/status?status=${status}`),
+    getPasswordResets: () => api.get('/admin/password-resets'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');

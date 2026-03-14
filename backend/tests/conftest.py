@@ -2,7 +2,11 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fintech-deposits.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+
+# Admin credentials
+ADMIN_EMAIL = "johanspotify67@gmail.com"
+ADMIN_PASSWORD = "LionsBit2026!"
 
 @pytest.fixture
 def api_client():
@@ -12,47 +16,49 @@ def api_client():
     return session
 
 @pytest.fixture
-def demo_user_token():
-    """Get auth token for demo user"""
-    session = requests.Session()
-    session.headers.update({"Content-Type": "application/json"})
-    response = session.post(f"{BASE_URL}/api/auth/login", json={
-        "email": "demo@vaultbank.com",
-        "password": "Password123"
+def admin_token(api_client):
+    """Get admin authentication token"""
+    response = api_client.post(f"{BASE_URL}/api/auth/login", json={
+        "email": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
     })
     if response.status_code == 200:
         return response.json().get("token")
-    pytest.skip("Demo user login failed — skipping authenticated tests")
+    pytest.skip("Admin authentication failed — skipping admin tests")
 
 @pytest.fixture
-def demo_user_client(demo_user_token):
-    """Session with demo user auth header"""
-    session = requests.Session()
-    session.headers.update({
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {demo_user_token}"
-    })
-    return session
-
-@pytest.fixture
-def admin_user_token():
-    """Get auth token for admin user"""
-    session = requests.Session()
-    session.headers.update({"Content-Type": "application/json"})
-    response = session.post(f"{BASE_URL}/api/auth/login", json={
-        "email": "admin@vaultbank.com",
-        "password": "Admin123!"
-    })
-    if response.status_code == 200:
-        return response.json().get("token")
-    pytest.skip("Admin user login failed — skipping admin tests")
-
-@pytest.fixture
-def admin_client(admin_user_token):
+def admin_client(api_client, admin_token):
     """Session with admin auth header"""
-    session = requests.Session()
-    session.headers.update({
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {admin_user_token}"
+    api_client.headers.update({"Authorization": f"Bearer {admin_token}"})
+    return api_client
+
+@pytest.fixture
+def test_user_token(api_client):
+    """Create a test user and get token"""
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    test_email = f"testuser_{unique_id}@test.com"
+    test_password = "TestPass123!"
+    
+    # Register new user
+    response = api_client.post(f"{BASE_URL}/api/auth/register", json={
+        "name": f"Test User {unique_id}",
+        "email": test_email,
+        "password": test_password
     })
-    return session
+    
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "token": data.get("token"),
+            "user": data.get("user"),
+            "email": test_email,
+            "password": test_password
+        }
+    pytest.skip("User registration failed — skipping user tests")
+
+@pytest.fixture
+def test_user_client(api_client, test_user_token):
+    """Session with test user auth header"""
+    api_client.headers.update({"Authorization": f"Bearer {test_user_token['token']}"})
+    return api_client, test_user_token

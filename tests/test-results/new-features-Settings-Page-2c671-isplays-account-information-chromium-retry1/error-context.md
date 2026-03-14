@@ -1,0 +1,240 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - img [ref=e11]
+            - generic [ref=e13]:
+              - heading "LIONSBIT BANK" [level=1] [ref=e14]
+              - paragraph [ref=e15]: Private Digital Banking Platform
+          - button "4" [ref=e16] [cursor=pointer]:
+            - img
+            - generic [ref=e17]: "4"
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Banking
+          - navigation [ref=e20]:
+            - generic [ref=e21]:
+              - link "Dashboard" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e23]
+                - generic [ref=e28]: Dashboard
+              - link "Accounts" [ref=e29] [cursor=pointer]:
+                - /url: /accounts
+                - img [ref=e30]
+                - generic [ref=e33]: Accounts
+              - link "Transactions" [ref=e34] [cursor=pointer]:
+                - /url: /transactions
+                - img [ref=e35]
+                - generic [ref=e38]: Transactions
+              - link "Transfer" [ref=e39] [cursor=pointer]:
+                - /url: /transfer
+                - img [ref=e40]
+                - generic [ref=e43]: Transfer
+              - link "Withdraw" [ref=e44] [cursor=pointer]:
+                - /url: /withdraw
+                - img [ref=e45]
+                - generic [ref=e48]: Withdraw
+              - link "Verification" [ref=e49] [cursor=pointer]:
+                - /url: /kyc
+                - img [ref=e50]
+                - generic [ref=e53]: Verification
+              - link "Support" [ref=e54] [cursor=pointer]:
+                - /url: /support
+                - img [ref=e55]
+                - generic [ref=e57]: Support
+              - link "Settings" [ref=e58] [cursor=pointer]:
+                - /url: /settings
+                - img [ref=e59]
+                - generic [ref=e62]: Settings
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: Administration
+            - navigation [ref=e65]:
+              - generic [ref=e66]:
+                - link "Admin Dashboard" [ref=e67] [cursor=pointer]:
+                  - /url: /admin
+                  - img [ref=e68]
+                  - generic [ref=e70]: Admin Dashboard
+                - link "Add Balance" [ref=e71] [cursor=pointer]:
+                  - /url: /admin/credits
+                  - img [ref=e72]
+                  - generic [ref=e74]: Add Balance
+                - link "Crypto Payments" [ref=e75] [cursor=pointer]:
+                  - /url: /admin/crypto-payments
+                  - img [ref=e76]
+                  - generic [ref=e78]: Crypto Payments
+                - link "Crypto Analytics" [ref=e79] [cursor=pointer]:
+                  - /url: /admin/crypto-stats
+                  - img [ref=e80]
+                  - generic [ref=e82]: Crypto Analytics
+                - link "Users" [ref=e83] [cursor=pointer]:
+                  - /url: /admin/users
+                  - img [ref=e84]
+                  - generic [ref=e89]: Users
+                - link "All Transactions" [ref=e90] [cursor=pointer]:
+                  - /url: /admin/transactions
+                  - img [ref=e91]
+                  - generic [ref=e94]: All Transactions
+                - link "Pending Withdrawals" [ref=e95] [cursor=pointer]:
+                  - /url: /admin/withdrawals
+                  - img [ref=e96]
+                  - generic [ref=e99]: Pending Withdrawals
+                - link "KYC Requests" [ref=e100] [cursor=pointer]:
+                  - /url: /admin/kyc
+                  - img [ref=e101]
+                  - generic [ref=e104]: KYC Requests
+                - link "Treasury" [ref=e105] [cursor=pointer]:
+                  - /url: /admin/treasury
+                  - img [ref=e106]
+                  - generic [ref=e117]: Treasury
+                - link "Support Tickets" [ref=e118] [cursor=pointer]:
+                  - /url: /admin/support
+                  - img [ref=e119]
+                  - generic [ref=e121]: Support Tickets
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - generic [ref=e125]: J
+            - generic [ref=e126]:
+              - generic [ref=e127]:
+                - paragraph [ref=e128]: Johan
+                - img [ref=e130]
+              - paragraph [ref=e133]: johanspotify67@gmail.com
+            - generic [ref=e135]: Admin
+          - button "Logout" [ref=e136] [cursor=pointer]:
+            - img
+            - text: Logout
+    - main [ref=e137]:
+      - generic [ref=e140]:
+        - generic [ref=e141]:
+          - heading "Account Settings" [level=1] [ref=e142]:
+            - img [ref=e143]
+            - text: Account Settings
+          - paragraph [ref=e146]: Manage your account security and preferences
+        - generic [ref=e148]:
+          - generic [ref=e150]:
+            - img [ref=e151]
+            - text: Recent Login Activity
+          - generic [ref=e157]:
+            - generic [ref=e159]:
+              - generic [ref=e160]:
+                - img [ref=e162]
+                - generic [ref=e164]:
+                  - generic [ref=e165]:
+                    - paragraph [ref=e166]: Chrome on Windows
+                    - generic [ref=e168]: Current Session
+                  - generic [ref=e169]:
+                    - generic [ref=e170]:
+                      - img [ref=e171]
+                      - text: 34.16.56.64
+                    - generic [ref=e174]:
+                      - img [ref=e175]
+                      - text: Spain
+              - generic [ref=e178]:
+                - paragraph [ref=e179]: 3/14/2026
+                - paragraph [ref=e180]: 2:39:06 PM
+            - generic [ref=e182]:
+              - generic [ref=e183]:
+                - img [ref=e185]
+                - generic [ref=e187]:
+                  - paragraph [ref=e189]: Chrome on Windows
+                  - generic [ref=e190]:
+                    - generic [ref=e191]:
+                      - img [ref=e192]
+                      - text: 34.16.56.64
+                    - generic [ref=e195]:
+                      - img [ref=e196]
+                      - text: Spain
+              - generic [ref=e199]:
+                - paragraph [ref=e200]: 3/14/2026
+                - paragraph [ref=e201]: 2:38:54 PM
+            - generic [ref=e203]:
+              - generic [ref=e204]:
+                - img [ref=e206]
+                - generic [ref=e208]:
+                  - paragraph [ref=e210]: Chrome on Windows
+                  - generic [ref=e211]:
+                    - generic [ref=e212]:
+                      - img [ref=e213]
+                      - text: 34.16.56.64
+                    - generic [ref=e216]:
+                      - img [ref=e217]
+                      - text: Spain
+              - generic [ref=e220]:
+                - paragraph [ref=e221]: 3/14/2026
+                - paragraph [ref=e222]: 2:38:48 PM
+            - generic [ref=e224]:
+              - generic [ref=e225]:
+                - img [ref=e227]
+                - generic [ref=e229]:
+                  - paragraph [ref=e231]: Chrome on Windows
+                  - generic [ref=e232]:
+                    - generic [ref=e233]:
+                      - img [ref=e234]
+                      - text: 34.16.56.64
+                    - generic [ref=e237]:
+                      - img [ref=e238]
+                      - text: Spain
+              - generic [ref=e241]:
+                - paragraph [ref=e242]: 3/14/2026
+                - paragraph [ref=e243]: 2:38:18 PM
+            - generic [ref=e245]:
+              - generic [ref=e246]:
+                - img [ref=e248]
+                - generic [ref=e250]:
+                  - paragraph [ref=e252]: Chrome on Windows
+                  - generic [ref=e253]:
+                    - generic [ref=e254]:
+                      - img [ref=e255]
+                      - text: 34.16.56.64
+                    - generic [ref=e258]:
+                      - img [ref=e259]
+                      - text: Spain
+              - generic [ref=e262]:
+                - paragraph [ref=e263]: 3/14/2026
+                - paragraph [ref=e264]: 2:38:08 PM
+        - generic [ref=e266]:
+          - generic [ref=e268]:
+            - img [ref=e269]
+            - text: Change Password
+          - generic [ref=e272]:
+            - generic [ref=e273]:
+              - text: Current Password
+              - generic [ref=e274]:
+                - textbox [ref=e275]
+                - button [ref=e276] [cursor=pointer]:
+                  - img [ref=e278]
+            - generic [ref=e281]:
+              - text: New Password
+              - generic [ref=e282]:
+                - textbox [ref=e283]
+                - button [ref=e284] [cursor=pointer]:
+                  - img [ref=e286]
+            - generic [ref=e289]:
+              - text: Confirm New Password
+              - generic [ref=e290]:
+                - textbox [ref=e291]
+                - button [ref=e292] [cursor=pointer]:
+                  - img [ref=e294]
+            - button "Update Password" [ref=e297] [cursor=pointer]:
+              - img
+              - text: Update Password
+        - generic [ref=e299]:
+          - generic [ref=e301]: Account Information
+          - generic [ref=e303]:
+            - generic [ref=e304]:
+              - paragraph [ref=e305]: Name
+              - paragraph [ref=e306]: Johan
+            - generic [ref=e307]:
+              - paragraph [ref=e308]: Email
+              - paragraph [ref=e309]: johanspotify67@gmail.com
+            - generic [ref=e310]:
+              - paragraph [ref=e311]: Role
+              - paragraph [ref=e312]: admin
+            - generic [ref=e313]:
+              - paragraph [ref=e314]: Verification Status
+              - paragraph [ref=e315]: verified
+  - region "Notifications alt+T"
+```

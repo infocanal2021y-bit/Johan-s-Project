@@ -1,0 +1,197 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - complementary:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - heading [level=1]: LIONSBIT BANK
+                    - paragraph: Private Digital Banking Platform
+                - button:
+                  - img
+                  - generic: "4"
+            - generic:
+              - paragraph: Banking
+              - navigation:
+                - generic:
+                  - link:
+                    - /url: /dashboard
+                    - img
+                    - generic: Dashboard
+                  - link:
+                    - /url: /accounts
+                    - img
+                    - generic: Accounts
+                  - link:
+                    - /url: /transactions
+                    - img
+                    - generic: Transactions
+                  - link:
+                    - /url: /transfer
+                    - img
+                    - generic: Transfer
+                  - link:
+                    - /url: /withdraw
+                    - img
+                    - generic: Withdraw
+                  - link:
+                    - /url: /kyc
+                    - img
+                    - generic: Verification
+                  - link:
+                    - /url: /support
+                    - img
+                    - generic: Support
+                  - link:
+                    - /url: /settings
+                    - img
+                    - generic: Settings
+              - generic:
+                - paragraph: Administration
+                - navigation:
+                  - generic:
+                    - link:
+                      - /url: /admin
+                      - img
+                      - generic: Admin Dashboard
+                    - link:
+                      - /url: /admin/credits
+                      - img
+                      - generic: Add Balance
+                    - link:
+                      - /url: /admin/crypto-payments
+                      - img
+                      - generic: Crypto Payments
+                    - link:
+                      - /url: /admin/crypto-stats
+                      - img
+                      - generic: Crypto Analytics
+                    - link:
+                      - /url: /admin/users
+                      - img
+                      - generic: Users
+                    - link:
+                      - /url: /admin/transactions
+                      - img
+                      - generic: All Transactions
+                    - link:
+                      - /url: /admin/withdrawals
+                      - img
+                      - generic: Pending Withdrawals
+                    - link:
+                      - /url: /admin/kyc
+                      - img
+                      - generic: KYC Requests
+                    - link:
+                      - /url: /admin/treasury
+                      - img
+                      - generic: Treasury
+                    - link:
+                      - /url: /admin/support
+                      - img
+                      - generic: Support Tickets
+            - generic:
+              - generic:
+                - generic:
+                  - generic: J
+                - generic:
+                  - generic:
+                    - paragraph: Johan
+                    - generic:
+                      - img
+                  - paragraph: johanspotify67@gmail.com
+                - generic:
+                  - generic: Admin
+              - button:
+                - img
+                - text: Logout
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]:
+                      - img
+                      - text: Support Center
+                    - paragraph: Get help from our support team
+                  - button:
+                    - img
+                    - text: New Ticket
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: My Tickets
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: TKT-20260314-97279F
+                                  - generic: Open
+                                - heading [level=3]: VIEW_REPLY_TEST_1773499024244
+                                - paragraph: Test message for viewing and replying
+                              - generic:
+                                - paragraph: 3/14/2026
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: TKT-20260314-4C38E1
+                                  - generic: Open
+                                - heading [level=3]: VIEW_REPLY_TEST_1773499008820
+                                - paragraph: Test message for viewing and replying
+                              - generic:
+                                - paragraph: 3/14/2026
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: TKT-20260314-D2770D
+                                  - generic: Open
+                                - heading [level=3]: TEST_TICKET_1773498999411
+                                - paragraph: This is a test ticket message for E2E testing automated tests
+                              - generic:
+                                - paragraph: 3/14/2026
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: TKT-20260314-650B2B
+                                  - generic: Open
+                                - heading [level=3]: Test Ticket
+                                - paragraph: This is a test ticket from admin
+                              - generic:
+                                - paragraph: 3/14/2026
+      - region "Notifications alt+T"
+  - dialog "Create Support Ticket" [ref=e2]:
+    - heading "Create Support Ticket" [level=2] [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - text: Category
+        - combobox [active] [ref=e7] [cursor=pointer]:
+          - generic: General Question
+          - img [ref=e8]
+      - generic [ref=e10]:
+        - text: Subject
+        - textbox "Brief description of your issue" [ref=e11]
+      - generic [ref=e12]:
+        - text: Message
+        - textbox "Describe your issue in detail..." [ref=e13]
+      - button "Submit Ticket" [ref=e14] [cursor=pointer]:
+        - img
+        - text: Submit Ticket
+    - button "Close" [ref=e15] [cursor=pointer]:
+      - img [ref=e16]
+      - generic [ref=e19]: Close
+```

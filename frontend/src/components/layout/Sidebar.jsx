@@ -17,7 +17,10 @@ import {
     AlertTriangle,
     PlusCircle,
     Bitcoin,
-    BarChart3
+    BarChart3,
+    Settings,
+    MessageSquare,
+    HeadphonesIcon
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -50,6 +53,8 @@ export const Sidebar = () => {
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
+        { to: '/support', icon: HeadphonesIcon, label: 'Support' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
     ];
 
     const adminLinks = [
@@ -62,6 +67,7 @@ export const Sidebar = () => {
         { to: '/admin/withdrawals', icon: Upload, label: 'Pending Withdrawals' },
         { to: '/admin/kyc', icon: BadgeCheck, label: 'KYC Requests' },
         { to: '/admin/treasury', icon: Vault, label: 'Treasury' },
+        { to: '/admin/support', icon: MessageSquare, label: 'Support Tickets' },
     ];
 
     const NavLinks = ({ links }) => (
