@@ -48,7 +48,14 @@ FRAUD_THRESHOLD_MINUTES = 5
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Use database name from environment if set, otherwise extract from connection string
+db_name = os.environ.get('DB_NAME')
+if not db_name:
+    # Extract database name from MongoDB URL if present
+    from urllib.parse import urlparse
+    parsed = urlparse(mongo_url)
+    db_name = parsed.path.strip('/') if parsed.path and parsed.path != '/' else 'lionsbit_bank'
+db = client[db_name]
 
 # Create the main app
 app = FastAPI(title="LIONSBIT BANK API")
