@@ -2435,13 +2435,26 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
 
 @api_router.get("/admin/users")
 async def admin_get_users(admin: dict = Depends(get_admin_user)):
-    users = await db.users.find({}, {'_id': 0, 'password': 0}).to_list(1000)
+    """Get all users with their accounts - optimized with aggregation"""
+    users = await db.users.aggregate([
+        {'$project': {'_id': 0, 'password': 0}},
+        {'$limit': 1000},
+        {'$lookup': {
+            'from': 'accounts',
+            'localField': 'id',
+            'foreignField': 'user_id',
+            'as': 'accounts'
+        }},
+        {'$addFields': {
+            'total_balance_usd': {'$sum': '$accounts.balance_usd'},
+            'total_balance_eur': {'$sum': '$accounts.balance_eur'}
+        }}
+    ]).to_list(1000)
     
+    # Clean up accounts array to remove _id
     for user in users:
-        accounts = await db.accounts.find({'user_id': user['id']}, {'_id': 0}).to_list(100)
-        user['accounts'] = accounts
-        user['total_balance_usd'] = sum(acc['balance_usd'] for acc in accounts)
-        user['total_balance_eur'] = sum(acc['balance_eur'] for acc in accounts)
+        if 'accounts' in user:
+            user['accounts'] = [{k: v for k, v in acc.items() if k != '_id'} for acc in user['accounts']]
     
     return users
 
@@ -2450,28 +2463,58 @@ async def admin_get_transactions(
     status: Optional[str] = None,
     admin: dict = Depends(get_admin_user)
 ):
-    query = {}
+    """Get all transactions - optimized with aggregation"""
+    match_query = {}
     if status:
-        query['status'] = status
+        match_query['status'] = status
     
-    transactions = await db.transactions.find(query, {'_id': 0}).sort('created_at', -1).to_list(1000)
-    
-    for tx in transactions:
-        user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
-        tx['user'] = user
+    transactions = await db.transactions.aggregate([
+        {'$match': match_query},
+        {'$sort': {'created_at': -1}},
+        {'$limit': 1000},
+        {'$lookup': {
+            'from': 'users',
+            'localField': 'user_id',
+            'foreignField': 'id',
+            'as': 'user_data'
+        }},
+        {'$unwind': {'path': '$user_data', 'preserveNullAndEmptyArrays': True}},
+        {'$addFields': {
+            'user': {
+                'id': '$user_data.id',
+                'name': '$user_data.name',
+                'email': '$user_data.email'
+            }
+        }},
+        {'$project': {'_id': 0, 'user_data': 0}}
+    ]).to_list(1000)
     
     return transactions
 
 @api_router.get("/admin/withdrawals/pending")
 async def admin_get_pending_withdrawals(admin: dict = Depends(get_admin_user)):
-    withdrawals = await db.transactions.find(
-        {'transaction_type': 'withdraw', 'status': 'pending'},
-        {'_id': 0}
-    ).sort('created_at', -1).to_list(1000)
-    
-    for w in withdrawals:
-        user = await db.users.find_one({'id': w['user_id']}, {'_id': 0, 'password': 0})
-        w['user'] = user
+    """Get pending withdrawals - optimized with aggregation"""
+    withdrawals = await db.transactions.aggregate([
+        {'$match': {'transaction_type': 'withdraw', 'status': 'pending'}},
+        {'$sort': {'created_at': -1}},
+        {'$limit': 1000},
+        {'$lookup': {
+            'from': 'users',
+            'localField': 'user_id',
+            'foreignField': 'id',
+            'as': 'user_data'
+        }},
+        {'$unwind': {'path': '$user_data', 'preserveNullAndEmptyArrays': True}},
+        {'$addFields': {
+            'user': {
+                'id': '$user_data.id',
+                'name': '$user_data.name',
+                'email': '$user_data.email',
+                'verification_status': '$user_data.verification_status'
+            }
+        }},
+        {'$project': {'_id': 0, 'user_data': 0}}
+    ]).to_list(1000)
     
     return withdrawals
 
@@ -2612,15 +2655,28 @@ async def admin_update_withdrawal_status(data: AdminUpdateWithdrawalStatus, admi
 
 @api_router.get("/admin/withdrawals/all")
 async def admin_get_all_withdrawals(admin: dict = Depends(get_admin_user)):
-    """Get all withdrawals with all statuses for admin management"""
-    withdrawals = await db.transactions.find(
-        {'transaction_type': 'withdraw'},
-        {'_id': 0}
-    ).sort('created_at', -1).to_list(1000)
-    
-    for w in withdrawals:
-        user = await db.users.find_one({'id': w['user_id']}, {'_id': 0, 'password': 0})
-        w['user'] = user
+    """Get all withdrawals with all statuses for admin management - optimized with aggregation"""
+    withdrawals = await db.transactions.aggregate([
+        {'$match': {'transaction_type': 'withdraw'}},
+        {'$sort': {'created_at': -1}},
+        {'$limit': 1000},
+        {'$lookup': {
+            'from': 'users',
+            'localField': 'user_id',
+            'foreignField': 'id',
+            'as': 'user_data'
+        }},
+        {'$unwind': {'path': '$user_data', 'preserveNullAndEmptyArrays': True}},
+        {'$addFields': {
+            'user': {
+                'id': '$user_data.id',
+                'name': '$user_data.name',
+                'email': '$user_data.email',
+                'verification_status': '$user_data.verification_status'
+            }
+        }},
+        {'$project': {'_id': 0, 'user_data': 0}}
+    ]).to_list(1000)
     
     return withdrawals
 
@@ -2864,15 +2920,23 @@ async def admin_kyc_action(data: AdminKYCAction, admin: dict = Depends(get_admin
 # Get all KYC submissions for admin
 @api_router.get("/admin/kyc/submissions")
 async def admin_get_kyc_submissions(admin: dict = Depends(get_admin_user)):
-    """Get all KYC submissions with full legal records"""
-    submissions = await db.kyc_submissions.find({}, {'_id': 0}).sort('submitted_at', -1).to_list(100)
-    
-    # Enrich with user info
-    for sub in submissions:
-        user = await db.users.find_one({'id': sub.get('user_id')}, {'_id': 0, 'name': 1, 'email': 1})
-        if user:
-            sub['user_name'] = user.get('name')
-            sub['user_email'] = user.get('email')
+    """Get all KYC submissions with full legal records - optimized with aggregation"""
+    submissions = await db.kyc_submissions.aggregate([
+        {'$sort': {'submitted_at': -1}},
+        {'$limit': 100},
+        {'$lookup': {
+            'from': 'users',
+            'localField': 'user_id',
+            'foreignField': 'id',
+            'as': 'user_info'
+        }},
+        {'$unwind': {'path': '$user_info', 'preserveNullAndEmptyArrays': True}},
+        {'$addFields': {
+            'user_name': '$user_info.name',
+            'user_email': '$user_info.email'
+        }},
+        {'$project': {'_id': 0, 'user_info': 0}}
+    ]).to_list(100)
     
     return submissions
 
