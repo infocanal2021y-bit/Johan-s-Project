@@ -1,0 +1,259 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - img [ref=e11]
+            - generic [ref=e13]:
+              - heading "LIONSBIT BANK" [level=1] [ref=e14]
+              - paragraph [ref=e15]: Plataforma de Banca Digital
+          - button "9+" [ref=e17] [cursor=pointer]:
+            - img
+            - generic [ref=e18]: 9+
+        - generic [ref=e19]:
+          - paragraph [ref=e20]: Banca
+          - navigation [ref=e21]:
+            - generic [ref=e22]:
+              - link "Dashboard" [ref=e23] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e24]
+                - generic [ref=e29]: Dashboard
+              - link "Accounts" [ref=e30] [cursor=pointer]:
+                - /url: /accounts
+                - img [ref=e31]
+                - generic [ref=e34]: Accounts
+              - link "Transactions" [ref=e35] [cursor=pointer]:
+                - /url: /transactions
+                - img [ref=e36]
+                - generic [ref=e39]: Transactions
+              - link "Transfer" [ref=e40] [cursor=pointer]:
+                - /url: /transfer
+                - img [ref=e41]
+                - generic [ref=e44]: Transfer
+              - link "Withdraw" [ref=e45] [cursor=pointer]:
+                - /url: /withdraw
+                - img [ref=e46]
+                - generic [ref=e49]: Withdraw
+              - link "Verification" [ref=e50] [cursor=pointer]:
+                - /url: /kyc
+                - img [ref=e51]
+                - generic [ref=e54]: Verification
+              - link "Support" [ref=e55] [cursor=pointer]:
+                - /url: /support
+                - img [ref=e56]
+                - generic [ref=e58]: Support
+              - link "Settings" [ref=e59] [cursor=pointer]:
+                - /url: /settings
+                - img [ref=e60]
+                - generic [ref=e63]: Settings
+          - generic [ref=e64]:
+            - paragraph [ref=e65]: Administración
+            - navigation [ref=e66]:
+              - generic [ref=e67]:
+                - link "Panel Admin" [ref=e68] [cursor=pointer]:
+                  - /url: /admin
+                  - img [ref=e69]
+                  - generic [ref=e71]: Panel Admin
+                - link "Monitor Actividad" [ref=e72] [cursor=pointer]:
+                  - /url: /admin/activity
+                  - img [ref=e73]
+                  - generic [ref=e75]: Monitor Actividad
+                - link "Agregar Saldo" [ref=e76] [cursor=pointer]:
+                  - /url: /admin/credits
+                  - img [ref=e77]
+                  - generic [ref=e79]: Agregar Saldo
+                - link "Pagos Crypto" [ref=e80] [cursor=pointer]:
+                  - /url: /admin/crypto-payments
+                  - img [ref=e81]
+                  - generic [ref=e83]: Pagos Crypto
+                - link "Analíticas Crypto" [ref=e84] [cursor=pointer]:
+                  - /url: /admin/crypto-stats
+                  - img [ref=e85]
+                  - generic [ref=e87]: Analíticas Crypto
+                - link "Usuarios" [ref=e88] [cursor=pointer]:
+                  - /url: /admin/users
+                  - img [ref=e89]
+                  - generic [ref=e94]: Usuarios
+                - link "Transacciones" [ref=e95] [cursor=pointer]:
+                  - /url: /admin/transactions
+                  - img [ref=e96]
+                  - generic [ref=e99]: Transacciones
+                - link "Retiros Pendientes" [ref=e100] [cursor=pointer]:
+                  - /url: /admin/withdrawals
+                  - img [ref=e101]
+                  - generic [ref=e104]: Retiros Pendientes
+                - link "Solicitudes KYC" [ref=e105] [cursor=pointer]:
+                  - /url: /admin/kyc
+                  - img [ref=e106]
+                  - generic [ref=e109]: Solicitudes KYC
+                - link "Tesorería" [ref=e110] [cursor=pointer]:
+                  - /url: /admin/treasury
+                  - img [ref=e111]
+                  - generic [ref=e122]: Tesorería
+                - link "Tickets Soporte" [ref=e123] [cursor=pointer]:
+                  - /url: /admin/support
+                  - img [ref=e124]
+                  - generic [ref=e126]: Tickets Soporte
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - generic [ref=e130]: A
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - paragraph [ref=e133]: Admin LionsBit
+                - img [ref=e135]
+              - paragraph [ref=e138]: admi@paylionsbit.es
+            - generic [ref=e140]: Admin
+          - button "Cerrar Sesión" [ref=e141] [cursor=pointer]:
+            - img
+            - text: Cerrar Sesión
+    - main [ref=e142]:
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147]:
+            - heading "Bienvenido, Admin" [level=1] [ref=e148]
+            - paragraph [ref=e149]: Resumen de tu cuenta financiera
+          - generic [ref=e150]:
+            - combobox [ref=e151] [cursor=pointer]:
+              - generic: USD
+              - img [ref=e152]
+            - button [ref=e154] [cursor=pointer]:
+              - img
+        - generic [ref=e156]:
+          - img [ref=e157]
+          - paragraph [ref=e160]: Verified Account - You have full access to all features.
+        - generic [ref=e161]:
+          - generic [ref=e165]:
+            - generic [ref=e167]:
+              - img [ref=e169]
+              - generic [ref=e172]: Saldo Total
+            - paragraph [ref=e173]: $150,000.00
+            - paragraph [ref=e174]: US Dollar
+          - generic [ref=e178]:
+            - generic [ref=e180]:
+              - img [ref=e182]
+              - generic [ref=e184]: Saldo Disponible
+            - paragraph [ref=e185]: $100,000.00
+            - paragraph [ref=e186]: US Dollar
+          - generic [ref=e190]:
+            - generic [ref=e192]:
+              - img [ref=e194]
+              - generic [ref=e197]: Invertido (Ahorros)
+            - paragraph [ref=e198]: $50,000.00
+            - paragraph [ref=e199]: US Dollar
+        - generic [ref=e200]:
+          - generic [ref=e202]:
+            - img [ref=e203]
+            - text: Transaction Activity (Last 30 Days)
+          - generic [ref=e206]:
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - paragraph [ref=e209]: Total Sent
+                - paragraph [ref=e210]: $ 0.00
+              - generic [ref=e211]:
+                - paragraph [ref=e212]: Total Received
+                - paragraph [ref=e213]: $ 0.00
+              - generic [ref=e214]:
+                - paragraph [ref=e215]: Tax Paid
+                - paragraph [ref=e216]: $ 0.00
+            - generic [ref=e218]:
+              - generic [ref=e219]: Daily Transfer Limit
+              - generic [ref=e220]: € 0.00 / € 10000.00
+            - generic [ref=e222]:
+              - generic:
+                - img
+        - generic [ref=e224]:
+          - generic [ref=e226]:
+            - img [ref=e227]
+            - text: Recent Transactions
+          - table [ref=e233]:
+            - rowgroup [ref=e234]:
+              - row "Transaction Amount Status Date" [ref=e235]:
+                - columnheader "Transaction" [ref=e236]
+                - columnheader "Amount" [ref=e237]
+                - columnheader "Status" [ref=e238]
+                - columnheader "Date" [ref=e239]
+            - rowgroup [ref=e240]:
+              - row "withdraw Reject test 7d05fbf7 - €5.00 rejected 16 mar, 22:31" [ref=e241]:
+                - cell "withdraw Reject test 7d05fbf7" [ref=e242]:
+                  - generic [ref=e243]:
+                    - img [ref=e245]
+                    - generic [ref=e248]:
+                      - paragraph [ref=e249]: withdraw
+                      - paragraph [ref=e250]: Reject test 7d05fbf7
+                - cell "- €5.00" [ref=e251]:
+                  - generic [ref=e252]: "- €5.00"
+                - cell "rejected" [ref=e253]:
+                  - generic [ref=e256]: rejected
+                - cell "16 mar, 22:31" [ref=e257]:
+                  - generic [ref=e258]: 16 mar, 22:31
+              - row "withdraw Full flow test 651b61c7 - €15.00 completed 16 mar, 22:31" [ref=e259]:
+                - cell "withdraw Full flow test 651b61c7" [ref=e260]:
+                  - generic [ref=e261]:
+                    - img [ref=e263]
+                    - generic [ref=e266]:
+                      - paragraph [ref=e267]: withdraw
+                      - paragraph [ref=e268]: Full flow test 651b61c7
+                - cell "- €15.00" [ref=e269]:
+                  - generic [ref=e270]: "- €15.00"
+                - cell "completed" [ref=e271]:
+                  - generic [ref=e274]: completed
+                - cell "16 mar, 22:31" [ref=e275]:
+                  - generic [ref=e276]: 16 mar, 22:31
+              - row "withdraw Flow test 1f59feaa - €10.00 processing 16 mar, 22:31" [ref=e277]:
+                - cell "withdraw Flow test 1f59feaa" [ref=e278]:
+                  - generic [ref=e279]:
+                    - img [ref=e281]
+                    - generic [ref=e284]:
+                      - paragraph [ref=e285]: withdraw
+                      - paragraph [ref=e286]: Flow test 1f59feaa
+                - cell "- €10.00" [ref=e287]:
+                  - generic [ref=e288]: "- €10.00"
+                - cell "processing" [ref=e289]:
+                  - generic [ref=e292]: processing
+                - cell "16 mar, 22:31" [ref=e293]:
+                  - generic [ref=e294]: 16 mar, 22:31
+              - row "withdraw Test banking info 6dda9657 - €25.00 pending 16 mar, 22:31" [ref=e295]:
+                - cell "withdraw Test banking info 6dda9657" [ref=e296]:
+                  - generic [ref=e297]:
+                    - img [ref=e299]
+                    - generic [ref=e302]:
+                      - paragraph [ref=e303]: withdraw
+                      - paragraph [ref=e304]: Test banking info 6dda9657
+                - cell "- €25.00" [ref=e305]:
+                  - generic [ref=e306]: "- €25.00"
+                - cell "pending" [ref=e307]:
+                  - generic [ref=e310]: pending
+                - cell "16 mar, 22:31" [ref=e311]:
+                  - generic [ref=e312]: 16 mar, 22:31
+              - row "withdraw Test withdrawal c0fda51d - €50.00 pending 16 mar, 22:31" [ref=e313]:
+                - cell "withdraw Test withdrawal c0fda51d" [ref=e314]:
+                  - generic [ref=e315]:
+                    - img [ref=e317]
+                    - generic [ref=e320]:
+                      - paragraph [ref=e321]: withdraw
+                      - paragraph [ref=e322]: Test withdrawal c0fda51d
+                - cell "- €50.00" [ref=e323]:
+                  - generic [ref=e324]: "- €50.00"
+                - cell "pending" [ref=e325]:
+                  - generic [ref=e328]: pending
+                - cell "16 mar, 22:31" [ref=e329]:
+                  - generic [ref=e330]: 16 mar, 22:31
+              - row "withdraw Test withdrawal - €500.00 completed 16 mar, 22:26" [ref=e331]:
+                - cell "withdraw Test withdrawal" [ref=e332]:
+                  - generic [ref=e333]:
+                    - img [ref=e335]
+                    - generic [ref=e338]:
+                      - paragraph [ref=e339]: withdraw
+                      - paragraph [ref=e340]: Test withdrawal
+                - cell "- €500.00" [ref=e341]:
+                  - generic [ref=e342]: "- €500.00"
+                - cell "completed" [ref=e343]:
+                  - generic [ref=e346]: completed
+                - cell "16 mar, 22:26" [ref=e347]:
+                  - generic [ref=e348]: 16 mar, 22:26
+  - region "Notifications alt+T"
+```

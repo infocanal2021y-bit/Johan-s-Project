@@ -1,7 +1,7 @@
 import requests
 
 # Get token first
-login_response = requests.post('https://secure-banking-hub-10.preview.emergentagent.com/api/auth/login', json={
+login_response = requests.post('https://lionsbit-banking.preview.emergentagent.com/api/auth/login', json={
     'email': 'demo@vaultbank.com',
     'password': 'Password123'
 })
@@ -9,7 +9,7 @@ token = login_response.json()['token']
 headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
 # Get accounts
-accounts_response = requests.get('https://secure-banking-hub-10.preview.emergentagent.com/api/accounts', headers=headers)
+accounts_response = requests.get('https://lionsbit-banking.preview.emergentagent.com/api/accounts', headers=headers)
 accounts = accounts_response.json()
 
 checking = next(acc for acc in accounts if acc['account_type'] == 'checking')
@@ -19,7 +19,7 @@ print(f'Checking account balance: ${checking["balance_usd"]}')
 print(f'Savings account balance: ${savings["balance_usd"]}')
 
 # Create a new transfer 
-transfer_response = requests.post('https://secure-banking-hub-10.preview.emergentagent.com/api/transactions', 
+transfer_response = requests.post('https://lionsbit-banking.preview.emergentagent.com/api/transactions', 
     headers=headers,
     json={
         'account_id': checking['id'],

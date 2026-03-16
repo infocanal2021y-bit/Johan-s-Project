@@ -175,7 +175,7 @@ export const WithdrawPage = () => {
     useEffect(() => {
         const checkKYC = async () => {
             try {
-                const response = await authAPI.me();
+                const response = await authAPI.getMe();
                 const user = response.data;
                 const isVerified = user.verification_status === 'verified';
                 setKycVerified(isVerified);
@@ -670,15 +670,33 @@ export const WithdrawPage = () => {
                                 </div>
 
                                 {/* Status Info */}
-                                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                <div className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
                                     <div className="flex items-start gap-3">
-                                        <Clock className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                                        <Clock className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
                                         <div>
-                                            <p className="text-amber-400 font-medium">Estado inicial: Pendiente de Aprobación</p>
-                                            <p className="text-sm text-amber-400/70 mt-1 font-light">
-                                                Su solicitud será revisada por un administrador. Una vez aprobada, el estado cambiará a "Procesando" 
-                                                y posteriormente a "Transferencia en proceso" hasta completarse.
-                                            </p>
+                                            <p className="text-cyan-400 font-medium">Estados del Retiro</p>
+                                            <div className="mt-3 space-y-2">
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <span className="w-3 h-3 rounded-full bg-amber-400"></span>
+                                                    <span className="text-slate-400">Pendiente de Aprobación</span>
+                                                    <span className="text-slate-600">→ Revisión por administrador</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
+                                                    <span className="text-slate-400">Procesando</span>
+                                                    <span className="text-slate-600">→ Aprobado, en proceso</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <span className="w-3 h-3 rounded-full bg-blue-400"></span>
+                                                    <span className="text-slate-400">Transferencia en Proceso</span>
+                                                    <span className="text-slate-600">→ Fondos en camino</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <span className="w-3 h-3 rounded-full bg-emerald-400"></span>
+                                                    <span className="text-slate-400">Completado</span>
+                                                    <span className="text-slate-600">→ Fondos recibidos</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -108,6 +108,13 @@ class AccountResponse(BaseModel):
     balance_eur: float
     created_at: str
 
+class BankingInfo(BaseModel):
+    account_holder: str
+    iban: str
+    bank_name: str
+    bank_country: str
+    bank_city: Optional[str] = None
+
 class TransactionCreate(BaseModel):
     account_id: str
     transaction_type: str  # deposit, withdraw, transfer
@@ -115,6 +122,7 @@ class TransactionCreate(BaseModel):
     currency: str = Field(default='USD')
     description: Optional[str] = None
     recipient_account_id: Optional[str] = None  # For transfers
+    banking_info: Optional[BankingInfo] = None  # For withdrawals
 
 class TransactionResponse(BaseModel):
     id: str
@@ -196,6 +204,11 @@ class AdminManualTaxPayment(BaseModel):
     crypto_type: Optional[str] = None  # BTC, ETH, USDT
     txid: Optional[str] = None  # Transaction ID for crypto payments
     notes: Optional[str] = None
+
+class AdminUpdateWithdrawalStatus(BaseModel):
+    transaction_id: str
+    status: str  # pending, processing, transfer_in_progress, completed, rejected
+    rejection_reason: Optional[str] = None
 
 # ==================== NEW MODELS ====================
 
@@ -559,12 +572,13 @@ async def send_withdrawal_status_email(user_email: str, user_name: str, amount: 
     currency_symbol = "$" if currency == "USD" else "€"
     
     status_config = {
-        'pending': {'title': 'Retiro Solicitado', 'color': '#f59e0b', 'message': 'Su solicitud de retiro ha sido recibida y está pendiente de revisión.'},
+        'pending': {'title': 'Pendiente de Aprobación', 'color': '#f59e0b', 'message': 'Su solicitud de retiro ha sido recibida y está pendiente de aprobación por un administrador.'},
         'pending_tax': {'title': 'Impuesto Pendiente', 'color': '#f97316', 'message': 'Su retiro requiere el pago de impuestos antes de ser procesado.'},
         'under_review': {'title': 'Retiro en Revisión', 'color': '#8b5cf6', 'message': 'Su solicitud de retiro está siendo revisada por nuestro equipo.'},
-        'processing': {'title': 'Retiro en Proceso', 'color': '#06b6d4', 'message': 'Su retiro está siendo procesado y será completado pronto.'},
-        'completed': {'title': 'Retiro Completado', 'color': '#10b981', 'message': '¡Su retiro ha sido completado exitosamente!'},
-        'rejected': {'title': 'Retiro Rechazado', 'color': '#ef4444', 'message': f'Su solicitud de retiro ha sido rechazada. Razón: {reason or "Contacte a soporte"}'},
+        'processing': {'title': 'Procesando', 'color': '#06b6d4', 'message': 'Su retiro ha sido aprobado y está siendo procesado.'},
+        'transfer_in_progress': {'title': 'Transferencia en Proceso', 'color': '#3b82f6', 'message': 'La transferencia bancaria está en proceso. Recibirá los fondos pronto.'},
+        'completed': {'title': 'Completado', 'color': '#10b981', 'message': '¡Su retiro ha sido completado exitosamente! Los fondos han sido transferidos a su cuenta bancaria.'},
+        'rejected': {'title': 'Rechazado', 'color': '#ef4444', 'message': f'Su solicitud de retiro ha sido rechazada. Razón: {reason or "Contacte a soporte"}'},
     }
     
     config = status_config.get(status, status_config['pending'])
@@ -1779,15 +1793,27 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         raise HTTPException(status_code=403, detail='Deposits are disabled. Contact administrator to add funds to your account.')
         
     elif tx_data.transaction_type == 'withdraw':
+        # Verify KYC status before allowing withdrawal
+        if current_user.get('verification_status') != 'verified':
+            raise HTTPException(
+                status_code=403, 
+                detail='Para solicitar un retiro debe completar primero la verificación de identidad (KYC).'
+            )
+        
         if account[balance_field] < tx_data.amount:
-            raise HTTPException(status_code=400, detail='Insufficient funds')
+            raise HTTPException(status_code=400, detail='Fondos insuficientes')
         
-        # Withdrawals require tax payment first
-        status = 'pending_tax'
+        # Validate banking info is provided
+        if not tx_data.banking_info:
+            raise HTTPException(status_code=400, detail='La información bancaria es requerida para retiros')
         
-        # Create notification about withdrawal tax requirement
-        await create_notification(current_user['id'], 'Withdrawal Tax Required',
-            f'Your withdrawal request of {tx_data.amount} {currency} requires a tax payment of ${TAX_AMOUNT:.2f} USD before processing. You can pay in installments of $200 USD or more.')
+        # Withdrawals go directly to pending approval status (no tax required)
+        status = 'pending'
+        transaction_reference = generate_transaction_reference()
+        
+        # Create notification about withdrawal request
+        await create_notification(current_user['id'], 'Solicitud de Retiro Recibida',
+            f'Su solicitud de retiro de {tx_data.amount} {currency} ha sido recibida y está pendiente de aprobación. Referencia: {transaction_reference}')
         
         # Log withdrawal request for admin notification
         await db.admin_notifications.insert_one({
@@ -1798,7 +1824,7 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             'user_name': current_user['name'],
             'amount': tx_data.amount,
             'currency': currency,
-            'status': 'pending_tax',
+            'status': 'pending',
             'created_at': datetime.now(timezone.utc).isoformat()
         })
         
@@ -1881,11 +1907,17 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         transaction['tax_paid'] = 0.0
         transaction['released_at'] = None
     
-    # Withdrawals also require tax payment
+    # Withdrawals - save banking info without tax system
     if tx_data.transaction_type == 'withdraw':
-        transaction['tax_required'] = TAX_AMOUNT
-        transaction['tax_paid'] = 0.0
-        transaction['released_at'] = None
+        # Add banking info to the transaction
+        if tx_data.banking_info:
+            transaction['banking_info'] = {
+                'account_holder': tx_data.banking_info.account_holder,
+                'iban': tx_data.banking_info.iban,
+                'bank_name': tx_data.banking_info.bank_name,
+                'bank_country': tx_data.banking_info.bank_country,
+                'bank_city': tx_data.banking_info.bank_city
+            }
         
         # Notify admin about withdrawal request
         await create_admin_notification(
@@ -1898,7 +1930,12 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
                 'ip': 'N/A',
                 'country': 'N/A'
             },
-            metadata={'amount': tx_data.amount, 'currency': tx_data.currency, 'tax_required': TAX_AMOUNT}
+            metadata={
+                'amount': tx_data.amount, 
+                'currency': tx_data.currency,
+                'bank_name': tx_data.banking_info.bank_name if tx_data.banking_info else 'N/A',
+                'iban_last4': tx_data.banking_info.iban[-4:] if tx_data.banking_info else 'N/A'
+            }
         )
         
         # Log system activity
@@ -1908,7 +1945,20 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             user_id=current_user['id'],
             user_name=current_user['name'],
             user_email=current_user['email'],
-            metadata={'amount': tx_data.amount, 'currency': tx_data.currency}
+            metadata={
+                'amount': tx_data.amount, 
+                'currency': tx_data.currency,
+                'bank_name': tx_data.banking_info.bank_name if tx_data.banking_info else 'N/A'
+            }
+        )
+        
+        # Send email about withdrawal request
+        await send_withdrawal_status_email(
+            user_email=current_user['email'],
+            user_name=current_user['name'],
+            amount=tx_data.amount,
+            currency=currency,
+            status='pending'
         )
     
     await db.transactions.insert_one(transaction)
@@ -2486,6 +2536,92 @@ async def admin_reject_withdrawal(transaction_id: str, admin: dict = Depends(get
         )
     
     return {'message': 'Withdrawal rejected', 'transaction_id': transaction_id}
+
+@api_router.put("/admin/withdrawals/update-status")
+async def admin_update_withdrawal_status(data: AdminUpdateWithdrawalStatus, admin: dict = Depends(get_admin_user)):
+    """Update withdrawal status with the new flow: pending -> processing -> transfer_in_progress -> completed"""
+    valid_statuses = ['pending', 'processing', 'transfer_in_progress', 'completed', 'rejected']
+    
+    if data.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f'Estado inválido. Debe ser uno de: {", ".join(valid_statuses)}')
+    
+    tx = await db.transactions.find_one({'id': data.transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    
+    # Get user info
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
+    
+    # If completing the withdrawal, deduct from account
+    if data.status == 'completed' and tx['status'] != 'completed':
+        account = await db.accounts.find_one({'id': tx['account_id']}, {'_id': 0})
+        if not account:
+            raise HTTPException(status_code=404, detail='Cuenta no encontrada')
+        
+        balance_field = f'balance_{tx["currency"].lower()}'
+        
+        if account[balance_field] < tx['amount']:
+            raise HTTPException(status_code=400, detail='Fondos insuficientes - no se puede completar el retiro')
+        
+        # Deduct balance
+        new_balance = account[balance_field] - tx['amount']
+        await db.accounts.update_one({'id': tx['account_id']}, {'$set': {balance_field: new_balance}})
+    
+    # Update status
+    update_data = {'status': data.status}
+    if data.status == 'completed':
+        update_data['completed_at'] = datetime.now(timezone.utc).isoformat()
+    if data.status == 'rejected' and data.rejection_reason:
+        update_data['rejection_reason'] = data.rejection_reason
+    
+    await db.transactions.update_one({'id': data.transaction_id}, {'$set': update_data})
+    
+    # Status messages in Spanish
+    status_messages = {
+        'pending': 'Pendiente de Aprobación',
+        'processing': 'Procesando',
+        'transfer_in_progress': 'Transferencia en Proceso',
+        'completed': 'Completado',
+        'rejected': 'Rechazado'
+    }
+    
+    # Create notification for user
+    await create_notification(
+        tx['user_id'], 
+        f'Retiro - {status_messages[data.status]}',
+        f'Su retiro de {tx["amount"]} {tx["currency"]} ahora está: {status_messages[data.status]}'
+    )
+    
+    # Send email notification
+    if user:
+        await send_withdrawal_status_email(
+            user_email=user['email'],
+            user_name=user['name'],
+            amount=tx['amount'],
+            currency=tx['currency'],
+            status=data.status,
+            reason=data.rejection_reason if data.status == 'rejected' else None
+        )
+    
+    return {
+        'message': f'Estado actualizado a: {status_messages[data.status]}',
+        'transaction_id': data.transaction_id,
+        'new_status': data.status
+    }
+
+@api_router.get("/admin/withdrawals/all")
+async def admin_get_all_withdrawals(admin: dict = Depends(get_admin_user)):
+    """Get all withdrawals with all statuses for admin management"""
+    withdrawals = await db.transactions.find(
+        {'transaction_type': 'withdraw'},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(1000)
+    
+    for w in withdrawals:
+        user = await db.users.find_one({'id': w['user_id']}, {'_id': 0, 'password': 0})
+        w['user'] = user
+    
+    return withdrawals
 
 @api_router.put("/admin/balance")
 async def admin_update_balance(data: AdminUpdateBalance, admin: dict = Depends(get_admin_user)):

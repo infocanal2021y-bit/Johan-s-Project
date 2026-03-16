@@ -5,7 +5,7 @@ import os
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Admin credentials
-ADMIN_EMAIL = "johanspotify67@gmail.com"
+ADMIN_EMAIL = "admi@paylionsbit.es"
 ADMIN_PASSWORD = "LionsBit2026!"
 
 @pytest.fixture

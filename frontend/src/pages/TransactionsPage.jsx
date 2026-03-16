@@ -111,13 +111,14 @@ export const TransactionsPage = () => {
     };
 
     const statusConfig = {
-        completed: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Completed' },
-        pending: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Pending Approval' },
-        pending_tax: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30', label: 'Tax Pending' },
-        under_review: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30', label: 'Under Review' },
-        processing: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30', label: 'Processing' },
-        rejected: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30', label: 'Rejected' },
-        crypto_payment_under_review: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30', label: 'Crypto Review' },
+        completed: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Completado' },
+        pending: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Pendiente de Aprobación' },
+        pending_tax: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30', label: 'Impuesto Pendiente' },
+        under_review: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30', label: 'En Revisión' },
+        processing: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30', label: 'Procesando' },
+        transfer_in_progress: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30', label: 'Transferencia en Proceso' },
+        rejected: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30', label: 'Rechazado' },
+        crypto_payment_under_review: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30', label: 'Crypto en Revisión' },
     };
 
     return (
@@ -193,7 +194,7 @@ export const TransactionsPage = () => {
                                                 <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Tipo</TableHead>
                                                 <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Monto</TableHead>
                                                 <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Estado</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Progreso Impuesto</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Detalles</TableHead>
                                                 <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Acciones</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -259,7 +260,8 @@ export const TransactionsPage = () => {
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            {(tx.transaction_type === 'transfer' || tx.transaction_type === 'withdraw') && taxRequired > 0 ? (
+                                                            {/* Show tax progress only for old transfers with tax_required */}
+                                                            {tx.transaction_type === 'transfer' && taxRequired > 0 ? (
                                                                 <div className="space-y-2 min-w-[180px]">
                                                                     <div className="flex justify-between text-xs">
                                                                         <span className="text-slate-500 font-normal">Progreso</span>
@@ -285,6 +287,11 @@ export const TransactionsPage = () => {
                                                                             Abonar Impuesto (${(taxRequired - taxPaid).toFixed(0)} restante)
                                                                         </Button>
                                                                     )}
+                                                                </div>
+                                                            ) : tx.transaction_type === 'withdraw' && tx.banking_info ? (
+                                                                <div className="text-xs space-y-1">
+                                                                    <p className="text-white">{tx.banking_info.bank_name}</p>
+                                                                    <p className="text-slate-500">****{tx.banking_info.iban?.slice(-4)}</p>
                                                                 </div>
                                                             ) : (
                                                                 <span className="text-slate-600">-</span>
