@@ -407,7 +407,7 @@ export const KYCPage = () => {
                                         <div className="space-y-2">
                                             <Label className="text-slate-300">Full Legal Name</Label>
                                             <Input
-                                                placeholder="e.g., Johan Miguel Roa Hernández"
+                                                placeholder="e.g., Manuel Pérez"
                                                 value={digitalSignature}
                                                 onChange={(e) => setDigitalSignature(e.target.value)}
                                                 className="bg-slate-950 border-slate-800 text-white font-medium text-lg"
