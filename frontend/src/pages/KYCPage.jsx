@@ -11,7 +11,7 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
     BadgeCheck, Shield, Upload, Loader2, CheckCircle, Clock, AlertCircle, 
-    FileText, PenTool, Scale, AlertTriangle, XCircle, Eye
+    FileText, PenTool, Scale, AlertTriangle, XCircle, Eye, Camera, User
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,8 +24,10 @@ export const KYCPage = () => {
     const [documentType, setDocumentType] = useState('passport');
     const [documentFront, setDocumentFront] = useState(null);
     const [documentBack, setDocumentBack] = useState(null);
+    const [selfieWithDocument, setSelfieWithDocument] = useState(null);
     const [documentFrontName, setDocumentFrontName] = useState('');
     const [documentBackName, setDocumentBackName] = useState('');
+    const [selfieWithDocumentName, setSelfieWithDocumentName] = useState('');
     const [digitalSignature, setDigitalSignature] = useState('');
     const [legalConsent, setLegalConsent] = useState(false);
     const [investmentPeriod, setInvestmentPeriod] = useState('');
@@ -75,22 +77,27 @@ export const KYCPage = () => {
         
         // Validations
         if (!documentFront) {
-            toast.error('Please upload front side of your document');
+            toast.error('Por favor suba el lado frontal de su documento');
             return;
         }
         
         if (!documentBack) {
-            toast.error('Please upload back side of your document');
+            toast.error('Por favor suba el lado trasero de su documento');
+            return;
+        }
+        
+        if (!selfieWithDocument) {
+            toast.error('Por favor suba una selfie sosteniendo su documento');
             return;
         }
         
         if (!digitalSignature || digitalSignature.trim().length < 3) {
-            toast.error('Please enter your full name as digital signature');
+            toast.error('Por favor ingrese su nombre completo como firma digital');
             return;
         }
         
         if (!legalConsent) {
-            toast.error('You must accept the legal declaration to continue');
+            toast.error('Debe aceptar la declaración legal para continuar');
             return;
         }
 
@@ -100,16 +107,17 @@ export const KYCPage = () => {
                 document_type: documentType,
                 document_front: documentFront,
                 document_back: documentBack,
+                selfie_with_document: selfieWithDocument,
                 digital_signature: digitalSignature.trim(),
                 legal_consent: legalConsent,
                 investment_period: investmentPeriod || null,
                 investment_details: investmentDetails || null,
             });
-            toast.success('Verification documents submitted successfully');
+            toast.success('Documentos de verificación enviados exitosamente');
             const response = await kycAPI.getStatus();
             setKycStatus(response.data);
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to submit documents');
+            toast.error(error.response?.data?.detail || 'Error al enviar documentos');
         } finally {
             setSubmitting(false);
         }
@@ -122,42 +130,42 @@ export const KYCPage = () => {
                 color: 'text-emerald-400', 
                 bg: 'bg-emerald-500/20',
                 border: 'border-emerald-500/30',
-                label: 'Verified' 
+                label: 'Verificado' 
             },
             'pending_verification': { 
                 icon: Clock, 
                 color: 'text-amber-400', 
                 bg: 'bg-amber-500/20',
                 border: 'border-amber-500/30',
-                label: 'Pending Review' 
+                label: 'En Revisión' 
             },
             'pending': { 
                 icon: Clock, 
                 color: 'text-amber-400', 
                 bg: 'bg-amber-500/20',
                 border: 'border-amber-500/30',
-                label: 'Pending' 
+                label: 'Pendiente' 
             },
             'under_review': { 
                 icon: Eye, 
                 color: 'text-purple-400', 
                 bg: 'bg-purple-500/20',
                 border: 'border-purple-500/30',
-                label: 'Under Review' 
+                label: 'En Revisión' 
             },
             'rejected': { 
                 icon: XCircle, 
                 color: 'text-red-400', 
                 bg: 'bg-red-500/20',
                 border: 'border-red-500/30',
-                label: 'Rejected' 
+                label: 'Rechazado' 
             },
             'unverified': { 
                 icon: AlertCircle, 
                 color: 'text-slate-400', 
                 bg: 'bg-slate-500/20',
                 border: 'border-slate-500/30',
-                label: 'Not Verified' 
+                label: 'No Verificado' 
             },
         };
         return configs[status] || configs['unverified'];
@@ -189,8 +197,8 @@ export const KYCPage = () => {
                     className="flex items-center justify-between"
                 >
                     <div>
-                        <h1 className="text-3xl font-bold text-white mb-2">Identity Verification</h1>
-                        <p className="text-slate-400">Complete verification to unlock all features</p>
+                        <h1 className="text-3xl font-bold text-white mb-2">Verificación de Identidad</h1>
+                        <p className="text-slate-400">Complete la verificación para desbloquear todas las funciones</p>
                     </div>
                     <div className={`px-4 py-2 rounded-full ${statusConfig.bg} ${statusConfig.border} border flex items-center gap-2`}>
                         <StatusIcon className={`w-5 h-5 ${statusConfig.color}`} />
@@ -209,8 +217,8 @@ export const KYCPage = () => {
                                 <div className="w-20 h-20 bg-emerald-500/20 rounded-full mx-auto mb-4 flex items-center justify-center">
                                     <BadgeCheck className="w-10 h-10 text-emerald-400" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-white mb-2">Identity Verified</h2>
-                                <p className="text-slate-400">Your account is fully verified. You have access to all features.</p>
+                                <h2 className="text-2xl font-bold text-white mb-2">Identidad Verificada</h2>
+                                <p className="text-slate-400">Su cuenta está completamente verificada. Tiene acceso a todas las funciones.</p>
                             </CardContent>
                         </Card>
                     </motion.div>
@@ -227,11 +235,11 @@ export const KYCPage = () => {
                                 <div className="w-20 h-20 bg-amber-500/20 rounded-full mx-auto mb-4 flex items-center justify-center">
                                     <Clock className="w-10 h-10 text-amber-400 animate-pulse" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-white mb-2">Verification In Progress</h2>
-                                <p className="text-slate-400">Your documents are being reviewed. This usually takes 24-48 hours.</p>
+                                <h2 className="text-2xl font-bold text-white mb-2">Verificación en Progreso</h2>
+                                <p className="text-slate-400">Sus documentos están siendo revisados. Esto normalmente toma 24-48 horas.</p>
                                 {kycStatus?.submitted_at && (
                                     <p className="text-sm text-slate-500 mt-2">
-                                        Submitted: {new Date(kycStatus.submitted_at).toLocaleDateString()}
+                                        Enviado: {new Date(kycStatus.submitted_at).toLocaleDateString('es-ES')}
                                     </p>
                                 )}
                             </CardContent>
@@ -250,11 +258,11 @@ export const KYCPage = () => {
                                 <div className="w-20 h-20 bg-red-500/20 rounded-full mx-auto mb-4 flex items-center justify-center">
                                     <XCircle className="w-10 h-10 text-red-400" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-white mb-2">Verification Rejected</h2>
+                                <h2 className="text-2xl font-bold text-white mb-2">Verificación Rechazada</h2>
                                 <p className="text-slate-400 mb-4">
-                                    {kycStatus?.rejection_reason || 'Your documents did not meet our verification requirements.'}
+                                    {kycStatus?.rejection_reason || 'Sus documentos no cumplieron con nuestros requisitos de verificación.'}
                                 </p>
-                                <p className="text-slate-500">Please submit new documents below.</p>
+                                <p className="text-slate-500">Por favor envíe nuevos documentos a continuación.</p>
                             </CardContent>
                         </Card>
                     </motion.div>
@@ -271,96 +279,168 @@ export const KYCPage = () => {
                             <CardHeader>
                                 <CardTitle className="text-white flex items-center gap-2">
                                     <Shield className="w-5 h-5 text-emerald-400" />
-                                    Verification Form
+                                    Formulario de Verificación
                                 </CardTitle>
                                 <CardDescription className="text-slate-400">
-                                    Complete all fields to verify your identity
+                                    Complete todos los campos para verificar su identidad
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-8">
                                     {/* Document Type */}
                                     <div className="space-y-2">
-                                        <Label className="text-slate-300">Document Type</Label>
+                                        <Label className="text-slate-300">Tipo de Documento</Label>
                                         <Select value={documentType} onValueChange={setDocumentType}>
                                             <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent className="bg-slate-900 border-slate-700">
-                                                <SelectItem value="passport">Passport</SelectItem>
-                                                <SelectItem value="id_card">National ID Card</SelectItem>
-                                                <SelectItem value="driver_license">Driver's License</SelectItem>
+                                                <SelectItem value="passport">Pasaporte</SelectItem>
+                                                <SelectItem value="id_card">DNI / Cédula de Identidad</SelectItem>
+                                                <SelectItem value="driver_license">Licencia de Conducir</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
 
-                                    {/* Document Upload - Front */}
-                                    <div className="space-y-2">
-                                        <Label className="text-slate-300">Document - Front Side</Label>
+                                    {/* Document Upload Section */}
+                                    <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700 space-y-4">
+                                        <h3 className="text-white font-medium flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-cyan-400" />
+                                            Documento de Identidad (Ambos Lados)
+                                        </h3>
+                                        <p className="text-sm text-slate-500">
+                                            Suba fotos claras de ambos lados de su documento de identidad (DNI, pasaporte o licencia).
+                                        </p>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Document Upload - Front */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300">Lado Frontal *</Label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="file"
+                                                        accept=".jpg,.jpeg,.png,.pdf"
+                                                        onChange={(e) => handleFileChange(e, setDocumentFront, setDocumentFrontName)}
+                                                        className="hidden"
+                                                        id="document-front"
+                                                        data-testid="document-front-input"
+                                                    />
+                                                    <label
+                                                        htmlFor="document-front"
+                                                        className={`flex flex-col items-center justify-center gap-2 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                                                            documentFront 
+                                                                ? 'border-emerald-500/50 bg-emerald-500/10' 
+                                                                : 'border-slate-700 hover:border-slate-600 bg-slate-950/50'
+                                                        }`}
+                                                    >
+                                                        {documentFront ? (
+                                                            <>
+                                                                <CheckCircle className="w-8 h-8 text-emerald-400" />
+                                                                <span className="text-emerald-400 text-sm text-center">{documentFrontName}</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Upload className="w-8 h-8 text-slate-500" />
+                                                                <span className="text-slate-500 text-sm text-center">Subir lado frontal</span>
+                                                            </>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            {/* Document Upload - Back */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300">Lado Trasero *</Label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="file"
+                                                        accept=".jpg,.jpeg,.png,.pdf"
+                                                        onChange={(e) => handleFileChange(e, setDocumentBack, setDocumentBackName)}
+                                                        className="hidden"
+                                                        id="document-back"
+                                                        data-testid="document-back-input"
+                                                    />
+                                                    <label
+                                                        htmlFor="document-back"
+                                                        className={`flex flex-col items-center justify-center gap-2 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                                                            documentBack 
+                                                                ? 'border-emerald-500/50 bg-emerald-500/10' 
+                                                                : 'border-slate-700 hover:border-slate-600 bg-slate-950/50'
+                                                        }`}
+                                                    >
+                                                        {documentBack ? (
+                                                            <>
+                                                                <CheckCircle className="w-8 h-8 text-emerald-400" />
+                                                                <span className="text-emerald-400 text-sm text-center">{documentBackName}</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Upload className="w-8 h-8 text-slate-500" />
+                                                                <span className="text-slate-500 text-sm text-center">Subir lado trasero</span>
+                                                            </>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Selfie with Document */}
+                                    <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 space-y-4">
+                                        <h3 className="text-white font-medium flex items-center gap-2">
+                                            <Camera className="w-4 h-4 text-purple-400" />
+                                            Selfie con Documento
+                                        </h3>
+                                        <p className="text-sm text-slate-400">
+                                            Suba una foto de su rostro sosteniendo el documento de identidad al lado de su cara. 
+                                            Asegúrese de que tanto su rostro como el documento sean claramente visibles.
+                                        </p>
+                                        
                                         <div className="relative">
                                             <input
                                                 type="file"
-                                                accept=".jpg,.jpeg,.png,.pdf"
-                                                onChange={(e) => handleFileChange(e, setDocumentFront, setDocumentFrontName)}
+                                                accept=".jpg,.jpeg,.png"
+                                                onChange={(e) => handleFileChange(e, setSelfieWithDocument, setSelfieWithDocumentName)}
                                                 className="hidden"
-                                                id="document-front"
-                                                data-testid="document-front-input"
+                                                id="selfie-document"
+                                                data-testid="selfie-document-input"
                                             />
                                             <label
-                                                htmlFor="document-front"
-                                                className={`flex items-center justify-center gap-3 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
-                                                    documentFront 
-                                                        ? 'border-emerald-500/50 bg-emerald-500/10' 
-                                                        : 'border-slate-700 hover:border-slate-600 bg-slate-950/50'
+                                                htmlFor="selfie-document"
+                                                className={`flex items-center justify-center gap-3 p-8 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                                                    selfieWithDocument 
+                                                        ? 'border-purple-500/50 bg-purple-500/10' 
+                                                        : 'border-purple-500/30 hover:border-purple-500/50 bg-slate-950/50'
                                                 }`}
                                             >
-                                                {documentFront ? (
+                                                {selfieWithDocument ? (
                                                     <>
-                                                        <CheckCircle className="w-6 h-6 text-emerald-400" />
-                                                        <span className="text-emerald-400">{documentFrontName}</span>
+                                                        <CheckCircle className="w-8 h-8 text-purple-400" />
+                                                        <div className="text-center">
+                                                            <span className="text-purple-400 font-medium">Selfie subida</span>
+                                                            <p className="text-purple-400/70 text-sm">{selfieWithDocumentName}</p>
+                                                        </div>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Upload className="w-6 h-6 text-slate-500" />
-                                                        <span className="text-slate-500">Upload front side (JPG, PNG, PDF)</span>
+                                                        <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                                            <User className="w-8 h-8 text-purple-400" />
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <span className="text-purple-400 font-medium">Subir selfie con documento</span>
+                                                            <p className="text-slate-500 text-sm">JPG o PNG, máx. 10MB</p>
+                                                        </div>
                                                     </>
                                                 )}
                                             </label>
                                         </div>
-                                    </div>
-
-                                    {/* Document Upload - Back */}
-                                    <div className="space-y-2">
-                                        <Label className="text-slate-300">Document - Back Side</Label>
-                                        <div className="relative">
-                                            <input
-                                                type="file"
-                                                accept=".jpg,.jpeg,.png,.pdf"
-                                                onChange={(e) => handleFileChange(e, setDocumentBack, setDocumentBackName)}
-                                                className="hidden"
-                                                id="document-back"
-                                                data-testid="document-back-input"
-                                            />
-                                            <label
-                                                htmlFor="document-back"
-                                                className={`flex items-center justify-center gap-3 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
-                                                    documentBack 
-                                                        ? 'border-emerald-500/50 bg-emerald-500/10' 
-                                                        : 'border-slate-700 hover:border-slate-600 bg-slate-950/50'
-                                                }`}
-                                            >
-                                                {documentBack ? (
-                                                    <>
-                                                        <CheckCircle className="w-6 h-6 text-emerald-400" />
-                                                        <span className="text-emerald-400">{documentBackName}</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Upload className="w-6 h-6 text-slate-500" />
-                                                        <span className="text-slate-500">Upload back side (JPG, PNG, PDF)</span>
-                                                    </>
-                                                )}
-                                            </label>
+                                        
+                                        <div className="flex items-start gap-2 p-3 rounded bg-purple-500/10">
+                                            <AlertTriangle className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                                            <p className="text-xs text-purple-300">
+                                                <strong>Importante:</strong> La selfie debe mostrar claramente su rostro y el documento de identidad 
+                                                sostenido al lado de su cara. Esto es necesario para verificar que usted es el propietario del documento.
+                                            </p>
                                         </div>
                                     </div>
 
@@ -368,16 +448,16 @@ export const KYCPage = () => {
                                     <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700 space-y-4">
                                         <h3 className="text-white font-medium flex items-center gap-2">
                                             <FileText className="w-4 h-4 text-cyan-400" />
-                                            Investment History (2017-2023)
+                                            Historial de Inversiones (2017-2023)
                                         </h3>
                                         <p className="text-sm text-slate-500">
-                                            If you made investments between 2017 and 2023, please provide details below.
+                                            Si realizó inversiones entre 2017 y 2023, proporcione detalles a continuación.
                                         </p>
                                         
                                         <div className="space-y-2">
-                                            <Label className="text-slate-400">Investment Period</Label>
+                                            <Label className="text-slate-400">Período de Inversión</Label>
                                             <Input
-                                                placeholder="e.g., 2017-2023"
+                                                placeholder="ej., 2017-2023"
                                                 value={investmentPeriod}
                                                 onChange={(e) => setInvestmentPeriod(e.target.value)}
                                                 className="bg-slate-950 border-slate-800 text-white"
@@ -385,9 +465,9 @@ export const KYCPage = () => {
                                         </div>
                                         
                                         <div className="space-y-2">
-                                            <Label className="text-slate-400">Investment Details</Label>
+                                            <Label className="text-slate-400">Detalles de la Inversión</Label>
                                             <Textarea
-                                                placeholder="Describe your investments..."
+                                                placeholder="Describa sus inversiones..."
                                                 value={investmentDetails}
                                                 onChange={(e) => setInvestmentDetails(e.target.value)}
                                                 className="bg-slate-950 border-slate-800 text-white min-h-[100px]"
@@ -399,15 +479,15 @@ export const KYCPage = () => {
                                     <div className="p-4 rounded-lg bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border border-cyan-500/30 space-y-4">
                                         <h3 className="text-white font-medium flex items-center gap-2">
                                             <PenTool className="w-4 h-4 text-cyan-400" />
-                                            Digital Signature
+                                            Firma Digital
                                         </h3>
                                         <p className="text-sm text-slate-400">
-                                            Type your full legal name as digital signature to confirm your identity.
+                                            Escriba su nombre legal completo como firma digital para confirmar su identidad.
                                         </p>
                                         <div className="space-y-2">
-                                            <Label className="text-slate-300">Full Legal Name</Label>
+                                            <Label className="text-slate-300">Nombre Legal Completo</Label>
                                             <Input
-                                                placeholder="e.g., Manuel Pérez"
+                                                placeholder="ej., Manuel Pérez García"
                                                 value={digitalSignature}
                                                 onChange={(e) => setDigitalSignature(e.target.value)}
                                                 className="bg-slate-950 border-slate-800 text-white font-medium text-lg"
@@ -420,7 +500,7 @@ export const KYCPage = () => {
                                     <div className="p-4 rounded-lg bg-red-500/5 border border-red-500/30 space-y-4">
                                         <h3 className="text-white font-medium flex items-center gap-2">
                                             <Scale className="w-4 h-4 text-red-400" />
-                                            Legal Declaration
+                                            Declaración Legal
                                         </h3>
                                         
                                         <div className="flex items-start gap-3">
@@ -432,16 +512,16 @@ export const KYCPage = () => {
                                                 data-testid="legal-consent-checkbox"
                                             />
                                             <label htmlFor="legal-consent" className="text-sm text-slate-300 leading-relaxed cursor-pointer">
-                                                <span className="font-medium text-red-400">I declare under my responsibility</span> that I am the legitimate owner of the information and documents submitted. 
-                                                I understand that providing false data or using another person's identity without authorization may constitute fraud and lead to legal actions, 
-                                                including reports to financial institutions and corresponding judicial authorities.
+                                                <span className="font-medium text-red-400">Declaro bajo mi responsabilidad</span> que soy el propietario legítimo de la información y documentos presentados. 
+                                                Entiendo que proporcionar datos falsos o usar la identidad de otra persona sin autorización puede constituir fraude y dar lugar a acciones legales, 
+                                                incluyendo denuncias ante instituciones financieras y autoridades judiciales correspondientes.
                                             </label>
                                         </div>
                                         
                                         {!legalConsent && (
                                             <p className="text-xs text-red-400 flex items-center gap-1">
                                                 <AlertTriangle className="w-3 h-3" />
-                                                You must accept this declaration to submit your verification
+                                                Debe aceptar esta declaración para enviar su verificación
                                             </p>
                                         )}
                                     </div>
@@ -449,25 +529,25 @@ export const KYCPage = () => {
                                     {/* Submit Button */}
                                     <Button
                                         type="submit"
-                                        disabled={submitting || !documentFront || !documentBack || !digitalSignature || !legalConsent}
+                                        disabled={submitting || !documentFront || !documentBack || !selfieWithDocument || !digitalSignature || !legalConsent}
                                         className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-6 text-lg"
                                         data-testid="kyc-submit-btn"
                                     >
                                         {submitting ? (
                                             <>
                                                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                                Submitting...
+                                                Enviando...
                                             </>
                                         ) : (
                                             <>
                                                 <BadgeCheck className="w-5 h-5 mr-2" />
-                                                Submit Verification
+                                                Enviar Verificación
                                             </>
                                         )}
                                     </Button>
 
                                     <p className="text-center text-xs text-slate-500">
-                                        Your IP address, browser information, and submission timestamp will be recorded for legal purposes.
+                                        Su dirección IP, información del navegador y marca de tiempo serán registradas con fines legales.
                                     </p>
                                 </form>
                             </CardContent>

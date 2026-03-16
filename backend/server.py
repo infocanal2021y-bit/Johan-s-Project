@@ -152,6 +152,7 @@ class KYCSubmission(BaseModel):
     document_type: str  # passport, id_card, driver_license
     document_front: str  # base64 encoded - front of document
     document_back: str   # base64 encoded - back of document
+    selfie_with_document: str  # base64 encoded - selfie holding document
     digital_signature: str  # User's full name as digital signature
     legal_consent: bool  # Must be True
     # Investment history fields
@@ -1414,6 +1415,7 @@ async def submit_kyc(kyc_data: KYCSubmission, request: Request, current_user: di
         'document_type': kyc_data.document_type,
         'document_front': kyc_data.document_front,
         'document_back': kyc_data.document_back,
+        'selfie_with_document': kyc_data.selfie_with_document,
         'digital_signature': kyc_data.digital_signature,
         'legal_consent_accepted': True,
         'legal_consent_text': 'Declaro bajo mi responsabilidad que soy el titular legítimo de la información y documentos enviados. Entiendo que proporcionar datos falsos o utilizar la identidad de otra persona sin autorización puede constituir fraude y dar lugar a acciones legales.',
