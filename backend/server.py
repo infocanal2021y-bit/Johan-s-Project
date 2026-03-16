@@ -2516,64 +2516,90 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     await ensure_government_treasury()
-    await ensure_admin_user()
+    await ensure_admin_users()
 
-async def ensure_admin_user():
-    """Ensure admin user exists on startup"""
-    admin_email = "admi@paylionsbit.es"
-    admin_password = "LionsBit2026!"
+async def ensure_admin_users():
+    """Ensure admin users exist on startup with verified status"""
     
-    existing = await db.users.find_one({'email': admin_email})
+    # List of admin accounts to create/verify
+    admin_accounts = [
+        {
+            'email': 'admi@paylionsbit.es',
+            'password': 'LionsBit2026!',
+            'name': 'Admin Principal'
+        },
+        {
+            'email': 'admin.backup@paylionsbit.es',
+            'password': 'LionsBit2026!Backup',
+            'name': 'Admin Respaldo'
+        }
+    ]
     
-    if existing:
-        # Update to admin if not already
-        if existing.get('role') != 'admin':
-            await db.users.update_one(
-                {'email': admin_email},
-                {'$set': {'role': 'admin'}}
-            )
-            print(f"✅ Updated {admin_email} to admin role")
-    else:
-        # Create new admin user
-        user_id = str(uuid.uuid4())
-        hashed_password = pwd_context.hash(admin_password)
+    for admin_data in admin_accounts:
+        existing = await db.users.find_one({'email': admin_data['email']})
         
-        user = {
-            'id': user_id,
-            'name': 'Admin LionsBit',
-            'email': admin_email,
-            'hashed_password': hashed_password,
-            'role': 'admin',
-            'verification_status': 'verified',
-            'account_status': 'active',
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
-        
-        await db.users.insert_one(user)
-        
-        # Create accounts for admin
-        checking = {
-            'id': str(uuid.uuid4()),
-            'user_id': user_id,
-            'account_type': 'checking',
-            'account_number': f"LB{uuid.uuid4().hex[:10].upper()}",
-            'balance_usd': 0.0,
-            'balance_eur': 0.0,
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
-        
-        savings = {
-            'id': str(uuid.uuid4()),
-            'user_id': user_id,
-            'account_type': 'savings',
-            'account_number': f"LB{uuid.uuid4().hex[:10].upper()}",
-            'balance_usd': 0.0,
-            'balance_eur': 0.0,
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
-        
-        await db.accounts.insert_many([checking, savings])
-        print(f"✅ Created admin user: {admin_email}")
+        if existing:
+            # Ensure admin has correct role and verified status
+            updates_needed = {}
+            if existing.get('role') != 'admin':
+                updates_needed['role'] = 'admin'
+            if existing.get('verification_status') != 'verified':
+                updates_needed['verification_status'] = 'verified'
+            if existing.get('account_status') != 'active':
+                updates_needed['account_status'] = 'active'
+            
+            if updates_needed:
+                await db.users.update_one(
+                    {'email': admin_data['email']},
+                    {'$set': updates_needed}
+                )
+                print(f"✅ Updated {admin_data['email']} - role: admin, verification: verified")
+        else:
+            # Create new admin user
+            user_id = str(uuid.uuid4())
+            hashed_password = hash_password(admin_data['password'])
+            
+            user = {
+                'id': user_id,
+                'name': admin_data['name'],
+                'email': admin_data['email'],
+                'hashed_password': hashed_password,
+                'role': 'admin',
+                'verification_status': 'verified',
+                'account_status': 'active',
+                'kyc_documents': {
+                    'status': 'approved',
+                    'verified_at': datetime.now(timezone.utc).isoformat(),
+                    'note': 'Administrator account - automatically verified'
+                },
+                'created_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.users.insert_one(user)
+            
+            # Create accounts for admin with initial balance
+            checking = {
+                'id': str(uuid.uuid4()),
+                'user_id': user_id,
+                'account_type': 'checking',
+                'account_number': f"LB{uuid.uuid4().hex[:10].upper()}",
+                'balance_usd': 100000.0,
+                'balance_eur': 50000.0,
+                'created_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            savings = {
+                'id': str(uuid.uuid4()),
+                'user_id': user_id,
+                'account_type': 'savings',
+                'account_number': f"LB{uuid.uuid4().hex[:10].upper()}",
+                'balance_usd': 50000.0,
+                'balance_eur': 25000.0,
+                'created_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.accounts.insert_many([checking, savings])
+            print(f"✅ Created admin: {admin_data['email']} (verified, active)")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
