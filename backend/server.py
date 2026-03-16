@@ -803,7 +803,7 @@ async def change_password(data: ChangePassword, current_user: dict = Depends(get
 
 @api_router.post("/auth/request-password-reset")
 async def request_password_reset(data: PasswordResetRequest):
-    """Request password reset link (MOCK - shows in admin panel)"""
+    """Request password reset link - sends real email"""
     user = await db.users.find_one({'email': data.email}, {'_id': 0})
     
     if not user:
@@ -826,21 +826,63 @@ async def request_password_reset(data: PasswordResetRequest):
     }
     await db.password_resets.insert_one(reset_request)
     
-    # In production, send email. For now, log it and show in admin
-    reset_link = f"/reset-password?token={reset_token}"
-    logger.info(f"[MOCK EMAIL] Password reset link for {data.email}: {reset_link}")
+    # Generate reset link - use production domain
+    reset_link = f"https://paylionsbit.es/reset-password?token={reset_token}"
     
-    # Create admin notification
-    await db.admin_notifications.insert_one({
-        'id': str(uuid.uuid4()),
-        'type': 'password_reset_request',
-        'user_email': data.email,
-        'reset_link': reset_link,
-        'reset_token': reset_token,
-        'created_at': datetime.now(timezone.utc).isoformat()
-    })
+    # Send email with reset link
+    await send_password_reset_email(user['email'], user['name'], reset_link, reset_token)
     
-    return {'message': 'If the email exists, a reset link has been sent', 'mock_link': reset_link}
+    return {'message': 'If the email exists, a reset link has been sent'}
+
+async def send_password_reset_email(user_email: str, user_name: str, reset_link: str, token: str):
+    """Send password reset email"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Hemos recibido una solicitud para restablecer la contraseña de su cuenta.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+            <tr>
+                <td align="center">
+                    <a href="{reset_link}" style="display: inline-block; background: linear-gradient(135deg, #10b981, #06b6d4); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                        Restablecer Contraseña
+                    </a>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+            O copie y pegue este enlace en su navegador:
+        </p>
+        <p style="color: #06b6d4; font-size: 12px; word-break: break-all; background-color: #0f172a; padding: 12px; border-radius: 6px; font-family: monospace;">
+            {reset_link}
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 20px;">
+                    <p style="color: #f59e0b; font-size: 14px; margin: 0;">
+                        ⏰ Este enlace expira en <strong>1 hora</strong>.
+                    </p>
+                    <p style="color: #94a3b8; font-size: 13px; margin: 10px 0 0 0;">
+                        Fecha de solicitud: {date_str}
+                    </p>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
+            ⚠️ Si usted no solicitó restablecer su contraseña, puede ignorar este correo. Su contraseña no será cambiada.
+        </p>
+    """
+    
+    html = get_email_template(content, "Restablecer Contraseña")
+    await send_email(user_email, "🔐 Restablecer contraseña - LIONSBIT BANK", html)
 
 @api_router.post("/auth/reset-password")
 async def reset_password(data: PasswordResetConfirm):
