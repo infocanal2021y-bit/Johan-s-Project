@@ -121,6 +121,13 @@ export const adminAPI = {
     // Manual tax payments
     addManualTaxPayment: (data) => api.post('/admin/tax-payment', data),
     getManualPayments: () => api.get('/admin/manual-payments'),
+    // Admin notifications & Activity Monitor
+    getNotifications: () => api.get('/admin/notifications'),
+    markNotificationRead: (id) => api.put(`/admin/notifications/${id}/read`),
+    markAllNotificationsRead: () => api.put('/admin/notifications/read-all'),
+    getUnreadNotificationsCount: () => api.get('/admin/notifications/unread-count'),
+    getActivity: (params) => api.get('/admin/activity', { params }),
+    getActivityStats: () => api.get('/admin/activity/stats'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');

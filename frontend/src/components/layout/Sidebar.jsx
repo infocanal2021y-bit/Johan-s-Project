@@ -20,7 +20,8 @@ import {
     BarChart3,
     Settings,
     MessageSquare,
-    HeadphonesIcon
+    HeadphonesIcon,
+    Activity
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -58,16 +59,17 @@ export const Sidebar = () => {
     ];
 
     const adminLinks = [
-        { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
-        { to: '/admin/credits', icon: PlusCircle, label: 'Add Balance' },
-        { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Crypto Payments' },
-        { to: '/admin/crypto-stats', icon: BarChart3, label: 'Crypto Analytics' },
-        { to: '/admin/users', icon: Users, label: 'Users' },
-        { to: '/admin/transactions', icon: ClipboardList, label: 'All Transactions' },
-        { to: '/admin/withdrawals', icon: Upload, label: 'Pending Withdrawals' },
-        { to: '/admin/kyc', icon: BadgeCheck, label: 'KYC Requests' },
-        { to: '/admin/treasury', icon: Vault, label: 'Treasury' },
-        { to: '/admin/support', icon: MessageSquare, label: 'Support Tickets' },
+        { to: '/admin', icon: Shield, label: 'Panel Admin' },
+        { to: '/admin/activity', icon: Activity, label: 'Monitor Actividad' },
+        { to: '/admin/credits', icon: PlusCircle, label: 'Agregar Saldo' },
+        { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Pagos Crypto' },
+        { to: '/admin/crypto-stats', icon: BarChart3, label: 'Analíticas Crypto' },
+        { to: '/admin/users', icon: Users, label: 'Usuarios' },
+        { to: '/admin/transactions', icon: ClipboardList, label: 'Transacciones' },
+        { to: '/admin/withdrawals', icon: Upload, label: 'Retiros Pendientes' },
+        { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },
+        { to: '/admin/treasury', icon: Vault, label: 'Tesorería' },
+        { to: '/admin/support', icon: MessageSquare, label: 'Tickets Soporte' },
     ];
 
     const NavLinks = ({ links }) => (

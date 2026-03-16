@@ -28,6 +28,7 @@ import { AdminCreditsPage } from "./pages/admin/AdminCreditsPage";
 import { AdminCryptoPaymentsPage } from "./pages/admin/AdminCryptoPaymentsPage";
 import { AdminCryptoStatsPage } from "./pages/admin/AdminCryptoStatsPage";
 import { AdminSupportPage } from "./pages/admin/AdminSupportPage";
+import { AdminActivityPage } from "./pages/admin/AdminActivityPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -101,6 +102,7 @@ function AppRoutes() {
             <Route path="/admin/kyc" element={<ProtectedRoute adminOnly><AdminKYCPage /></ProtectedRoute>} />
             <Route path="/admin/treasury" element={<ProtectedRoute adminOnly><AdminTreasuryPage /></ProtectedRoute>} />
             <Route path="/admin/support" element={<ProtectedRoute adminOnly><AdminSupportPage /></ProtectedRoute>} />
+            <Route path="/admin/activity" element={<ProtectedRoute adminOnly><AdminActivityPage /></ProtectedRoute>} />
 
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

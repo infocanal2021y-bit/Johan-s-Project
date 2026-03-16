@@ -302,6 +302,144 @@ async def notify_admins(title: str, message: str):
     for admin in admins:
         await create_notification(admin['id'], title, message)
 
+# ==================== ADMIN NOTIFICATION SYSTEM ====================
+
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admi@paylionsbit.es')
+
+async def create_admin_notification(
+    notification_type: str,
+    title: str,
+    message: str,
+    user_info: dict = None,
+    metadata: dict = None,
+    send_email_notification: bool = True
+):
+    """Create a notification for all admins and optionally send email"""
+    now = datetime.now(timezone.utc).isoformat()
+    
+    notification = {
+        'id': str(uuid.uuid4()),
+        'type': notification_type,  # user_registered, kyc_submitted, withdrawal_request, etc.
+        'title': title,
+        'message': message,
+        'user_info': user_info,  # {name, email, ip, country}
+        'metadata': metadata,
+        'read': False,
+        'created_at': now
+    }
+    
+    await db.admin_notifications.insert_one(notification)
+    
+    # Also add to bell notifications for all admins
+    admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(100)
+    for admin in admins:
+        await create_notification(admin['id'], title, message)
+    
+    # Send email to admin
+    if send_email_notification and RESEND_API_KEY:
+        await send_admin_alert_email(notification_type, title, message, user_info, metadata)
+    
+    return notification
+
+async def send_admin_alert_email(notification_type: str, title: str, message: str, user_info: dict = None, metadata: dict = None):
+    """Send alert email to admin"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    
+    type_icons = {
+        'user_registered': '👤',
+        'kyc_submitted': '📋',
+        'withdrawal_request': '💸',
+        'tax_payment': '💰',
+        'support_ticket': '🎫',
+        'login': '🔑',
+        'balance_added': '💵'
+    }
+    icon = type_icons.get(notification_type, '🔔')
+    
+    user_details = ""
+    if user_info:
+        user_details = f"""
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 15px;">
+            <tr>
+                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Usuario:</td>
+                <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">{user_info.get('name', 'N/A')}</td>
+            </tr>
+            <tr>
+                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Email:</td>
+                <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{user_info.get('email', 'N/A')}</td>
+            </tr>
+            <tr>
+                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">IP:</td>
+                <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: monospace;">{user_info.get('ip', 'N/A')}</td>
+            </tr>
+            <tr>
+                <td style="color: #94a3b8; padding: 8px 0;">País:</td>
+                <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{user_info.get('country', 'N/A')}</td>
+            </tr>
+        </table>
+        """
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            <strong style="color: #10b981;">Administrador</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            {message}
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">{icon} {title}</p>
+                    {user_details}
+                    <p style="color: #64748b; font-size: 12px; margin-top: 15px; text-align: right;">
+                        {date_str}
+                    </p>
+                </td>
+            </tr>
+        </table>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+            <tr>
+                <td align="center">
+                    <a href="https://paylionsbit.es/admin/activity" style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: bold;">
+                        Ver Panel de Actividad
+                    </a>
+                </td>
+            </tr>
+        </table>
+    """
+    
+    html = get_email_template(content, f"{icon} Alerta del Sistema")
+    await send_email(ADMIN_EMAIL, f"{icon} {title} - LIONSBIT BANK Admin", html)
+
+async def log_system_activity(
+    activity_type: str,
+    description: str,
+    user_id: str = None,
+    user_name: str = None,
+    user_email: str = None,
+    ip_address: str = None,
+    country: str = None,
+    metadata: dict = None
+):
+    """Log system activity for admin monitoring"""
+    activity = {
+        'id': str(uuid.uuid4()),
+        'type': activity_type,  # register, login, kyc, withdrawal, tax_payment, deposit, support_ticket
+        'description': description,
+        'user_id': user_id,
+        'user_name': user_name,
+        'user_email': user_email,
+        'ip_address': ip_address,
+        'country': country,
+        'metadata': metadata,
+        'created_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.system_activity.insert_one(activity)
+    return activity
+
 # ==================== EMAIL SERVICE ====================
 
 async def send_email(to_email: str, subject: str, html_content: str):
@@ -900,10 +1038,16 @@ async def ensure_government_treasury():
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/register", response_model=dict)
-async def register(user_data: UserCreate):
+async def register(user_data: UserCreate, request: Request):
     existing = await db.users.find_one({'email': user_data.email})
     if existing:
         raise HTTPException(status_code=400, detail='Email already registered')
+    
+    # Capture registration info
+    client_ip = request.headers.get('X-Forwarded-For', request.client.host if request.client else 'Unknown')
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    country = request.headers.get('CF-IPCountry', 'International')
     
     user_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -917,6 +1061,8 @@ async def register(user_data: UserCreate):
         'verification_status': 'unverified',
         'account_status': 'active',
         'kyc_documents': None,
+        'registration_ip': client_ip,
+        'registration_country': country,
         'created_at': now
     }
     await db.users.insert_one(user)
@@ -932,8 +1078,32 @@ async def register(user_data: UserCreate):
         }
         await db.accounts.insert_one(account)
     
-    await create_notification(user_id, 'Welcome to LIONSBIT BANK!', 
-        'Your account has been created. Please complete KYC verification to unlock all features.')
+    await create_notification(user_id, '¡Bienvenido a LIONSBIT BANK!', 
+        'Su cuenta ha sido creada. Por favor complete la verificación KYC para desbloquear todas las funciones.')
+    
+    # Notify admin about new user registration
+    await create_admin_notification(
+        notification_type='user_registered',
+        title='Nuevo Usuario Registrado',
+        message=f'Se ha registrado un nuevo usuario: {user_data.name} ({user_data.email})',
+        user_info={
+            'name': user_data.name,
+            'email': user_data.email,
+            'ip': client_ip,
+            'country': country
+        }
+    )
+    
+    # Log system activity
+    await log_system_activity(
+        activity_type='register',
+        description=f'Nuevo usuario registrado: {user_data.name}',
+        user_id=user_id,
+        user_name=user_data.name,
+        user_email=user_data.email,
+        ip_address=client_ip,
+        country=country
+    )
     
     token = create_token(user_id, user_data.email, 'user')
     
@@ -1002,6 +1172,19 @@ async def login(credentials: UserLogin, request: Request):
         'logged_in_at': datetime.now(timezone.utc).isoformat()
     }
     await db.login_history.insert_one(login_record)
+    
+    # Log system activity for login
+    country = request.headers.get('CF-IPCountry', 'International')
+    await log_system_activity(
+        activity_type='login',
+        description=f'Inicio de sesión: {user["name"]}',
+        user_id=user['id'],
+        user_name=user['name'],
+        user_email=user['email'],
+        ip_address=client_ip,
+        country=country,
+        metadata={'device': device_info, 'browser': browser_info}
+    )
     
     # Check if this is a new IP and send email notification
     previous_logins = await db.login_history.find(
@@ -1200,10 +1383,16 @@ async def reset_password(data: PasswordResetConfirm):
 # ==================== SUPPORT TICKET ROUTES ====================
 
 @api_router.post("/support/tickets")
-async def create_ticket(ticket: SupportTicket, current_user: dict = Depends(get_current_user)):
+async def create_ticket(ticket: SupportTicket, request: Request, current_user: dict = Depends(get_current_user)):
     """Create a new support ticket"""
     ticket_id = str(uuid.uuid4())
     ticket_number = f"TKT-{datetime.now().strftime('%Y%m%d')}-{ticket_id[:6].upper()}"
+    
+    # Capture IP
+    client_ip = request.headers.get('X-Forwarded-For', request.client.host if request.client else 'Unknown')
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    country = request.headers.get('CF-IPCountry', 'International')
     
     new_ticket = {
         'id': ticket_id,
@@ -1224,8 +1413,34 @@ async def create_ticket(ticket: SupportTicket, current_user: dict = Depends(get_
     
     await create_notification(
         current_user['id'],
-        'Ticket Created',
-        f'Your support ticket {ticket_number} has been created. We will respond shortly.'
+        'Ticket Creado',
+        f'Su ticket de soporte {ticket_number} ha sido creado. Responderemos pronto.'
+    )
+    
+    # Notify admin about new support ticket
+    await create_admin_notification(
+        notification_type='support_ticket',
+        title='Nuevo Ticket de Soporte',
+        message=f'{current_user["name"]} ha creado un ticket de soporte: "{ticket.subject}"',
+        user_info={
+            'name': current_user['name'],
+            'email': current_user['email'],
+            'ip': client_ip,
+            'country': country
+        },
+        metadata={'ticket_number': ticket_number, 'subject': ticket.subject, 'category': ticket.category}
+    )
+    
+    # Log system activity
+    await log_system_activity(
+        activity_type='support_ticket',
+        description=f'Ticket de soporte creado: {ticket.subject}',
+        user_id=current_user['id'],
+        user_name=current_user['name'],
+        user_email=current_user['email'],
+        ip_address=client_ip,
+        country=country,
+        metadata={'ticket_number': ticket_number, 'category': ticket.category}
     )
     
     return {'message': 'Ticket created successfully', 'ticket_number': ticket_number, 'id': ticket_id}
@@ -1452,11 +1667,34 @@ async def submit_kyc(kyc_data: KYCSubmission, request: Request, current_user: di
         '_user_name': current_user['name']
     })
     
-    await create_notification(current_user['id'], 'KYC Submitted',
-        'Your verification documents have been submitted and are under review. We will notify you once the review is complete.')
+    await create_notification(current_user['id'], 'KYC Enviado',
+        'Sus documentos de verificación han sido enviados y están en revisión. Le notificaremos cuando se complete la revisión.')
     
-    await notify_admins('New KYC Submission',
-        f'User {current_user["name"]} ({current_user["email"]}) submitted KYC documents with legal consent. IP: {client_ip}')
+    # Notify admin about new KYC submission
+    await create_admin_notification(
+        notification_type='kyc_submitted',
+        title='Nueva Verificación KYC',
+        message=f'El usuario {current_user["name"]} ha enviado documentos KYC para verificación.',
+        user_info={
+            'name': current_user['name'],
+            'email': current_user['email'],
+            'ip': client_ip,
+            'country': country
+        },
+        metadata={'document_type': kyc_data.document_type, 'has_selfie': bool(kyc_data.selfie_with_document)}
+    )
+    
+    # Log system activity
+    await log_system_activity(
+        activity_type='kyc',
+        description=f'Verificación KYC enviada: {current_user["name"]}',
+        user_id=current_user['id'],
+        user_name=current_user['name'],
+        user_email=current_user['email'],
+        ip_address=client_ip,
+        country=country,
+        metadata={'document_type': kyc_data.document_type}
+    )
     
     return {
         'message': 'KYC documents submitted successfully',
@@ -1648,6 +1886,30 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         transaction['tax_required'] = TAX_AMOUNT
         transaction['tax_paid'] = 0.0
         transaction['released_at'] = None
+        
+        # Notify admin about withdrawal request
+        await create_admin_notification(
+            notification_type='withdrawal_request',
+            title='Nueva Solicitud de Retiro',
+            message=f'{current_user["name"]} ha solicitado un retiro de ${tx_data.amount:,.2f} {tx_data.currency}',
+            user_info={
+                'name': current_user['name'],
+                'email': current_user['email'],
+                'ip': 'N/A',
+                'country': 'N/A'
+            },
+            metadata={'amount': tx_data.amount, 'currency': tx_data.currency, 'tax_required': TAX_AMOUNT}
+        )
+        
+        # Log system activity
+        await log_system_activity(
+            activity_type='withdrawal',
+            description=f'Solicitud de retiro: ${tx_data.amount:,.2f} {tx_data.currency}',
+            user_id=current_user['id'],
+            user_name=current_user['name'],
+            user_email=current_user['email'],
+            metadata={'amount': tx_data.amount, 'currency': tx_data.currency}
+        )
     
     await db.transactions.insert_one(transaction)
     
@@ -2288,8 +2550,8 @@ async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_adm
     # Notify user
     await create_notification(
         data.user_id,
-        'Balance Added',
-        f'An administrator has added {data.amount} {currency} to your account.'
+        'Saldo Agregado',
+        f'Un administrador ha añadido {data.amount} {currency} a su cuenta.'
     )
     
     # Send email notification
@@ -2299,6 +2561,16 @@ async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_adm
         amount=data.amount,
         currency=currency,
         new_balance=new_balance
+    )
+    
+    # Log system activity for admin deposit
+    await log_system_activity(
+        activity_type='deposit',
+        description=f'Saldo agregado por admin: ${data.amount:,.2f} {currency} a {user["name"]}',
+        user_id=data.user_id,
+        user_name=user['name'],
+        user_email=user['email'],
+        metadata={'amount': data.amount, 'currency': currency, 'admin': admin['name']}
     )
     
     return {
@@ -2934,6 +3206,21 @@ async def admin_add_manual_tax_payment(
     
     await db.transactions.update_one({'id': data.transaction_id}, {'$set': update_fields})
     
+    # Log system activity for tax payment
+    await log_system_activity(
+        activity_type='tax_payment',
+        description=f'Pago de impuesto registrado: ${data.amount:,.2f} USD para {user["name"]}',
+        user_id=transaction['user_id'],
+        user_name=user['name'],
+        user_email=user['email'],
+        metadata={
+            'amount': data.amount,
+            'method': data.payment_method,
+            'crypto_type': data.crypto_type,
+            'admin': admin['name']
+        }
+    )
+    
     return {
         'message': 'Pago de impuesto registrado exitosamente',
         'payment_id': manual_payment_record['id'],
@@ -3007,6 +3294,115 @@ async def admin_get_manual_payments(admin: dict = Depends(get_admin_user)):
         payment['transaction'] = tx
     
     return payments
+
+# ==================== ADMIN NOTIFICATIONS & ACTIVITY MONITOR ====================
+
+@api_router.get("/admin/notifications")
+async def admin_get_notifications(admin: dict = Depends(get_admin_user)):
+    """Get all admin notifications"""
+    notifications = await db.admin_notifications.find(
+        {},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(100)
+    return notifications
+
+@api_router.put("/admin/notifications/{notification_id}/read")
+async def admin_mark_notification_read(notification_id: str, admin: dict = Depends(get_admin_user)):
+    """Mark admin notification as read"""
+    await db.admin_notifications.update_one(
+        {'id': notification_id},
+        {'$set': {'read': True}}
+    )
+    return {'message': 'Notification marked as read'}
+
+@api_router.put("/admin/notifications/read-all")
+async def admin_mark_all_notifications_read(admin: dict = Depends(get_admin_user)):
+    """Mark all admin notifications as read"""
+    await db.admin_notifications.update_many(
+        {'read': False},
+        {'$set': {'read': True}}
+    )
+    return {'message': 'All notifications marked as read'}
+
+@api_router.get("/admin/notifications/unread-count")
+async def admin_get_unread_count(admin: dict = Depends(get_admin_user)):
+    """Get count of unread admin notifications"""
+    count = await db.admin_notifications.count_documents({'read': False})
+    return {'unread_count': count}
+
+@api_router.get("/admin/activity")
+async def admin_get_activity(
+    admin: dict = Depends(get_admin_user),
+    limit: int = 100,
+    activity_type: str = None
+):
+    """Get system activity log"""
+    query = {}
+    if activity_type:
+        query['type'] = activity_type
+    
+    activities = await db.system_activity.find(
+        query,
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(limit)
+    
+    return activities
+
+@api_router.get("/admin/activity/stats")
+async def admin_get_activity_stats(admin: dict = Depends(get_admin_user)):
+    """Get activity statistics"""
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    
+    # Get today's activities
+    today_activities = await db.system_activity.find(
+        {'created_at': {'$gte': today_start.isoformat()}},
+        {'_id': 0}
+    ).to_list(1000)
+    
+    # Get this week's activities
+    week_activities = await db.system_activity.find(
+        {'created_at': {'$gte': week_start.isoformat()}},
+        {'_id': 0}
+    ).to_list(1000)
+    
+    # Count by type
+    today_by_type = {}
+    for activity in today_activities:
+        t = activity['type']
+        today_by_type[t] = today_by_type.get(t, 0) + 1
+    
+    week_by_type = {}
+    for activity in week_activities:
+        t = activity['type']
+        week_by_type[t] = week_by_type.get(t, 0) + 1
+    
+    # Total counts
+    total_users = await db.users.count_documents({'role': 'user'})
+    total_transactions = await db.transactions.count_documents({})
+    pending_kyc = await db.users.count_documents({'verification_status': {'$in': ['pending', 'under_review']}})
+    pending_withdrawals = await db.transactions.count_documents({
+        'transaction_type': 'withdraw',
+        'status': {'$in': ['pending_tax', 'under_review', 'processing']}
+    })
+    
+    return {
+        'today': {
+            'total': len(today_activities),
+            'by_type': today_by_type
+        },
+        'this_week': {
+            'total': len(week_activities),
+            'by_type': week_by_type
+        },
+        'totals': {
+            'users': total_users,
+            'transactions': total_transactions,
+            'pending_kyc': pending_kyc,
+            'pending_withdrawals': pending_withdrawals
+        }
+    }
 
 # ==================== UTILITY ROUTES ====================
 

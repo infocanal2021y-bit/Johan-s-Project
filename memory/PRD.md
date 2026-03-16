@@ -53,7 +53,7 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
   - User information and signature
   - Approve/Reject buttons with rejection reason
 
-### 6. Professional Typography (Updated March 16, 2026)
+### 6. Professional Typography
 - **Font:** Inter (Google Fonts) across entire application
 - **Tabular Numbers:** `font-variant-numeric: tabular-nums` for financial values
 - **Hierarchy:**
@@ -64,10 +64,43 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - **Number Spacing:** letter-spacing 0.02em for financial numbers
 - **Professional fintech appearance** similar to Wise, Revolut, Stripe
 
-### 7. Admin Panel Features
+### 7. Admin Activity Monitor (NEW - March 16, 2026)
+**Monitor en tiempo real de toda la actividad del sistema:**
+- **Estadísticas en vivo:** Usuarios totales, Actividad hoy, KYC pendientes, Retiros pendientes
+- **Tipos de eventos monitoreados:**
+  - Registros de usuarios
+  - Inicios de sesión
+  - Verificaciones KYC enviadas
+  - Solicitudes de retiro
+  - Pagos de impuestos
+  - Saldos agregados por admin
+  - Tickets de soporte
+- **Información por evento:** Usuario, email, IP, país aproximado, fecha/hora
+- **Auto-refresh cada 30 segundos**
+- **Filtro por tipo de evento**
+
+### 8. Admin Notification System (NEW - March 16, 2026)
+**Notificaciones automáticas al admin:**
+- **Nuevo usuario registrado:** nombre, email, IP, país
+- **KYC enviado:** nombre, email, tipo documento
+- **Solicitud de retiro:** monto, moneda
+- **Ticket de soporte:** asunto, categoría
+- **Métodos de notificación:**
+  - Icono de campana en panel admin (badge con contador)
+  - Email automático al administrador
+- **Colección MongoDB:** `admin_notifications`
+
+### 9. System Activity Logging
+- **Colección MongoDB:** `system_activity`
+- Registra toda la actividad de la plataforma
+- Incluye metadatos (IP, país, dispositivo, etc.)
+- Historial completo para auditoría
+
+### 10. Admin Panel Features
 - User management
 - Transaction management
 - KYC verification review
+- **Activity Monitor** (nuevo)
 - **Pending Withdrawals Dashboard:**
   - User info, withdrawal amount
   - Tax required/paid/remaining
@@ -76,20 +109,21 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
   - Manual tax payment registration
   - Status change controls
 
-### 8. Support System
+### 11. Support System
 - Ticket-based support for users
 - Admin ticket management
 - Reply functionality
 
-### 9. Email Notifications (Resend)
+### 12. Email Notifications (Resend)
 - Balance added
 - Withdrawal status changes
 - Password changes
 - New IP login alerts
 - Tax payment reminders (every 15 hours)
 - Auto-rejection notifications
+- Admin alerts (new users, KYC, tickets)
 
-### 10. Scheduler (APScheduler)
+### 13. Scheduler (APScheduler)
 - Tax payment reminders every 15 hours
 - Auto-rejection job every 1 hour (checks for 72h expiry)
 
@@ -112,6 +146,9 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - `password_resets` - Password reset tokens
 - `notifications` - In-app notifications
 - `kyc_submissions` - KYC submission records
+- `admin_notifications` - Admin-specific notifications (NEW)
+- `system_activity` - System activity log (NEW)
+- `login_history` - User login records
 
 ## Key API Endpoints
 - `/api/auth/login`, `/api/auth/register`
@@ -120,6 +157,9 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - `/api/admin/pending-withdrawals`
 - `/api/admin/tax-payment`
 - `/api/admin/kyc/pending`, `/api/admin/kyc/action`
+- `/api/admin/activity` (NEW)
+- `/api/admin/activity/stats` (NEW)
+- `/api/admin/notifications` (NEW)
 
 ## Credentials
 - **Admin:** admi@paylionsbit.es / LionsBit2026!
