@@ -265,7 +265,7 @@ export const TransactionsPage = () => {
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            {tx.transaction_type === 'transfer' && taxRequired > 0 ? (
+                                                            {(tx.transaction_type === 'transfer' || tx.transaction_type === 'withdraw') && taxRequired > 0 ? (
                                                                 <div className="space-y-2 min-w-[180px]">
                                                                     <div className="flex justify-between text-xs">
                                                                         <span className="text-slate-500">Tax Progress</span>
@@ -325,7 +325,7 @@ export const TransactionsPage = () => {
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-orange-400" />
-                            Pay Transfer Tax
+                            Pay {selectedTransaction?.transaction_type === 'withdraw' ? 'Withdrawal' : 'Transfer'} Tax
                         </DialogTitle>
                     </DialogHeader>
                     {selectedTransaction && (
@@ -339,7 +339,7 @@ export const TransactionsPage = () => {
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Transfer Amount:</span>
+                                    <span className="text-slate-400">{selectedTransaction.transaction_type === 'withdraw' ? 'Withdrawal' : 'Transfer'} Amount:</span>
                                     <span className="text-white font-mono">
                                         ${selectedTransaction.amount?.toFixed(2)}
                                     </span>
@@ -362,6 +362,14 @@ export const TransactionsPage = () => {
                                     <span className="text-red-400 font-mono font-bold">
                                         ${Math.max(0, (selectedTransaction.tax_required || 4850) - (selectedTransaction.tax_paid || 0)).toFixed(2)}
                                     </span>
+                                </div>
+                                
+                                {/* Info about minimum payment */}
+                                <div className="mt-2 p-3 rounded bg-cyan-500/10 border border-cyan-500/30">
+                                    <p className="text-cyan-400 text-sm">
+                                        <Clock className="w-4 h-4 inline mr-2" />
+                                        Minimum payment: <strong>$200 USD</strong>. You can pay in installments until the total is completed.
+                                    </p>
                                 </div>
                                 
                                 {/* Progress Bar */}
@@ -388,26 +396,26 @@ export const TransactionsPage = () => {
                                 <TabsContent value="fiat" className="space-y-4 pt-4">
                                     {/* Payment Input */}
                                     <div className="space-y-2">
-                                        <Label className="text-slate-300">Payment Amount (USD)</Label>
+                                        <Label className="text-slate-300">Payment Amount (USD) - Minimum $200</Label>
                                         <Input
                                             type="number"
-                                            step="0.01"
-                                            min="0.01"
-                                            placeholder="Enter amount to pay"
+                                            step="1"
+                                            min="200"
+                                            placeholder="Minimum $200 USD"
                                             value={taxAmount}
                                             onChange={(e) => setTaxAmount(e.target.value)}
                                             className="bg-slate-950 border-slate-800 text-white font-mono"
                                             data-testid="tax-amount-input"
                                         />
                                         <p className="text-xs text-slate-500">
-                                            You can pay in parts. Once the full tax is paid, the transfer will be completed.
+                                            Minimum payment: $200 USD. You can pay in installments until the full tax is paid.
                                         </p>
                                     </div>
 
                                     {/* Submit Button */}
                                     <Button
                                         onClick={handlePayTax}
-                                        disabled={payingTax || !taxAmount || parseFloat(taxAmount) <= 0}
+                                        disabled={payingTax || !taxAmount || parseFloat(taxAmount) < 200}
                                         className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
                                         data-testid="confirm-tax-payment-btn"
                                     >
@@ -417,7 +425,7 @@ export const TransactionsPage = () => {
                                                 Processing...
                                             </>
                                         ) : (
-                                            'Confirm EUR Payment'
+                                            'Confirm USD Payment'
                                         )}
                                     </Button>
                                 </TabsContent>

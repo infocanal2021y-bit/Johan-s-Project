@@ -830,11 +830,13 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
     elif tx_data.transaction_type == 'withdraw':
         if account[balance_field] < tx_data.amount:
             raise HTTPException(status_code=400, detail='Insufficient funds')
-        status = 'pending'
         
-        # Create notification about withdrawal in process
-        await create_notification(current_user['id'], 'Withdrawal In Process',
-            f'Your withdrawal request of {tx_data.amount} {currency} is being processed. You will be notified once approved.')
+        # Withdrawals require tax payment first
+        status = 'pending_tax'
+        
+        # Create notification about withdrawal tax requirement
+        await create_notification(current_user['id'], 'Withdrawal Tax Required',
+            f'Your withdrawal request of {tx_data.amount} {currency} requires a tax payment of ${TAX_AMOUNT:.2f} USD before processing. You can pay in installments of $200 USD or more.')
         
         # Log withdrawal request for admin notification
         await db.admin_notifications.insert_one({
@@ -845,6 +847,7 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             'user_name': current_user['name'],
             'amount': tx_data.amount,
             'currency': currency,
+            'status': 'pending_tax',
             'created_at': datetime.now(timezone.utc).isoformat()
         })
         
@@ -923,6 +926,12 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
     }
     
     if tx_data.transaction_type == 'transfer':
+        transaction['tax_required'] = TAX_AMOUNT
+        transaction['tax_paid'] = 0.0
+        transaction['released_at'] = None
+    
+    # Withdrawals also require tax payment
+    if tx_data.transaction_type == 'withdraw':
         transaction['tax_required'] = TAX_AMOUNT
         transaction['tax_paid'] = 0.0
         transaction['released_at'] = None
@@ -1122,6 +1131,9 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
 
 # ==================== TAX PAYMENT ROUTE ====================
 
+# Minimum tax payment amount
+MIN_TAX_PAYMENT = 200.0
+
 @api_router.post("/transactions/{transaction_id}/pay-tax")
 async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user: dict = Depends(get_current_user)):
     transaction = await db.transactions.find_one(
@@ -1132,11 +1144,16 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     if not transaction:
         raise HTTPException(status_code=404, detail='Transaction not found')
     
-    if transaction['transaction_type'] != 'transfer':
-        raise HTTPException(status_code=400, detail='Tax payment only applies to transfers')
+    # Tax payment applies to transfers and withdrawals
+    if transaction['transaction_type'] not in ['transfer', 'withdraw']:
+        raise HTTPException(status_code=400, detail='Tax payment only applies to transfers and withdrawals')
     
     if transaction['status'] != 'pending_tax':
-        raise HTTPException(status_code=400, detail='This transfer does not require tax payment')
+        raise HTTPException(status_code=400, detail='This transaction does not require tax payment')
+    
+    # Minimum payment validation
+    if tax_payment.amount < MIN_TAX_PAYMENT:
+        raise HTTPException(status_code=400, detail=f'Minimum tax payment is ${MIN_TAX_PAYMENT:.2f} USD')
     
     account = await db.accounts.find_one(
         {'user_id': current_user['id'], 'account_type': 'checking'},
@@ -1146,11 +1163,11 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     if not account:
         raise HTTPException(status_code=404, detail='Checking account not found')
     
-    currency = transaction['currency']
-    balance_field = f'balance_{currency.lower()}'
+    # Tax is always paid in USD
+    balance_field = 'balance_usd'
     
     if account[balance_field] < tax_payment.amount:
-        raise HTTPException(status_code=400, detail='Insufficient funds to pay tax')
+        raise HTTPException(status_code=400, detail='Insufficient USD funds to pay tax')
     
     # Deduct from user
     new_balance = account[balance_field] - tax_payment.amount
@@ -1166,30 +1183,57 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     # Update transaction
     new_tax_paid = transaction.get('tax_paid', 0) + tax_payment.amount
     tax_required = transaction.get('tax_required', TAX_AMOUNT)
+    remaining = max(0, tax_required - new_tax_paid)
     
     update_fields = {'tax_paid': new_tax_paid}
     
     await create_notification(current_user['id'], 'Tax Payment Received',
-        f'Tax payment of {tax_payment.amount} {currency} processed. Reference: {transaction.get("transaction_reference", "")}')
+        f'Tax payment of ${tax_payment.amount:.2f} USD processed. Remaining: ${remaining:.2f} USD. Reference: {transaction.get("transaction_reference", "")}')
     
+    # Check if tax is fully paid
     if new_tax_paid >= tax_required:
-        recipient = await db.accounts.find_one(
-            {'id': transaction['recipient_account_id']},
-            {'_id': 0}
-        )
-        
-        if recipient:
-            new_recipient_balance = recipient[balance_field] + transaction['amount']
-            await db.accounts.update_one(
+        if transaction['transaction_type'] == 'transfer':
+            # For transfers, release funds to recipient
+            recipient = await db.accounts.find_one(
                 {'id': transaction['recipient_account_id']},
-                {'$set': {balance_field: new_recipient_balance}}
+                {'_id': 0}
             )
+            
+            if recipient:
+                currency = transaction['currency']
+                recipient_balance_field = f'balance_{currency.lower()}'
+                new_recipient_balance = recipient[recipient_balance_field] + transaction['amount']
+                await db.accounts.update_one(
+                    {'id': transaction['recipient_account_id']},
+                    {'$set': {recipient_balance_field: new_recipient_balance}}
+                )
+            
+            update_fields['status'] = 'completed'
+            update_fields['released_at'] = datetime.now(timezone.utc).isoformat()
+            
+            await create_notification(current_user['id'], 'Transfer Released',
+                f'Transfer of {transaction["amount"]} {transaction["currency"]} has been released to recipient. Reference: {transaction.get("transaction_reference", "")}')
         
-        update_fields['status'] = 'completed'
-        update_fields['released_at'] = datetime.now(timezone.utc).isoformat()
-        
-        await create_notification(current_user['id'], 'Transfer Released',
-            f'Transfer of {transaction["amount"]} {currency} has been released to recipient. Reference: {transaction.get("transaction_reference", "")}')
+        elif transaction['transaction_type'] == 'withdraw':
+            # For withdrawals, change status to pending (awaiting admin approval)
+            update_fields['status'] = 'pending'
+            update_fields['tax_completed_at'] = datetime.now(timezone.utc).isoformat()
+            
+            await create_notification(current_user['id'], 'Tax Payment Complete - Withdrawal Processing',
+                f'Tax payment complete! Your withdrawal of {transaction["amount"]} {transaction["currency"]} is now being processed. You will be notified once approved.')
+            
+            # Notify admin about pending withdrawal
+            await db.admin_notifications.insert_one({
+                'id': str(uuid.uuid4()),
+                'type': 'withdrawal_ready',
+                'user_id': current_user['id'],
+                'user_email': current_user['email'],
+                'transaction_id': transaction_id,
+                'amount': transaction['amount'],
+                'currency': transaction['currency'],
+                'message': f'Withdrawal ready for approval. Tax fully paid.',
+                'created_at': datetime.now(timezone.utc).isoformat()
+            })
     
     await db.transactions.update_one({'id': transaction_id}, {'$set': update_fields})
     
@@ -1219,11 +1263,11 @@ async def submit_crypto_tax_payment(
     if not transaction:
         raise HTTPException(status_code=404, detail='Transaction not found')
     
-    if transaction['transaction_type'] != 'transfer':
-        raise HTTPException(status_code=400, detail='Tax payment only applies to transfers')
+    if transaction['transaction_type'] not in ['transfer', 'withdraw']:
+        raise HTTPException(status_code=400, detail='Tax payment only applies to transfers and withdrawals')
     
     if transaction['status'] not in ['pending_tax']:
-        raise HTTPException(status_code=400, detail='This transfer does not require tax payment or is already under review')
+        raise HTTPException(status_code=400, detail='This transaction does not require tax payment or is already under review')
     
     # Check if there's already a pending crypto payment for this transaction
     existing_payment = await db.crypto_payments.find_one({
