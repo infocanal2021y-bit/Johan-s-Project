@@ -80,8 +80,8 @@ export const transactionsAPI = {
 // Notifications API
 export const notificationsAPI = {
     getAll: () => api.get('/notifications'),
-    markRead: (id) => api.put(`/notifications/${id}/read`),
-    markAllRead: () => api.put('/notifications/read-all'),
+    markAsRead: (id) => api.put(`/notifications/${id}/read`),
+    markAllAsRead: () => api.put('/notifications/read-all'),
 };
 
 // Admin API

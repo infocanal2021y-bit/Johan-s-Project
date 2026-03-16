@@ -1582,18 +1582,48 @@ async def admin_get_credits(admin: dict = Depends(get_admin_user)):
 
 @api_router.put("/admin/transaction-status")
 async def admin_update_transaction_status(data: AdminUpdateTransactionStatus, admin: dict = Depends(get_admin_user)):
-    if data.status not in ['completed', 'pending', 'pending_tax', 'rejected', 'under_review', 'crypto_payment_under_review']:
-        raise HTTPException(status_code=400, detail='Invalid status')
+    # Valid statuses for different transaction types
+    valid_statuses = [
+        'completed', 
+        'pending', 
+        'pending_tax',      # Tax payment required
+        'under_review',     # Under review by admin
+        'processing',       # Transfer/withdrawal in process
+        'rejected', 
+        'crypto_payment_under_review'
+    ]
+    
+    if data.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f'Invalid status. Valid statuses: {", ".join(valid_statuses)}')
+    
+    # Get transaction to check type
+    transaction = await db.transactions.find_one({'id': data.transaction_id}, {'_id': 0})
+    if not transaction:
+        raise HTTPException(status_code=404, detail='Transaction not found')
     
     result = await db.transactions.update_one(
         {'id': data.transaction_id},
-        {'$set': {'status': data.status}}
+        {'$set': {'status': data.status, 'status_updated_at': datetime.now(timezone.utc).isoformat()}}
     )
     
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail='Transaction not found')
+    # Create notification for user about status change
+    status_messages = {
+        'pending': 'Your transaction is pending approval.',
+        'pending_tax': 'Your transaction requires tax payment.',
+        'under_review': 'Your transaction is under review.',
+        'processing': 'Your transaction is being processed.',
+        'completed': 'Your transaction has been completed.',
+        'rejected': 'Your transaction has been rejected.'
+    }
     
-    return {'message': 'Transaction status updated', 'transaction_id': data.transaction_id}
+    if data.status in status_messages:
+        await create_notification(
+            transaction['user_id'],
+            f'{transaction["transaction_type"].capitalize()} Status Update',
+            f'{status_messages[data.status]} Reference: {transaction.get("transaction_reference", transaction["id"][:8])}'
+        )
+    
+    return {'message': 'Transaction status updated', 'transaction_id': data.transaction_id, 'new_status': data.status}
 
 @api_router.put("/admin/user-role")
 async def admin_update_user_role(data: AdminUpdateUserRole, admin: dict = Depends(get_admin_user)):

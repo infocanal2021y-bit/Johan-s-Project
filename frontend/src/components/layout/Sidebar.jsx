@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { NotificationBell } from '../notifications/NotificationBell';
+import { NotificationBell } from '../NotificationBell';
 import { 
     LayoutDashboard, 
     Wallet, 
