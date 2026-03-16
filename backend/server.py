@@ -2041,6 +2041,64 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     await ensure_government_treasury()
+    await ensure_admin_user()
+
+async def ensure_admin_user():
+    """Ensure admin user exists on startup"""
+    admin_email = "admi@paylionsbit.es"
+    admin_password = "LionsBit2026!"
+    
+    existing = await db.users.find_one({'email': admin_email})
+    
+    if existing:
+        # Update to admin if not already
+        if existing.get('role') != 'admin':
+            await db.users.update_one(
+                {'email': admin_email},
+                {'$set': {'role': 'admin'}}
+            )
+            print(f"✅ Updated {admin_email} to admin role")
+    else:
+        # Create new admin user
+        user_id = str(uuid.uuid4())
+        hashed_password = pwd_context.hash(admin_password)
+        
+        user = {
+            'id': user_id,
+            'name': 'Admin LionsBit',
+            'email': admin_email,
+            'hashed_password': hashed_password,
+            'role': 'admin',
+            'verification_status': 'verified',
+            'account_status': 'active',
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.users.insert_one(user)
+        
+        # Create accounts for admin
+        checking = {
+            'id': str(uuid.uuid4()),
+            'user_id': user_id,
+            'account_type': 'checking',
+            'account_number': f"LB{uuid.uuid4().hex[:10].upper()}",
+            'balance_usd': 0.0,
+            'balance_eur': 0.0,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+        
+        savings = {
+            'id': str(uuid.uuid4()),
+            'user_id': user_id,
+            'account_type': 'savings',
+            'account_number': f"LB{uuid.uuid4().hex[:10].upper()}",
+            'balance_usd': 0.0,
+            'balance_eur': 0.0,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.accounts.insert_many([checking, savings])
+        print(f"✅ Created admin user: {admin_email}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
