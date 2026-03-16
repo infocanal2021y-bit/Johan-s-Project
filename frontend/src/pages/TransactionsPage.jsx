@@ -44,13 +44,15 @@ export const TransactionsPage = () => {
             const response = await transactionsAPI.exportCSV();
             const blob = new Blob([response.data], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'transactions.csv';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            // Use window.open or direct link click without DOM manipulation
+            const link = Object.assign(document.createElement('a'), {
+                href: url,
+                download: 'transactions.csv',
+                style: 'display: none'
+            });
+            link.click();
+            // Cleanup after a delay to ensure download starts
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
             toast.success('Transactions exported successfully');
         } catch (error) {
             toast.error('Failed to export transactions');
@@ -62,13 +64,15 @@ export const TransactionsPage = () => {
             const response = await transactionsAPI.getReceipt(tx.id);
             const blob = new Blob([response.data], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `receipt_${tx.transaction_reference || tx.id.slice(0, 8)}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            // Use window.open or direct link click without DOM manipulation
+            const link = Object.assign(document.createElement('a'), {
+                href: url,
+                download: `receipt_${tx.transaction_reference || tx.id.slice(0, 8)}.pdf`,
+                style: 'display: none'
+            });
+            link.click();
+            // Cleanup after a delay to ensure download starts
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
             toast.success('Receipt downloaded');
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Failed to download receipt');
