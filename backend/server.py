@@ -140,12 +140,18 @@ class AdminUpdateUserRole(BaseModel):
 
 class KYCSubmission(BaseModel):
     document_type: str  # passport, id_card, driver_license
-    document_data: str  # base64 encoded
-    selfie_data: str    # base64 encoded
+    document_front: str  # base64 encoded - front of document
+    document_back: str   # base64 encoded - back of document
+    digital_signature: str  # User's full name as digital signature
+    legal_consent: bool  # Must be True
+    # Investment history fields
+    investment_period: Optional[str] = None  # e.g., "2017-2023"
+    investment_details: Optional[str] = None  # Description of investments
 
 class AdminKYCAction(BaseModel):
     user_id: str
-    action: str  # approve, reject
+    action: str  # approve, reject, under_review
+    rejection_reason: Optional[str] = None
 
 class AdminSuspendUser(BaseModel):
     user_id: str
@@ -728,16 +734,80 @@ async def admin_get_password_resets(admin: dict = Depends(get_admin_user)):
 # ==================== KYC ROUTES ====================
 
 @api_router.post("/kyc/submit")
-async def submit_kyc(kyc_data: KYCSubmission, current_user: dict = Depends(get_current_user)):
-    """Submit KYC documents for verification"""
+async def submit_kyc(kyc_data: KYCSubmission, request: Request, current_user: dict = Depends(get_current_user)):
+    """Submit KYC documents for verification with legal consent"""
     if current_user.get('verification_status') == 'verified':
         raise HTTPException(status_code=400, detail='Already verified')
     
+    # Validate legal consent
+    if not kyc_data.legal_consent:
+        raise HTTPException(status_code=400, detail='Legal consent is required to submit verification')
+    
+    # Validate digital signature
+    if not kyc_data.digital_signature or len(kyc_data.digital_signature.strip()) < 3:
+        raise HTTPException(status_code=400, detail='Digital signature (full name) is required')
+    
+    # Capture user activity info for legal records
+    client_ip = request.headers.get('X-Forwarded-For', request.headers.get('X-Real-IP', request.client.host if request.client else 'unknown'))
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    
+    # Detect browser from user agent
+    browser = 'Unknown'
+    if 'Chrome' in user_agent:
+        browser = 'Chrome'
+    elif 'Firefox' in user_agent:
+        browser = 'Firefox'
+    elif 'Safari' in user_agent:
+        browser = 'Safari'
+    elif 'Edge' in user_agent:
+        browser = 'Edge'
+    elif 'Opera' in user_agent:
+        browser = 'Opera'
+    
+    # Get approximate country from IP (simplified - in production use GeoIP service)
+    country = 'Unknown'
+    try:
+        # Simple IP geolocation based on common ranges
+        if client_ip.startswith('2.'):
+            country = 'Europe'
+        elif client_ip.startswith('8.') or client_ip.startswith('12.'):
+            country = 'United States'
+        elif client_ip.startswith('200.') or client_ip.startswith('201.'):
+            country = 'Latin America'
+        else:
+            country = 'International'
+    except:
+        pass
+    
+    submission_timestamp = datetime.now(timezone.utc).isoformat()
+    
+    # Build complete KYC record with legal information
     kyc_documents = {
+        'id': str(uuid.uuid4()),
         'document_type': kyc_data.document_type,
-        'document_data': kyc_data.document_data,
-        'selfie_data': kyc_data.selfie_data,
-        'submitted_at': datetime.now(timezone.utc).isoformat()
+        'document_front': kyc_data.document_front,
+        'document_back': kyc_data.document_back,
+        'digital_signature': kyc_data.digital_signature,
+        'legal_consent_accepted': True,
+        'legal_consent_text': 'Declaro bajo mi responsabilidad que soy el titular legítimo de la información y documentos enviados. Entiendo que proporcionar datos falsos o utilizar la identidad de otra persona sin autorización puede constituir fraude y dar lugar a acciones legales.',
+        'investment_period': kyc_data.investment_period,
+        'investment_details': kyc_data.investment_details,
+        'submitted_at': submission_timestamp,
+        'status': 'pending',  # pending, under_review, approved, rejected
+        # Legal activity record
+        'legal_record': {
+            'ip_address': client_ip,
+            'user_agent': user_agent,
+            'browser': browser,
+            'country_approximate': country,
+            'timestamp': submission_timestamp,
+            'user_id': current_user['id'],
+            'user_email': current_user['email'],
+            'user_name': current_user['name']
+        }
     }
     
     await db.users.update_one(
@@ -748,20 +818,37 @@ async def submit_kyc(kyc_data: KYCSubmission, current_user: dict = Depends(get_c
         }}
     )
     
+    # Also store in a separate KYC submissions collection for admin panel
+    await db.kyc_submissions.insert_one({
+        **kyc_documents,
+        'user_id': current_user['id'],
+        '_user_email': current_user['email'],
+        '_user_name': current_user['name']
+    })
+    
     await create_notification(current_user['id'], 'KYC Submitted',
-        'Your verification documents have been submitted and are under review.')
+        'Your verification documents have been submitted and are under review. We will notify you once the review is complete.')
     
     await notify_admins('New KYC Submission',
-        f'User {current_user["name"]} ({current_user["email"]}) submitted KYC documents.')
+        f'User {current_user["name"]} ({current_user["email"]}) submitted KYC documents with legal consent. IP: {client_ip}')
     
-    return {'message': 'KYC documents submitted successfully', 'status': 'pending_verification'}
+    return {
+        'message': 'KYC documents submitted successfully',
+        'status': 'pending',
+        'submission_id': kyc_documents['id'],
+        'submitted_at': submission_timestamp
+    }
 
 @api_router.get("/kyc/status")
 async def get_kyc_status(current_user: dict = Depends(get_current_user)):
     """Get current KYC verification status"""
+    kyc_docs = current_user.get('kyc_documents', {})
     return {
         'verification_status': current_user.get('verification_status', 'unverified'),
-        'has_documents': current_user.get('kyc_documents') is not None
+        'has_documents': current_user.get('kyc_documents') is not None,
+        'kyc_status': kyc_docs.get('status', 'none') if kyc_docs else 'none',
+        'submitted_at': kyc_docs.get('submitted_at') if kyc_docs else None,
+        'rejection_reason': kyc_docs.get('rejection_reason') if kyc_docs else None
     }
 
 # ==================== ACCOUNT ROUTES ====================
@@ -1642,30 +1729,85 @@ async def admin_update_user_role(data: AdminUpdateUserRole, admin: dict = Depend
 
 @api_router.post("/admin/kyc/action")
 async def admin_kyc_action(data: AdminKYCAction, admin: dict = Depends(get_admin_user)):
-    """Approve or reject KYC verification"""
+    """Approve, reject, or set KYC verification to under review"""
     user = await db.users.find_one({'id': data.user_id}, {'_id': 0})
     if not user:
         raise HTTPException(status_code=404, detail='User not found')
     
+    action_timestamp = datetime.now(timezone.utc).isoformat()
+    
     if data.action == 'approve':
-        await db.users.update_one(
-            {'id': data.user_id},
-            {'$set': {'verification_status': 'verified'}}
+        update_data = {
+            'verification_status': 'verified',
+            'kyc_documents.status': 'approved',
+            'kyc_documents.reviewed_at': action_timestamp,
+            'kyc_documents.reviewed_by': admin['email']
+        }
+        await db.users.update_one({'id': data.user_id}, {'$set': update_data})
+        
+        # Update in kyc_submissions collection too
+        await db.kyc_submissions.update_one(
+            {'user_id': data.user_id},
+            {'$set': {'status': 'approved', 'reviewed_at': action_timestamp, 'reviewed_by': admin['email']}}
         )
+        
         await create_notification(data.user_id, 'KYC Approved',
-            'Your identity verification has been approved. You now have full access to all features.')
-        return {'message': 'KYC approved', 'user_id': data.user_id}
+            'Congratulations! Your identity verification has been approved. You now have full access to all features.')
+        return {'message': 'KYC approved', 'user_id': data.user_id, 'status': 'approved'}
+    
+    elif data.action == 'under_review':
+        update_data = {
+            'verification_status': 'pending_verification',
+            'kyc_documents.status': 'under_review',
+            'kyc_documents.review_started_at': action_timestamp
+        }
+        await db.users.update_one({'id': data.user_id}, {'$set': update_data})
+        
+        await db.kyc_submissions.update_one(
+            {'user_id': data.user_id},
+            {'$set': {'status': 'under_review', 'review_started_at': action_timestamp}}
+        )
+        
+        await create_notification(data.user_id, 'KYC Under Review',
+            'Your verification documents are currently being reviewed. We will notify you once the review is complete.')
+        return {'message': 'KYC marked as under review', 'user_id': data.user_id, 'status': 'under_review'}
     
     elif data.action == 'reject':
-        await db.users.update_one(
-            {'id': data.user_id},
-            {'$set': {'verification_status': 'unverified', 'kyc_documents': None}}
+        rejection_reason = data.rejection_reason or 'Documents did not meet verification requirements'
+        update_data = {
+            'verification_status': 'rejected',
+            'kyc_documents.status': 'rejected',
+            'kyc_documents.rejection_reason': rejection_reason,
+            'kyc_documents.rejected_at': action_timestamp,
+            'kyc_documents.reviewed_by': admin['email']
+        }
+        await db.users.update_one({'id': data.user_id}, {'$set': update_data})
+        
+        await db.kyc_submissions.update_one(
+            {'user_id': data.user_id},
+            {'$set': {'status': 'rejected', 'rejection_reason': rejection_reason, 'rejected_at': action_timestamp}}
         )
+        
         await create_notification(data.user_id, 'KYC Rejected',
-            'Your identity verification was rejected. Please resubmit your documents.')
-        return {'message': 'KYC rejected', 'user_id': data.user_id}
+            f'Your identity verification was rejected. Reason: {rejection_reason}. Please submit new documents.')
+        return {'message': 'KYC rejected', 'user_id': data.user_id, 'status': 'rejected', 'reason': rejection_reason}
     
-    raise HTTPException(status_code=400, detail='Invalid action')
+    raise HTTPException(status_code=400, detail='Invalid action. Use: approve, under_review, or reject')
+
+# Get all KYC submissions for admin
+@api_router.get("/admin/kyc/submissions")
+async def admin_get_kyc_submissions(admin: dict = Depends(get_admin_user)):
+    """Get all KYC submissions with full legal records"""
+    submissions = await db.kyc_submissions.find({}, {'_id': 0}).sort('submitted_at', -1).to_list(100)
+    
+    # Enrich with user info
+    for sub in submissions:
+        user = await db.users.find_one({'id': sub.get('user_id')}, {'_id': 0, 'name': 1, 'email': 1})
+        if user:
+            sub['user_name'] = user.get('name')
+            sub['user_email'] = user.get('email')
+    
+    return submissions
 
 @api_router.post("/admin/user/suspend")
 async def admin_suspend_user(data: AdminSuspendUser, admin: dict = Depends(get_admin_user)):
