@@ -318,6 +318,7 @@ async def notify_admins(title: str, message: str):
 # ==================== ADMIN NOTIFICATION SYSTEM ====================
 
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admi@paylionsbit.es')
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://lionsbit-banking.preview.emergentagent.com')
 
 async def create_admin_notification(
     notification_type: str,
@@ -415,7 +416,7 @@ async def send_admin_alert_email(notification_type: str, title: str, message: st
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
             <tr>
                 <td align="center">
-                    <a href="https://paylionsbit.es/admin/activity" style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: bold;">
+                    <a href="{APP_BASE_URL}/admin/activity" style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: bold;">
                         Ver Panel de Actividad
                     </a>
                 </td>
@@ -797,7 +798,7 @@ async def send_withdrawal_tax_pending_email(user_email: str, user_name: str, wit
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
             <tr>
                 <td align="center">
-                    <a href="https://paylionsbit.es/transactions" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                    <a href="{APP_BASE_URL}/transactions" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
                         Abonar Impuesto
                     </a>
                 </td>
@@ -931,7 +932,7 @@ async def send_tax_reminder_email(user_email: str, user_name: str, withdrawal_am
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
             <tr>
                 <td align="center">
-                    <a href="https://paylionsbit.es/transactions" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                    <a href="{APP_BASE_URL}/transactions" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
                         Pagar Impuesto Ahora
                     </a>
                 </td>
@@ -1305,8 +1306,8 @@ async def request_password_reset(data: PasswordResetRequest):
     }
     await db.password_resets.insert_one(reset_request)
     
-    # Generate reset link - use production domain
-    reset_link = f"https://paylionsbit.es/reset-password?token={reset_token}"
+    # Generate reset link - use dynamic domain from environment
+    reset_link = f"{APP_BASE_URL}/reset-password?token={reset_token}"
     
     # Send email with reset link
     await send_password_reset_email(user['email'], user['name'], reset_link, reset_token)
