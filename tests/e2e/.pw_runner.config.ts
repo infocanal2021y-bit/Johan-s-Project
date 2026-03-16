@@ -2,16 +2,16 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: '/app/tests/e2e',
-  outputDir: '/root/.emergent/automation_output/20260314_141739/test-results',
+  outputDir: '/root/.emergent/automation_output/20260316_151531/test-results',
   timeout: 60000,
   retries: 0,
   workers: 1,
   reporter: [
     ['line'],
-    ['json', { outputFile: '/root/.emergent/automation_output/20260314_141739/results.json' }],
+    ['json', { outputFile: '/root/.emergent/automation_output/20260316_151531/results.json' }],
   ],
   use: {
-    baseURL: 'https://crypto-bank-dev.preview.emergentagent.com',
+    baseURL: 'https://secure-banking-hub-10.preview.emergentagent.com',
     screenshot: 'only-on-failure',
     trace: 'off',
     headless: true,

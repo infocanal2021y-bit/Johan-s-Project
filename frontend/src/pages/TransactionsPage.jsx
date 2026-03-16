@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
@@ -21,8 +20,6 @@ export const TransactionsPage = () => {
     const [filter, setFilter] = useState('all');
     const [taxDialogOpen, setTaxDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
-    const [taxAmount, setTaxAmount] = useState('');
-    const [payingTax, setPayingTax] = useState(false);
 
     const fetchTransactions = async () => {
         try {
@@ -81,27 +78,7 @@ export const TransactionsPage = () => {
 
     const handleOpenTaxDialog = (tx) => {
         setSelectedTransaction(tx);
-        setTaxAmount('');
         setTaxDialogOpen(true);
-    };
-
-    const handlePayTax = async () => {
-        if (!selectedTransaction || !taxAmount || parseFloat(taxAmount) <= 0) {
-            toast.error('Please enter a valid amount');
-            return;
-        }
-
-        setPayingTax(true);
-        try {
-            await transactionsAPI.payTax(selectedTransaction.id, { amount: parseFloat(taxAmount) });
-            toast.success('Tax payment processed successfully');
-            setTaxDialogOpen(false);
-            fetchTransactions();
-        } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to process tax payment');
-        } finally {
-            setPayingTax(false);
-        }
     };
 
     const filteredTransactions = transactions.filter((tx) => {
@@ -286,7 +263,7 @@ export const TransactionsPage = () => {
                                                                             data-testid={`pay-tax-btn-${tx.id}`}
                                                                         >
                                                                             <AlertTriangle className="w-3 h-3 mr-1" />
-                                                                            Pay Tax (${(taxRequired - taxPaid).toFixed(0)} remaining)
+                                                                            Abonar Impuesto (${(taxRequired - taxPaid).toFixed(0)} restante)
                                                                         </Button>
                                                                     )}
                                                                 </div>
@@ -320,13 +297,13 @@ export const TransactionsPage = () => {
                 </motion.div>
             </div>
 
-            {/* Tax Payment Dialog */}
+            {/* Tax Payment Dialog - ONLY CRYPTO */}
             <Dialog open={taxDialogOpen} onOpenChange={setTaxDialogOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
+                <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-orange-400" />
-                            Pay {selectedTransaction?.transaction_type === 'withdraw' ? 'Withdrawal' : 'Transfer'} Tax
+                            <Bitcoin className="w-5 h-5 text-orange-400" />
+                            Abonar al Impuesto / Pay Tax
                         </DialogTitle>
                     </DialogHeader>
                     {selectedTransaction && (
@@ -334,113 +311,89 @@ export const TransactionsPage = () => {
                             {/* Tax Summary */}
                             <div className="p-4 rounded-lg bg-slate-800/50 space-y-3">
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Reference:</span>
+                                    <span className="text-slate-400">Referencia:</span>
                                     <span className="text-white font-mono">
                                         {selectedTransaction.transaction_reference || selectedTransaction.id.slice(0, 12)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">{selectedTransaction.transaction_type === 'withdraw' ? 'Withdrawal' : 'Transfer'} Amount:</span>
+                                    <span className="text-slate-400">Monto del Retiro:</span>
                                     <span className="text-white font-mono">
-                                        ${selectedTransaction.amount?.toFixed(2)}
+                                        ${selectedTransaction.amount?.toFixed(2)} {selectedTransaction.currency}
                                     </span>
                                 </div>
                                 <hr className="border-slate-700" />
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Tax Required:</span>
-                                    <span className="text-orange-400 font-mono">
-                                        ${(selectedTransaction.tax_required || 4850).toFixed(2)}
+                                    <span className="text-orange-400 font-medium">Impuesto Requerido:</span>
+                                    <span className="text-orange-400 font-mono font-bold text-lg">
+                                        ${(selectedTransaction.tax_required || 4850).toFixed(2)} USD
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Tax Paid:</span>
+                                    <span className="text-emerald-400">Pagado:</span>
                                     <span className="text-emerald-400 font-mono">
-                                        ${(selectedTransaction.tax_paid || 0).toFixed(2)}
+                                        ${(selectedTransaction.tax_paid || 0).toFixed(2)} USD
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-white font-medium">Remaining:</span>
-                                    <span className="text-red-400 font-mono font-bold">
-                                        ${Math.max(0, (selectedTransaction.tax_required || 4850) - (selectedTransaction.tax_paid || 0)).toFixed(2)}
+                                    <span className="text-red-400 font-medium">Restante:</span>
+                                    <span className="text-red-400 font-mono font-bold text-lg">
+                                        ${Math.max(0, (selectedTransaction.tax_required || 4850) - (selectedTransaction.tax_paid || 0)).toFixed(2)} USD
                                     </span>
-                                </div>
-                                
-                                {/* Info about minimum payment */}
-                                <div className="mt-2 p-3 rounded bg-cyan-500/10 border border-cyan-500/30">
-                                    <p className="text-cyan-400 text-sm">
-                                        <Clock className="w-4 h-4 inline mr-2" />
-                                        Minimum payment: <strong>$200 USD</strong>. You can pay in installments until the total is completed.
-                                    </p>
                                 </div>
                                 
                                 {/* Progress Bar */}
                                 <div className="pt-2">
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="text-slate-500">Progreso del pago</span>
+                                        <span className="text-emerald-400">
+                                            {(((selectedTransaction.tax_paid || 0) / (selectedTransaction.tax_required || 4850)) * 100).toFixed(0)}%
+                                        </span>
+                                    </div>
                                     <Progress 
                                         value={((selectedTransaction.tax_paid || 0) / (selectedTransaction.tax_required || 4850)) * 100} 
                                         className="h-3 bg-slate-700"
                                     />
                                 </div>
+                                
+                                {/* Info about minimum payment */}
+                                <div className="mt-3 p-3 rounded bg-cyan-500/10 border border-cyan-500/30">
+                                    <p className="text-cyan-400 text-sm">
+                                        <Clock className="w-4 h-4 inline mr-2" />
+                                        Abono mínimo: <strong>$200 USD</strong>. Puede realizar abonos parciales hasta completar el total.
+                                    </p>
+                                </div>
+                                
+                                {/* Warning about 72 hours */}
+                                <div className="p-3 rounded bg-red-500/10 border border-red-500/30">
+                                    <p className="text-red-400 text-sm">
+                                        <AlertTriangle className="w-4 h-4 inline mr-2" />
+                                        <strong>Importante:</strong> Si el impuesto no se paga dentro de 72 horas, el retiro será rechazado automáticamente.
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Payment Methods Tabs */}
-                            <Tabs defaultValue="fiat" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2 bg-slate-800">
-                                    <TabsTrigger value="fiat" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
-                                        Pay with EUR Balance
-                                    </TabsTrigger>
-                                    <TabsTrigger value="crypto" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
-                                        <Bitcoin className="w-4 h-4 mr-2" />
-                                        Pay with Crypto
-                                    </TabsTrigger>
-                                </TabsList>
+                            {/* ONLY Crypto Payment - No "Pay with Balance" option */}
+                            <div className="space-y-4">
+                                <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                                    <h3 className="text-orange-400 font-medium flex items-center gap-2 mb-2">
+                                        <Bitcoin className="w-5 h-5" />
+                                        Pago con Criptomonedas
+                                    </h3>
+                                    <p className="text-sm text-orange-400/80">
+                                        Seleccione una criptomoneda y envíe el monto correspondiente a la dirección indicada. 
+                                        Un administrador verificará su pago manualmente.
+                                    </p>
+                                </div>
                                 
-                                <TabsContent value="fiat" className="space-y-4 pt-4">
-                                    {/* Payment Input */}
-                                    <div className="space-y-2">
-                                        <Label className="text-slate-300">Payment Amount (USD) - Minimum $200</Label>
-                                        <Input
-                                            type="number"
-                                            step="1"
-                                            min="200"
-                                            placeholder="Minimum $200 USD"
-                                            value={taxAmount}
-                                            onChange={(e) => setTaxAmount(e.target.value)}
-                                            className="bg-slate-950 border-slate-800 text-white font-mono"
-                                            data-testid="tax-amount-input"
-                                        />
-                                        <p className="text-xs text-slate-500">
-                                            Minimum payment: $200 USD. You can pay in installments until the full tax is paid.
-                                        </p>
-                                    </div>
-
-                                    {/* Submit Button */}
-                                    <Button
-                                        onClick={handlePayTax}
-                                        disabled={payingTax || !taxAmount || parseFloat(taxAmount) < 200}
-                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
-                                        data-testid="confirm-tax-payment-btn"
-                                    >
-                                        {payingTax ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                Processing...
-                                            </>
-                                        ) : (
-                                            'Confirm USD Payment'
-                                        )}
-                                    </Button>
-                                </TabsContent>
-                                
-                                <TabsContent value="crypto" className="pt-4">
-                                    <CryptoPaymentSection 
-                                        transaction={selectedTransaction}
-                                        onPaymentSubmitted={() => {
-                                            setTaxDialogOpen(false);
-                                            fetchTransactions();
-                                        }}
-                                    />
-                                </TabsContent>
-                            </Tabs>
+                                <CryptoPaymentSection 
+                                    transaction={selectedTransaction}
+                                    onPaymentSubmitted={() => {
+                                        setTaxDialogOpen(false);
+                                        fetchTransactions();
+                                    }}
+                                />
+                            </div>
                         </div>
                     )}
                 </DialogContent>

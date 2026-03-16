@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 class ComprehensiveBankingTester:
-    def __init__(self, base_url="https://crypto-bank-dev.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://secure-banking-hub-10.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.admin_token = None

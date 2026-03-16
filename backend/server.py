@@ -23,6 +23,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import resend
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -184,6 +187,14 @@ class AdminCryptoPaymentAction(BaseModel):
     payment_id: str
     action: str  # approve, reject
     rejection_reason: Optional[str] = None
+
+class AdminManualTaxPayment(BaseModel):
+    transaction_id: str
+    amount: float = Field(..., gt=0)
+    payment_method: str = Field(default='crypto')  # crypto, wire_transfer, other
+    crypto_type: Optional[str] = None  # BTC, ETH, USDT
+    txid: Optional[str] = None  # Transaction ID for crypto payments
+    notes: Optional[str] = None
 
 # ==================== NEW MODELS ====================
 
@@ -567,6 +578,271 @@ async def send_transfer_completed_email(user_email: str, user_name: str, amount:
     html = get_email_template(content, "Transferencia Completada")
     await send_email(user_email, "✅ Transferencia completada - LIONSBIT BANK", html)
 
+async def send_withdrawal_tax_pending_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, tax_required: float, tax_paid: float):
+    """Send email when withdrawal is pending tax payment"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    currency_symbol = "$" if currency == "USD" else "€"
+    remaining = tax_required - tax_paid
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Su solicitud de retiro ha sido recibida y está en espera de pago de impuesto.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del Retiro</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto solicitado:</td>
+                            <td style="color: #e2e8f0; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">{currency_symbol}{withdrawal_amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Estado:</td>
+                            <td style="color: #f97316; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">Impuesto Pendiente</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,88,12,0.1)); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #f97316; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">💰 Impuesto Requerido</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Impuesto total:</td>
+                            <td style="color: #f97316; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 20px;">${tax_required:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Pagado:</td>
+                            <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">${tax_paid:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Restante:</td>
+                            <td style="color: #ef4444; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">${remaining:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Abono mínimo:</td>
+                            <td style="color: #06b6d4; text-align: right; padding: 8px 0;">$200.00 USD</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">
+            Para procesar su retiro, debe completar el pago del impuesto mediante criptomonedas. 
+            Puede realizar abonos parciales de <strong>$200 USD</strong> o más hasta completar el monto total.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+            <tr>
+                <td align="center">
+                    <a href="https://paylionsbit.es/transactions" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                        Abonar Impuesto
+                    </a>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #94a3b8; font-size: 13px;">
+            Fecha de solicitud: {date_str}
+        </p>
+    """
+    
+    html = get_email_template(content, "Retiro Pendiente - Impuesto Requerido")
+    await send_email(user_email, "⏳ Retiro pendiente - Pague su impuesto - LIONSBIT BANK", html)
+
+async def send_tax_payment_received_email(user_email: str, user_name: str, payment_amount: float, tax_required: float, tax_paid: float, withdrawal_amount: float, currency: str):
+    """Send email when tax payment is received"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    remaining = tax_required - tax_paid
+    progress_percent = (tax_paid / tax_required) * 100
+    currency_symbol = "$" if currency == "USD" else "€"
+    
+    status_text = "Impuesto Completado - En Revisión" if remaining <= 0 else "Abono Recibido"
+    status_color = "#10b981" if remaining <= 0 else "#f97316"
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Hemos recibido su abono al impuesto de retiro.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del Abono</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Abono recibido:</td>
+                            <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">+${payment_amount:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Estado:</td>
+                            <td style="color: {status_color}; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{status_text}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0;">Progreso del Impuesto</p>
+                    <div style="background-color: #1e293b; border-radius: 8px; height: 20px; overflow: hidden;">
+                        <div style="background: linear-gradient(90deg, #10b981, #06b6d4); height: 100%; width: {min(100, progress_percent):.0f}%;"></div>
+                    </div>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 15px;">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 4px 0;">Total pagado:</td>
+                            <td style="color: #10b981; text-align: right; padding: 4px 0;">${tax_paid:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 4px 0;">Restante:</td>
+                            <td style="color: {'#10b981' if remaining <= 0 else '#ef4444'}; text-align: right; padding: 4px 0;">${max(0, remaining):,.2f} USD</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        {"<p style='color: #10b981; font-size: 16px; background-color: rgba(16,185,129,0.1); padding: 15px; border-radius: 8px; text-align: center;'>✅ ¡Impuesto completado! Su retiro de " + currency_symbol + str(withdrawal_amount) + " " + currency + " está ahora en revisión.</p>" if remaining <= 0 else "<p style='color: #94a3b8; font-size: 14px;'>Continue realizando abonos para completar el impuesto y liberar su retiro.</p>"}
+    """
+    
+    html = get_email_template(content, "Abono al Impuesto Recibido")
+    await send_email(user_email, f"💰 Abono recibido - {'Impuesto completado' if remaining <= 0 else 'Progreso actualizado'} - LIONSBIT BANK", html)
+
+async def send_tax_reminder_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, tax_required: float, tax_paid: float, hours_remaining: float):
+    """Send reminder email for pending tax payment"""
+    currency_symbol = "$" if currency == "USD" else "€"
+    remaining_tax = tax_required - tax_paid
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Este es un recordatorio de que su retiro tiene impuesto pendiente de pago.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.1)); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px; text-align: center;">
+                    <p style="color: #ef4444; font-size: 14px; margin: 0; text-transform: uppercase; letter-spacing: 1px;">⏰ Tiempo Restante</p>
+                    <p style="color: #ef4444; font-size: 36px; margin: 10px 0; font-weight: bold;">{hours_remaining:.0f} horas</p>
+                    <p style="color: #94a3b8; font-size: 13px; margin: 0;">antes del rechazo automático</p>
+                </td>
+            </tr>
+        </table>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del Retiro</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto del retiro:</td>
+                            <td style="color: #e2e8f0; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{currency_symbol}{withdrawal_amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Impuesto requerido:</td>
+                            <td style="color: #f97316; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">${tax_required:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Pagado:</td>
+                            <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">${tax_paid:,.2f} USD</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Restante:</td>
+                            <td style="color: #ef4444; font-weight: bold; text-align: right; padding: 8px 0; font-size: 18px;">${remaining_tax:,.2f} USD</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+            <tr>
+                <td align="center">
+                    <a href="https://paylionsbit.es/transactions" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                        Pagar Impuesto Ahora
+                    </a>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
+            ⚠️ <strong>Importante:</strong> Si el impuesto no se paga antes de las {hours_remaining:.0f} horas restantes, su retiro será rechazado automáticamente y los fondos permanecerán en su cuenta.
+        </p>
+    """
+    
+    html = get_email_template(content, "Recordatorio - Impuesto Pendiente")
+    await send_email(user_email, f"⚠️ RECORDATORIO: Impuesto pendiente - {hours_remaining:.0f}h restantes - LIONSBIT BANK", html)
+
+async def send_withdrawal_rejected_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, reason: str):
+    """Send email when withdrawal is automatically rejected"""
+    currency_symbol = "$" if currency == "USD" else "€"
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Le informamos que su solicitud de retiro ha sido rechazada.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.1)); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px; text-align: center;">
+                    <p style="color: #ef4444; font-size: 48px; margin: 0;">❌</p>
+                    <p style="color: #ef4444; font-size: 20px; margin: 10px 0; font-weight: bold;">Retiro Rechazado</p>
+                </td>
+            </tr>
+        </table>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto solicitado:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{currency_symbol}{withdrawal_amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Motivo:</td>
+                            <td style="color: #ef4444; text-align: right; padding: 8px 0;">{reason}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+            Los fondos permanecen en su cuenta. Si desea realizar un nuevo retiro, puede hacerlo desde su panel de control.
+        </p>
+        
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+            Si tiene alguna pregunta, por favor contacte a nuestro equipo de soporte.
+        </p>
+    """
+    
+    html = get_email_template(content, "Retiro Rechazado")
+    await send_email(user_email, "❌ Su retiro ha sido rechazado - LIONSBIT BANK", html)
+
 async def get_daily_transfer_total(user_id: str) -> float:
     """Get total EUR transfers for today"""
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -675,7 +951,12 @@ async def register(user_data: UserCreate):
 @api_router.post("/auth/login", response_model=dict)
 async def login(credentials: UserLogin, request: Request):
     user = await db.users.find_one({'email': credentials.email}, {'_id': 0})
-    if not user or not verify_password(credentials.password, user['password']):
+    if not user:
+        raise HTTPException(status_code=401, detail='Invalid credentials')
+    
+    # Handle both 'password' and 'hashed_password' fields for backwards compatibility
+    stored_password = user.get('password') or user.get('hashed_password')
+    if not stored_password or not verify_password(credentials.password, stored_password):
         raise HTTPException(status_code=401, detail='Invalid credentials')
     
     # Capture login info
@@ -1661,7 +1942,7 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
                 'transaction_id': transaction_id,
                 'amount': transaction['amount'],
                 'currency': transaction['currency'],
-                'message': f'Withdrawal ready for approval. Tax fully paid.',
+                'message': 'Withdrawal ready for approval. Tax fully paid.',
                 'created_at': datetime.now(timezone.utc).isoformat()
             })
     
@@ -2534,6 +2815,197 @@ async def admin_get_crypto_stats(admin: dict = Depends(get_admin_user)):
     
     return stats
 
+# ==================== ADMIN MANUAL TAX PAYMENT ====================
+
+@api_router.post("/admin/tax-payment")
+async def admin_add_manual_tax_payment(
+    data: AdminManualTaxPayment,
+    admin: dict = Depends(get_admin_user)
+):
+    """Admin manually registers a tax payment received from user (crypto or other methods)"""
+    
+    # Find the transaction
+    transaction = await db.transactions.find_one({'id': data.transaction_id}, {'_id': 0})
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail='Transacción no encontrada')
+    
+    if transaction['status'] != 'pending_tax':
+        raise HTTPException(status_code=400, detail='Esta transacción no requiere pago de impuesto')
+    
+    # Validate minimum payment
+    if data.amount < MIN_TAX_PAYMENT:
+        raise HTTPException(status_code=400, detail=f'El pago mínimo es ${MIN_TAX_PAYMENT:.2f} USD')
+    
+    # Get user info
+    user = await db.users.find_one({'id': transaction['user_id']}, {'_id': 0, 'password': 0})
+    if not user:
+        raise HTTPException(status_code=404, detail='Usuario no encontrado')
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Calculate new tax paid amount
+    current_tax_paid = transaction.get('tax_paid', 0)
+    tax_required = transaction.get('tax_required', TAX_AMOUNT)
+    new_tax_paid = min(current_tax_paid + data.amount, tax_required)  # Don't exceed required
+    remaining = max(0, tax_required - new_tax_paid)
+    
+    # Record the manual payment
+    manual_payment_record = {
+        'id': str(uuid.uuid4()),
+        'transaction_id': data.transaction_id,
+        'user_id': transaction['user_id'],
+        'amount': data.amount,
+        'payment_method': data.payment_method,
+        'crypto_type': data.crypto_type,
+        'txid': data.txid,
+        'notes': data.notes,
+        'registered_by': admin['id'],
+        'registered_by_name': admin['name'],
+        'created_at': now
+    }
+    await db.manual_tax_payments.insert_one(manual_payment_record)
+    
+    # Update transaction
+    update_fields = {
+        'tax_paid': new_tax_paid,
+        'last_tax_payment_at': now
+    }
+    
+    # Check if tax is fully paid
+    if new_tax_paid >= tax_required:
+        if transaction['transaction_type'] == 'withdraw':
+            update_fields['status'] = 'under_review'
+            update_fields['tax_completed_at'] = now
+            
+            await create_notification(
+                transaction['user_id'],
+                'Impuesto Completado - Retiro en Revisión',
+                f'El impuesto de su retiro de {transaction["amount"]} {transaction["currency"]} ha sido completado. Su retiro está ahora en revisión.'
+            )
+            
+            # Send email notification
+            await send_withdrawal_status_email(
+                user['email'], user['name'], 
+                transaction['amount'], transaction['currency'], 
+                'under_review'
+            )
+        
+        elif transaction['transaction_type'] == 'transfer':
+            # Release the transfer
+            recipient = await db.accounts.find_one(
+                {'id': transaction['recipient_account_id']},
+                {'_id': 0}
+            )
+            
+            if recipient:
+                currency = transaction['currency']
+                balance_field = f'balance_{currency.lower()}'
+                new_recipient_balance = recipient[balance_field] + transaction['amount']
+                await db.accounts.update_one(
+                    {'id': transaction['recipient_account_id']},
+                    {'$set': {balance_field: new_recipient_balance}}
+                )
+            
+            update_fields['status'] = 'completed'
+            update_fields['released_at'] = now
+            
+            await create_notification(
+                transaction['user_id'],
+                'Transferencia Liberada',
+                f'Su transferencia de {transaction["amount"]} {transaction["currency"]} ha sido liberada.'
+            )
+    else:
+        # Partial payment notification
+        await create_notification(
+            transaction['user_id'],
+            'Abono al Impuesto Recibido',
+            f'Hemos registrado un abono de ${data.amount:.2f} USD a su impuesto. Restante: ${remaining:.2f} USD'
+        )
+        
+        # Send email for partial payment
+        await send_tax_payment_received_email(
+            user['email'], user['name'],
+            data.amount, tax_required, new_tax_paid,
+            transaction['amount'], transaction['currency']
+        )
+    
+    await db.transactions.update_one({'id': data.transaction_id}, {'$set': update_fields})
+    
+    return {
+        'message': 'Pago de impuesto registrado exitosamente',
+        'payment_id': manual_payment_record['id'],
+        'tax_paid': new_tax_paid,
+        'tax_required': tax_required,
+        'remaining': remaining,
+        'status': update_fields.get('status', 'pending_tax')
+    }
+
+@api_router.get("/admin/pending-withdrawals")
+async def admin_get_pending_withdrawals_detailed(admin: dict = Depends(get_admin_user)):
+    """Get all withdrawals with pending tax payments with detailed info"""
+    
+    transactions = await db.transactions.find(
+        {
+            'transaction_type': 'withdraw',
+            'status': {'$in': ['pending_tax', 'under_review', 'processing']}
+        },
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(1000)
+    
+    enriched = []
+    for tx in transactions:
+        # Get user info
+        user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
+        
+        # Get manual payment history
+        manual_payments = await db.manual_tax_payments.find(
+            {'transaction_id': tx['id']},
+            {'_id': 0}
+        ).to_list(100)
+        
+        # Get crypto payment history
+        crypto_payments = await db.crypto_payments.find(
+            {'transaction_id': tx['id']},
+            {'_id': 0, 'proof_image': 0}
+        ).to_list(100)
+        
+        # Calculate time since creation
+        created_at = datetime.fromisoformat(tx['created_at'].replace('Z', '+00:00'))
+        hours_since_creation = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
+        hours_remaining = max(0, 72 - hours_since_creation)
+        
+        enriched.append({
+            **tx,
+            'user': {
+                'id': user['id'],
+                'name': user['name'],
+                'email': user['email']
+            } if user else None,
+            'manual_payments': manual_payments,
+            'crypto_payments': crypto_payments,
+            'total_payments_count': len(manual_payments) + len(crypto_payments),
+            'hours_since_creation': round(hours_since_creation, 1),
+            'hours_remaining': round(hours_remaining, 1),
+            'is_expiring_soon': hours_remaining < 24
+        })
+    
+    return enriched
+
+@api_router.get("/admin/manual-payments")
+async def admin_get_manual_payments(admin: dict = Depends(get_admin_user)):
+    """Get all manual tax payments history"""
+    payments = await db.manual_tax_payments.find({}, {'_id': 0}).sort('created_at', -1).to_list(1000)
+    
+    # Enrich with user and transaction info
+    for payment in payments:
+        user = await db.users.find_one({'id': payment['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+        tx = await db.transactions.find_one({'id': payment['transaction_id']}, {'_id': 0, 'amount': 1, 'currency': 1, 'transaction_reference': 1})
+        payment['user'] = user
+        payment['transaction'] = tx
+    
+    return payments
+
 # ==================== UTILITY ROUTES ====================
 
 @api_router.get("/exchange-rates")
@@ -2559,6 +3031,152 @@ app.add_middleware(
 async def startup_event():
     await ensure_government_treasury()
     await ensure_admin_users()
+    # Start the scheduler for tax reminders and auto-rejection
+    start_scheduler()
+
+# ==================== SCHEDULER FOR TAX REMINDERS ====================
+
+scheduler = AsyncIOScheduler()
+
+def start_scheduler():
+    """Start the background scheduler for tax payment reminders and auto-rejection"""
+    # Run every 15 hours for reminders
+    scheduler.add_job(
+        process_tax_reminders,
+        IntervalTrigger(hours=15),
+        id='tax_reminders',
+        name='Send tax payment reminders',
+        replace_existing=True
+    )
+    
+    # Run every hour to check for 72-hour auto-rejection
+    scheduler.add_job(
+        process_auto_rejections,
+        IntervalTrigger(hours=1),
+        id='auto_rejections',
+        name='Auto-reject expired withdrawals',
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    logging.info("📅 Scheduler started: Tax reminders (15h) and auto-rejections (1h)")
+
+async def process_tax_reminders():
+    """Send reminder emails for withdrawals with pending tax"""
+    logging.info("🔔 Running tax reminder job...")
+    
+    try:
+        # Find all withdrawals with pending tax
+        pending_withdrawals = await db.transactions.find({
+            'transaction_type': 'withdraw',
+            'status': 'pending_tax'
+        }, {'_id': 0}).to_list(1000)
+        
+        reminders_sent = 0
+        for tx in pending_withdrawals:
+            try:
+                # Calculate hours since creation
+                created_at = datetime.fromisoformat(tx['created_at'].replace('Z', '+00:00'))
+                hours_since = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
+                hours_remaining = max(0, 72 - hours_since)
+                
+                # Only send reminder if not about to expire (handled by auto-rejection)
+                # and if it's been at least 12 hours since creation
+                if hours_remaining > 6 and hours_since > 12:
+                    # Get user info
+                    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
+                    if user:
+                        # Check last reminder sent time
+                        last_reminder = tx.get('last_reminder_sent')
+                        should_send = True
+                        
+                        if last_reminder:
+                            last_reminder_dt = datetime.fromisoformat(last_reminder.replace('Z', '+00:00'))
+                            hours_since_last = (datetime.now(timezone.utc) - last_reminder_dt).total_seconds() / 3600
+                            # Don't send if we sent one in the last 12 hours
+                            should_send = hours_since_last >= 12
+                        
+                        if should_send:
+                            await send_tax_reminder_email(
+                                user['email'], user['name'],
+                                tx['amount'], tx['currency'],
+                                tx.get('tax_required', TAX_AMOUNT),
+                                tx.get('tax_paid', 0),
+                                hours_remaining
+                            )
+                            
+                            # Update last reminder sent time
+                            await db.transactions.update_one(
+                                {'id': tx['id']},
+                                {'$set': {'last_reminder_sent': datetime.now(timezone.utc).isoformat()}}
+                            )
+                            reminders_sent += 1
+                            logging.info(f"📧 Sent tax reminder to {user['email']} for tx {tx['id']}")
+            
+            except Exception as e:
+                logging.error(f"Error sending reminder for tx {tx.get('id')}: {str(e)}")
+        
+        logging.info(f"✅ Tax reminder job completed. Sent {reminders_sent} reminders.")
+    
+    except Exception as e:
+        logging.error(f"❌ Error in tax reminder job: {str(e)}")
+
+async def process_auto_rejections():
+    """Auto-reject withdrawals where tax hasn't been paid within 72 hours"""
+    logging.info("⏰ Running auto-rejection job...")
+    
+    try:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=72)
+        
+        # Find withdrawals older than 72 hours with pending tax
+        expired_withdrawals = await db.transactions.find({
+            'transaction_type': 'withdraw',
+            'status': 'pending_tax',
+            'created_at': {'$lt': cutoff_time.isoformat()}
+        }, {'_id': 0}).to_list(1000)
+        
+        rejections_processed = 0
+        for tx in expired_withdrawals:
+            try:
+                # Get user info
+                user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
+                
+                # Reject the withdrawal
+                await db.transactions.update_one(
+                    {'id': tx['id']},
+                    {'$set': {
+                        'status': 'rejected',
+                        'rejection_reason': 'Impuesto no pagado dentro de 72 horas',
+                        'rejected_at': datetime.now(timezone.utc).isoformat(),
+                        'auto_rejected': True
+                    }}
+                )
+                
+                # Create notification
+                await create_notification(
+                    tx['user_id'],
+                    'Retiro Rechazado Automáticamente',
+                    f'Su retiro de {tx["amount"]} {tx["currency"]} ha sido rechazado porque el impuesto no fue pagado dentro de 72 horas. Los fondos permanecen en su cuenta.'
+                )
+                
+                # Send email
+                if user:
+                    await send_withdrawal_rejected_email(
+                        user['email'], user['name'],
+                        tx['amount'], tx['currency'],
+                        'Impuesto no pagado dentro de 72 horas'
+                    )
+                
+                rejections_processed += 1
+                logging.info(f"❌ Auto-rejected withdrawal {tx['id']} for user {tx['user_id']}")
+            
+            except Exception as e:
+                logging.error(f"Error auto-rejecting tx {tx.get('id')}: {str(e)}")
+        
+        logging.info(f"✅ Auto-rejection job completed. Processed {rejections_processed} rejections.")
+    
+    except Exception as e:
+        logging.error(f"❌ Error in auto-rejection job: {str(e)}")
 
 async def ensure_admin_users():
     """Ensure admin users exist on startup with verified status"""
@@ -2589,6 +3207,9 @@ async def ensure_admin_users():
                 updates_needed['verification_status'] = 'verified'
             if existing.get('account_status') != 'active':
                 updates_needed['account_status'] = 'active'
+            # Fix: migrate hashed_password to password field
+            if existing.get('hashed_password') and not existing.get('password'):
+                updates_needed['password'] = existing.get('hashed_password')
             
             if updates_needed:
                 await db.users.update_one(
@@ -2599,13 +3220,13 @@ async def ensure_admin_users():
         else:
             # Create new admin user
             user_id = str(uuid.uuid4())
-            hashed_password = hash_password(admin_data['password'])
+            hashed_pw = hash_password(admin_data['password'])
             
             user = {
                 'id': user_id,
                 'name': admin_data['name'],
                 'email': admin_data['email'],
-                'hashed_password': hashed_password,
+                'password': hashed_pw,
                 'role': 'admin',
                 'verification_status': 'verified',
                 'account_status': 'active',
@@ -2645,4 +3266,5 @@ async def ensure_admin_users():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    scheduler.shutdown()
     client.close()

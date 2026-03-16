@@ -89,6 +89,7 @@ export const adminAPI = {
     getUsers: () => api.get('/admin/users'),
     getTransactions: (status) => api.get('/admin/transactions', { params: { status } }),
     getPendingWithdrawals: () => api.get('/admin/withdrawals/pending'),
+    getPendingWithdrawalsDetailed: () => api.get('/admin/pending-withdrawals'),
     approveWithdrawal: (id) => api.post(`/admin/withdrawals/approve/${id}`),
     rejectWithdrawal: (id) => api.post(`/admin/withdrawals/reject/${id}`),
     updateBalance: (data) => api.put('/admin/balance', data),
@@ -117,6 +118,9 @@ export const adminAPI = {
     replyToTicket: (id, data) => api.post(`/admin/support/tickets/${id}/reply`, data),
     updateTicketStatus: (id, status) => api.put(`/admin/support/tickets/${id}/status?status=${status}`),
     getPasswordResets: () => api.get('/admin/password-resets'),
+    // Manual tax payments
+    addManualTaxPayment: (data) => api.post('/admin/tax-payment', data),
+    getManualPayments: () => api.get('/admin/manual-payments'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');
