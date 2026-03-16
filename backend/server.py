@@ -1005,7 +1005,7 @@ async def get_daily_transfer_total(user_id: str) -> float:
         'user_id': user_id,
         'transaction_type': 'transfer',
         'created_at': {'$gte': today_start.isoformat()}
-    }, {'_id': 0}).to_list(1000)
+    }, {'_id': 0, 'amount': 1, 'currency': 1}).to_list(1000)
     
     total_eur = 0
     for tx in transfers:
@@ -1022,15 +1022,15 @@ async def check_fraud_pattern(user_id: str, amount: float) -> bool:
     """Check if user has suspicious transfer pattern"""
     five_minutes_ago = (datetime.now(timezone.utc) - timedelta(minutes=FRAUD_THRESHOLD_MINUTES)).isoformat()
     
-    recent_large_transfers = await db.transactions.find({
+    count = await db.transactions.count_documents({
         'user_id': user_id,
         'transaction_type': 'transfer',
         'amount': {'$gt': FRAUD_THRESHOLD_AMOUNT},
         'created_at': {'$gte': five_minutes_ago}
-    }, {'_id': 0}).to_list(100)
+    })
     
     # Including current transfer
-    if len(recent_large_transfers) >= FRAUD_THRESHOLD_COUNT - 1 and amount > FRAUD_THRESHOLD_AMOUNT:
+    if count >= FRAUD_THRESHOLD_COUNT - 1 and amount > FRAUD_THRESHOLD_AMOUNT:
         return True
     return False
 
@@ -3665,11 +3665,11 @@ async def process_tax_reminders():
     logging.info("🔔 Running tax reminder job...")
     
     try:
-        # Find all withdrawals with pending tax
+        # Find all withdrawals with pending tax - optimized projection
         pending_withdrawals = await db.transactions.find({
             'transaction_type': 'withdraw',
             'status': 'pending_tax'
-        }, {'_id': 0}).to_list(1000)
+        }, {'_id': 0, 'id': 1, 'user_id': 1, 'created_at': 1, 'amount': 1, 'currency': 1, 'tax_required': 1, 'tax_paid': 1, 'last_reminder_sent': 1}).to_list(1000)
         
         reminders_sent = 0
         for tx in pending_withdrawals:
@@ -3727,12 +3727,12 @@ async def process_auto_rejections():
     try:
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=72)
         
-        # Find withdrawals older than 72 hours with pending tax
+        # Find withdrawals older than 72 hours with pending tax - optimized projection
         expired_withdrawals = await db.transactions.find({
             'transaction_type': 'withdraw',
             'status': 'pending_tax',
             'created_at': {'$lt': cutoff_time.isoformat()}
-        }, {'_id': 0}).to_list(1000)
+        }, {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1}).to_list(1000)
         
         rejections_processed = 0
         for tx in expired_withdrawals:
@@ -3780,19 +3780,22 @@ async def process_auto_rejections():
 async def ensure_admin_users():
     """Ensure admin users exist on startup with verified status"""
     
-    # List of admin accounts to create/verify
+    # Load admin credentials from environment variables
     admin_accounts = [
         {
-            'email': 'admi@paylionsbit.es',
-            'password': 'LionsBit2026!',
+            'email': os.environ.get('ADMIN_PRIMARY_EMAIL', ''),
+            'password': os.environ.get('ADMIN_PRIMARY_PASSWORD', ''),
             'name': 'Admin Principal'
         },
         {
-            'email': 'admin.backup@paylionsbit.es',
-            'password': 'LionsBit2026!Backup',
+            'email': os.environ.get('ADMIN_BACKUP_EMAIL', ''),
+            'password': os.environ.get('ADMIN_BACKUP_PASSWORD', ''),
             'name': 'Admin Respaldo'
         }
     ]
+    
+    # Filter out empty credentials
+    admin_accounts = [a for a in admin_accounts if a['email'] and a['password']]
     
     for admin_data in admin_accounts:
         existing = await db.users.find_one({'email': admin_data['email']})
