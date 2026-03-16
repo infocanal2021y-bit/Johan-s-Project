@@ -56,28 +56,28 @@ export const LoginPage = () => {
                         <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center glow-emerald">
                             <Shield className="w-7 h-7 text-emerald-400" />
                         </div>
-                        <h1 className="font-heading text-2xl font-bold text-white tracking-wide">LIONSBIT BANK</h1>
+                        <h1 className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT BANK</h1>
                     </motion.div>
-                    <p className="text-slate-500">Private Digital Banking Platform</p>
+                    <p className="text-slate-500 font-light">Plataforma de Banca Digital Privada</p>
                 </div>
 
                 <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
                     <CardHeader className="text-center">
-                        <CardTitle className="text-2xl font-heading text-white">Welcome Back</CardTitle>
-                        <CardDescription className="text-slate-400">
-                            Sign in to access your accounts
+                        <CardTitle className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>Bienvenido</CardTitle>
+                        <CardDescription className="text-slate-400 font-light">
+                            Inicia sesión para acceder a tus cuentas
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-slate-300">Email</Label>
+                                <Label htmlFor="email" className="text-slate-300 font-normal">Email</Label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                                     <Input
                                         id="email"
                                         type="email"
-                                        placeholder="Enter your email"
+                                        placeholder="Ingresa tu email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         className="pl-10 bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-white placeholder:text-slate-600"
@@ -88,13 +88,13 @@ export const LoginPage = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="password" className="text-slate-300">Password</Label>
+                                <Label htmlFor="password" className="text-slate-300 font-normal">Contraseña</Label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                                     <Input
                                         id="password"
                                         type={showPassword ? "text" : "password"}
-                                        placeholder="Enter your password"
+                                        placeholder="Ingresa tu contraseña"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="pl-10 pr-10 bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-white placeholder:text-slate-600"
@@ -115,39 +115,41 @@ export const LoginPage = () => {
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-shadow hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
+                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-shadow hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
+                                style={{ fontWeight: 500 }}
                                 data-testid="login-submit-btn"
                             >
                                 {loading ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Signing in...
+                                        Iniciando sesión...
                                     </>
                                 ) : (
-                                    'Sign In'
+                                    'Iniciar Sesión'
                                 )}
                             </Button>
 
                             <div className="text-right">
                                 <Link
                                     to="/forgot-password"
-                                    className="text-sm text-slate-500 hover:text-emerald-400 transition-colors"
+                                    className="text-sm text-slate-500 hover:text-emerald-400 transition-colors font-normal"
                                     data-testid="forgot-password-link"
                                 >
-                                    Forgot password?
+                                    ¿Olvidaste tu contraseña?
                                 </Link>
                             </div>
                         </form>
 
                         <div className="mt-6 text-center">
-                            <p className="text-slate-500">
-                                Don't have an account?{' '}
+                            <p className="text-slate-500 font-light">
+                                ¿No tienes cuenta?{' '}
                                 <Link
                                     to="/register"
-                                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                                    className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    style={{ fontWeight: 500 }}
                                     data-testid="register-link"
                                 >
-                                    Create one
+                                    Crear una
                                 </Link>
                             </p>
                         </div>

@@ -151,10 +151,10 @@ export const DashboardPage = () => {
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                 >
                     <div>
-                        <h1 className="text-3xl font-heading font-bold text-white">
-                            Welcome back, {user?.name?.split(' ')[0]}
+                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                            Bienvenido, {user?.name?.split(' ')[0]}
                         </h1>
-                        <p className="text-slate-500 mt-1">Here's your financial overview</p>
+                        <p className="text-slate-500 mt-1 font-light">Resumen de tu cuenta financiera</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <Select value={currency} onValueChange={setCurrency}>
@@ -186,21 +186,21 @@ export const DashboardPage = () => {
                 {/* Balance Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <BalanceCard
-                        title="Total Balance"
+                        title="Saldo Total"
                         amount={getBalanceForCurrency(summary?.total)}
                         currency={currency}
                         type="total"
                         delay={0}
                     />
                     <BalanceCard
-                        title="Available Balance"
+                        title="Saldo Disponible"
                         amount={getBalanceForCurrency(summary?.available)}
                         currency={currency}
                         type="available"
                         delay={0.1}
                     />
                     <BalanceCard
-                        title="Invested (Savings)"
+                        title="Invertido (Ahorros)"
                         amount={getBalanceForCurrency(summary?.invested)}
                         currency={currency}
                         type="invested"

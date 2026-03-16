@@ -86,7 +86,7 @@ export const Sidebar = () => {
                     }
                 >
                     <link.icon className="w-5 h-5" />
-                    <span className="font-medium">{link.label}</span>
+                    <span style={{ fontWeight: 500 }}>{link.label}</span>
                 </NavLink>
             ))}
         </nav>
@@ -102,8 +102,8 @@ export const Sidebar = () => {
                             <Shield className="w-6 h-6 text-emerald-400" />
                         </div>
                         <div>
-                            <h1 className="font-heading text-lg font-bold text-white tracking-wide">LIONSBIT BANK</h1>
-                            <p className="text-xs text-slate-500">Private Digital Banking Platform</p>
+                            <h1 className="text-lg text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT BANK</h1>
+                            <p className="text-xs text-slate-500 font-light">Plataforma de Banca Digital</p>
                         </div>
                     </div>
                     <NotificationBell />
@@ -112,15 +112,15 @@ export const Sidebar = () => {
 
             {/* User Links */}
             <div className="flex-1 p-4 overflow-y-auto">
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider px-4 mb-3">
-                    Banking
+                <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3" style={{ fontWeight: 500 }}>
+                    Banca
                 </p>
                 <NavLinks links={userLinks} />
 
                 {isAdmin && (
                     <>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider px-4 mb-3 mt-8">
-                            Administration
+                        <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3 mt-8" style={{ fontWeight: 500 }}>
+                            Administración
                         </p>
                         <NavLinks links={adminLinks} />
                     </>
@@ -131,19 +131,19 @@ export const Sidebar = () => {
             <div className="p-4 border-t border-slate-800">
                 <div className="flex items-center gap-3 px-4 py-3 mb-2">
                     <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm text-white" style={{ fontWeight: 500 }}>
                             {user?.name?.charAt(0).toUpperCase()}
                         </span>
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-white truncate">{user?.name}</p>
+                            <p className="text-sm text-white truncate" style={{ fontWeight: 500 }}>{user?.name}</p>
                             {getVerificationBadge()}
                         </div>
-                        <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                        <p className="text-xs text-slate-500 truncate font-light">{user?.email}</p>
                     </div>
                     {isAdmin && (
-                        <span className="px-2 py-1 text-xs font-medium bg-emerald-500/20 text-emerald-400 rounded">
+                        <span className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 rounded" style={{ fontWeight: 500 }}>
                             Admin
                         </span>
                     )}
@@ -155,7 +155,7 @@ export const Sidebar = () => {
                     data-testid="logout-btn"
                 >
                     <LogOut className="w-5 h-5 mr-3" />
-                    Logout
+                    Cerrar Sesión
                 </Button>
             </div>
         </div>

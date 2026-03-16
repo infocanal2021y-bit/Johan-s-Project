@@ -38,7 +38,7 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - `completed` - Withdrawal complete
 - `rejected` - Rejected by admin or auto-rejected
 
-### 5. KYC Verification System (Updated March 16, 2026)
+### 5. KYC Verification System
 - **User submits:**
   - Document type (Passport, DNI/Cédula, Driver's License)
   - Document front side image
@@ -53,7 +53,18 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
   - User information and signature
   - Approve/Reject buttons with rejection reason
 
-### 6. Admin Panel Features
+### 6. Professional Typography (Updated March 16, 2026)
+- **Font:** Inter (Google Fonts) across entire application
+- **Tabular Numbers:** `font-variant-numeric: tabular-nums` for financial values
+- **Hierarchy:**
+  - Titles: font-weight 700, letter-spacing -0.02em
+  - Amounts/Balances: font-weight 600, 36px primary, 20px secondary
+  - Labels: font-weight 400, 14px
+  - Descriptions: font-weight 300 (light)
+- **Number Spacing:** letter-spacing 0.02em for financial numbers
+- **Professional fintech appearance** similar to Wise, Revolut, Stripe
+
+### 7. Admin Panel Features
 - User management
 - Transaction management
 - KYC verification review
@@ -65,12 +76,12 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
   - Manual tax payment registration
   - Status change controls
 
-### 7. Support System
+### 8. Support System
 - Ticket-based support for users
 - Admin ticket management
 - Reply functionality
 
-### 8. Email Notifications (Resend)
+### 9. Email Notifications (Resend)
 - Balance added
 - Withdrawal status changes
 - Password changes
@@ -78,7 +89,7 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - Tax payment reminders (every 15 hours)
 - Auto-rejection notifications
 
-### 9. Scheduler (APScheduler)
+### 10. Scheduler (APScheduler)
 - Tax payment reminders every 15 hours
 - Auto-rejection job every 1 hour (checks for 72h expiry)
 
@@ -89,6 +100,7 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - **Authentication:** JWT with RBAC
 - **Email:** Resend API
 - **Scheduler:** APScheduler
+- **Typography:** Inter (Google Fonts)
 
 ## Database Collections
 - `users` - User accounts with KYC documents

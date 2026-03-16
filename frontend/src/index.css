@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,100..1000&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -44,12 +44,13 @@ html {
 
 body {
     margin: 0;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     min-height: 100vh;
+    font-weight: 400;
 }
 
 #root {
@@ -57,13 +58,64 @@ body {
     background-color: hsl(var(--background));
 }
 
+/* Typography Hierarchy - Fintech Style */
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     letter-spacing: -0.02em;
+    font-weight: 700;
 }
 
-code, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.875rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+
+/* Financial Numbers - Tabular for alignment */
+.font-mono, 
+.tabular-nums,
+[class*="font-mono"] {
+    font-family: 'Inter', monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+/* Balance & Financial Amount Styles */
+.balance-primary {
+    font-size: 36px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
+.balance-secondary {
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.amount-display {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.label-text {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+}
+
+.description-text {
+    font-weight: 300;
+    color: hsl(var(--muted-foreground));
+}
+
+/* Override font-mono to use Inter with tabular nums */
+code {
+    font-family: 'Inter', monospace;
+    font-variant-numeric: tabular-nums;
 }
 
 @layer base {

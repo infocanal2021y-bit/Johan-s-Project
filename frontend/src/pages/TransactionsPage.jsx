@@ -130,8 +130,10 @@ export const TransactionsPage = () => {
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                 >
                     <div>
-                        <h1 className="text-3xl font-heading font-bold text-white">Transaction History</h1>
-                        <p className="text-slate-500 mt-1">View all your past transactions</p>
+                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                            Historial de Transacciones
+                        </h1>
+                        <p className="text-slate-500 mt-1 font-light">Ver todas las transacciones anteriores</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <Select value={filter} onValueChange={setFilter}>
@@ -140,10 +142,10 @@ export const TransactionsPage = () => {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-slate-900 border-slate-800">
-                                <SelectItem value="all" className="text-white">All Types</SelectItem>
-                                <SelectItem value="deposit" className="text-white">Deposits</SelectItem>
-                                <SelectItem value="withdraw" className="text-white">Withdrawals</SelectItem>
-                                <SelectItem value="transfer" className="text-white">Transfers</SelectItem>
+                                <SelectItem value="all" className="text-white">Todos</SelectItem>
+                                <SelectItem value="deposit" className="text-white">Depósitos</SelectItem>
+                                <SelectItem value="withdraw" className="text-white">Retiros</SelectItem>
+                                <SelectItem value="transfer" className="text-white">Transferencias</SelectItem>
                             </SelectContent>
                         </Select>
                         <Button
@@ -152,7 +154,7 @@ export const TransactionsPage = () => {
                             data-testid="export-csv-btn"
                         >
                             <Download className="w-4 h-4 mr-2" />
-                            Export CSV
+                            Exportar CSV
                         </Button>
                     </div>
                 </motion.div>
@@ -165,9 +167,9 @@ export const TransactionsPage = () => {
                 >
                     <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
                         <CardHeader className="border-b border-slate-800">
-                            <CardTitle className="text-white font-heading flex items-center gap-2">
+                            <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
                                 <FileText className="w-5 h-5 text-emerald-400" />
-                                All Transactions ({filteredTransactions.length})
+                                Todas las Transacciones ({filteredTransactions.length})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -180,19 +182,19 @@ export const TransactionsPage = () => {
                             ) : filteredTransactions.length === 0 ? (
                                 <div className="py-16 text-center">
                                     <FileText className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                    <p className="text-slate-500">No transactions found</p>
+                                    <p className="text-slate-500 font-normal">No se encontraron transacciones</p>
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Reference</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Type</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Amount</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Status</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider">Tax Progress</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase tracking-wider text-right">Actions</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Referencia</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Tipo</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Monto</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Estado</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Progreso Impuesto</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Acciones</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -213,7 +215,10 @@ export const TransactionsPage = () => {
                                                         data-testid={`transaction-row-${tx.id}`}
                                                     >
                                                         <TableCell className="py-4">
-                                                            <span className="font-mono text-sm text-slate-300">
+                                                            <span 
+                                                                className="text-sm text-slate-300"
+                                                                style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}
+                                                            >
                                                                 {tx.transaction_reference || tx.id.slice(0, 12)}
                                                             </span>
                                                         </TableCell>
@@ -223,22 +228,33 @@ export const TransactionsPage = () => {
                                                                     <Icon className={`w-5 h-5 ${config.color}`} />
                                                                 </div>
                                                                 <div>
-                                                                    <span className="font-medium text-white capitalize">
-                                                                        {tx.transaction_type}
+                                                                    <span className="text-white capitalize" style={{ fontWeight: 500 }}>
+                                                                        {tx.transaction_type === 'admin_credit' ? 'Depósito' : tx.transaction_type}
                                                                     </span>
-                                                                    <p className="text-xs text-slate-500">
+                                                                    <p 
+                                                                        className="text-xs text-slate-500 font-light"
+                                                                        style={{ fontVariantNumeric: 'tabular-nums' }}
+                                                                    >
                                                                         {formatDate(tx.created_at)}
                                                                     </p>
                                                                 </div>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`font-mono font-medium ${config.color}`}>
+                                                            <span 
+                                                                className={config.color}
+                                                                style={{ 
+                                                                    fontSize: '20px',
+                                                                    fontWeight: 600, 
+                                                                    fontVariantNumeric: 'tabular-nums',
+                                                                    letterSpacing: '0.02em'
+                                                                }}
+                                                            >
                                                                 {config.sign}{formatAmount(tx.amount, tx.currency)}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                                            <span className={`px-3 py-1 rounded-full text-xs border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`} style={{ fontWeight: 500 }}>
                                                                 {statusCfg.label}
                                                             </span>
                                                         </TableCell>
@@ -246,8 +262,11 @@ export const TransactionsPage = () => {
                                                             {(tx.transaction_type === 'transfer' || tx.transaction_type === 'withdraw') && taxRequired > 0 ? (
                                                                 <div className="space-y-2 min-w-[180px]">
                                                                     <div className="flex justify-between text-xs">
-                                                                        <span className="text-slate-500">Tax Progress</span>
-                                                                        <span className={isPendingTax ? 'text-orange-400' : 'text-emerald-400'}>
+                                                                        <span className="text-slate-500 font-normal">Progreso</span>
+                                                                        <span 
+                                                                            className={isPendingTax ? 'text-orange-400' : 'text-emerald-400'}
+                                                                            style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+                                                                        >
                                                                             ${taxPaid.toFixed(0)} / ${taxRequired.toFixed(0)}
                                                                         </span>
                                                                     </div>

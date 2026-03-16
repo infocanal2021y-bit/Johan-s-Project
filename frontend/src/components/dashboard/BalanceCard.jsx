@@ -57,14 +57,14 @@ export const BalanceCard = ({ title, amount, currency = 'USD', type = 'total', t
                             <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                                 <Icon className="w-5 h-5 text-emerald-400" />
                             </div>
-                            <span className="text-sm font-medium text-slate-400">{title}</span>
+                            <span className="text-sm font-normal text-slate-400 tracking-wide">{title}</span>
                         </div>
                         {trend !== null && (
                             <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
                                 trend >= 0 
                                     ? 'bg-emerald-500/20 text-emerald-400' 
                                     : 'bg-red-500/20 text-red-400'
-                            }`}>
+                            }`} style={{ fontVariantNumeric: 'tabular-nums' }}>
                                 {trend >= 0 ? (
                                     <TrendingUp className="w-3 h-3" />
                                 ) : (
@@ -75,11 +75,20 @@ export const BalanceCard = ({ title, amount, currency = 'USD', type = 'total', t
                         )}
                     </div>
                     
-                    <p className="font-mono text-3xl font-bold text-white tabular-nums animate-count">
+                    <p 
+                        className="text-white animate-count"
+                        style={{ 
+                            fontSize: '36px', 
+                            fontWeight: 600, 
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '0.02em',
+                            lineHeight: 1.2
+                        }}
+                    >
                         {formatAmount(displayAmount)}
                     </p>
                     
-                    <p className="text-xs text-slate-500 mt-2">
+                    <p className="text-xs text-slate-500 mt-2 font-light tracking-wide">
                         {currency === 'USD' ? 'US Dollar' : 'Euro'}
                     </p>
                 </div>
