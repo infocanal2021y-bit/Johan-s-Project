@@ -5,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
@@ -21,9 +22,15 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Email Configuration
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@paylionsbit.es')
+resend.api_key = RESEND_API_KEY
 
 # JWT Configuration
 JWT_SECRET = os.environ.get('JWT_SECRET', 'super-secret-banking-key-change-in-production')
@@ -283,6 +290,283 @@ async def notify_admins(title: str, message: str):
     for admin in admins:
         await create_notification(admin['id'], title, message)
 
+# ==================== EMAIL SERVICE ====================
+
+async def send_email(to_email: str, subject: str, html_content: str):
+    """Send email using Resend API"""
+    if not RESEND_API_KEY:
+        logging.warning("RESEND_API_KEY not configured, email not sent")
+        return None
+    
+    try:
+        params = {
+            "from": f"LIONSBIT BANK <{SENDER_EMAIL}>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }
+        
+        # Run sync SDK in thread to keep FastAPI non-blocking
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logging.info(f"Email sent to {to_email}: {subject}")
+        return result
+    except Exception as e:
+        logging.error(f"Failed to send email to {to_email}: {str(e)}")
+        return None
+
+def get_email_template(content: str, title: str = "LIONSBIT BANK"):
+    """Generate HTML email template"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; padding: 40px 20px;">
+            <tr>
+                <td align="center">
+                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #10b981, #06b6d4); padding: 30px; text-align: center;">
+                                <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">{title}</h1>
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding: 40px 30px;">
+                                {content}
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #0f172a; padding: 20px 30px; text-align: center;">
+                                <p style="color: #64748b; font-size: 12px; margin: 0;">
+                                    Este es un correo automático de LIONSBIT BANK.<br>
+                                    Por favor no responda a este mensaje.
+                                </p>
+                                <p style="color: #64748b; font-size: 12px; margin: 10px 0 0 0;">
+                                    © 2026 LIONSBIT BANK. Todos los derechos reservados.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+async def send_balance_added_email(user_email: str, user_name: str, amount: float, currency: str, new_balance: float):
+    """Send email notification when balance is added"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    currency_symbol = "$" if currency == "USD" else "€"
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Le informamos que se ha agregado saldo a su cuenta.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles de la operación</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto agregado:</td>
+                            <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">{currency_symbol}{amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{date_str}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Saldo actual:</td>
+                            <td style="color: #06b6d4; font-weight: bold; text-align: right; padding: 8px 0; font-size: 18px;">{currency_symbol}{new_balance:,.2f} {currency}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
+            ⚠️ Si usted no reconoce esta operación, por favor contacte inmediatamente a nuestro equipo de soporte.
+        </p>
+    """
+    
+    html = get_email_template(content, "Saldo Agregado")
+    await send_email(user_email, "💰 Saldo agregado a su cuenta - LIONSBIT BANK", html)
+
+async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
+    """Send email notification for withdrawal status changes"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    currency_symbol = "$" if currency == "USD" else "€"
+    
+    status_config = {
+        'pending': {'title': 'Retiro Solicitado', 'color': '#f59e0b', 'message': 'Su solicitud de retiro ha sido recibida y está pendiente de revisión.'},
+        'pending_tax': {'title': 'Impuesto Pendiente', 'color': '#f97316', 'message': 'Su retiro requiere el pago de impuestos antes de ser procesado.'},
+        'under_review': {'title': 'Retiro en Revisión', 'color': '#8b5cf6', 'message': 'Su solicitud de retiro está siendo revisada por nuestro equipo.'},
+        'processing': {'title': 'Retiro en Proceso', 'color': '#06b6d4', 'message': 'Su retiro está siendo procesado y será completado pronto.'},
+        'completed': {'title': 'Retiro Completado', 'color': '#10b981', 'message': '¡Su retiro ha sido completado exitosamente!'},
+        'rejected': {'title': 'Retiro Rechazado', 'color': '#ef4444', 'message': f'Su solicitud de retiro ha sido rechazada. Razón: {reason or "Contacte a soporte"}'},
+    }
+    
+    config = status_config.get(status, status_config['pending'])
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            {config['message']}
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del retiro</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto:</td>
+                            <td style="color: #e2e8f0; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">{currency_symbol}{amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Estado:</td>
+                            <td style="color: {config['color']}; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{config['title']}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    """
+    
+    html = get_email_template(content, config['title'])
+    await send_email(user_email, f"📤 {config['title']} - LIONSBIT BANK", html)
+
+async def send_password_changed_email(user_email: str, user_name: str):
+    """Send email notification when password is changed"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Le informamos que su contraseña ha sido cambiada exitosamente.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px; text-align: center;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0;">Fecha del cambio:</p>
+                    <p style="color: #e2e8f0; font-size: 18px; margin: 10px 0 0 0; font-weight: bold;">{date_str}</p>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
+            ⚠️ Si usted no realizó este cambio, por favor contacte inmediatamente a nuestro equipo de soporte y considere cambiar su contraseña.
+        </p>
+    """
+    
+    html = get_email_template(content, "Contraseña Actualizada")
+    await send_email(user_email, "🔐 Contraseña cambiada - LIONSBIT BANK", html)
+
+async def send_new_login_email(user_email: str, user_name: str, ip_address: str, browser: str, location: str):
+    """Send email notification for new login from unknown IP"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Se ha detectado un nuevo inicio de sesión en su cuenta.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del acceso</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Dirección IP:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: monospace;">{ip_address}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Navegador:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{browser}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Ubicación:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{location}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
+            ⚠️ Si usted no realizó este acceso, por favor cambie su contraseña inmediatamente y contacte a nuestro equipo de soporte.
+        </p>
+    """
+    
+    html = get_email_template(content, "Nuevo Inicio de Sesión")
+    await send_email(user_email, "🔔 Nuevo acceso detectado - LIONSBIT BANK", html)
+
+async def send_transfer_completed_email(user_email: str, user_name: str, amount: float, currency: str, recipient: str):
+    """Send email notification when transfer is completed"""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    currency_symbol = "$" if currency == "USD" else "€"
+    
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Su transferencia ha sido completada exitosamente.
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles de la transferencia</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto:</td>
+                            <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">{currency_symbol}{amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Destinatario:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{recipient}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    """
+    
+    html = get_email_template(content, "Transferencia Completada")
+    await send_email(user_email, "✅ Transferencia completada - LIONSBIT BANK", html)
+
 async def get_daily_transfer_total(user_id: str) -> float:
     """Get total EUR transfers for today"""
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -437,6 +721,20 @@ async def login(credentials: UserLogin, request: Request):
     }
     await db.login_history.insert_one(login_record)
     
+    # Check if this is a new IP and send email notification
+    previous_logins = await db.login_history.find(
+        {'user_id': user['id'], 'ip_address': client_ip}
+    ).to_list(5)
+    
+    if len(previous_logins) <= 1:  # First time logging in from this IP
+        await send_new_login_email(
+            user_email=user['email'],
+            user_name=user['name'],
+            ip_address=client_ip,
+            browser=browser_info,
+            location='Spain'
+        )
+    
     token = create_token(user['id'], user['email'], user['role'])
     
     return {
@@ -497,6 +795,9 @@ async def change_password(data: ChangePassword, current_user: dict = Depends(get
         'Password Changed',
         'Your password has been successfully changed.'
     )
+    
+    # Send email notification
+    await send_password_changed_email(user['email'], user['name'])
     
     return {'message': 'Password changed successfully'}
 
@@ -1561,6 +1862,17 @@ async def admin_approve_withdrawal(transaction_id: str, admin: dict = Depends(ge
     await create_notification(tx['user_id'], 'Withdrawal Approved',
         f'Your withdrawal of {tx["amount"]} {tx["currency"]} has been approved.')
     
+    # Send email notification
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0})
+    if user:
+        await send_withdrawal_status_email(
+            user_email=user['email'],
+            user_name=user['name'],
+            amount=tx['amount'],
+            currency=tx['currency'],
+            status='completed'
+        )
+    
     return {'message': 'Withdrawal approved', 'transaction_id': transaction_id}
 
 @api_router.post("/admin/withdrawals/reject/{transaction_id}")
@@ -1573,6 +1885,18 @@ async def admin_reject_withdrawal(transaction_id: str, admin: dict = Depends(get
     
     await create_notification(tx['user_id'], 'Withdrawal Rejected',
         f'Your withdrawal of {tx["amount"]} {tx["currency"]} has been rejected.')
+    
+    # Send email notification
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0})
+    if user:
+        await send_withdrawal_status_email(
+            user_email=user['email'],
+            user_name=user['name'],
+            amount=tx['amount'],
+            currency=tx['currency'],
+            status='rejected',
+            reason='Withdrawal request was rejected by administrator'
+        )
     
     return {'message': 'Withdrawal rejected', 'transaction_id': transaction_id}
 
@@ -1641,6 +1965,15 @@ async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_adm
         data.user_id,
         'Balance Added',
         f'An administrator has added {data.amount} {currency} to your account.'
+    )
+    
+    # Send email notification
+    await send_balance_added_email(
+        user_email=user['email'],
+        user_name=user['name'],
+        amount=data.amount,
+        currency=currency,
+        new_balance=new_balance
     )
     
     return {
