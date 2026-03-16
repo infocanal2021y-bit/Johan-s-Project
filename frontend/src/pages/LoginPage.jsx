@@ -118,6 +118,16 @@ export const LoginPage = () => {
                                     'Sign In'
                                 )}
                             </Button>
+
+                            <div className="text-right">
+                                <Link
+                                    to="/forgot-password"
+                                    className="text-sm text-slate-500 hover:text-emerald-400 transition-colors"
+                                    data-testid="forgot-password-link"
+                                >
+                                    Forgot password?
+                                </Link>
+                            </div>
                         </form>
 
                         <div className="mt-6 text-center">
