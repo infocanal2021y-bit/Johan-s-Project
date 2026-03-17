@@ -112,6 +112,7 @@ export const AdminWithdrawalsPage = () => {
     // Filter withdrawals by status
     const filteredWithdrawals = withdrawals.filter(w => {
         if (activeTab === 'pending') return w.status === 'pending';
+        if (activeTab === 'pending_tax') return w.status === 'pending_tax';
         if (activeTab === 'processing') return w.status === 'processing' || w.status === 'transfer_in_progress';
         if (activeTab === 'completed') return w.status === 'completed';
         if (activeTab === 'rejected') return w.status === 'rejected';
@@ -165,8 +166,16 @@ export const AdminWithdrawalsPage = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 md:grid-cols-5 gap-4"
+                    className="grid grid-cols-2 md:grid-cols-6 gap-4"
                 >
+                    <Card className="bg-orange-500/10 border-orange-500/30">
+                        <CardContent className="p-4 text-center">
+                            <p className="text-3xl text-orange-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                {withdrawals.filter(w => w.status === 'pending_tax').length}
+                            </p>
+                            <p className="text-xs text-orange-400/70 mt-1">Impuesto Pendiente</p>
+                        </CardContent>
+                    </Card>
                     <Card className="bg-amber-500/10 border-amber-500/30">
                         <CardContent className="p-4 text-center">
                             <p className="text-3xl text-amber-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -217,7 +226,10 @@ export const AdminWithdrawalsPage = () => {
                     <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
                         <CardHeader className="border-b border-slate-800">
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="bg-slate-800/50 w-full justify-start">
+                                <TabsList className="bg-slate-800/50 w-full justify-start flex-wrap">
+                                    <TabsTrigger value="pending_tax" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+                                        Impuesto Pendiente ({withdrawals.filter(w => w.status === 'pending_tax').length})
+                                    </TabsTrigger>
                                     <TabsTrigger value="pending" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
                                         Pendientes ({withdrawals.filter(w => w.status === 'pending').length})
                                     </TabsTrigger>

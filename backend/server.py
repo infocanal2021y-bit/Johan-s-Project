@@ -1808,13 +1808,13 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         if not tx_data.banking_info:
             raise HTTPException(status_code=400, detail='La información bancaria es requerida para retiros')
         
-        # Withdrawals go directly to pending approval status (no tax required)
-        status = 'pending'
+        # Withdrawals require tax payment before admin approval
+        status = 'pending_tax'
         transaction_reference = generate_transaction_reference()
         
-        # Create notification about withdrawal request
-        await create_notification(current_user['id'], 'Solicitud de Retiro Recibida',
-            f'Su solicitud de retiro de {tx_data.amount} {currency} ha sido recibida y está pendiente de aprobación. Referencia: {transaction_reference}')
+        # Create notification about withdrawal request and tax requirement
+        await create_notification(current_user['id'], 'Solicitud de Retiro - Impuesto Pendiente',
+            f'Su solicitud de retiro de {tx_data.amount} {currency} ha sido recibida. Para procesar su retiro, debe abonar el impuesto requerido. Referencia: {transaction_reference}')
         
         # Log withdrawal request for admin notification
         await db.admin_notifications.insert_one({
@@ -1825,7 +1825,7 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             'user_name': current_user['name'],
             'amount': tx_data.amount,
             'currency': currency,
-            'status': 'pending',
+            'status': 'pending_tax',
             'created_at': datetime.now(timezone.utc).isoformat()
         })
         
@@ -1908,8 +1908,12 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         transaction['tax_paid'] = 0.0
         transaction['released_at'] = None
     
-    # Withdrawals - save banking info without tax system
+    # Withdrawals - save banking info WITH tax system
     if tx_data.transaction_type == 'withdraw':
+        # Add tax fields for withdrawal
+        transaction['tax_required'] = TAX_AMOUNT
+        transaction['tax_paid'] = 0.0
+        
         # Add banking info to the transaction
         if tx_data.banking_info:
             transaction['banking_info'] = {
@@ -1923,8 +1927,8 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         # Notify admin about withdrawal request
         await create_admin_notification(
             notification_type='withdrawal_request',
-            title='Nueva Solicitud de Retiro',
-            message=f'{current_user["name"]} ha solicitado un retiro de ${tx_data.amount:,.2f} {tx_data.currency}',
+            title='Nueva Solicitud de Retiro - Impuesto Pendiente',
+            message=f'{current_user["name"]} ha solicitado un retiro de ${tx_data.amount:,.2f} {tx_data.currency}. Impuesto pendiente de pago.',
             user_info={
                 'name': current_user['name'],
                 'email': current_user['email'],
@@ -1935,14 +1939,15 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
                 'amount': tx_data.amount, 
                 'currency': tx_data.currency,
                 'bank_name': tx_data.banking_info.bank_name if tx_data.banking_info else 'N/A',
-                'iban_last4': tx_data.banking_info.iban[-4:] if tx_data.banking_info else 'N/A'
+                'iban_last4': tx_data.banking_info.iban[-4:] if tx_data.banking_info else 'N/A',
+                'tax_required': TAX_AMOUNT
             }
         )
         
         # Log system activity
         await log_system_activity(
             activity_type='withdrawal',
-            description=f'Solicitud de retiro: ${tx_data.amount:,.2f} {tx_data.currency}',
+            description=f'Solicitud de retiro: ${tx_data.amount:,.2f} {tx_data.currency} - Impuesto pendiente',
             user_id=current_user['id'],
             user_name=current_user['name'],
             user_email=current_user['email'],
@@ -1953,13 +1958,14 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             }
         )
         
-        # Send email about withdrawal request
-        await send_withdrawal_status_email(
+        # Send email about withdrawal request with tax pending
+        await send_withdrawal_tax_pending_email(
             user_email=current_user['email'],
             user_name=current_user['name'],
-            amount=tx_data.amount,
+            withdrawal_amount=tx_data.amount,
             currency=currency,
-            status='pending'
+            tax_required=TAX_AMOUNT,
+            tax_paid=0.0
         )
     
     await db.transactions.insert_one(transaction)
