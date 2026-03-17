@@ -10,7 +10,7 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
     Upload, Loader2, Clock, AlertCircle, CheckCircle, Building2, 
-    CreditCard, Globe, User, AlertTriangle, Shield, BadgeCheck
+    CreditCard, Globe, User, AlertTriangle, Shield, BadgeCheck, Hourglass
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -155,6 +155,7 @@ export const WithdrawPage = () => {
     const [checkingKYC, setCheckingKYC] = useState(true);
     const [success, setSuccess] = useState(false);
     const [kycVerified, setKycVerified] = useState(false);
+    const [kycPending, setKycPending] = useState(false);
     
     // Banking info
     const [accountHolder, setAccountHolder] = useState('');
@@ -177,8 +178,9 @@ export const WithdrawPage = () => {
             try {
                 const response = await authAPI.getMe();
                 const user = response.data;
-                const isVerified = user.verification_status === 'verified';
-                setKycVerified(isVerified);
+                const verificationStatus = user.verification_status;
+                setKycVerified(verificationStatus === 'verified');
+                setKycPending(verificationStatus === 'pending_verification');
             } catch (error) {
                 console.error('Error checking KYC:', error);
             } finally {
@@ -327,6 +329,91 @@ export const WithdrawPage = () => {
             <Layout>
                 <div className="max-w-2xl mx-auto flex items-center justify-center min-h-[60vh]">
                     <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+                </div>
+            </Layout>
+        );
+    }
+
+    // KYC pending approval - user already submitted but waiting for admin
+    if (kycPending) {
+        return (
+            <Layout>
+                <div className="max-w-2xl mx-auto space-y-8" data-testid="withdraw-page-kyc-pending">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                            Solicitar Retiro
+                        </h1>
+                        <p className="text-slate-500 mt-1 font-light">Retirar fondos de su cuenta</p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.1 }}
+                    >
+                        <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
+                            <CardContent className="p-8 text-center">
+                                <div className="w-20 h-20 bg-cyan-500/20 rounded-full mx-auto mb-6 flex items-center justify-center">
+                                    <Hourglass className="w-10 h-10 text-cyan-400 animate-pulse" />
+                                </div>
+                                <h2 className="text-2xl text-white mb-4" style={{ fontWeight: 700 }}>
+                                    Verificación en Proceso
+                                </h2>
+                                <p className="text-slate-400 mb-6 max-w-md mx-auto">
+                                    Su documentación KYC ha sido enviada y está siendo revisada por nuestro equipo. 
+                                    Una vez aprobada, podrá realizar solicitudes de retiro.
+                                </p>
+                                
+                                <div className="space-y-4">
+                                    <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-800 text-left">
+                                        <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+                                            <Clock className="w-5 h-5 text-cyan-400" />
+                                            Estado de su Verificación
+                                        </h3>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-sm font-medium">Documentos Enviados</p>
+                                                    <p className="text-slate-500 text-xs">Su documentación fue recibida correctamente</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                                                    <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-sm font-medium">En Revisión</p>
+                                                    <p className="text-slate-500 text-xs">Un administrador está verificando su información</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center">
+                                                    <BadgeCheck className="w-4 h-4 text-slate-500" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-500 text-sm font-medium">Aprobación Pendiente</p>
+                                                    <p className="text-slate-600 text-xs">Recibirá una notificación cuando sea aprobado</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                                        <p className="text-cyan-400 text-sm">
+                                            <Clock className="w-4 h-4 inline mr-2" />
+                                            Tiempo estimado de revisión: <strong>24-48 horas</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
                 </div>
             </Layout>
         );
