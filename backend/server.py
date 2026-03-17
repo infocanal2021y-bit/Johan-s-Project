@@ -318,7 +318,7 @@ async def notify_admins(title: str, message: str):
 # ==================== ADMIN NOTIFICATION SYSTEM ====================
 
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admi@paylionsbit.es')
-APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://lionsbit-banking.preview.emergentagent.com')
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://kyc-verification-9.preview.emergentagent.com')
 
 async def create_admin_notification(
     notification_type: str,

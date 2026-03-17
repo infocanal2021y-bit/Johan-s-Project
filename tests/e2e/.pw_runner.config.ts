@@ -11,7 +11,7 @@ export default defineConfig({
     ['json', { outputFile: '/root/.emergent/automation_output/20260316_223249/results.json' }],
   ],
   use: {
-    baseURL: 'https://lionsbit-banking.preview.emergentagent.com',
+    baseURL: 'https://kyc-verification-9.preview.emergentagent.com',
     screenshot: 'only-on-failure',
     trace: 'off',
     headless: true,
