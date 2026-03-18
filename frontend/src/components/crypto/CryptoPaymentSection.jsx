@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Progress } from '../ui/progress';
 import { 
     Bitcoin, 
     Copy, 
@@ -14,7 +16,10 @@ import {
     AlertTriangle,
     Clock,
     CheckCircle,
-    XCircle
+    XCircle,
+    Zap,
+    Shield,
+    Network
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,9 +37,38 @@ const CRYPTO_COLORS = {
     LTC: { bg: 'bg-slate-500/20', text: 'text-slate-300', border: 'border-slate-500/30' }
 };
 
+// Network configurations with fees and confirmations
+const NETWORK_CONFIG = {
+    BTC: {
+        name: 'Bitcoin (BTC)',
+        fee: '~$2-5 USD',
+        feeLevel: 'Baja',
+        confirmations: '1-3 confirmaciones',
+        confirmationTime: '10-30 min',
+        color: 'orange'
+    },
+    ERC20: {
+        name: 'Ethereum (ERC20)',
+        fee: '~$5-20 USD',
+        feeLevel: 'Media/Alta',
+        confirmations: '12-20 confirmaciones',
+        confirmationTime: '3-5 min',
+        color: 'blue'
+    },
+    TRC20: {
+        name: 'Tron (TRC20)',
+        fee: '~$1-2 USD',
+        feeLevel: 'Muy Baja',
+        confirmations: '19 confirmaciones',
+        confirmationTime: '1-3 min',
+        color: 'red'
+    }
+};
+
 export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
     const [wallets, setWallets] = useState({});
     const [selectedCrypto, setSelectedCrypto] = useState(null);
+    const [selectedNetwork, setSelectedNetwork] = useState('TRC20');
     const [copiedAddress, setCopiedAddress] = useState(null);
     const [txid, setTxid] = useState('');
     const [amountSent, setAmountSent] = useState('');
@@ -102,19 +136,23 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
             await transactionsAPI.submitCryptoPayment(transaction.id, {
                 transaction_id: transaction.id,
                 crypto_type: selectedCrypto,
+                network: selectedNetwork,
                 txid: txid.trim(),
                 amount_sent: amountSent,
                 proof_image: proofImage
             });
             
-            toast.success('Payment submitted for review');
+            toast.success('Pago enviado para revisión');
             onPaymentSubmitted?.();
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to submit payment');
+            toast.error(error.response?.data?.detail || 'Error al enviar el pago');
         } finally {
             setSubmitting(false);
         }
     };
+
+    // Get current network config
+    const networkConfig = NETWORK_CONFIG[selectedNetwork];
 
     if (loading) {
         return (
@@ -192,7 +230,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
             <CardHeader>
                 <CardTitle className="text-white font-heading flex items-center gap-2">
                     <Bitcoin className="w-5 h-5 text-orange-400" />
-                    Pay Tax in Cryptocurrency
+                    Pagar Impuesto con Criptomonedas
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -200,12 +238,97 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-amber-400 font-medium">Important Notice</p>
+                        <p className="text-amber-400 font-medium">Aviso Importante</p>
                         <p className="text-sm text-amber-400/70 mt-1">
-                            Send ONLY on the indicated network. Payments sent on wrong networks cannot be recovered.
-                            An administrator will manually verify your payment.
+                            Envíe SOLO en la red indicada. Los pagos enviados en redes incorrectas no pueden ser recuperados.
+                            Un administrador verificará su pago manualmente.
                         </p>
                     </div>
+                </div>
+
+                {/* Network Selection */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <Network className="w-5 h-5 text-cyan-400" />
+                        <Label className="text-white font-medium">Seleccionar Red</Label>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {Object.entries(NETWORK_CONFIG).map(([networkKey, config]) => (
+                            <div
+                                key={networkKey}
+                                onClick={() => setSelectedNetwork(networkKey)}
+                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                                    selectedNetwork === networkKey
+                                        ? `border-${config.color}-500/50 bg-${config.color}-500/10`
+                                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                                }`}
+                                style={{
+                                    borderColor: selectedNetwork === networkKey ? 
+                                        (config.color === 'orange' ? '#f97316' : config.color === 'blue' ? '#3b82f6' : '#ef4444') + '80' : undefined,
+                                    backgroundColor: selectedNetwork === networkKey ?
+                                        (config.color === 'orange' ? '#f9731610' : config.color === 'blue' ? '#3b82f610' : '#ef444410') : undefined
+                                }}
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-white text-sm">{config.name}</span>
+                                    {selectedNetwork === networkKey && (
+                                        <Check className="w-4 h-4 text-emerald-400" />
+                                    )}
+                                </div>
+                                <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">Comisión:</span>
+                                        <span className={`font-medium ${
+                                            config.feeLevel === 'Muy Baja' ? 'text-emerald-400' :
+                                            config.feeLevel === 'Baja' ? 'text-green-400' :
+                                            config.feeLevel === 'Media/Alta' ? 'text-amber-400' : 'text-white'
+                                        }`}>{config.feeLevel}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">Est.:</span>
+                                        <span className="text-slate-300">{config.fee}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Network Info Card */}
+                    {networkConfig && (
+                        <div className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="w-4 h-4 text-cyan-400" />
+                                    <div>
+                                        <p className="text-slate-500 text-xs">Comisión Est.</p>
+                                        <p className="text-white font-medium">{networkConfig.fee}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-cyan-400" />
+                                    <div>
+                                        <p className="text-slate-500 text-xs">Confirmaciones</p>
+                                        <p className="text-white font-medium">{networkConfig.confirmations}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-cyan-400" />
+                                    <div>
+                                        <p className="text-slate-500 text-xs">Tiempo Est.</p>
+                                        <p className="text-white font-medium">{networkConfig.confirmationTime}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Network className="w-4 h-4 text-cyan-400" />
+                                    <div>
+                                        <p className="text-slate-500 text-xs">Red</p>
+                                        <p className="text-white font-medium">{selectedNetwork}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Crypto Wallet Cards */}

@@ -2081,7 +2081,7 @@ async def export_transactions_csv(current_user: dict = Depends(get_current_user)
 
 @api_router.get("/transactions/{transaction_id}/receipt")
 async def get_transaction_receipt(transaction_id: str, current_user: dict = Depends(get_current_user)):
-    """Generate PDF receipt for completed transfer"""
+    """Generate PDF receipt for completed transactions (transfers and withdrawals)"""
     transaction = await db.transactions.find_one(
         {'id': transaction_id, 'user_id': current_user['id']},
         {'_id': 0}
@@ -2092,6 +2092,9 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
     
     if transaction['status'] != 'completed':
         raise HTTPException(status_code=400, detail='Receipt only available for completed transactions')
+    
+    # Get user info
+    user = await db.users.find_one({'id': current_user['id']}, {'_id': 0, 'password': 0})
     
     # Generate PDF
     buffer = io.BytesIO()
@@ -2106,26 +2109,64 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         textColor=colors.HexColor('#10b981')
     )
     
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=20,
+        textColor=colors.HexColor('#1e293b')
+    )
+    
     elements = []
     
     # Header
     elements.append(Paragraph("LIONSBIT BANK", title_style))
-    elements.append(Paragraph("Transfer Receipt", styles['Heading2']))
+    
+    # Determine receipt type
+    if transaction['transaction_type'] == 'withdraw':
+        elements.append(Paragraph("Comprobante de Retiro", subtitle_style))
+    else:
+        elements.append(Paragraph("Comprobante de Transferencia", subtitle_style))
+    
     elements.append(Spacer(1, 20))
     
     # Transaction details
     data = [
-        ['Reference:', transaction.get('transaction_reference', transaction['id'][:8])],
-        ['Date:', transaction['created_at'][:19].replace('T', ' ')],
-        ['Type:', transaction['transaction_type'].upper()],
-        ['Amount:', f"{transaction['amount']:.2f} {transaction['currency']}"],
-        ['Status:', transaction['status'].upper()],
-        ['Tax Paid:', f"${transaction.get('tax_paid', 0):.2f}"],
-        ['Recipient Account:', transaction.get('recipient_account_id', 'N/A')[:12] + '...'],
-        ['Released At:', transaction.get('released_at', 'N/A')[:19].replace('T', ' ') if transaction.get('released_at') else 'N/A']
+        ['Nombre del Usuario:', user.get('name', 'N/A')],
+        ['Email:', user.get('email', 'N/A')],
+        ['Referencia:', transaction.get('transaction_reference', transaction['id'][:12])],
+        ['Fecha:', transaction['created_at'][:19].replace('T', ' ')],
+        ['Tipo de Operación:', 'RETIRO' if transaction['transaction_type'] == 'withdraw' else transaction['transaction_type'].upper()],
+        ['Monto:', f"{transaction['currency']} {transaction['amount']:.2f}"],
+        ['Estado:', 'COMPLETADO'],
+        ['ID de Transacción (TXID):', transaction.get('transaction_reference', transaction['id'][:16])],
     ]
     
-    table = Table(data, colWidths=[2*inch, 4*inch])
+    # Add banking info for withdrawals
+    if transaction['transaction_type'] == 'withdraw' and transaction.get('banking_info'):
+        banking_info = transaction['banking_info']
+        data.extend([
+            ['Titular de Cuenta:', banking_info.get('account_holder', 'N/A')],
+            ['Banco:', banking_info.get('bank_name', 'N/A')],
+            ['IBAN:', banking_info.get('iban', 'N/A')],
+            ['País:', banking_info.get('bank_country', 'N/A')],
+        ])
+    
+    # Add tax info if applicable
+    if transaction.get('tax_paid'):
+        data.append(['Impuesto Pagado:', f"${transaction.get('tax_paid', 0):.2f} USD"])
+    
+    # Add completed date
+    if transaction.get('completed_at'):
+        data.append(['Fecha de Completado:', transaction['completed_at'][:19].replace('T', ' ')])
+    elif transaction.get('released_at'):
+        data.append(['Fecha de Liberación:', transaction['released_at'][:19].replace('T', ' ')])
+    
+    # Add recipient for transfers
+    if transaction['transaction_type'] == 'transfer' and transaction.get('recipient_account_id'):
+        data.append(['Cuenta Destino:', transaction.get('recipient_account_id', 'N/A')[:12] + '...'])
+    
+    table = Table(data, colWidths=[2.2*inch, 3.8*inch])
     table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -2135,8 +2176,21 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
         ('TOPPADDING', (0, 0), (-1, -1), 12),
         ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#e2e8f0')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f8fafc')),
     ]))
     elements.append(table)
+    
+    elements.append(Spacer(1, 30))
+    
+    # Success message
+    success_style = ParagraphStyle(
+        'Success',
+        parent=styles['Normal'],
+        fontSize=12,
+        textColor=colors.HexColor('#10b981'),
+        alignment=1  # Center
+    )
+    elements.append(Paragraph("✓ Transacción completada exitosamente", success_style))
     
     elements.append(Spacer(1, 40))
     
@@ -2145,10 +2199,13 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         'Footer',
         parent=styles['Normal'],
         fontSize=9,
-        textColor=colors.HexColor('#94a3b8')
+        textColor=colors.HexColor('#94a3b8'),
+        alignment=1  # Center
     )
-    elements.append(Paragraph("This is an official LIONSBIT BANK transaction receipt.", footer_style))
-    elements.append(Paragraph(f"Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}", footer_style))
+    elements.append(Paragraph("Este es un comprobante oficial de LIONSBIT BANK.", footer_style))
+    elements.append(Paragraph(f"Generado el {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}", footer_style))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("Procesado por: Lionsbit Financial System", footer_style))
     
     doc.build(elements)
     buffer.seek(0)
@@ -2157,7 +2214,7 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         content=buffer.getvalue(),
         media_type='application/pdf',
         headers={
-            'Content-Disposition': f'attachment; filename=receipt_{transaction.get("transaction_reference", transaction_id[:8])}.pdf'
+            'Content-Disposition': f'attachment; filename=comprobante_{transaction.get("transaction_reference", transaction_id[:8])}.pdf'
         }
     )
 

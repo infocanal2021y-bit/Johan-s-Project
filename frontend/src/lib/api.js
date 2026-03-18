@@ -75,6 +75,10 @@ export const transactionsAPI = {
     getCryptoWallets: () => api.get('/crypto-wallets'),
     submitCryptoPayment: (transactionId, data) => api.post(`/transactions/${transactionId}/pay-tax-crypto`, data),
     getCryptoPaymentStatus: (transactionId) => api.get(`/transactions/${transactionId}/crypto-payment`),
+    downloadReceipt: async (transactionId) => {
+        const response = await api.get(`/transactions/${transactionId}/receipt`, { responseType: 'blob' });
+        return response;
+    },
 };
 
 // Notifications API

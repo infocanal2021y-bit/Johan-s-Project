@@ -13,6 +13,7 @@ import { Progress } from '../components/ui/progress';
 import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
+import { WithdrawalProgressBar } from '../components/WithdrawalProgressBar';
 
 export const TransactionsPage = () => {
     const [transactions, setTransactions] = useState([]);
@@ -20,13 +21,14 @@ export const TransactionsPage = () => {
     const [filter, setFilter] = useState('all');
     const [taxDialogOpen, setTaxDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [downloadingReceipt, setDownloadingReceipt] = useState(null);
 
     const fetchTransactions = async () => {
         try {
             const response = await transactionsAPI.getAllHistory();
             setTransactions(response.data);
         } catch (error) {
-            toast.error('Failed to load transactions');
+            toast.error('Error al cargar transacciones');
         } finally {
             setLoading(false);
         }
@@ -35,6 +37,36 @@ export const TransactionsPage = () => {
     useEffect(() => {
         fetchTransactions();
     }, []);
+
+    // Download receipt function
+    const handleDownloadReceipt = async (transaction) => {
+        if (transaction.status !== 'completed') {
+            toast.error('El comprobante solo está disponible para transacciones completadas');
+            return;
+        }
+        
+        setDownloadingReceipt(transaction.id);
+        try {
+            const response = await transactionsAPI.downloadReceipt(transaction.id);
+            
+            // Create blob and download
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `comprobante_${transaction.transaction_reference || transaction.id.slice(0, 8)}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            toast.success('Comprobante descargado correctamente');
+        } catch (error) {
+            toast.error('Error al descargar el comprobante');
+        } finally {
+            setDownloadingReceipt(null);
+        }
+    };
 
     const handleExportCSV = async () => {
         try {
@@ -53,26 +85,6 @@ export const TransactionsPage = () => {
             toast.success('Transactions exported successfully');
         } catch (error) {
             toast.error('Failed to export transactions');
-        }
-    };
-
-    const handleDownloadReceipt = async (tx) => {
-        try {
-            const response = await transactionsAPI.getReceipt(tx.id);
-            const blob = new Blob([response.data], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
-            // Use window.open or direct link click without DOM manipulation
-            const link = Object.assign(document.createElement('a'), {
-                href: url,
-                download: `receipt_${tx.transaction_reference || tx.id.slice(0, 8)}.pdf`,
-                style: 'display: none'
-            });
-            link.click();
-            // Cleanup after a delay to ensure download starts
-            setTimeout(() => window.URL.revokeObjectURL(url), 100);
-            toast.success('Receipt downloaded');
-        } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to download receipt');
         }
     };
 
@@ -260,11 +272,11 @@ export const TransactionsPage = () => {
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            {/* Show tax progress only for old transfers with tax_required */}
-                                                            {tx.transaction_type === 'transfer' && taxRequired > 0 ? (
+                                                            {/* Show tax progress for transfers and withdrawals with tax_required */}
+                                                            {(tx.transaction_type === 'transfer' || tx.transaction_type === 'withdraw') && taxRequired > 0 ? (
                                                                 <div className="space-y-2 min-w-[180px]">
                                                                     <div className="flex justify-between text-xs">
-                                                                        <span className="text-slate-500 font-normal">Progreso</span>
+                                                                        <span className="text-slate-500 font-normal">Impuesto</span>
                                                                         <span 
                                                                             className={isPendingTax ? 'text-orange-400' : 'text-emerald-400'}
                                                                             style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
@@ -298,18 +310,28 @@ export const TransactionsPage = () => {
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            {tx.transaction_type === 'transfer' && isCompleted && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleDownloadReceipt(tx)}
-                                                                    className="border-slate-700 hover:bg-slate-800 text-slate-300"
-                                                                    data-testid={`download-receipt-${tx.id}`}
-                                                                >
-                                                                    <FileDown className="w-4 h-4 mr-1" />
-                                                                    Receipt
-                                                                </Button>
-                                                            )}
+                                                            <div className="flex items-center gap-2 justify-end">
+                                                                {/* Download Receipt Button - for completed transactions */}
+                                                                {isCompleted && (tx.transaction_type === 'transfer' || tx.transaction_type === 'withdraw') && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleDownloadReceipt(tx)}
+                                                                        disabled={downloadingReceipt === tx.id}
+                                                                        className="border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-400"
+                                                                        data-testid={`download-receipt-${tx.id}`}
+                                                                    >
+                                                                        {downloadingReceipt === tx.id ? (
+                                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                                        ) : (
+                                                                            <>
+                                                                                <FileDown className="w-4 h-4 mr-1" />
+                                                                                Comprobante
+                                                                            </>
+                                                                        )}
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
                                                 );
@@ -397,6 +419,15 @@ export const TransactionsPage = () => {
                                         <strong>Importante:</strong> Si el impuesto no se paga dentro de 72 horas, el retiro será rechazado automáticamente.
                                     </p>
                                 </div>
+                            </div>
+
+                            {/* Withdrawal Progress Bar */}
+                            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <h3 className="text-white font-medium mb-4">Progreso del Retiro</h3>
+                                <WithdrawalProgressBar 
+                                    status={selectedTransaction.status}
+                                    showSteps={true}
+                                />
                             </div>
 
                             {/* ONLY Crypto Payment - No "Pay with Balance" option */}
