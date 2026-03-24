@@ -56,9 +56,9 @@ export const LoginPage = () => {
                         <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center glow-emerald">
                             <Shield className="w-7 h-7 text-emerald-400" />
                         </div>
-                        <h1 className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT BANK</h1>
+                        <h1 className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT VERIFICACION</h1>
                     </motion.div>
-                    <p className="text-slate-500 font-light">Plataforma de Banca Digital Privada</p>
+                    <p className="text-slate-500 font-light">Plataforma de Verificación Digital</p>
                 </div>
 
                 <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">

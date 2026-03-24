@@ -68,7 +68,7 @@ if not db_name:
 db = client[db_name]
 
 # Create the main app
-app = FastAPI(title="LIONSBIT BANK API")
+app = FastAPI(title="LIONSBIT VERIFICACION API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -425,7 +425,7 @@ async def send_admin_alert_email(notification_type: str, title: str, message: st
     """
     
     html = get_email_template(content, f"{icon} Alerta del Sistema")
-    await send_email(ADMIN_EMAIL, f"{icon} {title} - LIONSBIT BANK Admin", html)
+    await send_email(ADMIN_EMAIL, f"{icon} {title} - LIONSBIT VERIFICACION Admin", html)
 
 async def log_system_activity(
     activity_type: str,
@@ -464,7 +464,7 @@ async def send_email(to_email: str, subject: str, html_content: str):
     
     try:
         params = {
-            "from": f"LIONSBIT BANK <{SENDER_EMAIL}>",
+            "from": f"LIONSBIT VERIFICACION <{SENDER_EMAIL}>",
             "to": [to_email],
             "subject": subject,
             "html": html_content
@@ -478,7 +478,7 @@ async def send_email(to_email: str, subject: str, html_content: str):
         logging.error(f"Failed to send email to {to_email}: {str(e)}")
         return None
 
-def get_email_template(content: str, title: str = "LIONSBIT BANK"):
+def get_email_template(content: str, title: str = "LIONSBIT VERIFICACION"):
     """Generate HTML email template"""
     return f"""
     <!DOCTYPE html>
@@ -508,11 +508,11 @@ def get_email_template(content: str, title: str = "LIONSBIT BANK"):
                         <tr>
                             <td style="background-color: #0f172a; padding: 20px 30px; text-align: center;">
                                 <p style="color: #64748b; font-size: 12px; margin: 0;">
-                                    Este es un correo automático de LIONSBIT BANK.<br>
+                                    Este es un correo automático de LIONSBIT VERIFICACION.<br>
                                     Por favor no responda a este mensaje.
                                 </p>
                                 <p style="color: #64748b; font-size: 12px; margin: 10px 0 0 0;">
-                                    © 2026 LIONSBIT BANK. Todos los derechos reservados.
+                                    © 2026 LIONSBIT VERIFICACION. Todos los derechos reservados.
                                 </p>
                             </td>
                         </tr>
@@ -565,7 +565,7 @@ async def send_balance_added_email(user_email: str, user_name: str, amount: floa
     """
     
     html = get_email_template(content, "Saldo Agregado")
-    await send_email(user_email, "💰 Saldo agregado a su cuenta - LIONSBIT BANK", html)
+    await send_email(user_email, "💰 Saldo agregado a su cuenta - LIONSBIT VERIFICACION", html)
 
 async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
     """Send email notification for withdrawal status changes"""
@@ -616,7 +616,7 @@ async def send_withdrawal_status_email(user_email: str, user_name: str, amount: 
     """
     
     html = get_email_template(content, config['title'])
-    await send_email(user_email, f"📤 {config['title']} - LIONSBIT BANK", html)
+    await send_email(user_email, f"📤 {config['title']} - LIONSBIT VERIFICACION", html)
 
 async def send_password_changed_email(user_email: str, user_name: str):
     """Send email notification when password is changed"""
@@ -645,7 +645,7 @@ async def send_password_changed_email(user_email: str, user_name: str):
     """
     
     html = get_email_template(content, "Contraseña Actualizada")
-    await send_email(user_email, "🔐 Contraseña cambiada - LIONSBIT BANK", html)
+    await send_email(user_email, "🔐 Contraseña cambiada - LIONSBIT VERIFICACION", html)
 
 async def send_new_login_email(user_email: str, user_name: str, ip_address: str, browser: str, location: str):
     """Send email notification for new login from unknown IP"""
@@ -691,7 +691,7 @@ async def send_new_login_email(user_email: str, user_name: str, ip_address: str,
     """
     
     html = get_email_template(content, "Nuevo Inicio de Sesión")
-    await send_email(user_email, "🔔 Nuevo acceso detectado - LIONSBIT BANK", html)
+    await send_email(user_email, "🔔 Nuevo acceso detectado - LIONSBIT VERIFICACION", html)
 
 async def send_transfer_completed_email(user_email: str, user_name: str, amount: float, currency: str, recipient: str):
     """Send email notification when transfer is completed"""
@@ -730,7 +730,7 @@ async def send_transfer_completed_email(user_email: str, user_name: str, amount:
     """
     
     html = get_email_template(content, "Transferencia Completada")
-    await send_email(user_email, "✅ Transferencia completada - LIONSBIT BANK", html)
+    await send_email(user_email, "✅ Transferencia completada - LIONSBIT VERIFICACION", html)
 
 async def send_withdrawal_tax_pending_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, tax_required: float, tax_paid: float):
     """Send email when withdrawal is pending tax payment"""
@@ -811,7 +811,7 @@ async def send_withdrawal_tax_pending_email(user_email: str, user_name: str, wit
     """
     
     html = get_email_template(content, "Retiro Pendiente - Impuesto Requerido")
-    await send_email(user_email, "⏳ Retiro pendiente - Pague su impuesto - LIONSBIT BANK", html)
+    await send_email(user_email, "⏳ Retiro pendiente - Pague su impuesto - LIONSBIT VERIFICACION", html)
 
 async def send_tax_payment_received_email(user_email: str, user_name: str, payment_amount: float, tax_required: float, tax_paid: float, withdrawal_amount: float, currency: str):
     """Send email when tax payment is received"""
@@ -878,7 +878,7 @@ async def send_tax_payment_received_email(user_email: str, user_name: str, payme
     """
     
     html = get_email_template(content, "Abono al Impuesto Recibido")
-    await send_email(user_email, f"💰 Abono recibido - {'Impuesto completado' if remaining <= 0 else 'Progreso actualizado'} - LIONSBIT BANK", html)
+    await send_email(user_email, f"💰 Abono recibido - {'Impuesto completado' if remaining <= 0 else 'Progreso actualizado'} - LIONSBIT VERIFICACION", html)
 
 async def send_tax_reminder_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, tax_required: float, tax_paid: float, hours_remaining: float):
     """Send reminder email for pending tax payment"""
@@ -945,7 +945,7 @@ async def send_tax_reminder_email(user_email: str, user_name: str, withdrawal_am
     """
     
     html = get_email_template(content, "Recordatorio - Impuesto Pendiente")
-    await send_email(user_email, f"⚠️ RECORDATORIO: Impuesto pendiente - {hours_remaining:.0f}h restantes - LIONSBIT BANK", html)
+    await send_email(user_email, f"⚠️ RECORDATORIO: Impuesto pendiente - {hours_remaining:.0f}h restantes - LIONSBIT VERIFICACION", html)
 
 async def send_withdrawal_rejected_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, reason: str):
     """Send email when withdrawal is automatically rejected"""
@@ -995,7 +995,7 @@ async def send_withdrawal_rejected_email(user_email: str, user_name: str, withdr
     """
     
     html = get_email_template(content, "Retiro Rechazado")
-    await send_email(user_email, "❌ Su retiro ha sido rechazado - LIONSBIT BANK", html)
+    await send_email(user_email, "❌ Su retiro ha sido rechazado - LIONSBIT VERIFICACION", html)
 
 async def get_daily_transfer_total(user_id: str) -> float:
     """Get total EUR transfers for today"""
@@ -1093,7 +1093,7 @@ async def register(user_data: UserCreate, request: Request):
         }
         await db.accounts.insert_one(account)
     
-    await create_notification(user_id, '¡Bienvenido a LIONSBIT BANK!', 
+    await create_notification(user_id, '¡Bienvenido a LIONSBIT VERIFICACION!', 
         'Su cuenta ha sido creada. Por favor complete la verificación KYC para desbloquear todas las funciones.')
     
     # Notify admin about new user registration
@@ -1362,7 +1362,7 @@ async def send_password_reset_email(user_email: str, user_name: str, reset_link:
     """
     
     html = get_email_template(content, "Restablecer Contraseña")
-    await send_email(user_email, "🔐 Restablecer contraseña - LIONSBIT BANK", html)
+    await send_email(user_email, "🔐 Restablecer contraseña - LIONSBIT VERIFICACION", html)
 
 @api_router.post("/auth/reset-password")
 async def reset_password(data: PasswordResetConfirm):
@@ -2120,7 +2120,7 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
     elements = []
     
     # Header
-    elements.append(Paragraph("LIONSBIT BANK", title_style))
+    elements.append(Paragraph("LIONSBIT VERIFICACION", title_style))
     
     # Determine receipt type
     if transaction['transaction_type'] == 'withdraw':
@@ -2202,7 +2202,7 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         textColor=colors.HexColor('#94a3b8'),
         alignment=1  # Center
     )
-    elements.append(Paragraph("Este es un comprobante oficial de LIONSBIT BANK.", footer_style))
+    elements.append(Paragraph("Este es un comprobante oficial de LIONSBIT VERIFICACION.", footer_style))
     elements.append(Paragraph(f"Generado el {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}", footer_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph("Procesado por: Lionsbit Financial System", footer_style))
@@ -3676,7 +3676,7 @@ async def get_exchange_rates():
 
 @api_router.get("/")
 async def root():
-    return {"message": "LIONSBIT BANK API", "version": "2.0.0"}
+    return {"message": "LIONSBIT VERIFICACION API", "version": "2.0.0"}
 
 # Include the router in the main app
 app.include_router(api_router)

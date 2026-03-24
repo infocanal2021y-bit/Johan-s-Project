@@ -104,8 +104,8 @@ export const Sidebar = () => {
                             <Shield className="w-6 h-6 text-emerald-400" />
                         </div>
                         <div>
-                            <h1 className="text-lg text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT BANK</h1>
-                            <p className="text-xs text-slate-500 font-light">Plataforma de Banca Digital</p>
+                            <h1 className="text-lg text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT VERIFICACION</h1>
+                            <p className="text-xs text-slate-500 font-light">Plataforma de Verificación Digital</p>
                         </div>
                     </div>
                     <NotificationBell />

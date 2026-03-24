@@ -218,7 +218,7 @@ export const ResetPasswordPage = () => {
                 </Card>
 
                 <p className="text-center text-slate-600 text-sm mt-6">
-                    LIONSBIT BANK - Secure Banking
+                    LIONSBIT VERIFICACION - Secure Banking
                 </p>
             </motion.div>
         </div>

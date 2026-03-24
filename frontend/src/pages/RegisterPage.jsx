@@ -70,7 +70,7 @@ export const RegisterPage = () => {
                         <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center glow-emerald">
                             <Shield className="w-7 h-7 text-emerald-400" />
                         </div>
-                        <h1 className="font-heading text-2xl font-bold text-white tracking-wide">LIONSBIT BANK</h1>
+                        <h1 className="font-heading text-2xl font-bold text-white tracking-wide">LIONSBIT VERIFICACION</h1>
                     </motion.div>
                     <p className="text-slate-500">Private Digital Banking Platform</p>
                 </div>
