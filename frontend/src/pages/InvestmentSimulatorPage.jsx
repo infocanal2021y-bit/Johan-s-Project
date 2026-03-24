@@ -71,10 +71,10 @@ export const InvestmentSimulatorPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                 >
                     <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                        Simulador de Inversión
+                        Calculadora de Proyecciones
                     </h1>
                     <p className="text-slate-500 mt-1 font-light">
-                        Proyecta el crecimiento potencial de tu inversión (simulación educativa)
+                        Herramienta informativa para proyectar escenarios de crecimiento
                     </p>
                 </motion.div>
 
@@ -88,10 +88,10 @@ export const InvestmentSimulatorPage = () => {
                         <CardHeader>
                             <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700 }}>
                                 <Calculator className="w-5 h-5 text-emerald-400" />
-                                Configurar Simulación
+                                Configurar Proyección
                             </CardTitle>
                             <CardDescription className="text-slate-500">
-                                Ingresa los parámetros de tu inversión simulada
+                                Ingresa los parámetros para calcular escenarios informativos
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -164,7 +164,7 @@ export const InvestmentSimulatorPage = () => {
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
                                 <TrendingUp className="w-4 h-4 mr-2" />
-                                Simular Crecimiento
+                                Calcular Proyección
                             </Button>
                         </CardContent>
                     </Card>
@@ -318,7 +318,7 @@ export const InvestmentSimulatorPage = () => {
                 {/* Disclaimer */}
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <p className="text-amber-400 text-sm">
-                        <strong>Aviso:</strong> Esta es una simulación educativa. Los rendimientos mostrados son hipotéticos y no garantizan resultados futuros. Las inversiones reales conllevan riesgos y los resultados pueden variar significativamente.
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </div>
             </div>

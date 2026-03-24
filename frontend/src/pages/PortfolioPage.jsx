@@ -90,7 +90,7 @@ export const PortfolioPage = () => {
                             Mi Portafolio
                         </h1>
                         <p className="text-slate-500 mt-1 font-light">
-                            Seguimiento de tus activos simulados
+                            Seguimiento informativo de activos digitales
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -286,7 +286,7 @@ export const PortfolioPage = () => {
                 {/* Disclaimer */}
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <p className="text-amber-400 text-sm">
-                        <strong>Aviso:</strong> Este portafolio es una simulación con fines educativos. Los datos mostrados no representan activos reales ni transacciones financieras.
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </div>
             </div>

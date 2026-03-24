@@ -140,7 +140,7 @@ export const MarketReportsPage = () => {
                         Reportes del Mercado
                     </h1>
                     <p className="text-slate-500 mt-1 font-light">
-                        Análisis y noticias del mercado de criptomonedas (contenido simulado)
+                        Análisis y noticias informativas del mercado de criptomonedas
                     </p>
                 </motion.div>
 
@@ -283,7 +283,7 @@ export const MarketReportsPage = () => {
                 {/* Disclaimer */}
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <p className="text-amber-400 text-sm">
-                        <strong>Aviso:</strong> El contenido de esta sección es simulado y solo con fines educativos. No constituye asesoramiento financiero ni recomendaciones de inversión.
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </div>
             </div>

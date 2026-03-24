@@ -1,7 +1,9 @@
-# LIONSBIT BANK - Product Requirements Document
+# LIONSBIT VERIFICACION - Product Requirements Document
 
 ## Original Problem Statement
-Build a professional online banking system named "LIONSBIT BANK" with comprehensive financial management features.
+Build a professional financial information and verification platform named "LIONSBIT VERIFICACION" (formerly "LIONSBIT BANK"). The platform provides informational tools for financial analysis and digital verification services.
+
+**Important Notice:** This is an informational platform only. It is not enabled for real investments.
 
 ## Core Features Implemented
 
@@ -17,6 +19,7 @@ Build a professional online banking system named "LIONSBIT BANK" with comprehens
 - Transaction history with filtering
 - Personal information display
 - Real-time notifications (bell icon)
+- **Legal disclaimer visible at bottom**
 
 ### 3. Transaction System
 - **Admin-Only Deposits:** Only admins can add funds via `admin_credit`

@@ -71,7 +71,7 @@ export const Sidebar = () => {
     const cryptoLinks = [
         { to: '/crypto-market', icon: TrendingUp, label: 'Mercado Cripto' },
         { to: '/converter', icon: RefreshCw, label: 'Conversor' },
-        { to: '/investment-simulator', icon: Calculator, label: 'Simulador' },
+        { to: '/investment-simulator', icon: Calculator, label: 'Proyecciones' },
         { to: '/portfolio', icon: PieChart, label: 'Portafolio' },
         { to: '/alerts', icon: Bell, label: 'Alertas' },
         { to: '/market-reports', icon: Newspaper, label: 'Reportes' },

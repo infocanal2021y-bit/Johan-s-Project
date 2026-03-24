@@ -87,7 +87,7 @@ export const CryptoMarketPage = () => {
                             Mercado Cripto
                         </h1>
                         <p className="text-slate-500 mt-1 font-light">
-                            Precios en tiempo real de las principales criptomonedas (simulación)
+                            Precios informativos de las principales criptomonedas
                         </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -252,8 +252,10 @@ export const CryptoMarketPage = () => {
                 </motion.div>
 
                 {/* Disclaimer */}
-                <div className="text-center text-xs text-slate-600 p-4">
-                    Los datos mostrados son simulados y solo con fines informativos. No constituyen asesoramiento financiero.
+                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <p className="text-amber-400 text-sm">
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
+                    </p>
                 </div>
             </div>
         </Layout>

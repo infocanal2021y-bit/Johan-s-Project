@@ -425,7 +425,7 @@ export const LiveMarketNewsPage = () => {
                 {/* Disclaimer */}
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <p className="text-amber-400 text-sm">
-                        <strong>Aviso:</strong> Las noticias y datos mostrados son simulados con fines educativos. No constituyen asesoramiento financiero ni recomendaciones de inversión. Siempre consulte fuentes oficiales antes de tomar decisiones financieras.
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </div>
             </div>

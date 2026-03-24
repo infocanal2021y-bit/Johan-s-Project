@@ -161,7 +161,7 @@ export const AlertsPage = () => {
                             )}
                         </h1>
                         <p className="text-slate-500 mt-1 font-light">
-                            Notificaciones de movimientos del mercado cripto (simulación)
+                            Notificaciones informativas sobre movimientos del mercado cripto
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export const AlertsPage = () => {
                             <div>
                                 <p className="text-cyan-400 text-sm font-medium">Alertas en tiempo real</p>
                                 <p className="text-cyan-400/70 text-xs">
-                                    Las alertas se actualizan automáticamente cada 30 segundos con información del mercado simulada.
+                                    Las alertas se actualizan automáticamente cada 30 segundos con información del mercado.
                                 </p>
                             </div>
                         </CardContent>
@@ -300,8 +300,10 @@ export const AlertsPage = () => {
                 </motion.div>
 
                 {/* Disclaimer */}
-                <div className="text-center text-xs text-slate-600 p-4">
-                    Las alertas son simuladas y solo con fines demostrativos. No constituyen asesoramiento financiero.
+                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <p className="text-amber-400 text-sm">
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
+                    </p>
                 </div>
             </div>
         </Layout>

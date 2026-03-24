@@ -159,9 +159,9 @@ export const LoginPage = () => {
                 {/* Legal Disclaimer */}
                 <div className="mt-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <p className="text-amber-400 text-xs text-center">
-                        <strong>⚠️ Aviso Legal:</strong> Esta plataforma es exclusivamente para simulación y verificación financiera. 
-                        No constituye asesoramiento financiero ni recomendaciones de inversión reales. 
-                        Los datos mostrados son simulados con fines educativos.
+                        <strong>⚠️ Aviso Legal:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. 
+                        No constituyen asesoramiento financiero ni representan una invitación a invertir. 
+                        La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </div>
             </motion.div>

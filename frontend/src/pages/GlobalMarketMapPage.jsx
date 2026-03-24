@@ -96,7 +96,7 @@ export const GlobalMarketMapPage = () => {
                         Mapa Global del Mercado
                     </h1>
                     <p className="text-slate-500 mt-1 font-light">
-                        Adopción de criptomonedas y tendencias por región (datos simulados)
+                        Adopción de criptomonedas y tendencias por región (datos informativos)
                     </p>
                 </motion.div>
 
@@ -309,7 +309,7 @@ export const GlobalMarketMapPage = () => {
                 {/* Disclaimer */}
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <p className="text-amber-400 text-sm">
-                        <strong>Aviso:</strong> Los datos de adopción y tendencias mostrados son simulados con fines educativos. Las cifras reales pueden variar significativamente.
+                        <strong>⚠️ Aviso Importante:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. No constituyen asesoramiento financiero ni representan una invitación a invertir. La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </div>
             </div>

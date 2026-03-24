@@ -222,8 +222,9 @@ export const DashboardPage = () => {
                     className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30"
                 >
                     <p className="text-amber-400 text-xs text-center">
-                        <strong>⚠️ Aviso Legal:</strong> LIONSBIT VERIFICACION es una plataforma de simulación financiera con fines educativos. 
-                        Los saldos, transacciones y datos mostrados son simulados. No constituye asesoramiento financiero ni inversión real.
+                        <strong>⚠️ Aviso Legal:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. 
+                        No constituyen asesoramiento financiero ni representan una invitación a invertir. 
+                        La plataforma no está habilitada para realizar inversiones .
                     </p>
                 </motion.div>
             </div>
