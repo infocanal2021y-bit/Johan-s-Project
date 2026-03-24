@@ -21,7 +21,13 @@ import {
     Settings,
     MessageSquare,
     HeadphonesIcon,
-    Activity
+    Activity,
+    TrendingUp,
+    RefreshCw,
+    Calculator,
+    PieChart,
+    Bell,
+    Newspaper
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -56,6 +62,16 @@ export const Sidebar = () => {
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
         { to: '/support', icon: HeadphonesIcon, label: 'Support' },
         { to: '/settings', icon: Settings, label: 'Settings' },
+    ];
+
+    // Crypto/Finance links
+    const cryptoLinks = [
+        { to: '/crypto-market', icon: TrendingUp, label: 'Mercado Cripto' },
+        { to: '/converter', icon: RefreshCw, label: 'Conversor' },
+        { to: '/investment-simulator', icon: Calculator, label: 'Simulador' },
+        { to: '/portfolio', icon: PieChart, label: 'Portafolio' },
+        { to: '/alerts', icon: Bell, label: 'Alertas' },
+        { to: '/market-reports', icon: Newspaper, label: 'Reportes' },
     ];
 
     const adminLinks = [
@@ -119,9 +135,15 @@ export const Sidebar = () => {
                 </p>
                 <NavLinks links={userLinks} />
 
+                {/* Crypto/Finance Section */}
+                <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3 mt-6" style={{ fontWeight: 500 }}>
+                    Análisis Financiero
+                </p>
+                <NavLinks links={cryptoLinks} />
+
                 {isAdmin && (
                     <>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3 mt-8" style={{ fontWeight: 500 }}>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3 mt-6" style={{ fontWeight: 500 }}>
                             Administración
                         </p>
                         <NavLinks links={adminLinks} />

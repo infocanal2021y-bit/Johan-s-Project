@@ -17,6 +17,14 @@ import { KYCPage } from "./pages/KYCPage";
 import { SupportPage } from "./pages/SupportPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
+// New Crypto/Finance Pages
+import { CryptoMarketPage } from "./pages/CryptoMarketPage";
+import { ConverterPage } from "./pages/ConverterPage";
+import { InvestmentSimulatorPage } from "./pages/InvestmentSimulatorPage";
+import { PortfolioPage } from "./pages/PortfolioPage";
+import { AlertsPage } from "./pages/AlertsPage";
+import { MarketReportsPage } from "./pages/MarketReportsPage";
+
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
@@ -90,6 +98,14 @@ function AppRoutes() {
             <Route path="/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            
+            {/* Crypto/Finance Routes */}
+            <Route path="/crypto-market" element={<ProtectedRoute><CryptoMarketPage /></ProtectedRoute>} />
+            <Route path="/converter" element={<ProtectedRoute><ConverterPage /></ProtectedRoute>} />
+            <Route path="/investment-simulator" element={<ProtectedRoute><InvestmentSimulatorPage /></ProtectedRoute>} />
+            <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+            <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
+            <Route path="/market-reports" element={<ProtectedRoute><MarketReportsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
