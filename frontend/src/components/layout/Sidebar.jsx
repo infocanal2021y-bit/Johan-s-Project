@@ -27,7 +27,10 @@ import {
     Calculator,
     PieChart,
     Bell,
-    Newspaper
+    Newspaper,
+    Scale,
+    Globe,
+    Radio
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -72,6 +75,9 @@ export const Sidebar = () => {
         { to: '/portfolio', icon: PieChart, label: 'Portafolio' },
         { to: '/alerts', icon: Bell, label: 'Alertas' },
         { to: '/market-reports', icon: Newspaper, label: 'Reportes' },
+        { to: '/investment-comparator', icon: Scale, label: 'Comparador' },
+        { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
+        { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
     ];
 
     const adminLinks = [

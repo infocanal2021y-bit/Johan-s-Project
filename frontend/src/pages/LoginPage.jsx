@@ -155,6 +155,15 @@ export const LoginPage = () => {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Legal Disclaimer */}
+                <div className="mt-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <p className="text-amber-400 text-xs text-center">
+                        <strong>⚠️ Aviso Legal:</strong> Esta plataforma es exclusivamente para simulación y verificación financiera. 
+                        No constituye asesoramiento financiero ni recomendaciones de inversión reales. 
+                        Los datos mostrados son simulados con fines educativos.
+                    </p>
+                </div>
             </motion.div>
         </div>
     );

@@ -24,6 +24,9 @@ import { InvestmentSimulatorPage } from "./pages/InvestmentSimulatorPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { MarketReportsPage } from "./pages/MarketReportsPage";
+import { InvestmentComparatorPage } from "./pages/InvestmentComparatorPage";
+import { GlobalMarketMapPage } from "./pages/GlobalMarketMapPage";
+import { LiveMarketNewsPage } from "./pages/LiveMarketNewsPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -106,6 +109,9 @@ function AppRoutes() {
             <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
             <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
             <Route path="/market-reports" element={<ProtectedRoute><MarketReportsPage /></ProtectedRoute>} />
+            <Route path="/investment-comparator" element={<ProtectedRoute><InvestmentComparatorPage /></ProtectedRoute>} />
+            <Route path="/global-market-map" element={<ProtectedRoute><GlobalMarketMapPage /></ProtectedRoute>} />
+            <Route path="/live-news" element={<ProtectedRoute><LiveMarketNewsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />

@@ -213,6 +213,19 @@ export const DashboardPage = () => {
 
                 {/* Recent Transactions */}
                 <RecentTransactions transactions={transactions} loading={loading} />
+
+                {/* Legal Disclaimer */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30"
+                >
+                    <p className="text-amber-400 text-xs text-center">
+                        <strong>⚠️ Aviso Legal:</strong> LIONSBIT VERIFICACION es una plataforma de simulación financiera con fines educativos. 
+                        Los saldos, transacciones y datos mostrados son simulados. No constituye asesoramiento financiero ni inversión real.
+                    </p>
+                </motion.div>
             </div>
         </Layout>
     );
