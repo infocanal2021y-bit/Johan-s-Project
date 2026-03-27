@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 class ComprehensiveBankingTester:
-    def __init__(self, base_url="https://kyc-verification-9.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://compliance-dash-32.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.admin_token = None
