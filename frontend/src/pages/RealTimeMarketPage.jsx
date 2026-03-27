@@ -23,10 +23,11 @@ const TradingViewWidget = ({ symbol }) => {
     const containerRef = useRef(null);
     
     useEffect(() => {
-        if (!containerRef.current) return;
+        const container = containerRef.current;
+        if (!container) return;
         
         // Clear previous widget
-        containerRef.current.innerHTML = '';
+        container.innerHTML = '';
         
         // Create widget container
         const widgetContainer = document.createElement('div');
@@ -40,7 +41,7 @@ const TradingViewWidget = ({ symbol }) => {
         widgetDiv.style.width = '100%';
         
         widgetContainer.appendChild(widgetDiv);
-        containerRef.current.appendChild(widgetContainer);
+        container.appendChild(widgetContainer);
         
         // Create and load TradingView script
         const script = document.createElement('script');
@@ -75,8 +76,8 @@ const TradingViewWidget = ({ symbol }) => {
         widgetContainer.appendChild(script);
         
         return () => {
-            if (containerRef.current) {
-                containerRef.current.innerHTML = '';
+            if (container) {
+                container.innerHTML = '';
             }
         };
     }, [symbol]);
@@ -91,13 +92,14 @@ const TradingViewWidget = ({ symbol }) => {
 };
 
 // Mini Ticker Widget for price info
-const MiniTickerWidget = ({ symbol, onPriceUpdate }) => {
+const MiniTickerWidget = ({ symbol }) => {
     const containerRef = useRef(null);
     
     useEffect(() => {
-        if (!containerRef.current) return;
+        const container = containerRef.current;
+        if (!container) return;
         
-        containerRef.current.innerHTML = '';
+        container.innerHTML = '';
         
         const widgetContainer = document.createElement('div');
         widgetContainer.className = 'tradingview-widget-container';
@@ -106,7 +108,7 @@ const MiniTickerWidget = ({ symbol, onPriceUpdate }) => {
         widgetDiv.className = 'tradingview-widget-container__widget';
         
         widgetContainer.appendChild(widgetDiv);
-        containerRef.current.appendChild(widgetContainer);
+        container.appendChild(widgetContainer);
         
         const script = document.createElement('script');
         script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js';
@@ -123,8 +125,8 @@ const MiniTickerWidget = ({ symbol, onPriceUpdate }) => {
         widgetContainer.appendChild(script);
         
         return () => {
-            if (containerRef.current) {
-                containerRef.current.innerHTML = '';
+            if (container) {
+                container.innerHTML = '';
             }
         };
     }, [symbol]);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
@@ -16,7 +16,7 @@ export const AdminTransactionsPage = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [processingId, setProcessingId] = useState(null);
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
         try {
             const status = statusFilter === 'all' ? undefined : statusFilter;
             const response = await adminAPI.getTransactions(status);
@@ -26,11 +26,11 @@ export const AdminTransactionsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [statusFilter]);
 
     useEffect(() => {
         fetchTransactions();
-    }, [statusFilter]);
+    }, [fetchTransactions]);
 
     const handleStatusChange = async (transactionId, newStatus) => {
         try {

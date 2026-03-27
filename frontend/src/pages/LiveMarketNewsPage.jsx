@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -127,7 +127,7 @@ export const LiveMarketNewsPage = () => {
     const [marketSummary, setMarketSummary] = useState('');
 
     // Generate AI-style market summary
-    const generateMarketSummary = () => {
+    const generateMarketSummary = useCallback(() => {
         const btcTrend = prices.find(p => p.symbol === 'BTC')?.change > 0 ? 'alcista' : 'bajista';
         const oilTrend = prices.find(p => p.symbol === 'OIL')?.change > 0 ? 'al alza' : 'a la baja';
         const goldStatus = prices.find(p => p.symbol === 'GOLD')?.change > 0 ? 'en territorio positivo' : 'estable';
@@ -139,7 +139,7 @@ export const LiveMarketNewsPage = () => {
         ];
         
         return summaries[Math.floor(Math.random() * summaries.length)];
-    };
+    }, [prices]);
 
     useEffect(() => {
         setMarketSummary(generateMarketSummary());
@@ -155,7 +155,7 @@ export const LiveMarketNewsPage = () => {
         }, 15000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [generateMarketSummary]);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
