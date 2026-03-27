@@ -79,6 +79,8 @@ export const transactionsAPI = {
         const response = await api.get(`/transactions/${transactionId}/receipt`, { responseType: 'blob' });
         return response;
     },
+    // Withdrawal history
+    getWithdrawalHistory: () => api.get('/withdrawals/history'),
 };
 
 // Notifications API

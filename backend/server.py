@@ -2079,6 +2079,81 @@ async def export_transactions_csv(current_user: dict = Depends(get_current_user)
         headers={'Content-Disposition': 'attachment; filename=transactions.csv'}
     )
 
+@api_router.get("/withdrawals/history")
+async def get_withdrawal_history(current_user: dict = Depends(get_current_user)):
+    """Get user's withdrawal history grouped by date with privacy-safe data"""
+    from collections import defaultdict
+    
+    # Get all withdrawals for the user (excluding sensitive bank details)
+    withdrawals = await db.transactions.find(
+        {
+            'user_id': current_user['id'],
+            'transaction_type': 'withdraw'
+        },
+        {
+            '_id': 0,
+            'id': 1,
+            'amount': 1,
+            'currency': 1,
+            'status': 1,
+            'created_at': 1,
+            'tax_required': 1,
+            'tax_paid': 1
+        }
+    ).sort('created_at', -1).to_list(500)
+    
+    # Group by date
+    grouped = defaultdict(list)
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    for w in withdrawals:
+        date_key = w['created_at'][:10]  # YYYY-MM-DD
+        grouped[date_key].append({
+            'id': w['id'],
+            'amount': w['amount'],
+            'currency': w['currency'],
+            'status': w['status'],
+            'created_at': w['created_at'],
+            'tax_required': w.get('tax_required', 0),
+            'tax_paid': w.get('tax_paid', 0)
+        })
+    
+    # Calculate statistics
+    total_count = len(withdrawals)
+    total_amount = sum(w['amount'] for w in withdrawals)
+    completed_count = len([w for w in withdrawals if w['status'] == 'completed'])
+    pending_count = len([w for w in withdrawals if w['status'] in ['pending', 'pending_tax', 'processing', 'transfer_in_progress']])
+    
+    # Format grouped data with labels
+    history = []
+    for date_key in sorted(grouped.keys(), reverse=True):
+        items = grouped[date_key]
+        if date_key == today:
+            label = 'Hoy'
+        elif date_key == yesterday:
+            label = 'Ayer'
+        else:
+            label = date_key
+        
+        history.append({
+            'date': date_key,
+            'label': label,
+            'count': len(items),
+            'total_amount': sum(item['amount'] for item in items),
+            'withdrawals': items
+        })
+    
+    return {
+        'statistics': {
+            'total_count': total_count,
+            'total_amount': total_amount,
+            'completed_count': completed_count,
+            'pending_count': pending_count
+        },
+        'history': history[:30]  # Last 30 days/groups
+    }
+
 @api_router.get("/transactions/{transaction_id}/receipt")
 async def get_transaction_receipt(transaction_id: str, current_user: dict = Depends(get_current_user)):
     """Generate PDF receipt for completed transactions (transfers and withdrawals)"""
