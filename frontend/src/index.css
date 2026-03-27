@@ -222,3 +222,60 @@ code {
         display: contents !important;
     }
 }
+
+/* Mobile Optimizations */
+@media (max-width: 1024px) {
+    /* Touch-friendly tap targets */
+    button, a, [role="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Better input fields on mobile */
+    input, select, textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 48px;
+    }
+    
+    /* Improved spacing for cards */
+    .space-y-8 {
+        gap: 1.5rem;
+    }
+    
+    /* Better table scrolling */
+    table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Larger text for readability */
+    .text-xs {
+        font-size: 0.8rem;
+    }
+    
+    .text-sm {
+        font-size: 0.9rem;
+    }
+}
+
+/* Touch manipulation for better tap response */
+.touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth momentum scrolling */
+.overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area support for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .pt-safe {
+        padding-top: env(safe-area-inset-top);
+    }
+    .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}

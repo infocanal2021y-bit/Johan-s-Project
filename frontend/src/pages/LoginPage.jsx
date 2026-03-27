@@ -24,7 +24,7 @@ export const LoginPage = () => {
         const result = await login(email, password);
         
         if (result.success) {
-            toast.success('Welcome back!');
+            toast.success('¡Bienvenido de nuevo!');
             navigate('/dashboard');
         } else {
             toast.error(result.error);

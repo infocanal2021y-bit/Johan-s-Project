@@ -55,19 +55,19 @@ export const DashboardPage = () => {
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3"
+                    className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start gap-3"
                 >
                     <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                        <p className="text-amber-400 font-medium">Account Not Verified</p>
+                        <p className="text-amber-400 font-medium">Cuenta No Verificada</p>
                         <p className="text-sm text-amber-400/70 mt-1">
-                            Complete your identity verification to unlock higher transfer limits (up to €10,000/day).
-                            Currently limited to €1,000 per transfer.
+                            Complete su verificación de identidad para desbloquear límites más altos (hasta €10,000/día).
+                            Actualmente limitado a €1,000 por transferencia.
                         </p>
                     </div>
-                    <Link to="/kyc">
-                        <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-black">
-                            Verify Now
+                    <Link to="/kyc" className="w-full sm:w-auto">
+                        <Button size="sm" className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-black min-h-[44px]">
+                            Verificar Ahora
                         </Button>
                     </Link>
                 </motion.div>
@@ -81,9 +81,9 @@ export const DashboardPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-3"
                 >
-                    <AlertTriangle className="w-5 h-5 text-cyan-400" />
-                    <p className="text-cyan-400">
-                        <span className="font-medium">Verification Pending</span> - Your documents are being reviewed.
+                    <AlertTriangle className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                    <p className="text-cyan-400 text-sm sm:text-base">
+                        <span className="font-medium">Verificación Pendiente</span> - Sus documentos están siendo revisados.
                     </p>
                 </motion.div>
             );
@@ -96,9 +96,9 @@ export const DashboardPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3"
                 >
-                    <BadgeCheck className="w-5 h-5 text-emerald-400" />
-                    <p className="text-emerald-400">
-                        <span className="font-medium">Verified Account</span> - You have full access to all features.
+                    <BadgeCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <p className="text-emerald-400 text-sm sm:text-base">
+                        <span className="font-medium">Cuenta Verificada</span> - Tiene acceso completo a todas las funciones.
                     </p>
                 </motion.div>
             );
@@ -115,9 +115,9 @@ export const DashboardPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3"
                 >
-                    <ShieldAlert className="w-5 h-5 text-red-400" />
-                    <p className="text-red-400">
-                        <span className="font-medium">Account Suspended</span> - Please contact support for assistance.
+                    <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <p className="text-red-400 text-sm sm:text-base">
+                        <span className="font-medium">Cuenta Suspendida</span> - Por favor contacte a soporte para asistencia.
                     </p>
                 </motion.div>
             );
@@ -130,9 +130,9 @@ export const DashboardPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3"
                 >
-                    <AlertTriangle className="w-5 h-5 text-red-400" />
-                    <p className="text-red-400">
-                        <span className="font-medium">Account Under Review</span> - Transfers are temporarily disabled due to suspicious activity.
+                    <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                    <p className="text-red-400 text-sm sm:text-base">
+                        <span className="font-medium">Cuenta En Revisión</span> - Las transferencias están temporalmente deshabilitadas.
                     </p>
                 </motion.div>
             );

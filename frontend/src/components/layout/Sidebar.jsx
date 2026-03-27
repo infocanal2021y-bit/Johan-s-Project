@@ -102,15 +102,15 @@ export const Sidebar = () => {
                     to={link.to}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+                        `flex items-center gap-3 px-4 py-4 lg:py-3 rounded-lg transition-colors duration-200 touch-manipulation ${
                             isActive
                                 ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-500'
-                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800'
                         }`
                     }
                 >
-                    <link.icon className="w-5 h-5" />
-                    <span style={{ fontWeight: 500 }}>{link.label}</span>
+                    <link.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm lg:text-base" style={{ fontWeight: 500 }}>{link.label}</span>
                 </NavLink>
             ))}
         </nav>
@@ -197,7 +197,7 @@ export const Sidebar = () => {
             <Button
                 variant="ghost"
                 size="icon"
-                className="fixed top-4 left-4 z-50 lg:hidden"
+                className="fixed top-3 left-3 z-50 lg:hidden w-12 h-12 bg-slate-900/90 backdrop-blur-sm border border-slate-800 rounded-xl touch-manipulation"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 data-testid="mobile-menu-btn"
             >
