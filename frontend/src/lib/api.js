@@ -140,4 +140,9 @@ export const adminAPI = {
 
 export const getExchangeRates = () => api.get('/exchange-rates');
 
+// Chatbot API
+export const chatbotAPI = {
+    sendMessage: (message) => api.post('/chatbot/message', { message }),
+};
+
 export default api;

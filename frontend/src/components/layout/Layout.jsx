@@ -1,4 +1,5 @@
 import { Sidebar } from './Sidebar';
+import { ChatBot } from '../ChatBot';
 
 export const Layout = ({ children }) => {
     return (
@@ -9,6 +10,7 @@ export const Layout = ({ children }) => {
                     {children}
                 </div>
             </main>
+            <ChatBot />
         </div>
     );
 };

