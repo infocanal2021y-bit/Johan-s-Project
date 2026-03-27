@@ -30,7 +30,8 @@ import {
     Newspaper,
     Scale,
     Globe,
-    Radio
+    Radio,
+    CandlestickChart
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -69,6 +70,7 @@ export const Sidebar = () => {
 
     // Crypto/Finance links
     const cryptoLinks = [
+        { to: '/realtime-market', icon: CandlestickChart, label: 'Mercado en Vivo' },
         { to: '/crypto-market', icon: TrendingUp, label: 'Mercado Cripto' },
         { to: '/converter', icon: RefreshCw, label: 'Conversor' },
         { to: '/investment-simulator', icon: Calculator, label: 'Proyecciones' },
