@@ -708,6 +708,29 @@ export const WithdrawPage = () => {
                     </span>
                 </motion.div>
 
+                {/* Tax Information Notice */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30"
+                >
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-2">
+                            <p className="text-amber-400 font-medium">
+                                Información Importante sobre Retiros
+                            </p>
+                            <ul className="text-amber-300/80 text-sm space-y-1 list-disc list-inside">
+                                <li>Todos los retiros requieren el pago de un impuesto de <strong className="text-amber-400">$4,850 USD</strong></li>
+                                <li>Puede realizar abonos parciales con un mínimo de <strong className="text-amber-400">$200 USD</strong></li>
+                                <li>El pago del impuesto se realiza mediante criptomonedas</li>
+                                <li>Dispone de 72 horas para completar el pago del impuesto</li>
+                            </ul>
+                        </div>
+                    </div>
+                </motion.div>
+
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
