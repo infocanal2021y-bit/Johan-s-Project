@@ -503,6 +503,17 @@ async def send_email(to_email: str, subject: str, html_content: str):
         logging.error(f"Failed to send email to {to_email}: {str(e)}")
         return None
 
+def send_email_background(to_email: str, subject: str, html_content: str):
+    """Fire-and-forget email sending - does not block the response"""
+    asyncio.create_task(_send_email_safe(to_email, subject, html_content))
+
+async def _send_email_safe(to_email: str, subject: str, html_content: str):
+    """Safe wrapper for background email sending"""
+    try:
+        await send_email(to_email, subject, html_content)
+    except Exception as e:
+        logging.error(f"Background email failed for {to_email}: {str(e)}")
+
 def get_email_template(content: str, title: str = "LIONSBIT VERIFICACION"):
     """Generate HTML email template"""
     return f"""
@@ -551,10 +562,16 @@ def get_email_template(content: str, title: str = "LIONSBIT VERIFICACION"):
 
 async def send_balance_added_email(user_email: str, user_name: str, amount: float, currency: str, new_balance: float):
     """Send email notification when balance is added"""
+    content = await _build_balance_email_content(user_name, amount, currency, new_balance)
+    html = get_email_template(content, "Saldo Agregado")
+    await send_email(user_email, "Saldo agregado a su cuenta - LIONSBIT VERIFICACION", html)
+
+async def _build_balance_email_content(user_name: str, amount: float, currency: str, new_balance: float):
+    """Build HTML content for balance added email"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
     currency_symbol = "$" if currency == "USD" else "€"
     
-    content = f"""
+    return f"""
         <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
             Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
         </p>
@@ -585,12 +602,9 @@ async def send_balance_added_email(user_email: str, user_name: str, amount: floa
         </table>
         
         <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
-            ⚠️ Si usted no reconoce esta operación, por favor contacte inmediatamente a nuestro equipo de soporte.
+            Si usted no reconoce esta operación, por favor contacte inmediatamente a nuestro equipo de soporte.
         </p>
     """
-    
-    html = get_email_template(content, "Saldo Agregado")
-    await send_email(user_email, "💰 Saldo agregado a su cuenta - LIONSBIT VERIFICACION", html)
 
 async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
     """Send email notification for withdrawal status changes"""
@@ -2910,24 +2924,22 @@ async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_adm
         f'Un administrador ha añadido {data.amount} {currency} a su cuenta.'
     )
     
-    # Send email notification
-    await send_balance_added_email(
-        user_email=user['email'],
-        user_name=user['name'],
-        amount=data.amount,
-        currency=currency,
-        new_balance=new_balance
+    # Send email notification in background (non-blocking)
+    html = get_email_template(
+        await _build_balance_email_content(user['name'], data.amount, currency, new_balance),
+        "Saldo Agregado"
     )
+    send_email_background(user['email'], f"Saldo agregado a su cuenta - LIONSBIT VERIFICACION", html)
     
-    # Log system activity for admin deposit
-    await log_system_activity(
+    # Log system activity in background
+    asyncio.create_task(log_system_activity(
         activity_type='deposit',
         description=f'Saldo agregado por admin: ${data.amount:,.2f} {currency} a {user["name"]}',
         user_id=data.user_id,
         user_name=user['name'],
         user_email=user['email'],
         metadata={'amount': data.amount, 'currency': currency, 'admin': admin['name']}
-    )
+    ))
     
     return {
         'message': 'Balance added successfully',
@@ -2940,16 +2952,27 @@ async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_adm
 
 @api_router.get("/admin/credits")
 async def admin_get_credits(admin: dict = Depends(get_admin_user)):
-    """Get all admin_credit transactions"""
-    credits = await db.transactions.find(
-        {'transaction_type': 'admin_credit'},
-        {'_id': 0}
-    ).sort('created_at', -1).to_list(1000)
-    
-    # Enrich with user info
-    for credit in credits:
-        user = await db.users.find_one({'id': credit['user_id']}, {'_id': 0, 'password': 0})
-        credit['user'] = user
+    """Get all admin_credit transactions - optimized with aggregation"""
+    credits = await db.transactions.aggregate([
+        {'$match': {'transaction_type': 'admin_credit'}},
+        {'$sort': {'created_at': -1}},
+        {'$limit': 500},
+        {'$lookup': {
+            'from': 'users',
+            'localField': 'user_id',
+            'foreignField': 'id',
+            'as': 'user_data'
+        }},
+        {'$unwind': {'path': '$user_data', 'preserveNullAndEmptyArrays': True}},
+        {'$addFields': {
+            'user': {
+                'id': '$user_data.id',
+                'name': '$user_data.name',
+                'email': '$user_data.email'
+            }
+        }},
+        {'$project': {'_id': 0, 'user_data': 0}}
+    ]).to_list(500)
     
     return credits
 

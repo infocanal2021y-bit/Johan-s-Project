@@ -32,7 +32,7 @@ export const AdminCreditsPage = () => {
             setUsers(usersRes.data);
             setCredits(creditsRes.data);
         } catch (error) {
-            toast.error('Failed to load data');
+            toast.error('Error al cargar datos');
         } finally {
             setLoading(false);
         }
@@ -44,7 +44,7 @@ export const AdminCreditsPage = () => {
 
     const handleAddBalance = async () => {
         if (!selectedUserId || !amount || parseFloat(amount) <= 0) {
-            toast.error('Please select a user and enter a valid amount');
+            toast.error('Seleccione un usuario e ingrese un monto válido');
             return;
         }
 
@@ -56,14 +56,14 @@ export const AdminCreditsPage = () => {
                 currency,
                 description: description || undefined,
             });
-            toast.success('Balance added successfully');
+            toast.success('Saldo agregado exitosamente');
             setAddDialogOpen(false);
             setSelectedUserId('');
             setAmount('');
             setDescription('');
             fetchData();
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to add balance');
+            toast.error(error.response?.data?.detail || 'Error al agregar saldo');
         } finally {
             setSubmitting(false);
         }
@@ -103,8 +103,8 @@ export const AdminCreditsPage = () => {
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                 >
                     <div>
-                        <h1 className="text-3xl font-heading font-bold text-white">Balance Management</h1>
-                        <p className="text-slate-500 mt-1">Add balance to user accounts</p>
+                        <h1 className="text-3xl font-heading font-bold text-white">Gestión de Saldos</h1>
+                        <p className="text-slate-500 mt-1">Agregar saldo a cuentas de usuarios</p>
                     </div>
                     <Button
                         onClick={() => setAddDialogOpen(true)}
@@ -112,7 +112,7 @@ export const AdminCreditsPage = () => {
                         data-testid="add-balance-btn"
                     >
                         <PlusCircle className="w-4 h-4 mr-2" />
-                        Add Balance
+                        Agregar Saldo
                     </Button>
                 </motion.div>
 
@@ -127,7 +127,7 @@ export const AdminCreditsPage = () => {
                             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-slate-500">Total Users</p>
+                                        <p className="text-sm text-slate-500">Usuarios Totales</p>
                                         <p className="text-3xl font-heading font-bold text-white mt-2">
                                             {users.length}
                                         </p>
@@ -149,7 +149,7 @@ export const AdminCreditsPage = () => {
                             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-slate-500">Credits Issued (USD)</p>
+                                        <p className="text-sm text-slate-500">Créditos Emitidos (USD)</p>
                                         <p className="text-3xl font-heading font-bold text-emerald-400 mt-2">
                                             ${totalCreditsUSD.toFixed(2)}
                                         </p>
@@ -171,7 +171,7 @@ export const AdminCreditsPage = () => {
                             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-slate-500">Total Credits</p>
+                                        <p className="text-sm text-slate-500">Total Créditos</p>
                                         <p className="text-3xl font-heading font-bold text-white mt-2">
                                             {credits.length}
                                         </p>
@@ -195,7 +195,7 @@ export const AdminCreditsPage = () => {
                         <CardHeader className="border-b border-slate-800">
                             <CardTitle className="text-white font-heading flex items-center gap-2">
                                 <Users className="w-5 h-5 text-emerald-400" />
-                                Users ({users.length})
+                                Usuarios ({users.length})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -210,11 +210,11 @@ export const AdminCreditsPage = () => {
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">User</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Usuario</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Email</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Checking Balance</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Total Balance</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase text-right">Actions</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Saldo Checking</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Saldo Total</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase text-right">Acciones</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -250,7 +250,7 @@ export const AdminCreditsPage = () => {
                                                                 data-testid={`add-balance-${user.id}`}
                                                             >
                                                                 <PlusCircle className="w-4 h-4 mr-1" />
-                                                                Add Balance
+                                                                Agregar Saldo
                                                             </Button>
                                                         </TableCell>
                                                     </TableRow>
@@ -274,26 +274,26 @@ export const AdminCreditsPage = () => {
                         <CardHeader className="border-b border-slate-800">
                             <CardTitle className="text-white font-heading flex items-center gap-2">
                                 <History className="w-5 h-5 text-violet-400" />
-                                Admin Credits History
+                                Historial de Créditos Admin
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             {credits.length === 0 ? (
                                 <div className="py-16 text-center">
                                     <History className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                    <p className="text-slate-500">No admin credits yet</p>
+                                    <p className="text-slate-500">No hay créditos admin todavía</p>
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Reference</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">User</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Amount</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Referencia</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Usuario</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Monto</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Admin</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Description</TableHead>
-                                                <TableHead className="text-slate-500 font-mono text-xs uppercase text-right">Date</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Descripción</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase text-right">Fecha</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -337,15 +337,15 @@ export const AdminCreditsPage = () => {
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
                             <PlusCircle className="w-5 h-5 text-emerald-400" />
-                            Add Balance to User
+                            Agregar Saldo a Usuario
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 pt-4">
                         <div className="space-y-2">
-                            <Label className="text-slate-300">Select User</Label>
+                            <Label className="text-slate-300">Seleccionar Usuario</Label>
                             <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                                 <SelectTrigger className="bg-slate-950 border-slate-800 text-white" data-testid="user-selector">
-                                    <SelectValue placeholder="Choose a user" />
+                                    <SelectValue placeholder="Seleccione un usuario" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-900 border-slate-800 max-h-[200px]">
                                     {users.filter(u => u.role !== 'admin').map((user) => (
@@ -359,7 +359,7 @@ export const AdminCreditsPage = () => {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Amount</Label>
+                                <Label className="text-slate-300">Monto</Label>
                                 <Input
                                     type="number"
                                     step="0.01"
@@ -372,7 +372,7 @@ export const AdminCreditsPage = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Currency</Label>
+                                <Label className="text-slate-300">Moneda</Label>
                                 <Select value={currency} onValueChange={setCurrency}>
                                     <SelectTrigger className="bg-slate-950 border-slate-800 text-white" data-testid="currency-selector">
                                         <SelectValue />
@@ -386,10 +386,10 @@ export const AdminCreditsPage = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-slate-300">Description (Optional)</Label>
+                            <Label className="text-slate-300">Descripción (Opcional)</Label>
                             <Input
                                 type="text"
-                                placeholder="e.g., Initial deposit, Bonus credit..."
+                                placeholder="Ej: Depósito inicial, Crédito bonus..."
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 className="bg-slate-950 border-slate-800 text-white"
@@ -406,12 +406,12 @@ export const AdminCreditsPage = () => {
                             {submitting ? (
                                 <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Processing...
+                                    Procesando...
                                 </>
                             ) : (
                                 <>
                                     <CheckCircle className="w-4 h-4 mr-2" />
-                                    Add Balance
+                                    Agregar Saldo
                                 </>
                             )}
                         </Button>
