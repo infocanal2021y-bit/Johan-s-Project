@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../lib/api';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { authAPI, presenceAPI } from '../lib/api';
 
 const AuthContext = createContext(null);
 
@@ -7,10 +7,27 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const heartbeatRef = useRef(null);
 
     useEffect(() => {
         checkAuth();
     }, []);
+
+    // Heartbeat: send every 30 seconds while user is logged in
+    useEffect(() => {
+        if (user) {
+            // Send immediately on login
+            presenceAPI.heartbeat().catch(() => {});
+            
+            heartbeatRef.current = setInterval(() => {
+                presenceAPI.heartbeat().catch(() => {});
+            }, 30000);
+            
+            return () => {
+                if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+            };
+        }
+    }, [user]);
 
     const checkAuth = async () => {
         const token = localStorage.getItem('token');
@@ -58,7 +75,12 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        // Mark offline before clearing token
+        try {
+            await presenceAPI.logoutStatus();
+        } catch {}
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);

@@ -1298,6 +1298,12 @@ async def login(credentials: UserLogin, request: Request):
     
     token = create_token(user['id'], user['email'], user['role'])
     
+    # Mark user as online
+    await db.users.update_one(
+        {'id': user['id']},
+        {'$set': {'last_active': datetime.now(timezone.utc).isoformat(), 'is_online': True}}
+    )
+    
     return {
         'token': token,
         'user': {
@@ -3908,6 +3914,64 @@ async def get_exchange_rates():
 @api_router.get("/")
 async def root():
     return {"message": "LIONSBIT VERIFICACION API", "version": "2.0.0"}
+
+# ==================== ONLINE PRESENCE / HEARTBEAT ====================
+
+@api_router.post("/auth/heartbeat")
+async def heartbeat(current_user: dict = Depends(get_current_user)):
+    """Update user's last_active timestamp to keep them online"""
+    await db.users.update_one(
+        {'id': current_user['id']},
+        {'$set': {'last_active': datetime.now(timezone.utc).isoformat(), 'is_online': True}}
+    )
+    return {'status': 'ok'}
+
+@api_router.post("/auth/logout-status")
+async def logout_status(current_user: dict = Depends(get_current_user)):
+    """Mark user as offline on logout"""
+    await db.users.update_one(
+        {'id': current_user['id']},
+        {'$set': {'is_online': False}}
+    )
+    return {'status': 'ok'}
+
+@api_router.get("/admin/users/online")
+async def admin_get_online_users(admin: dict = Depends(get_admin_user)):
+    """Get all currently online users (active in last 2 minutes)"""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    
+    online_users = await db.users.find(
+        {'is_online': True, 'last_active': {'$gte': cutoff}},
+        {'_id': 0, 'password': 0, 'hashed_password': 0}
+    ).to_list(100)
+    
+    # Also mark users as offline if their last_active is too old
+    await db.users.update_many(
+        {'is_online': True, 'last_active': {'$lt': cutoff}},
+        {'$set': {'is_online': False}}
+    )
+    
+    # Get last login info for each online user
+    result = []
+    for user in online_users:
+        last_login = await db.login_history.find_one(
+            {'user_id': user['id']},
+            {'_id': 0}
+        )
+        result.append({
+            'id': user['id'],
+            'name': user.get('name', 'Desconocido'),
+            'email': user.get('email', ''),
+            'role': user.get('role', 'user'),
+            'verification_status': user.get('verification_status', 'unverified'),
+            'last_active': user.get('last_active', ''),
+            'login_ip': last_login.get('ip_address', '-') if last_login else '-',
+            'login_location': last_login.get('location', '-') if last_login else '-',
+            'login_device': f"{last_login.get('browser', '?')} / {last_login.get('device', '?')}" if last_login else '-',
+            'logged_in_at': last_login.get('logged_in_at', '') if last_login else ''
+        })
+    
+    return result
 
 # ==================== ADMIN LOGIN HISTORY ROUTES ====================
 

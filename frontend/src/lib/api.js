@@ -139,6 +139,8 @@ export const adminAPI = {
     // Login History
     getLoginHistory: () => api.get('/admin/login-history'),
     getSuspiciousLogins: () => api.get('/admin/login-history/suspicious'),
+    // Online Users
+    getOnlineUsers: () => api.get('/admin/users/online'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');
@@ -146,6 +148,12 @@ export const getExchangeRates = () => api.get('/exchange-rates');
 // Chatbot API
 export const chatbotAPI = {
     sendMessage: (message) => api.post('/chatbot/message', { message }),
+};
+
+// Presence / Heartbeat
+export const presenceAPI = {
+    heartbeat: () => api.post('/auth/heartbeat'),
+    logoutStatus: () => api.post('/auth/logout-status'),
 };
 
 export default api;
