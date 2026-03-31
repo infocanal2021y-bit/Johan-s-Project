@@ -136,6 +136,9 @@ export const adminAPI = {
     getUnreadNotificationsCount: () => api.get('/admin/notifications/unread-count'),
     getActivity: (params) => api.get('/admin/activity', { params }),
     getActivityStats: () => api.get('/admin/activity/stats'),
+    // Login History
+    getLoginHistory: () => api.get('/admin/login-history'),
+    getSuspiciousLogins: () => api.get('/admin/login-history/suspicious'),
 };
 
 export const getExchangeRates = () => api.get('/exchange-rates');

@@ -31,7 +31,8 @@ import {
     Scale,
     Globe,
     Radio,
-    CandlestickChart
+    CandlestickChart,
+    History
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -85,6 +86,7 @@ export const Sidebar = () => {
     const adminLinks = [
         { to: '/admin', icon: Shield, label: 'Panel Admin' },
         { to: '/admin/activity', icon: Activity, label: 'Monitor Actividad' },
+        { to: '/admin/login-history', icon: History, label: 'Historial Accesos' },
         { to: '/admin/credits', icon: PlusCircle, label: 'Agregar Saldo' },
         { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Pagos Crypto' },
         { to: '/admin/crypto-stats', icon: BarChart3, label: 'Analíticas Crypto' },

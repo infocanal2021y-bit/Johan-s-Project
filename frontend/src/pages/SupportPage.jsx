@@ -42,7 +42,7 @@ export const SupportPage = () => {
             const response = await supportAPI.getMyTickets();
             setTickets(response.data);
         } catch (error) {
-            toast.error('Failed to load tickets');
+            toast.error('Error al cargar tickets');
         } finally {
             setLoading(false);
         }
@@ -54,19 +54,19 @@ export const SupportPage = () => {
 
     const handleCreateTicket = async () => {
         if (!newTicket.subject || !newTicket.message) {
-            toast.error('Please fill in all fields');
+            toast.error('Por favor complete todos los campos');
             return;
         }
         
         setSubmitting(true);
         try {
             await supportAPI.createTicket(newTicket);
-            toast.success('Ticket created successfully');
+            toast.success('Tu solicitud ha sido enviada correctamente');
             setCreateDialogOpen(false);
             setNewTicket({ subject: '', message: '', category: 'general' });
             fetchTickets();
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to create ticket');
+            toast.error(error.response?.data?.detail || 'Error al crear ticket');
         } finally {
             setSubmitting(false);
         }
@@ -78,7 +78,7 @@ export const SupportPage = () => {
             setSelectedTicket(response.data);
             setViewDialogOpen(true);
         } catch (error) {
-            toast.error('Failed to load ticket');
+            toast.error('Error al cargar ticket');
         }
     };
 
@@ -91,14 +91,14 @@ export const SupportPage = () => {
                 ticket_id: selectedTicket.id,
                 message: replyMessage 
             });
-            toast.success('Reply sent');
+            toast.success('Respuesta enviada');
             setReplyMessage('');
             // Refresh ticket
             const response = await supportAPI.getTicket(selectedTicket.id);
             setSelectedTicket(response.data);
             fetchTickets();
         } catch (error) {
-            toast.error('Failed to send reply');
+            toast.error('Error al enviar respuesta');
         } finally {
             setSubmitting(false);
         }

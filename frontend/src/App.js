@@ -41,6 +41,7 @@ import { AdminCryptoPaymentsPage } from "./pages/admin/AdminCryptoPaymentsPage";
 import { AdminCryptoStatsPage } from "./pages/admin/AdminCryptoStatsPage";
 import { AdminSupportPage } from "./pages/admin/AdminSupportPage";
 import { AdminActivityPage } from "./pages/admin/AdminActivityPage";
+import { AdminLoginHistoryPage } from "./pages/admin/AdminLoginHistoryPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -127,6 +128,7 @@ function AppRoutes() {
             <Route path="/admin/treasury" element={<ProtectedRoute adminOnly><AdminTreasuryPage /></ProtectedRoute>} />
             <Route path="/admin/support" element={<ProtectedRoute adminOnly><AdminSupportPage /></ProtectedRoute>} />
             <Route path="/admin/activity" element={<ProtectedRoute adminOnly><AdminActivityPage /></ProtectedRoute>} />
+            <Route path="/admin/login-history" element={<ProtectedRoute adminOnly><AdminLoginHistoryPage /></ProtectedRoute>} />
 
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

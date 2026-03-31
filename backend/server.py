@@ -28,6 +28,7 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from bson import ObjectId
+import httpx
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -514,6 +515,36 @@ async def _send_email_safe(to_email: str, subject: str, html_content: str):
     except Exception as e:
         logging.error(f"Background email failed for {to_email}: {str(e)}")
 
+# ==================== IP GEOLOCATION ====================
+_geo_cache = {}
+
+async def get_ip_location(ip_address: str) -> dict:
+    """Get city/country from IP address using ip-api.com (free, no key needed)"""
+    if not ip_address or ip_address in ('Unknown', '127.0.0.1', 'localhost'):
+        return {'city': 'Desconocido', 'country': 'Desconocido', 'countryCode': '--'}
+    
+    # Check cache
+    if ip_address in _geo_cache:
+        return _geo_cache[ip_address]
+    
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"http://ip-api.com/json/{ip_address}?fields=status,country,countryCode,city,query")
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('status') == 'success':
+                    result = {
+                        'city': data.get('city', 'Desconocido'),
+                        'country': data.get('country', 'Desconocido'),
+                        'countryCode': data.get('countryCode', '--')
+                    }
+                    _geo_cache[ip_address] = result
+                    return result
+    except Exception as e:
+        logging.warning(f"Geolocation failed for {ip_address}: {e}")
+    
+    return {'city': 'Desconocido', 'country': 'Desconocido', 'countryCode': '--'}
+
 def get_email_template(content: str, title: str = "LIONSBIT VERIFICACION"):
     """Generate HTML email template"""
     return f"""
@@ -688,9 +719,14 @@ async def send_password_changed_email(user_email: str, user_name: str):
 
 async def send_new_login_email(user_email: str, user_name: str, ip_address: str, browser: str, location: str):
     """Send email notification for new login from unknown IP"""
+    content = await _build_new_login_email_content(user_name, ip_address, browser, location)
+    html = get_email_template(content, "Nuevo Inicio de Sesión")
+    await send_email(user_email, "Nuevo acceso detectado - LIONSBIT VERIFICACION", html)
+
+async def _build_new_login_email_content(user_name: str, ip_address: str, browser: str, location: str):
+    """Build HTML content for new login email"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
-    
-    content = f"""
+    return f"""
         <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
             Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
         </p>
@@ -725,12 +761,9 @@ async def send_new_login_email(user_email: str, user_name: str, ip_address: str,
         </table>
         
         <p style="color: #f87171; font-size: 14px; line-height: 1.6; background-color: rgba(248, 113, 113, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #f87171;">
-            ⚠️ Si usted no realizó este acceso, por favor cambie su contraseña inmediatamente y contacte a nuestro equipo de soporte.
+            Si usted no realizó este acceso, por favor cambie su contraseña inmediatamente y contacte a nuestro equipo de soporte.
         </p>
     """
-    
-    html = get_email_template(content, "Nuevo Inicio de Sesión")
-    await send_email(user_email, "🔔 Nuevo acceso detectado - LIONSBIT VERIFICACION", html)
 
 async def send_transfer_completed_email(user_email: str, user_name: str, amount: float, currency: str, recipient: str):
     """Send email notification when transfer is completed"""
@@ -1214,15 +1247,23 @@ async def login(credentials: UserLogin, request: Request):
     elif 'Edg' in user_agent:
         browser_info = 'Edge'
     
-    # Save login history
+    # Save login history with geolocation
+    geo = await get_ip_location(client_ip)
+    location_str = f"{geo['city']}, {geo['country']}"
+    
     login_record = {
         'id': str(uuid.uuid4()),
         'user_id': user['id'],
+        'user_name': user['name'],
+        'user_email': user['email'],
         'ip_address': client_ip,
         'device': device_info,
         'browser': browser_info,
         'user_agent': user_agent,
-        'location': 'Spain',  # Default, can be enhanced with IP geolocation
+        'location': location_str,
+        'city': geo['city'],
+        'country': geo['country'],
+        'country_code': geo['countryCode'],
         'logged_in_at': datetime.now(timezone.utc).isoformat()
     }
     await db.login_history.insert_one(login_record)
@@ -1246,12 +1287,13 @@ async def login(credentials: UserLogin, request: Request):
     ).to_list(5)
     
     if len(previous_logins) <= 1:  # First time logging in from this IP
-        await send_new_login_email(
-            user_email=user['email'],
-            user_name=user['name'],
-            ip_address=client_ip,
-            browser=browser_info,
-            location='Spain'
+        send_email_background(
+            user['email'],
+            "Nuevo inicio de sesión detectado - LIONSBIT VERIFICACION",
+            get_email_template(
+                await _build_new_login_email_content(user['name'], client_ip, browser_info, location_str),
+                "Nuevo Inicio de Sesión"
+            )
         )
     
     token = create_token(user['id'], user['email'], user['role'])
@@ -1269,7 +1311,7 @@ async def login(credentials: UserLogin, request: Request):
         'login_info': {
             'ip': client_ip,
             'device': f"{browser_info} on {device_info}",
-            'location': 'Spain',
+            'location': location_str,
             'time': login_record['logged_in_at']
         }
     }
@@ -1485,6 +1527,72 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
         metadata={'ticket_number': ticket_number, 'subject': ticket.subject, 'category': ticket.category}
     )
     
+    # Send email to info@paylionsbit.es with ticket details (background)
+    admin_email_content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Se ha recibido un nuevo mensaje de soporte.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del Ticket #{ticket_number}</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Nombre:</td>
+                            <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['name']}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Email:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['email']}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Asunto:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{ticket.subject}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Categoría:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{ticket.category}</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top: 20px; padding: 15px; background-color: #1e293b; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase;">Mensaje:</p>
+                        <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin: 0;">{ticket.message}</p>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    """
+    send_email_background("info@paylionsbit.es", f"Nuevo Ticket de Soporte #{ticket_number} - {ticket.subject}", get_email_template(admin_email_content, "Nuevo Mensaje de Soporte"))
+    
+    # Send confirmation email to user (background)
+    user_confirm_content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{current_user['name']}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Hemos recibido su solicitud de soporte correctamente. Nuestro equipo revisará su mensaje y le responderá lo antes posible.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Resumen de su solicitud</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Número de Ticket:</td>
+                            <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{ticket_number}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Asunto:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{ticket.subject}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <p style="color: #94a3b8; font-size: 14px;">Puede revisar el estado de su ticket desde la sección de Soporte en la plataforma.</p>
+    """
+    send_email_background(current_user['email'], f"Solicitud recibida - Ticket #{ticket_number}", get_email_template(user_confirm_content, "Solicitud de Soporte Recibida"))
+    
     # Log system activity
     await log_system_activity(
         activity_type='support_ticket',
@@ -1497,7 +1605,7 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
         metadata={'ticket_number': ticket_number, 'category': ticket.category}
     )
     
-    return {'message': 'Ticket created successfully', 'ticket_number': ticket_number, 'id': ticket_id}
+    return {'message': 'Tu solicitud ha sido enviada correctamente', 'ticket_number': ticket_number, 'id': ticket_id}
 
 @api_router.get("/support/tickets")
 async def get_my_tickets(current_user: dict = Depends(get_current_user)):
@@ -3800,6 +3908,55 @@ async def get_exchange_rates():
 @api_router.get("/")
 async def root():
     return {"message": "LIONSBIT VERIFICACION API", "version": "2.0.0"}
+
+# ==================== ADMIN LOGIN HISTORY ROUTES ====================
+
+@api_router.get("/admin/login-history")
+async def admin_get_login_history(admin: dict = Depends(get_admin_user)):
+    """Get all login history for admin panel - most recent first"""
+    history = await db.login_history.find(
+        {},
+        {'_id': 0}
+    ).sort('logged_in_at', -1).limit(200).to_list(200)
+    return history
+
+@api_router.get("/admin/login-history/suspicious")
+async def admin_get_suspicious_logins(admin: dict = Depends(get_admin_user)):
+    """Detect suspicious logins: same user from different countries within 24 hours"""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    
+    # Get recent logins
+    recent = await db.login_history.find(
+        {'logged_in_at': {'$gte': cutoff}},
+        {'_id': 0}
+    ).sort('logged_in_at', -1).to_list(500)
+    
+    # Group by user_id and detect different countries
+    user_logins = {}
+    for login in recent:
+        uid = login.get('user_id', '')
+        if uid not in user_logins:
+            user_logins[uid] = []
+        user_logins[uid].append(login)
+    
+    suspicious = []
+    for uid, logins in user_logins.items():
+        countries = set()
+        for l in logins:
+            cc = l.get('country_code') or l.get('country', '')
+            if cc and cc != '--' and cc != 'Desconocido':
+                countries.add(cc)
+        if len(countries) > 1:
+            suspicious.append({
+                'user_id': uid,
+                'user_name': logins[0].get('user_name', 'Desconocido'),
+                'user_email': logins[0].get('user_email', 'Desconocido'),
+                'countries': list(countries),
+                'logins': logins[:10],
+                'alert': f"Acceso desde {len(countries)} países diferentes en 24h"
+            })
+    
+    return suspicious
 
 # ==================== CHATBOT ROUTES ====================
 
