@@ -1,67 +1,68 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 ## Original Problem Statement
-Professional financial information and verification platform named "LIONSBIT VERIFICACION". Provides informational tools for financial analysis and digital verification services.
+Professional financial information and verification platform. Provides informational tools for financial analysis and digital verification services. Platform is exclusively informational — not enabled for real investments.
 
-**Important:** Platform is exclusively informational. Not enabled for real investments.
-
-## Core Features Implemented
+## Core Features
 
 ### Authentication & User Management
-- JWT-based auth with admin/user roles, auto-created admin accounts
-- Password reset via email (Resend), login history tracking with IP geolocation
-- Online presence system (heartbeat every 30s)
+- JWT auth with admin/user roles, auto-created admin accounts
+- Password reset via Resend, login history with IP geolocation (ip-api.com)
+- Online presence system (heartbeat 30s), suspicious access detection
 
-### User Dashboard & Banking
-- Multi-currency accounts (USD/EUR), transaction history
-- Withdrawal system with mandatory $4,850 USD tax
-- Banking form (holder name, IBAN, bank selection)
+### Banking & Withdrawals
+- Multi-currency accounts (USD/EUR), admin-only deposits
+- Withdrawal with $4,850 USD mandatory tax, min $200 partial payments
+- Auto-rejection after 72h, email reminders every 15h
 
-### Bitcoin Tax Payment System (NEW)
-- **BTC Address Validation**: Supports Legacy (1...), SegWit (3...), Bech32 (bc1...)
-- **Wallet Provider Links**: Trust Wallet, Binance, Coinbase, Exodus, Blockchain (open in new tab)
-- **Buy Crypto**: MoonPay, Simplex with "¿No tienes Bitcoin? Compra aquí de forma segura"
-- **TXID Tracking**: Generated on payment, stored with user, amount, status
-- **Blockchain Explorer**: "Ver transacción" button → blockchain.com/explorer/transactions/btc/{TXID}
-- **Payment States**: Pendiente → Confirmando (0-3 confirmaciones) → Confirmado
-- **Tax Progress**: Shows Requerido ($4,850), Abonado, Restante
-- **Email Notifications**: On payment creation, status change, completion
-- **Messages**: "Transacciones verificables en blockchain pública" + "No se pueden revertir"
+### Bitcoin Tax Payment System
+- BTC address validation (Legacy/SegWit/Bech32)
+- Wallet links: Trust Wallet, Binance, Coinbase, Exodus, Blockchain
+- Buy crypto: MoonPay, Simplex
+- TXID tracking with blockchain.com explorer links
+- Tax progress bar (Requerido/Abonado/Restante)
+- Email notifications on payment creation and completion
+
+### CoinGecko Market Data Integration (NEW Apr 2)
+- **GET /api/market/crypto**: Top 50 coins (cached 120s)
+- **GET /api/market/global**: Total market cap, volume, BTC dominance, active cryptos (cached 180s)
+- **GET /api/market/trending**: Trending coins and categories (cached 600s)
+- Rate limiting handled with server-side caching
+- `/crypto-market` page: Global stats panel + searchable market table
+- `/live-news` page: EN VIVO trending coins, categories, market signals
+
+### Staggered Email Notification System (NEW Apr 2)
+- APScheduler job every 60 seconds, 20 users per batch
+- Only users with balance > 0
+- 48h cooldown (no resend before 48h)
+- All sends logged in `email_notifications_log` collection
+- Message: "Tiene saldo disponible para retirar"
 
 ### Chat Inteligente (FAQ Chatbot)
-- Floating widget on all pages, 9 FAQ categories
-- Keyword matching, typing indicator, zero API cost
+- Floating widget, 9 FAQ categories, zero API cost
 
-### Login Tracking & Admin Panel
-- IP geolocation via ip-api.com, admin login history panel
-- Suspicious access detection (different countries in 24h)
-- Admin page: /admin/login-history
+### Admin Panel
+- User management, KYC verification, withdrawal dashboard
+- Login history with suspicious access detection
+- Online users monitoring (auto-refresh 15s)
+- Activity monitor, support tickets
 
-### Online Users Monitoring
-- Real-time connected users for admin
-- Heartbeat every 30s, 2-min timeout for offline
-- Admin page: /admin/online-users (auto-refresh 15s)
-
-### Support System with Email
-- Ticket creation sends email to info@paylionsbit.es
-- Confirmation email to user
+### Support System
+- Ticket creation sends email to info@paylionsbit.es + user confirmation
 - Admin notifications (bell icon)
 
-### KYC Verification
-- Document upload, selfie, digital signature
-- Admin review panel
-
 ### Financial Analysis Suite
-- Real-Time Market (TradingView), Crypto Market, Converter
+- Real-Time Market (TradingView), Crypto Market (CoinGecko), Converter
 - Projections, Portfolio, Alerts, Market Reports
 - Investment Comparator, Global Market Map, Live Market News
 
 ## Tech Stack
 - **Frontend:** React, TailwindCSS, Framer Motion, Chart.js
-- **Backend:** FastAPI (Python), APScheduler
+- **Backend:** FastAPI, APScheduler
 - **Database:** MongoDB
 - **Auth:** JWT with RBAC
-- **Email:** Resend API
+- **Email:** Resend API (staggered 20/min)
+- **Market Data:** CoinGecko API (free tier, server-cached)
 - **Geolocation:** ip-api.com
 - **Widgets:** TradingView Advanced Chart
 
