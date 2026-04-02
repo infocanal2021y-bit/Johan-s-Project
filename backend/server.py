@@ -4085,6 +4085,87 @@ async def admin_get_suspicious_logins(admin: dict = Depends(get_admin_user)):
     
     return suspicious
 
+
+# ==================== MARKET DATA (CoinGecko) ====================
+
+_market_cache = {'data': None, 'timestamp': 0, 'global': None, 'global_ts': 0, 'trending': None, 'trending_ts': 0}
+
+COINGECKO_HEADERS = {'Accept': 'application/json', 'User-Agent': 'LIONSBIT/1.0'}
+
+@api_router.get("/market/crypto")
+async def get_market_crypto():
+    """Get top 50 cryptocurrencies from CoinGecko (cached 120s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _market_cache['data'] and (now - _market_cache['timestamp']) < 120:
+        return _market_cache['data']
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=COINGECKO_HEADERS) as client:
+            resp = await client.get(
+                "https://api.coingecko.com/api/v3/coins/markets",
+                params={
+                    'vs_currency': 'usd',
+                    'order': 'market_cap_desc',
+                    'per_page': 50,
+                    'page': 1,
+                    'sparkline': 'false',
+                    'price_change_percentage': '24h,7d'
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                _market_cache['data'] = data
+                _market_cache['timestamp'] = now
+                return data
+            elif resp.status_code == 429:
+                logging.warning("CoinGecko rate limited for /coins/markets")
+            else:
+                logging.warning(f"CoinGecko markets status {resp.status_code}")
+            return _market_cache['data'] or []
+    except Exception as e:
+        logging.error(f"CoinGecko markets error: {e}")
+        return _market_cache['data'] or []
+
+@api_router.get("/market/global")
+async def get_market_global():
+    """Get global crypto market data from CoinGecko (cached 180s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _market_cache['global'] and (now - _market_cache['global_ts']) < 180:
+        return _market_cache['global']
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=COINGECKO_HEADERS) as client:
+            resp = await client.get("https://api.coingecko.com/api/v3/global")
+            if resp.status_code == 200:
+                data = resp.json().get('data', {})
+                _market_cache['global'] = data
+                _market_cache['global_ts'] = now
+                return data
+            return _market_cache['global'] or {}
+    except Exception as e:
+        logging.error(f"CoinGecko global error: {e}")
+        return _market_cache['global'] or {}
+
+@api_router.get("/market/trending")
+async def get_market_trending():
+    """Get trending coins from CoinGecko (cached 600s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _market_cache['trending'] and (now - _market_cache['trending_ts']) < 600:
+        return _market_cache['trending']
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=COINGECKO_HEADERS) as client:
+            resp = await client.get("https://api.coingecko.com/api/v3/search/trending")
+            if resp.status_code == 200:
+                data = resp.json()
+                _market_cache['trending'] = data
+                _market_cache['trending_ts'] = now
+                return data
+            return _market_cache['trending'] or {'coins': [], 'categories': []}
+    except Exception as e:
+        logging.error(f"CoinGecko trending error: {e}")
+        return _market_cache['trending'] or {'coins': [], 'categories': []}
+
 # ==================== CHATBOT ROUTES ====================
 
 class ChatMessage(BaseModel):
@@ -4181,8 +4262,120 @@ def start_scheduler():
         replace_existing=True
     )
     
+    # Run every 60 seconds to send balance notifications (20 users per batch)
+    scheduler.add_job(
+        process_balance_notifications,
+        IntervalTrigger(seconds=60),
+        id='balance_notifications',
+        name='Send balance available notifications (20/min)',
+        replace_existing=True
+    )
+    
     scheduler.start()
-    logging.info("📅 Scheduler started: Tax reminders (15h) and auto-rejections (1h)")
+    logging.info("📅 Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s)")
+
+async def process_balance_notifications():
+    """Send staggered email notifications to users with balance > 0 (20 users/min)"""
+    logging.info("📧 Running balance notification job...")
+    
+    try:
+        cutoff_48h = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+        
+        # Get users with balance > 0 who haven't been notified in 48h
+        users_with_balance = await db.accounts.aggregate([
+            {'$match': {'$or': [
+                {'balance_usd': {'$gt': 0}},
+                {'balance_eur': {'$gt': 0}}
+            ]}},
+            {'$lookup': {
+                'from': 'users',
+                'localField': 'user_id',
+                'foreignField': 'id',
+                'as': 'user'
+            }},
+            {'$unwind': '$user'},
+            {'$match': {'user.role': 'user'}},
+            {'$project': {
+                '_id': 0,
+                'user_id': 1,
+                'user_name': '$user.name',
+                'user_email': '$user.email',
+                'balance_usd': 1,
+                'balance_eur': 1,
+                'account_type': 1
+            }}
+        ]).to_list(500)
+        
+        # Filter out users already notified in last 48h
+        eligible = []
+        for u in users_with_balance:
+            last_notif = await db.email_notifications_log.find_one(
+                {'user_id': u['user_id'], 'type': 'balance_available', 'sent_at': {'$gte': cutoff_48h}},
+                {'_id': 0}
+            )
+            if not last_notif:
+                eligible.append(u)
+        
+        if not eligible:
+            logging.info("📧 No users eligible for balance notification")
+            return
+        
+        # Take only first 20 (batch of 20 per minute)
+        batch = eligible[:20]
+        logging.info(f"📧 Sending balance notifications to {len(batch)} users (of {len(eligible)} eligible)")
+        
+        for user in batch:
+            try:
+                balance_usd = user.get('balance_usd', 0)
+                balance_eur = user.get('balance_eur', 0)
+                total_display = f"${balance_usd:,.2f} USD" if balance_usd > 0 else f"€{balance_eur:,.2f} EUR"
+                
+                content = f"""
+                    <p style="color: #e2e8f0; font-size: 16px;">
+                        Estimado/a <strong style="color: #10b981;">{user['user_name']}</strong>,
+                    </p>
+                    <p style="color: #e2e8f0; font-size: 16px;">
+                        Le informamos que tiene saldo disponible para retirar en su cuenta LIONSBIT VERIFICACION.
+                    </p>
+                    <table width="100%" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
+                        <tr><td style="padding: 25px; text-align: center;">
+                            <p style="color: #94a3b8; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0;">Saldo Disponible</p>
+                            <p style="color: #10b981; font-size: 32px; font-weight: bold; margin: 10px 0; font-family: monospace;">{total_display}</p>
+                            <p style="color: #94a3b8; font-size: 13px;">Puede solicitar un retiro desde la plataforma.</p>
+                        </td></tr>
+                    </table>
+                """
+                
+                html = get_email_template(content, "Saldo Disponible para Retiro")
+                send_email_background(user['user_email'], "Tiene saldo disponible para retirar - LIONSBIT VERIFICACION", html)
+                
+                # Log the notification
+                await db.email_notifications_log.insert_one({
+                    'id': str(uuid.uuid4()),
+                    'user_id': user['user_id'],
+                    'user_email': user['user_email'],
+                    'type': 'balance_available',
+                    'status': 'sent',
+                    'sent_at': datetime.now(timezone.utc).isoformat(),
+                    'metadata': {'balance_usd': balance_usd, 'balance_eur': balance_eur}
+                })
+                
+            except Exception as e:
+                logging.error(f"📧 Failed to notify {user.get('user_email')}: {e}")
+                await db.email_notifications_log.insert_one({
+                    'id': str(uuid.uuid4()),
+                    'user_id': user['user_id'],
+                    'user_email': user.get('user_email', ''),
+                    'type': 'balance_available',
+                    'status': 'failed',
+                    'sent_at': datetime.now(timezone.utc).isoformat(),
+                    'error': str(e)
+                })
+        
+        logging.info(f"📧 Balance notification batch complete: {len(batch)} sent")
+        
+    except Exception as e:
+        logging.error(f"📧 Balance notification job error: {e}")
 
 async def process_tax_reminders():
     """Send reminder emails for withdrawals with pending tax"""

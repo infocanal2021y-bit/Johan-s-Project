@@ -150,6 +150,13 @@ export const chatbotAPI = {
     sendMessage: (message) => api.post('/chatbot/message', { message }),
 };
 
+// Market Data API (CoinGecko proxy)
+export const marketAPI = {
+    getCrypto: () => api.get('/market/crypto'),
+    getGlobal: () => api.get('/market/global'),
+    getTrending: () => api.get('/market/trending'),
+};
+
 // Presence / Heartbeat
 export const presenceAPI = {
     heartbeat: () => api.post('/auth/heartbeat'),
