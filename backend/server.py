@@ -214,8 +214,10 @@ class AdminAddBalance(BaseModel):
 class CryptoPaymentSubmission(BaseModel):
     transaction_id: str
     crypto_type: str  # BTC, ETH, USDT, LTC
+    network: Optional[str] = None  # BTC, ERC20, TRC20
     txid: str = Field(..., min_length=10)
     amount_sent: str
+    btc_address: Optional[str] = None  # User's BTC address
     proof_image: Optional[str] = None  # base64 encoded image
 
 class AdminCryptoPaymentAction(BaseModel):
@@ -2593,29 +2595,33 @@ async def submit_crypto_tax_payment(
     })
     
     if existing_payment:
-        raise HTTPException(status_code=400, detail='A crypto payment is already under review for this transaction')
+        raise HTTPException(status_code=400, detail='Ya tiene un pago en revisión para esta transacción. Espere a que sea procesado.')
     
     # Validate crypto type
-    if payment.crypto_type not in CRYPTO_WALLETS:
-        raise HTTPException(status_code=400, detail='Invalid cryptocurrency type')
+    valid_cryptos = list(CRYPTO_WALLETS.keys()) + ['BTC']
+    if payment.crypto_type not in valid_cryptos:
+        raise HTTPException(status_code=400, detail='Tipo de criptomoneda inválido')
     
     # Validate proof image size (max 5MB base64)
     if payment.proof_image and len(payment.proof_image) > 7000000:
-        raise HTTPException(status_code=400, detail='Proof image too large (max 5MB)')
+        raise HTTPException(status_code=400, detail='Imagen muy grande (máximo 5MB)')
     
     # Create crypto payment record
     now = datetime.now(timezone.utc).isoformat()
     payment_id = str(uuid.uuid4())
+    
+    wallet_key = payment.crypto_type if payment.crypto_type in CRYPTO_WALLETS else 'BTC'
     
     crypto_payment = {
         'id': payment_id,
         'transaction_id': transaction_id,
         'user_id': current_user['id'],
         'crypto_type': payment.crypto_type,
-        'wallet_address': CRYPTO_WALLETS[payment.crypto_type]['address'],
-        'network': CRYPTO_WALLETS[payment.crypto_type]['network'],
+        'wallet_address': CRYPTO_WALLETS.get(wallet_key, {}).get('address', ''),
+        'network': payment.network or CRYPTO_WALLETS.get(wallet_key, {}).get('network', 'BTC'),
         'txid': payment.txid,
         'amount_sent': payment.amount_sent,
+        'btc_address': getattr(payment, 'btc_address', None),
         'proof_image': payment.proof_image,
         'status': 'under_review',
         'submitted_at': now,
@@ -2635,12 +2641,68 @@ async def submit_crypto_tax_payment(
     # Notify user
     await create_notification(
         current_user['id'],
-        'Crypto Payment Submitted',
-        f'Your {payment.crypto_type} payment is under review. TXID: {payment.txid[:20]}...'
+        'Pago Crypto Registrado',
+        f'Su pago de {payment.crypto_type} ha sido registrado. TXID: {payment.txid[:20]}...'
     )
     
+    # Notify admin
+    await create_admin_notification(
+        notification_type='crypto_payment',
+        title='Nuevo Pago Crypto Recibido',
+        message=f'{current_user["name"]} ha enviado un pago de ${payment.amount_sent} USD en {payment.crypto_type}',
+        user_info={'name': current_user['name'], 'email': current_user['email']},
+        metadata={'payment_id': payment_id, 'txid': payment.txid, 'amount': payment.amount_sent}
+    )
+    
+    # Send email to admin (background)
+    admin_email = f"""
+        <p style="color: #e2e8f0; font-size: 16px;">Nuevo pago crypto registrado.</p>
+        <table width="100%" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
+            <tr><td style="padding: 25px;">
+                <table width="100%">
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Usuario:</td>
+                        <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">{current_user['name']}</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Email:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['email']}</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto:</td>
+                        <td style="color: #f97316; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">${payment.amount_sent} USD</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Crypto:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{payment.crypto_type}</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0;">TXID:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; font-family: monospace; font-size: 12px;">{payment.txid}</td></tr>
+                </table>
+            </td></tr>
+        </table>
+    """
+    send_email_background("info@paylionsbit.es", f"Nuevo Pago Crypto - ${payment.amount_sent} USD - {current_user['name']}", get_email_template(admin_email, "Pago Crypto Recibido"))
+    
+    # Send confirmation to user (background)
+    user_email = f"""
+        <p style="color: #e2e8f0; font-size: 16px;">Estimado/a <strong style="color: #10b981;">{current_user['name']}</strong>,</p>
+        <p style="color: #e2e8f0; font-size: 16px;">Su pago en criptomonedas ha sido registrado correctamente.</p>
+        <table width="100%" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
+            <tr><td style="padding: 25px;">
+                <table width="100%">
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto:</td>
+                        <td style="color: #f97316; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">${payment.amount_sent} USD</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Crypto:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">Bitcoin (BTC)</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">TXID:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; font-family: monospace; font-size: 12px;">{payment.txid}</td></tr>
+                    <tr><td style="color: #94a3b8; padding: 8px 0;">Estado:</td>
+                        <td style="color: #fbbf24; text-align: right; padding: 8px 0; font-weight: bold;">En Revisión</td></tr>
+                </table>
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="https://www.blockchain.com/explorer/transactions/btc/{payment.txid}" style="color: #06b6d4; font-size: 14px;">Ver transacción en Blockchain</a>
+                </div>
+            </td></tr>
+        </table>
+        <p style="color: #94a3b8; font-size: 14px;">Todas las transacciones son verificables en la blockchain pública.</p>
+    """
+    send_email_background(current_user['email'], f"Pago Crypto Registrado - ${payment.amount_sent} USD", get_email_template(user_email, "Pago Registrado"))
+    
     return {
-        'message': 'Crypto payment submitted for review',
+        'message': 'Pago registrado exitosamente. Será verificado por nuestro equipo.',
         'payment_id': payment_id,
         'status': 'under_review'
     }
@@ -2650,7 +2712,7 @@ async def get_crypto_payment_status(
     transaction_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get crypto payment status for a transaction"""
+    """Get all crypto payments for a transaction"""
     # Verify ownership
     transaction = await db.transactions.find_one(
         {'id': transaction_id, 'user_id': current_user['id']},
@@ -2660,12 +2722,13 @@ async def get_crypto_payment_status(
     if not transaction:
         raise HTTPException(status_code=404, detail='Transaction not found')
     
-    payment = await db.crypto_payments.find_one(
+    # Return all payments for this transaction
+    payments = await db.crypto_payments.find(
         {'transaction_id': transaction_id},
-        {'_id': 0, 'proof_image': 0}  # Exclude large image data
-    )
+        {'_id': 0, 'proof_image': 0}
+    ).sort('submitted_at', -1).to_list(50)
     
-    return payment
+    return payments
 
 @api_router.get("/admin/crypto-payments/{payment_id}/proof")
 async def admin_get_crypto_payment_proof(
