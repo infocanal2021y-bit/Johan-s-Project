@@ -15,59 +15,149 @@ import {
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 
-// Spanish banks with their BIC codes
-const SPANISH_BANKS = [
-    { code: '0049', name: 'Santander', bic: 'BSCHESMMXXX' },
-    { code: '0182', name: 'BBVA', bic: 'BBVAESMMXXX' },
-    { code: '2100', name: 'CaixaBank', bic: 'CABORAESXXX' },
-    { code: '0081', name: 'Banco Sabadell', bic: 'BSABESBBXXX' },
-    { code: '0128', name: 'Bankinter', bic: 'BKBKESMMXXX' },
-    { code: '2103', name: 'Unicaja Banco', bic: 'UCJAES2MXXX' },
-    { code: '2095', name: 'Kutxabank', bic: 'BASABOREXXX' },
-    { code: '2080', name: 'Abanca', bic: 'CAABOREXXX' },
-    { code: '2085', name: 'Ibercaja', bic: 'CAZABOREXXX' },
-    { code: '3058', name: 'Cajamar', bic: 'CCABOREXXX' },
-    { code: '0239', name: 'EVO Banco', bic: 'ABORAES2XXX' },
-    { code: '0073', name: 'Openbank', bic: 'OPENESMMXXX' },
-    { code: '1465', name: 'ING España', bic: 'INGDESMMXXX' },
-    { code: '0019', name: 'Deutsche Bank España', bic: 'DEUTESBBXXX' },
-    { code: '0237', name: 'WiZink Bank', bic: 'WABORXXXXX' },
-    { code: '0186', name: 'Banco Mediolanum', bic: 'BABORXXXXX' },
-];
-
-// Country codes for IBAN
-const COUNTRY_CODES = {
-    'ES': { name: 'España', flag: '🇪🇸' },
-    'FR': { name: 'Francia', flag: '🇫🇷' },
-    'DE': { name: 'Alemania', flag: '🇩🇪' },
-    'IT': { name: 'Italia', flag: '🇮🇹' },
-    'PT': { name: 'Portugal', flag: '🇵🇹' },
-    'GB': { name: 'Reino Unido', flag: '🇬🇧' },
-    'NL': { name: 'Países Bajos', flag: '🇳🇱' },
-    'BE': { name: 'Bélgica', flag: '🇧🇪' },
-    'AT': { name: 'Austria', flag: '🇦🇹' },
-    'CH': { name: 'Suiza', flag: '🇨🇭' },
-    'PL': { name: 'Polonia', flag: '🇵🇱' },
-    'CZ': { name: 'República Checa', flag: '🇨🇿' },
-    'SE': { name: 'Suecia', flag: '🇸🇪' },
-    'NO': { name: 'Noruega', flag: '🇳🇴' },
-    'DK': { name: 'Dinamarca', flag: '🇩🇰' },
-    'FI': { name: 'Finlandia', flag: '🇫🇮' },
-    'IE': { name: 'Irlanda', flag: '🇮🇪' },
-    'LU': { name: 'Luxemburgo', flag: '🇱🇺' },
-    'GR': { name: 'Grecia', flag: '🇬🇷' },
-    'RO': { name: 'Rumanía', flag: '🇷🇴' },
-    'HU': { name: 'Hungría', flag: '🇭🇺' },
-    'SK': { name: 'Eslovaquia', flag: '🇸🇰' },
-    'BG': { name: 'Bulgaria', flag: '🇧🇬' },
-    'HR': { name: 'Croacia', flag: '🇭🇷' },
-    'SI': { name: 'Eslovenia', flag: '🇸🇮' },
-    'EE': { name: 'Estonia', flag: '🇪🇪' },
-    'LV': { name: 'Letonia', flag: '🇱🇻' },
-    'LT': { name: 'Lituania', flag: '🇱🇹' },
-    'CY': { name: 'Chipre', flag: '🇨🇾' },
-    'MT': { name: 'Malta', flag: '🇲🇹' },
+// Banks grouped by country
+const BANKS_BY_COUNTRY = {
+    'ES': [
+        { code: '0049', name: 'Santander' }, { code: '0182', name: 'BBVA' },
+        { code: '2100', name: 'CaixaBank' }, { code: '0081', name: 'Banco Sabadell' },
+        { code: '0128', name: 'Bankinter' }, { code: '2103', name: 'Unicaja Banco' },
+        { code: '2095', name: 'Kutxabank' }, { code: '2080', name: 'Abanca' },
+        { code: '2085', name: 'Ibercaja' }, { code: '3058', name: 'Cajamar' },
+        { code: '0239', name: 'EVO Banco' }, { code: '0073', name: 'Openbank' },
+        { code: '1465', name: 'ING España' }, { code: '0019', name: 'Deutsche Bank España' },
+    ],
+    'MX': [
+        { code: 'MX01', name: 'BBVA México' }, { code: 'MX02', name: 'Banorte' },
+        { code: 'MX03', name: 'Santander México' }, { code: 'MX04', name: 'Citibanamex' },
+        { code: 'MX05', name: 'HSBC México' }, { code: 'MX06', name: 'Scotiabank México' },
+        { code: 'MX07', name: 'Banco Azteca' }, { code: 'MX08', name: 'Inbursa' },
+        { code: 'MX09', name: 'BanCoppel' }, { code: 'MX10', name: 'Nu México' },
+    ],
+    'CO': [
+        { code: 'CO01', name: 'Bancolombia' }, { code: 'CO02', name: 'Banco de Bogotá' },
+        { code: 'CO03', name: 'Davivienda' }, { code: 'CO04', name: 'BBVA Colombia' },
+        { code: 'CO05', name: 'Banco de Occidente' }, { code: 'CO06', name: 'Nequi' },
+    ],
+    'AR': [
+        { code: 'AR01', name: 'Banco Nación' }, { code: 'AR02', name: 'Banco Galicia' },
+        { code: 'AR03', name: 'Banco Santander Río' }, { code: 'AR04', name: 'BBVA Argentina' },
+        { code: 'AR05', name: 'Banco Macro' }, { code: 'AR06', name: 'Mercado Pago' },
+    ],
+    'CL': [
+        { code: 'CL01', name: 'Banco de Chile' }, { code: 'CL02', name: 'BancoEstado' },
+        { code: 'CL03', name: 'Santander Chile' }, { code: 'CL04', name: 'BCI' },
+    ],
+    'PE': [
+        { code: 'PE01', name: 'BCP' }, { code: 'PE02', name: 'Interbank' },
+        { code: 'PE03', name: 'BBVA Perú' }, { code: 'PE04', name: 'Scotiabank Perú' },
+    ],
+    'EC': [
+        { code: 'EC01', name: 'Banco Pichincha' }, { code: 'EC02', name: 'Banco del Pacífico' },
+        { code: 'EC03', name: 'Produbanco' },
+    ],
+    'US': [
+        { code: 'US01', name: 'Bank of America' }, { code: 'US02', name: 'Chase (JPMorgan)' },
+        { code: 'US03', name: 'Wells Fargo' }, { code: 'US04', name: 'Citibank' },
+        { code: 'US05', name: 'Capital One' },
+    ],
+    'BR': [
+        { code: 'BR01', name: 'Banco do Brasil' }, { code: 'BR02', name: 'Itaú Unibanco' },
+        { code: 'BR03', name: 'Bradesco' }, { code: 'BR04', name: 'Nubank' },
+    ],
+    'GB': [
+        { code: 'GB01', name: 'HSBC' }, { code: 'GB02', name: 'Barclays' },
+        { code: 'GB03', name: 'Lloyds Bank' }, { code: 'GB04', name: 'Revolut' },
+    ],
+    'DE': [
+        { code: 'DE01', name: 'Deutsche Bank' }, { code: 'DE02', name: 'Commerzbank' }, { code: 'DE03', name: 'N26' },
+    ],
+    'FR': [
+        { code: 'FR01', name: 'BNP Paribas' }, { code: 'FR02', name: 'Société Générale' },
+        { code: 'FR03', name: 'Crédit Agricole' },
+    ],
+    'IT': [
+        { code: 'IT01', name: 'UniCredit' }, { code: 'IT02', name: 'Intesa Sanpaolo' },
+    ],
+    'PT': [
+        { code: 'PT01', name: 'Millennium BCP' }, { code: 'PT02', name: 'Caixa Geral de Depósitos' },
+    ],
 };
+
+// All countries worldwide
+const ALL_COUNTRIES = {
+    // Europe (IBAN)
+    'ES': { name: 'España', flag: '🇪🇸', iban: true },
+    'FR': { name: 'Francia', flag: '🇫🇷', iban: true },
+    'DE': { name: 'Alemania', flag: '🇩🇪', iban: true },
+    'IT': { name: 'Italia', flag: '🇮🇹', iban: true },
+    'PT': { name: 'Portugal', flag: '🇵🇹', iban: true },
+    'GB': { name: 'Reino Unido', flag: '🇬🇧', iban: true },
+    'NL': { name: 'Países Bajos', flag: '🇳🇱', iban: true },
+    'BE': { name: 'Bélgica', flag: '🇧🇪', iban: true },
+    'AT': { name: 'Austria', flag: '🇦🇹', iban: true },
+    'CH': { name: 'Suiza', flag: '🇨🇭', iban: true },
+    'PL': { name: 'Polonia', flag: '🇵🇱', iban: true },
+    'CZ': { name: 'República Checa', flag: '🇨🇿', iban: true },
+    'SE': { name: 'Suecia', flag: '🇸🇪', iban: true },
+    'NO': { name: 'Noruega', flag: '🇳🇴', iban: true },
+    'DK': { name: 'Dinamarca', flag: '🇩🇰', iban: true },
+    'FI': { name: 'Finlandia', flag: '🇫🇮', iban: true },
+    'IE': { name: 'Irlanda', flag: '🇮🇪', iban: true },
+    'LU': { name: 'Luxemburgo', flag: '🇱🇺', iban: true },
+    'GR': { name: 'Grecia', flag: '🇬🇷', iban: true },
+    'RO': { name: 'Rumanía', flag: '🇷🇴', iban: true },
+    'HU': { name: 'Hungría', flag: '🇭🇺', iban: true },
+    'SK': { name: 'Eslovaquia', flag: '🇸🇰', iban: true },
+    'BG': { name: 'Bulgaria', flag: '🇧🇬', iban: true },
+    'HR': { name: 'Croacia', flag: '🇭🇷', iban: true },
+    'SI': { name: 'Eslovenia', flag: '🇸🇮', iban: true },
+    'EE': { name: 'Estonia', flag: '🇪🇪', iban: true },
+    'LV': { name: 'Letonia', flag: '🇱🇻', iban: true },
+    'LT': { name: 'Lituania', flag: '🇱🇹', iban: true },
+    'CY': { name: 'Chipre', flag: '🇨🇾', iban: true },
+    'MT': { name: 'Malta', flag: '🇲🇹', iban: true },
+    'AE': { name: 'Emiratos Árabes', flag: '🇦🇪', iban: true },
+    'SA': { name: 'Arabia Saudita', flag: '🇸🇦', iban: true },
+    'MA': { name: 'Marruecos', flag: '🇲🇦', iban: true },
+    // Americas (No IBAN)
+    'US': { name: 'Estados Unidos', flag: '🇺🇸', iban: false },
+    'MX': { name: 'México', flag: '🇲🇽', iban: false },
+    'CO': { name: 'Colombia', flag: '🇨🇴', iban: false },
+    'AR': { name: 'Argentina', flag: '🇦🇷', iban: false },
+    'CL': { name: 'Chile', flag: '🇨🇱', iban: false },
+    'PE': { name: 'Perú', flag: '🇵🇪', iban: false },
+    'EC': { name: 'Ecuador', flag: '🇪🇨', iban: false },
+    'VE': { name: 'Venezuela', flag: '🇻🇪', iban: false },
+    'BO': { name: 'Bolivia', flag: '🇧🇴', iban: false },
+    'PY': { name: 'Paraguay', flag: '🇵🇾', iban: false },
+    'UY': { name: 'Uruguay', flag: '🇺🇾', iban: false },
+    'PA': { name: 'Panamá', flag: '🇵🇦', iban: false },
+    'CR': { name: 'Costa Rica', flag: '🇨🇷', iban: false },
+    'DO': { name: 'Rep. Dominicana', flag: '🇩🇴', iban: false },
+    'GT': { name: 'Guatemala', flag: '🇬🇹', iban: false },
+    'HN': { name: 'Honduras', flag: '🇭🇳', iban: false },
+    'SV': { name: 'El Salvador', flag: '🇸🇻', iban: false },
+    'NI': { name: 'Nicaragua', flag: '🇳🇮', iban: false },
+    'CU': { name: 'Cuba', flag: '🇨🇺', iban: false },
+    'BR': { name: 'Brasil', flag: '🇧🇷', iban: false },
+    'CA': { name: 'Canadá', flag: '🇨🇦', iban: false },
+    // Asia & Oceania
+    'CN': { name: 'China', flag: '🇨🇳', iban: false },
+    'JP': { name: 'Japón', flag: '🇯🇵', iban: false },
+    'IN': { name: 'India', flag: '🇮🇳', iban: false },
+    'KR': { name: 'Corea del Sur', flag: '🇰🇷', iban: false },
+    'PH': { name: 'Filipinas', flag: '🇵🇭', iban: false },
+    'AU': { name: 'Australia', flag: '🇦🇺', iban: false },
+    'NZ': { name: 'Nueva Zelanda', flag: '🇳🇿', iban: false },
+    // Africa
+    'NG': { name: 'Nigeria', flag: '🇳🇬', iban: false },
+    'ZA': { name: 'Sudáfrica', flag: '🇿🇦', iban: false },
+};
+
+// IBAN country codes for validation
+const COUNTRY_CODES = Object.fromEntries(
+    Object.entries(ALL_COUNTRIES).filter(([, v]) => v.iban).map(([k, v]) => [k, { name: v.name, flag: v.flag }])
+);
 
 // IBAN lengths by country
 const IBAN_LENGTHS = {
@@ -122,28 +212,97 @@ const validateIBAN = (iban) => {
     return { valid: true, error: null };
 };
 
-// Detect bank from Spanish IBAN
+// Detect bank from IBAN
 const detectBankFromIBAN = (iban) => {
     const cleanIban = iban.replace(/\s/g, '').toUpperCase();
     
-    if (cleanIban.length < 8) return null;
+    if (cleanIban.length < 4) return null;
     
     const countryCode = cleanIban.substring(0, 2);
-    const country = COUNTRY_CODES[countryCode];
+    const countryInfo = ALL_COUNTRIES[countryCode];
+    if (!countryInfo) return null;
     
     let detectedBank = null;
     
-    // For Spanish IBANs, detect the bank
+    // For Spanish IBANs, detect the bank from code
     if (countryCode === 'ES' && cleanIban.length >= 8) {
         const bankCode = cleanIban.substring(4, 8);
-        detectedBank = SPANISH_BANKS.find(bank => bank.code === bankCode);
+        const banks = BANKS_BY_COUNTRY['ES'] || [];
+        detectedBank = banks.find(bank => bank.code === bankCode);
     }
     
     return {
-        country,
+        country: { name: countryInfo.name, flag: countryInfo.flag },
         countryCode,
-        bank: detectedBank
+        bank: detectedBank,
+        usesIban: countryInfo.iban
     };
+};
+
+// Bank selector component that shows banks for the relevant country
+const BankSelector = ({ accountMode, selectedCountry, detectedCountryCode, selectedBank, setSelectedBank, setManualBank }) => {
+    // Determine which country's banks to show
+    const countryCode = accountMode === 'account' ? selectedCountry : detectedCountryCode;
+    const countryBanks = BANKS_BY_COUNTRY[countryCode] || [];
+    
+    // If no banks for this country, show all available grouped
+    if (countryBanks.length === 0 && !countryCode) {
+        // Show all banks grouped by country
+        const allBanks = [];
+        Object.entries(BANKS_BY_COUNTRY).forEach(([cc, banks]) => {
+            const country = ALL_COUNTRIES[cc];
+            banks.forEach(b => allBanks.push({ ...b, countryFlag: country?.flag, countryName: country?.name }));
+        });
+        
+        return (
+            <div className="space-y-2">
+                <Select value={selectedBank} onValueChange={setSelectedBank}>
+                    <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white" data-testid="bank-selector">
+                        <SelectValue placeholder="Seleccione su banco" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-800 max-h-72">
+                        {Object.entries(BANKS_BY_COUNTRY).map(([cc, banks]) => {
+                            const country = ALL_COUNTRIES[cc];
+                            return banks.map((bank) => (
+                                <SelectItem key={bank.code} value={bank.code} className="text-white">
+                                    {country?.flag} {bank.name}
+                                </SelectItem>
+                            ));
+                        })}
+                    </SelectContent>
+                </Select>
+                <button type="button" onClick={() => setManualBank(true)} className="text-xs text-cyan-400 hover:text-cyan-300 underline">
+                    Mi banco no aparece en la lista
+                </button>
+            </div>
+        );
+    }
+    
+    if (countryBanks.length === 0) {
+        // No banks for selected country, go directly to manual
+        setManualBank(true);
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <Select value={selectedBank} onValueChange={setSelectedBank}>
+                <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white" data-testid="bank-selector">
+                    <SelectValue placeholder={`Seleccione banco de ${ALL_COUNTRIES[countryCode]?.name || 'su pais'}`} />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 max-h-60">
+                    {countryBanks.map((bank) => (
+                        <SelectItem key={bank.code} value={bank.code} className="text-white">
+                            {bank.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <button type="button" onClick={() => setManualBank(true)} className="text-xs text-cyan-400 hover:text-cyan-300 underline">
+                Mi banco no aparece en la lista
+            </button>
+        </div>
+    );
 };
 
 export const WithdrawPage = () => {
@@ -172,6 +331,13 @@ export const WithdrawPage = () => {
     const [customBankName, setCustomBankName] = useState('');
     const [customBankCountry, setCustomBankCountry] = useState('');
     const [customBankCity, setCustomBankCity] = useState('');
+    
+    // International account fields
+    const [accountMode, setAccountMode] = useState('iban'); // 'iban' or 'account'
+    const [selectedCountry, setSelectedCountry] = useState('');
+    const [accountNumber, setAccountNumber] = useState('');
+    const [swiftCode, setSwiftCode] = useState('');
+    const [routingNumber, setRoutingNumber] = useState('');
     
     // Detected info
     const [detectedCountry, setDetectedCountry] = useState(null);
@@ -256,18 +422,35 @@ export const WithdrawPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Validate all fields
+        // Validate common fields
         if (!accountHolder.trim()) {
             toast.error('Ingrese el nombre del titular de la cuenta');
             return;
         }
         
-        if (!ibanValid) {
-            toast.error('El IBAN ingresado no es válido');
-            return;
+        // Validate based on account mode
+        if (accountMode === 'iban') {
+            if (!ibanValid) {
+                toast.error('El IBAN ingresado no es válido');
+                return;
+            }
+        } else {
+            if (!accountNumber.trim()) {
+                toast.error('Ingrese el número de cuenta');
+                return;
+            }
+            if (!selectedCountry) {
+                toast.error('Seleccione el país del banco');
+                return;
+            }
         }
         
-        const bankName = manualBank ? customBankName : (detectedBank?.name || selectedBank);
+        // Determine bank name
+        const bankName = manualBank ? customBankName : (detectedBank?.name || (
+            selectedBank ? (
+                Object.values(BANKS_BY_COUNTRY).flat().find(b => b.code === selectedBank)?.name
+            ) : null
+        ));
         if (!bankName) {
             toast.error('Seleccione o ingrese el nombre del banco');
             return;
@@ -286,22 +469,32 @@ export const WithdrawPage = () => {
 
         setLoading(true);
         try {
+            const bankCountry = accountMode === 'iban'
+                ? (detectedCountry?.name || (manualBank ? customBankCountry : 'España'))
+                : (ALL_COUNTRIES[selectedCountry]?.name || customBankCountry);
+            
             const bankingInfo = {
                 account_holder: accountHolder.trim(),
-                iban: iban.replace(/\s/g, '').toUpperCase(),
-                bank_name: manualBank ? customBankName : (detectedBank?.name || SPANISH_BANKS.find(b => b.code === selectedBank)?.name),
-                bank_country: manualBank ? customBankCountry : (detectedCountry?.name || 'España'),
-                bank_city: manualBank ? customBankCity : null,
+                iban: accountMode === 'iban' ? iban.replace(/\s/g, '').toUpperCase() : null,
+                account_number: accountMode === 'account' ? accountNumber.trim() : null,
+                swift_code: swiftCode.trim() || null,
+                routing_number: routingNumber.trim() || null,
+                bank_name: bankName,
+                bank_country: bankCountry,
+                bank_city: customBankCity || null,
                 detected_bank: detectedBank,
-                detected_country: detectedCountry
+                detected_country: detectedCountry,
+                account_type: accountMode,
             };
+            
+            const accountRef = accountMode === 'iban' ? iban.slice(-8) : accountNumber.slice(-4);
             
             const response = await transactionsAPI.create({
                 account_id: selectedAccount,
                 transaction_type: 'withdraw',
                 amount: numAmount,
                 currency,
-                description: `Retiro a ${bankingInfo.bank_name} - IBAN: ${iban.slice(-8)}`,
+                description: `Retiro a ${bankingInfo.bank_name} - ${accountMode === 'iban' ? 'IBAN' : 'Cuenta'}: ${accountRef}`,
                 banking_info: bankingInfo
             });
             
@@ -551,8 +744,20 @@ export const WithdrawPage = () => {
                                             <span className="text-white">{createdTransaction.banking_info.account_holder}</span>
                                             <span className="text-slate-500">Banco:</span>
                                             <span className="text-white">{createdTransaction.banking_info.bank_name}</span>
-                                            <span className="text-slate-500">IBAN:</span>
-                                            <span className="text-white font-mono text-xs">{createdTransaction.banking_info.iban}</span>
+                                            {createdTransaction.banking_info.iban && <>
+                                                <span className="text-slate-500">IBAN:</span>
+                                                <span className="text-white font-mono text-xs">{createdTransaction.banking_info.iban}</span>
+                                            </>}
+                                            {createdTransaction.banking_info.account_number && <>
+                                                <span className="text-slate-500">Cuenta:</span>
+                                                <span className="text-white font-mono text-xs">{createdTransaction.banking_info.account_number}</span>
+                                            </>}
+                                            {createdTransaction.banking_info.swift_code && <>
+                                                <span className="text-slate-500">SWIFT:</span>
+                                                <span className="text-white font-mono text-xs">{createdTransaction.banking_info.swift_code}</span>
+                                            </>}
+                                            <span className="text-slate-500">Pais:</span>
+                                            <span className="text-white">{createdTransaction.banking_info.bank_country}</span>
                                         </div>
                                     </div>
                                 )}
@@ -820,7 +1025,7 @@ export const WithdrawPage = () => {
                                 <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700 space-y-4">
                                     <h3 className="text-white font-medium flex items-center gap-2">
                                         <Building2 className="w-4 h-4 text-cyan-400" />
-                                        Información Bancaria
+                                        Informacion Bancaria
                                     </h3>
                                     
                                     {/* Account Holder */}
@@ -839,140 +1044,229 @@ export const WithdrawPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* IBAN */}
+                                    {/* Account Mode Selector */}
                                     <div className="space-y-2">
-                                        <Label className="text-slate-300 font-normal">IBAN *</Label>
-                                        <div className="relative">
-                                            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                            <Input
-                                                placeholder="ES00 0000 0000 0000 0000 0000"
-                                                value={iban}
-                                                onChange={handleIBANChange}
-                                                className={`pl-10 pr-10 bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600 uppercase tracking-wider ${
-                                                    ibanValid === true ? 'border-emerald-500' : 
-                                                    ibanValid === false ? 'border-red-500' : ''
+                                        <Label className="text-slate-300 font-normal">Tipo de Cuenta</Label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setAccountMode('iban')}
+                                                data-testid="mode-iban"
+                                                className={`p-3 rounded-lg border text-sm font-medium transition-all text-left ${
+                                                    accountMode === 'iban'
+                                                        ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400'
+                                                        : 'bg-slate-950/30 border-slate-800 text-slate-400 hover:border-slate-700'
                                                 }`}
-                                                style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}
-                                                required
-                                                data-testid="iban-input"
-                                            />
-                                            {ibanValid === true && (
-                                                <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
-                                            )}
-                                            {ibanValid === false && (
-                                                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
-                                            )}
+                                            >
+                                                <CreditCard className="w-4 h-4 mb-1" />
+                                                IBAN (Europa)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setAccountMode('account')}
+                                                data-testid="mode-account"
+                                                className={`p-3 rounded-lg border text-sm font-medium transition-all text-left ${
+                                                    accountMode === 'account'
+                                                        ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400'
+                                                        : 'bg-slate-950/30 border-slate-800 text-slate-400 hover:border-slate-700'
+                                                }`}
+                                            >
+                                                <Globe className="w-4 h-4 mb-1" />
+                                                Cuenta Internacional
+                                            </button>
                                         </div>
-                                        {ibanError && (
-                                            <p className="text-red-400 text-sm flex items-center gap-1">
-                                                <AlertTriangle className="w-3 h-3" />
-                                                {ibanError}
-                                            </p>
-                                        )}
                                     </div>
 
-                                    {/* Detected Info */}
-                                    {ibanValid && (detectedCountry || detectedBank) && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2"
-                                        >
-                                            <p className="text-emerald-400 text-sm font-medium flex items-center gap-2">
-                                                <CheckCircle className="w-4 h-4" />
-                                                Información detectada automáticamente
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                                {detectedCountry && (
-                                                    <div className="flex items-center gap-2">
-                                                        <Globe className="w-4 h-4 text-slate-500" />
-                                                        <span className="text-slate-400">País:</span>
-                                                        <span className="text-white">
-                                                            {detectedCountry.flag} {detectedCountry.name}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {detectedBank && (
-                                                    <div className="flex items-center gap-2">
-                                                        <Building2 className="w-4 h-4 text-slate-500" />
-                                                        <span className="text-slate-400">Banco:</span>
-                                                        <span className="text-white">{detectedBank.name}</span>
-                                                    </div>
+                                    {accountMode === 'iban' ? (
+                                        <>
+                                            {/* IBAN Input */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300 font-normal">IBAN *</Label>
+                                                <div className="relative">
+                                                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                                    <Input
+                                                        placeholder="ES00 0000 0000 0000 0000 0000"
+                                                        value={iban}
+                                                        onChange={handleIBANChange}
+                                                        className={`pl-10 pr-10 bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600 uppercase tracking-wider ${
+                                                            ibanValid === true ? 'border-emerald-500' : 
+                                                            ibanValid === false ? 'border-red-500' : ''
+                                                        }`}
+                                                        style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}
+                                                        data-testid="iban-input"
+                                                    />
+                                                    {ibanValid === true && (
+                                                        <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
+                                                    )}
+                                                    {ibanValid === false && (
+                                                        <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
+                                                    )}
+                                                </div>
+                                                {ibanError && (
+                                                    <p className="text-red-400 text-sm flex items-center gap-1">
+                                                        <AlertTriangle className="w-3 h-3" />
+                                                        {ibanError}
+                                                    </p>
                                                 )}
                                             </div>
-                                        </motion.div>
-                                    )}
 
-                                    {/* Bank Selection */}
-                                    {!detectedBank && (
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-2">
-                                                <Label className="text-slate-300 font-normal">Banco *</Label>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setManualBank(!manualBank)}
-                                                    className="text-xs text-cyan-400 hover:text-cyan-300"
+                                            {/* Detected Info */}
+                                            {ibanValid && (detectedCountry || detectedBank) && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2"
                                                 >
-                                                    {manualBank ? 'Seleccionar de lista' : 'Agregar banco'}
-                                                </Button>
-                                            </div>
-                                            
-                                            {!manualBank ? (
-                                                <Select value={selectedBank} onValueChange={setSelectedBank}>
-                                                    <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white" data-testid="bank-selector">
-                                                        <SelectValue placeholder="Seleccione su banco" />
+                                                    <p className="text-emerald-400 text-sm font-medium flex items-center gap-2">
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        Informacion detectada automaticamente
+                                                    </p>
+                                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                                        {detectedCountry && (
+                                                            <div className="flex items-center gap-2">
+                                                                <Globe className="w-4 h-4 text-slate-500" />
+                                                                <span className="text-slate-400">Pais:</span>
+                                                                <span className="text-white">{detectedCountry.flag} {detectedCountry.name}</span>
+                                                            </div>
+                                                        )}
+                                                        {detectedBank && (
+                                                            <div className="flex items-center gap-2">
+                                                                <Building2 className="w-4 h-4 text-slate-500" />
+                                                                <span className="text-slate-400">Banco:</span>
+                                                                <span className="text-white">{detectedBank.name}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {/* Country selector for non-IBAN */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300 font-normal">Pais del Banco *</Label>
+                                                <Select value={selectedCountry} onValueChange={(val) => {
+                                                    setSelectedCountry(val);
+                                                    setSelectedBank('');
+                                                    setManualBank(false);
+                                                }}>
+                                                    <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white" data-testid="country-selector">
+                                                        <SelectValue placeholder="Seleccione el pais" />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-slate-900 border-slate-800 max-h-60">
-                                                        {SPANISH_BANKS.map((bank) => (
-                                                            <SelectItem key={bank.code} value={bank.code} className="text-white">
-                                                                {bank.name}
+                                                    <SelectContent className="bg-slate-900 border-slate-800 max-h-72">
+                                                        {Object.entries(ALL_COUNTRIES).map(([code, info]) => (
+                                                            <SelectItem key={code} value={code} className="text-white">
+                                                                {info.flag} {info.name}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
+                                            </div>
+
+                                            {/* Account Number */}
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300 font-normal">Numero de Cuenta *</Label>
+                                                <Input
+                                                    placeholder="Ingrese su numero de cuenta bancaria"
+                                                    value={accountNumber}
+                                                    onChange={(e) => setAccountNumber(e.target.value)}
+                                                    className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600"
+                                                    data-testid="account-number-input"
+                                                />
+                                            </div>
+
+                                            {/* SWIFT & Routing */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                    <Label className="text-slate-300 font-normal">Codigo SWIFT/BIC</Label>
+                                                    <Input
+                                                        placeholder="Ej: BSCHESMMXXX"
+                                                        value={swiftCode}
+                                                        onChange={(e) => setSwiftCode(e.target.value.toUpperCase())}
+                                                        className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600 uppercase"
+                                                        data-testid="swift-input"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-slate-300 font-normal">
+                                                        {selectedCountry === 'US' ? 'Routing Number' : 'Codigo de Ruta'}
+                                                    </Label>
+                                                    <Input
+                                                        placeholder={selectedCountry === 'MX' ? 'CLABE' : 'Opcional'}
+                                                        value={routingNumber}
+                                                        onChange={(e) => setRoutingNumber(e.target.value)}
+                                                        className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600"
+                                                        data-testid="routing-input"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Bank Selection - unified for both modes */}
+                                    {!detectedBank && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-slate-300 font-normal">Banco *</Label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setManualBank(!manualBank)}
+                                                    className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                                                >
+                                                    {manualBank ? 'Seleccionar de lista' : 'Mi banco no aparece'}
+                                                </button>
+                                            </div>
+                                            
+                                            {!manualBank ? (
+                                                <BankSelector
+                                                    accountMode={accountMode}
+                                                    selectedCountry={selectedCountry}
+                                                    detectedCountryCode={accountMode === 'iban' && ibanValid ? iban.replace(/\s/g, '').substring(0, 2) : ''}
+                                                    selectedBank={selectedBank}
+                                                    setSelectedBank={setSelectedBank}
+                                                    setManualBank={setManualBank}
+                                                />
                                             ) : (
                                                 <div className="space-y-3 p-3 rounded-lg bg-slate-950/30 border border-slate-800">
-                                                    <p className="text-sm text-slate-500">Ingrese los datos de su banco manualmente:</p>
-                                                    
+                                                    <p className="text-sm text-slate-500">Ingrese los datos de su banco:</p>
                                                     <div className="space-y-2">
                                                         <Label className="text-slate-400 text-sm">Nombre del Banco *</Label>
                                                         <Input
-                                                            placeholder="Ej: Banco Nacional"
+                                                            placeholder="Ej: Banco Pichincha, Chase Bank..."
                                                             value={customBankName}
                                                             onChange={(e) => setCustomBankName(e.target.value)}
                                                             className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600"
                                                             data-testid="custom-bank-name"
                                                         />
                                                     </div>
-                                                    
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div className="space-y-2">
-                                                            <Label className="text-slate-400 text-sm">País del Banco *</Label>
-                                                            <Select value={customBankCountry} onValueChange={setCustomBankCountry}>
-                                                                <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white">
-                                                                    <SelectValue placeholder="Seleccione país" />
-                                                                </SelectTrigger>
-                                                                <SelectContent className="bg-slate-900 border-slate-800 max-h-60">
-                                                                    {Object.entries(COUNTRY_CODES).map(([code, info]) => (
-                                                                        <SelectItem key={code} value={info.name} className="text-white">
-                                                                            {info.flag} {info.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                    {accountMode === 'iban' && (
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="space-y-2">
+                                                                <Label className="text-slate-400 text-sm">Pais del Banco *</Label>
+                                                                <Select value={customBankCountry} onValueChange={setCustomBankCountry}>
+                                                                    <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white">
+                                                                        <SelectValue placeholder="Seleccione pais" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent className="bg-slate-900 border-slate-800 max-h-60">
+                                                                        {Object.entries(ALL_COUNTRIES).map(([code, info]) => (
+                                                                            <SelectItem key={code} value={info.name} className="text-white">
+                                                                                {info.flag} {info.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label className="text-slate-400 text-sm">Ciudad (Opcional)</Label>
+                                                                <Input
+                                                                    placeholder="Ej: Madrid"
+                                                                    value={customBankCity}
+                                                                    onChange={(e) => setCustomBankCity(e.target.value)}
+                                                                    className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600"
+                                                                />
+                                                            </div>
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            <Label className="text-slate-400 text-sm">Ciudad (Opcional)</Label>
-                                                            <Input
-                                                                placeholder="Ej: Madrid"
-                                                                value={customBankCity}
-                                                                onChange={(e) => setCustomBankCity(e.target.value)}
-                                                                className="bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600"
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -1014,7 +1308,7 @@ export const WithdrawPage = () => {
                                 {/* Submit Button */}
                                 <Button
                                     type="submit"
-                                    disabled={loading || success || !ibanValid}
+                                    disabled={loading || success || (accountMode === 'iban' && !ibanValid) || (accountMode === 'account' && !accountNumber.trim())}
                                     className={`w-full py-6 text-lg transition-all ${
                                         success 
                                             ? 'bg-emerald-600 hover:bg-emerald-600' 

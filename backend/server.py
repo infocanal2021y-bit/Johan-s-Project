@@ -136,10 +136,14 @@ class AccountResponse(BaseModel):
 
 class BankingInfo(BaseModel):
     account_holder: str
-    iban: str
+    iban: Optional[str] = None
+    account_number: Optional[str] = None
+    swift_code: Optional[str] = None
+    routing_number: Optional[str] = None
     bank_name: str
     bank_country: str
     bank_city: Optional[str] = None
+    account_type: Optional[str] = None
 
 class TransactionCreate(BaseModel):
     account_id: str
@@ -2074,9 +2078,13 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             transaction['banking_info'] = {
                 'account_holder': tx_data.banking_info.account_holder,
                 'iban': tx_data.banking_info.iban,
+                'account_number': tx_data.banking_info.account_number,
+                'swift_code': tx_data.banking_info.swift_code,
+                'routing_number': tx_data.banking_info.routing_number,
                 'bank_name': tx_data.banking_info.bank_name,
                 'bank_country': tx_data.banking_info.bank_country,
-                'bank_city': tx_data.banking_info.bank_city
+                'bank_city': tx_data.banking_info.bank_city,
+                'account_type': tx_data.banking_info.account_type
             }
         
         # Notify admin about withdrawal request
@@ -2094,7 +2102,7 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
                 'amount': tx_data.amount, 
                 'currency': tx_data.currency,
                 'bank_name': tx_data.banking_info.bank_name if tx_data.banking_info else 'N/A',
-                'iban_last4': tx_data.banking_info.iban[-4:] if tx_data.banking_info else 'N/A',
+                'iban_last4': tx_data.banking_info.iban[-4:] if tx_data.banking_info and tx_data.banking_info.iban else (tx_data.banking_info.account_number[-4:] if tx_data.banking_info and tx_data.banking_info.account_number else 'N/A'),
                 'tax_required': TAX_AMOUNT
             }
         )
@@ -2378,9 +2386,16 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
         data.extend([
             ['Titular de Cuenta:', banking_info.get('account_holder', 'N/A')],
             ['Banco:', banking_info.get('bank_name', 'N/A')],
-            ['IBAN:', banking_info.get('iban', 'N/A')],
-            ['País:', banking_info.get('bank_country', 'N/A')],
         ])
+        if banking_info.get('iban'):
+            data.append(['IBAN:', banking_info.get('iban')])
+        if banking_info.get('account_number'):
+            data.append(['Número de Cuenta:', banking_info.get('account_number')])
+        if banking_info.get('swift_code'):
+            data.append(['SWIFT/BIC:', banking_info.get('swift_code')])
+        if banking_info.get('routing_number'):
+            data.append(['Routing Number:', banking_info.get('routing_number')])
+        data.append(['País:', banking_info.get('bank_country', 'N/A')])
     
     # Add tax info if applicable
     if transaction.get('tax_paid'):
