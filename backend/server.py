@@ -4166,6 +4166,60 @@ async def get_market_trending():
         logging.error(f"CoinGecko trending error: {e}")
         return _market_cache['trending'] or {'coins': [], 'categories': []}
 
+# ==================== FINNHUB NEWS ====================
+
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "")
+_news_cache = {'general': None, 'general_ts': 0, 'crypto': None, 'crypto_ts': 0}
+
+@api_router.get("/market/news")
+async def get_market_news(category: str = "general"):
+    """Get market news from Finnhub (cached 300s). category: general, crypto, forex, merger"""
+    if category not in ("general", "crypto", "forex", "merger"):
+        category = "general"
+    
+    cache_key = category
+    now = datetime.now(timezone.utc).timestamp()
+    
+    if cache_key not in _news_cache:
+        _news_cache[cache_key] = None
+        _news_cache[f'{cache_key}_ts'] = 0
+    
+    if _news_cache.get(cache_key) and (now - _news_cache.get(f'{cache_key}_ts', 0)) < 300:
+        return _news_cache[cache_key]
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                "https://finnhub.io/api/v1/news",
+                params={'category': category, 'token': FINNHUB_API_KEY}
+            )
+            if resp.status_code == 200:
+                articles = resp.json()
+                result = []
+                for a in articles[:30]:
+                    result.append({
+                        'id': a.get('id'),
+                        'headline': a.get('headline', ''),
+                        'summary': a.get('summary', ''),
+                        'source': a.get('source', ''),
+                        'url': a.get('url', ''),
+                        'image': a.get('image', ''),
+                        'category': a.get('category', category),
+                        'datetime': a.get('datetime', 0),
+                        'related': a.get('related', ''),
+                    })
+                _news_cache[cache_key] = result
+                _news_cache[f'{cache_key}_ts'] = now
+                return result
+            elif resp.status_code == 429:
+                logging.warning("Finnhub rate limited")
+            else:
+                logging.warning(f"Finnhub news status {resp.status_code}")
+            return _news_cache.get(cache_key) or []
+    except Exception as e:
+        logging.error(f"Finnhub news error: {e}")
+        return _news_cache.get(cache_key) or []
+
 # ==================== CHATBOT ROUTES ====================
 
 class ChatMessage(BaseModel):

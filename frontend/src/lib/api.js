@@ -155,6 +155,7 @@ export const marketAPI = {
     getCrypto: () => api.get('/market/crypto'),
     getGlobal: () => api.get('/market/global'),
     getTrending: () => api.get('/market/trending'),
+    getNews: (category = 'general') => api.get('/market/news', { params: { category } }),
 };
 
 // Presence / Heartbeat
