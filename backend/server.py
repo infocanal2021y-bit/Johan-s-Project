@@ -1981,6 +1981,150 @@ async def reserve_investment(req: InvestmentRequest, current_user: dict = Depend
 
 # ==================== USER ACTIVITY TRACKING ====================
 
+# ==================== ACHIEVEMENTS SYSTEM ====================
+
+ACHIEVEMENTS_DEF = [
+    {'id': 'first_login', 'name': 'Primer Acceso', 'desc': 'Iniciar sesion por primera vez', 'icon': '🏆', 'category': 'basico'},
+    {'id': 'kyc_verified', 'name': 'Identidad Verificada', 'desc': 'Completar verificacion KYC', 'icon': '🔐', 'category': 'basico'},
+    {'id': 'first_investment', 'name': 'Primera Inversion', 'desc': 'Reservar fondos por primera vez', 'icon': '💰', 'category': 'inversion'},
+    {'id': 'first_withdrawal', 'name': 'Primer Retiro', 'desc': 'Solicitar primer retiro', 'icon': '📤', 'category': 'transacciones'},
+    {'id': 'streak_5', 'name': 'Racha de 5 Dias', 'desc': 'Acceder 5 dias consecutivos', 'icon': '🔥', 'category': 'actividad'},
+    {'id': 'active_user', 'name': 'Usuario Activo', 'desc': '10+ accesos en un mes', 'icon': '⭐', 'category': 'actividad'},
+    {'id': 'committed_investor', 'name': 'Inversor Comprometido', 'desc': 'Mantener inversion por 7+ dias', 'icon': '💎', 'category': 'inversion'},
+    {'id': 'level_plata', 'name': 'Nivel Plata', 'desc': 'Alcanzar nivel Plata', 'icon': '🥈', 'category': 'niveles'},
+    {'id': 'level_oro', 'name': 'Nivel Oro', 'desc': 'Alcanzar nivel Oro', 'icon': '🥇', 'category': 'niveles'},
+    {'id': 'level_platino', 'name': 'Nivel Platino', 'desc': 'Alcanzar nivel Platino', 'icon': '💠', 'category': 'niveles'},
+]
+
+async def check_and_unlock_achievements(user_id: str):
+    """Check all achievement conditions and unlock new ones. Returns list of newly unlocked."""
+    existing = await db.achievements.find({'user_id': user_id}, {'_id': 0}).to_list(100)
+    unlocked_ids = {a['achievement_id'] for a in existing}
+    newly_unlocked = []
+    
+    user = await db.users.find_one({'id': user_id}, {'_id': 0})
+    if not user:
+        return []
+    
+    async def unlock(ach_id):
+        if ach_id not in unlocked_ids:
+            await db.achievements.insert_one({
+                'user_id': user_id,
+                'achievement_id': ach_id,
+                'unlocked_at': datetime.now(timezone.utc).isoformat(),
+            })
+            ach_def = next((a for a in ACHIEVEMENTS_DEF if a['id'] == ach_id), None)
+            if ach_def:
+                newly_unlocked.append(ach_def)
+                await create_notification(user_id, f'Logro desbloqueado: {ach_def["name"]}!',
+                    f'{ach_def["icon"]} {ach_def["desc"]}')
+    
+    # 1. first_login - always true if user exists
+    await unlock('first_login')
+    
+    # 2. kyc_verified
+    if user.get('verification_status') == 'verified':
+        await unlock('kyc_verified')
+    
+    # 3. first_investment
+    inv_tx = await db.transactions.find_one({'user_id': user_id, 'transaction_type': 'investment_reserve'})
+    if inv_tx:
+        await unlock('first_investment')
+    
+    # 4. first_withdrawal
+    wd_tx = await db.transactions.find_one({'user_id': user_id, 'transaction_type': 'withdraw'})
+    if wd_tx:
+        await unlock('first_withdrawal')
+    
+    # 5. streak_5 - 5 consecutive days with login
+    since_7d = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    logins = await db.login_history.find(
+        {'user_id': user_id, 'timestamp': {'$gte': since_7d}},
+        {'_id': 0, 'timestamp': 1}
+    ).to_list(200)
+    if logins:
+        login_days = sorted(set(l['timestamp'][:10] for l in logins if isinstance(l.get('timestamp'), str)))
+        max_streak = 1
+        current_streak = 1
+        for i in range(1, len(login_days)):
+            try:
+                d1 = datetime.fromisoformat(login_days[i-1])
+                d2 = datetime.fromisoformat(login_days[i])
+                if (d2 - d1).days == 1:
+                    current_streak += 1
+                    max_streak = max(max_streak, current_streak)
+                else:
+                    current_streak = 1
+            except Exception:
+                pass
+        if max_streak >= 5:
+            await unlock('streak_5')
+    
+    # 6. active_user - 10+ logins in 30 days
+    since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    login_count = await db.login_history.count_documents({
+        'user_id': user_id, 'timestamp': {'$gte': since_30d}
+    })
+    if login_count >= 10:
+        await unlock('active_user')
+    
+    # 7. committed_investor - investment for 7+ days
+    first_inv = await db.transactions.find_one(
+        {'user_id': user_id, 'transaction_type': 'investment_reserve'},
+        sort=[('created_at', 1)]
+    )
+    if first_inv and first_inv.get('created_at'):
+        try:
+            inv_date = datetime.fromisoformat(first_inv['created_at'].replace('Z', '+00:00'))
+            if (datetime.now(timezone.utc) - inv_date).days >= 7:
+                await unlock('committed_investor')
+        except Exception:
+            pass
+    
+    # 8-10. Level achievements
+    level = user.get('gamification_level', 'bronce')
+    level_order = LEVEL_CONFIG.get(level, {}).get('order', 0)
+    if level_order >= 1:
+        await unlock('level_plata')
+    if level_order >= 2:
+        await unlock('level_oro')
+    if level_order >= 3:
+        await unlock('level_platino')
+    
+    return newly_unlocked
+
+@api_router.get("/user/achievements")
+async def get_user_achievements(current_user: dict = Depends(get_current_user)):
+    """Get all achievements with unlocked status"""
+    # Check and potentially unlock new ones
+    newly_unlocked = await check_and_unlock_achievements(current_user['id'])
+    
+    unlocked = await db.achievements.find({'user_id': current_user['id']}, {'_id': 0}).to_list(100)
+    unlocked_map = {a['achievement_id']: a['unlocked_at'] for a in unlocked}
+    
+    result = []
+    for ach in ACHIEVEMENTS_DEF:
+        result.append({
+            'id': ach['id'],
+            'name': ach['name'],
+            'desc': ach['desc'],
+            'icon': ach['icon'],
+            'category': ach['category'],
+            'unlocked': ach['id'] in unlocked_map,
+            'unlocked_at': unlocked_map.get(ach['id']),
+        })
+    
+    total = len(ACHIEVEMENTS_DEF)
+    completed = sum(1 for a in result if a['unlocked'])
+    
+    return {
+        'achievements': result,
+        'total': total,
+        'completed': completed,
+        'progress': round((completed / total) * 100) if total > 0 else 0,
+        'newly_unlocked': newly_unlocked,
+    }
+
 # ==================== GAMIFICATION / USER LEVELS ====================
 
 LEVEL_CONFIG = {

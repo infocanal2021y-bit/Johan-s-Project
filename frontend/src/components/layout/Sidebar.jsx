@@ -34,7 +34,8 @@ import {
     Radio,
     CandlestickChart,
     History,
-    Wifi
+    Wifi,
+    Trophy
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -66,6 +67,7 @@ export const Sidebar = () => {
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
+        { to: '/achievements', icon: Trophy, label: 'Logros' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
         { to: '/support', icon: HeadphonesIcon, label: 'Support' },
         { to: '/settings', icon: Settings, label: 'Settings' },

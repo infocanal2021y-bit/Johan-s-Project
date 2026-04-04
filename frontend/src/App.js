@@ -28,6 +28,7 @@ import { InvestmentComparatorPage } from "./pages/InvestmentComparatorPage";
 import { GlobalMarketMapPage } from "./pages/GlobalMarketMapPage";
 import { LiveMarketNewsPage } from "./pages/LiveMarketNewsPage";
 import { RealTimeMarketPage } from "./pages/RealTimeMarketPage";
+import { AchievementsPage } from "./pages/AchievementsPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -116,6 +117,7 @@ function AppRoutes() {
             <Route path="/global-market-map" element={<ProtectedRoute><GlobalMarketMapPage /></ProtectedRoute>} />
             <Route path="/live-news" element={<ProtectedRoute><LiveMarketNewsPage /></ProtectedRoute>} />
             <Route path="/realtime-market" element={<ProtectedRoute><RealTimeMarketPage /></ProtectedRoute>} />
+            <Route path="/achievements" element={<ProtectedRoute><AchievementsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
