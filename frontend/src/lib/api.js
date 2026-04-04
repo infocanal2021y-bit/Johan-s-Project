@@ -60,6 +60,15 @@ export const accountsAPI = {
     getAll: () => api.get('/accounts'),
     getById: (id) => api.get(`/accounts/${id}`),
     getSummary: () => api.get('/accounts/summary/total'),
+    invest: (data) => api.post('/accounts/invest', data),
+};
+
+// User Engagement API
+export const engagementAPI = {
+    trackActivity: (data) => api.post('/user/activity', data),
+    getActivityScore: () => api.get('/user/activity-score'),
+    markIncomplete: () => api.post('/user/mark-incomplete-process'),
+    resolveIncomplete: () => api.post('/user/resolve-incomplete-process'),
 };
 
 // Transactions API

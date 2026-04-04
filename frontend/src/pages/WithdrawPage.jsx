@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
-import { accountsAPI, transactionsAPI, authAPI } from '../lib/api';
+import { accountsAPI, transactionsAPI, authAPI, engagementAPI } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
+import { InvestmentPopup } from '../components/InvestmentPopup';
 
 // Banks grouped by country
 const BANKS_BY_COUNTRY = {
@@ -342,6 +343,14 @@ export const WithdrawPage = () => {
     // Detected info
     const [detectedCountry, setDetectedCountry] = useState(null);
     const [detectedBank, setDetectedBank] = useState(null);
+    
+    // Investment popup
+    const [showInvestPopup, setShowInvestPopup] = useState(false);
+    const [skipInvestment, setSkipInvestment] = useState(false);
+    
+    // Intent detection
+    const [activityScore, setActivityScore] = useState(null);
+    const [withdrawVisits, setWithdrawVisits] = useState(0);
 
     // Check KYC status on load
     useEffect(() => {
@@ -359,6 +368,16 @@ export const WithdrawPage = () => {
             }
         };
         checkKYC();
+    }, []);
+
+    // Track page visit and get activity score
+    useEffect(() => {
+        engagementAPI.trackActivity({ event_type: 'page_visit', page: '/withdraw' }).catch(() => {});
+        engagementAPI.markIncomplete().catch(() => {});
+        engagementAPI.getActivityScore().then(res => {
+            setActivityScore(res.data?.score || 'low');
+            setWithdrawVisits(res.data?.withdraw_visits || 0);
+        }).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -401,6 +420,43 @@ export const WithdrawPage = () => {
             setDetectedBank(null);
         }
     }, [iban]);
+
+    // Intercept submit to show investment popup first
+    const handleFormSubmit = (e) => {
+        e.preventDefault();
+        if (!skipInvestment) {
+            setShowInvestPopup(true);
+        } else {
+            handleSubmit(e);
+        }
+    };
+
+    const handleContinueWithdraw = () => {
+        setSkipInvestment(true);
+        // Let React re-render with skipInvestment=true, then submit
+        setTimeout(() => {
+            const form = document.getElementById('withdraw-form');
+            if (form) form.requestSubmit();
+        }, 100);
+    };
+
+    const handleInvested = async (investedAmount) => {
+        // Refresh accounts after investment
+        try {
+            const response = await accountsAPI.getAll();
+            setAccounts(response.data);
+        } catch {}
+    };
+
+    // Dynamic CTA message based on activity
+    const getCtaMessage = () => {
+        if (withdrawVisits >= 3) return 'Esta muy cerca de finalizar su proceso. Completelo ahora.';
+        if (activityScore === 'high') return 'Esta a un paso de completar su proceso';
+        if (activityScore === 'medium') return 'Continue su proceso de retiro';
+        return null;
+    };
+
+    const ctaMessage = getCtaMessage();
 
     const getSelectedAccountBalance = () => {
         const account = accounts.find(acc => acc.id === selectedAccount);
@@ -501,6 +557,7 @@ export const WithdrawPage = () => {
             // Save the created transaction and show tax payment screen
             setCreatedTransaction(response.data);
             setShowTaxPayment(true);
+            engagementAPI.resolveIncomplete().catch(() => {});
             toast.success('Solicitud de retiro creada. Debe pagar el impuesto para continuar.');
             
         } catch (error) {
@@ -941,6 +998,26 @@ export const WithdrawPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                 >
+                    {/* Dynamic CTA Banner - Intent Detection */}
+                    {ctaMessage && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`mb-4 p-4 rounded-lg border ${
+                                withdrawVisits >= 3
+                                    ? 'bg-emerald-500/15 border-emerald-500/40'
+                                    : 'bg-cyan-500/10 border-cyan-500/30'
+                            }`}
+                            data-testid="intent-cta-banner"
+                        >
+                            <p className={`text-sm font-medium ${
+                                withdrawVisits >= 3 ? 'text-emerald-400' : 'text-cyan-400'
+                            }`}>
+                                {ctaMessage}
+                            </p>
+                        </motion.div>
+                    )}
+
                     <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
                         <CardHeader>
                             <div className="flex items-center gap-3">
@@ -958,7 +1035,7 @@ export const WithdrawPage = () => {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                            <form id="withdraw-form" onSubmit={skipInvestment ? handleSubmit : handleFormSubmit} className="space-y-6">
                                 {/* Account & Amount Section */}
                                 <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700 space-y-4">
                                     <h3 className="text-white font-medium flex items-center gap-2">
@@ -1307,12 +1384,15 @@ export const WithdrawPage = () => {
 
                                 {/* Submit Button */}
                                 <Button
-                                    type="submit"
+                                    type={skipInvestment ? "submit" : "button"}
+                                    onClick={skipInvestment ? undefined : () => setShowInvestPopup(true)}
                                     disabled={loading || success || (accountMode === 'iban' && !ibanValid) || (accountMode === 'account' && !accountNumber.trim())}
                                     className={`w-full py-6 text-lg transition-all ${
                                         success 
                                             ? 'bg-emerald-600 hover:bg-emerald-600' 
-                                            : 'bg-red-500 hover:bg-red-600'
+                                            : withdrawVisits >= 3 
+                                                ? 'bg-emerald-500 hover:bg-emerald-600 ring-2 ring-emerald-400/30 ring-offset-2 ring-offset-slate-900'
+                                                : 'bg-red-500 hover:bg-red-600'
                                     } text-white`}
                                     style={{ fontWeight: 500 }}
                                     data-testid="withdraw-submit-btn"
@@ -1339,6 +1419,17 @@ export const WithdrawPage = () => {
                     </Card>
                 </motion.div>
             </div>
+
+            {/* Investment Popup */}
+            <InvestmentPopup
+                show={showInvestPopup}
+                onClose={() => setShowInvestPopup(false)}
+                onContinueWithdraw={handleContinueWithdraw}
+                accountId={selectedAccount}
+                balance={getSelectedAccountBalance()}
+                currency={currency}
+                onInvested={handleInvested}
+            />
         </Layout>
     );
 };

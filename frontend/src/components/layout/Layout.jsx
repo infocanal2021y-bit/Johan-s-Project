@@ -1,7 +1,15 @@
 import { Sidebar } from './Sidebar';
 import { ChatBot } from '../ChatBot';
+import { InactivityPrompt } from '../InactivityPrompt';
+import { useInactivityDetector } from '../../hooks/useInactivityDetector';
+import { useActivityTracker } from '../../hooks/useActivityTracker';
+import { useAuth } from '../../context/AuthContext';
 
 export const Layout = ({ children }) => {
+    const { user } = useAuth();
+    const { showPrompt, dismiss } = useInactivityDetector(75000);
+    useActivityTracker(!!user);
+
     return (
         <div className="min-h-screen bg-slate-950 noise-overlay">
             <Sidebar />
@@ -11,6 +19,7 @@ export const Layout = ({ children }) => {
                 </div>
             </main>
             <ChatBot />
+            {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
         </div>
     );
 };

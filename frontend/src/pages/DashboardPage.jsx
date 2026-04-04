@@ -200,13 +200,31 @@ export const DashboardPage = () => {
                         delay={0.1}
                     />
                     <BalanceCard
-                        title="Invertido (Ahorros)"
+                        title="Saldo en Inversion"
                         amount={getBalanceForCurrency(summary?.invested)}
                         currency={currency}
                         type="invested"
                         delay={0.2}
                     />
                 </div>
+
+                {/* Investment Status Banner */}
+                {getBalanceForCurrency(summary?.invested) > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3"
+                        data-testid="investment-status-banner"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <BadgeCheck className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                            <p className="text-emerald-400 text-sm font-medium">Fondos reservados para inversion futura</p>
+                            <p className="text-emerald-400/60 text-xs mt-0.5">Sus fondos de inversion estaran disponibles cuando se active la seccion de mercado financiero.</p>
+                        </div>
+                    </motion.div>
+                )}
 
                 {/* Transaction Chart */}
                 <TransactionChart />

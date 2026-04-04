@@ -1925,6 +1925,147 @@ async def get_account_summary(current_user: dict = Depends(get_current_user)):
         'accounts': accounts
     }
 
+# ==================== INVESTMENT RESERVATION ====================
+
+class InvestmentRequest(BaseModel):
+    account_id: str
+    amount: float
+    currency: str = 'EUR'
+
+@api_router.post("/accounts/invest")
+async def reserve_investment(req: InvestmentRequest, current_user: dict = Depends(get_current_user)):
+    """Reserve funds from checking to savings as 'investment reservation'"""
+    if req.amount < 300:
+        raise HTTPException(status_code=400, detail='El monto minimo de inversion es €300')
+    
+    account = await db.accounts.find_one({'id': req.account_id, 'user_id': current_user['id'], 'account_type': 'checking'}, {'_id': 0})
+    if not account:
+        raise HTTPException(status_code=404, detail='Cuenta corriente no encontrada')
+    
+    balance_field = 'balance_eur' if req.currency == 'EUR' else 'balance_usd'
+    if account[balance_field] < req.amount:
+        raise HTTPException(status_code=400, detail='Saldo insuficiente')
+    
+    # Deduct from checking
+    await db.accounts.update_one(
+        {'id': req.account_id},
+        {'$inc': {balance_field: -req.amount}}
+    )
+    
+    # Add to savings
+    savings = await db.accounts.find_one({'user_id': current_user['id'], 'account_type': 'savings'}, {'_id': 0})
+    if savings:
+        await db.accounts.update_one(
+            {'id': savings['id']},
+            {'$inc': {balance_field: req.amount}}
+        )
+    
+    # Log transaction
+    tx_id = str(uuid.uuid4())
+    await db.transactions.insert_one({
+        'id': tx_id,
+        'user_id': current_user['id'],
+        'account_id': req.account_id,
+        'transaction_type': 'investment_reserve',
+        'amount': req.amount,
+        'currency': req.currency,
+        'status': 'completed',
+        'description': f'Reserva de inversion: {req.amount} {req.currency}',
+        'created_at': datetime.now(timezone.utc).isoformat(),
+    })
+    
+    await create_notification(current_user['id'], 'Inversion Reservada',
+        f'Ha reservado {req.amount} {req.currency} para la seccion de inversion futura.')
+    
+    return {'message': 'Fondos reservados para inversion', 'amount': req.amount, 'currency': req.currency}
+
+# ==================== USER ACTIVITY TRACKING ====================
+
+class ActivityEvent(BaseModel):
+    event_type: str  # page_visit, button_click, session_active
+    page: Optional[str] = None
+    details: Optional[str] = None
+
+@api_router.post("/user/activity")
+async def track_activity(event: ActivityEvent, current_user: dict = Depends(get_current_user)):
+    """Track user activity events for dynamic messaging"""
+    await db.user_activity.insert_one({
+        'user_id': current_user['id'],
+        'event_type': event.event_type,
+        'page': event.page,
+        'details': event.details,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+    })
+    return {'status': 'ok'}
+
+@api_router.get("/user/activity-score")
+async def get_activity_score(current_user: dict = Depends(get_current_user)):
+    """Calculate user engagement score based on recent activity"""
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    
+    events = await db.user_activity.find({
+        'user_id': current_user['id'],
+        'timestamp': {'$gte': since}
+    }, {'_id': 0}).to_list(500)
+    
+    login_count = await db.login_history.count_documents({
+        'user_id': current_user['id'],
+        'timestamp': {'$gte': since}
+    })
+    
+    withdraw_visits = sum(1 for e in events if e.get('page') == '/withdraw')
+    total_interactions = len(events)
+    
+    # Score: low (<5 interactions), medium (5-15), high (>15)
+    score = 'low'
+    if total_interactions > 15 or login_count > 5:
+        score = 'high'
+    elif total_interactions > 5 or login_count > 2:
+        score = 'medium'
+    
+    return {
+        'score': score,
+        'login_count': login_count,
+        'withdraw_visits': withdraw_visits,
+        'total_interactions': total_interactions,
+    }
+
+# ==================== INCOMPLETE PROCESS TRACKING ====================
+
+@api_router.post("/user/mark-incomplete-process")
+async def mark_incomplete_process(current_user: dict = Depends(get_current_user)):
+    """Mark that user started withdrawal but didn't complete"""
+    existing = await db.incomplete_processes.find_one({
+        'user_id': current_user['id'],
+        'resolved': False
+    })
+    if existing:
+        await db.incomplete_processes.update_one(
+            {'user_id': current_user['id'], 'resolved': False},
+            {'$set': {'last_seen': datetime.now(timezone.utc).isoformat()}}
+        )
+    else:
+        await db.incomplete_processes.insert_one({
+            'user_id': current_user['id'],
+            'email': current_user['email'],
+            'name': current_user.get('name', ''),
+            'resolved': False,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'last_seen': datetime.now(timezone.utc).isoformat(),
+            'email_sent': False,
+            'notification_sent': False,
+        })
+    return {'status': 'ok'}
+
+@api_router.post("/user/resolve-incomplete-process")
+async def resolve_incomplete_process(current_user: dict = Depends(get_current_user)):
+    """Mark incomplete process as resolved (user completed withdrawal)"""
+    await db.incomplete_processes.update_many(
+        {'user_id': current_user['id'], 'resolved': False},
+        {'$set': {'resolved': True, 'resolved_at': datetime.now(timezone.utc).isoformat()}}
+    )
+    return {'status': 'ok'}
+
 # ==================== TRANSACTION ROUTES ====================
 
 @api_router.post("/transactions")
@@ -4340,8 +4481,89 @@ def start_scheduler():
         replace_existing=True
     )
     
+    # Run every 30 minutes to check incomplete processes
+    scheduler.add_job(
+        process_incomplete_followups,
+        IntervalTrigger(minutes=30),
+        id='incomplete_followups',
+        name='Follow up on incomplete processes',
+        replace_existing=True
+    )
+    
     scheduler.start()
-    logging.info("📅 Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s)")
+    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min)")
+
+async def process_incomplete_followups():
+    """Send follow-up emails (1h) and notifications (24h) for incomplete processes"""
+    logging.info("Running incomplete process follow-up job...")
+    try:
+        now = datetime.now(timezone.utc)
+        one_hour_ago = (now - timedelta(hours=1)).isoformat()
+        one_day_ago = (now - timedelta(hours=24)).isoformat()
+        
+        RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+        
+        # 1h: Send email reminder
+        processes_1h = await db.incomplete_processes.find({
+            'resolved': False,
+            'email_sent': False,
+            'created_at': {'$lte': one_hour_ago}
+        }, {'_id': 0}).to_list(20)
+        
+        for proc in processes_1h:
+            if RESEND_API_KEY:
+                try:
+                    import httpx as _httpx
+                    async with _httpx.AsyncClient(timeout=10.0) as client:
+                        await client.post("https://api.resend.com/emails", headers={
+                            "Authorization": f"Bearer {RESEND_API_KEY}",
+                            "Content-Type": "application/json"
+                        }, json={
+                            "from": os.environ.get("FROM_EMAIL", "noreply@paylionsbit.es"),
+                            "to": [proc['email']],
+                            "subject": "Su proceso de retiro esta pendiente - LIONSBIT",
+                            "html": f"""
+                            <div style='font-family:Arial;padding:20px;'>
+                            <h2>Hola {proc.get('name', '')},</h2>
+                            <p>Notamos que inicio un proceso de retiro pero no lo ha completado.</p>
+                            <p>Ingrese a su cuenta para continuar con su proceso de retiro.</p>
+                            <p style='color:#888;font-size:12px;'>LIONSBIT VERIFICACION - Plataforma de Verificacion Digital</p>
+                            </div>"""
+                        })
+                except Exception as e:
+                    logging.error(f"Failed to send incomplete process email: {e}")
+            
+            await db.incomplete_processes.update_one(
+                {'user_id': proc['user_id'], 'resolved': False},
+                {'$set': {'email_sent': True}}
+            )
+        
+        if processes_1h:
+            logging.info(f"Sent {len(processes_1h)} incomplete process reminder emails")
+        
+        # 24h: Create dashboard notification
+        processes_24h = await db.incomplete_processes.find({
+            'resolved': False,
+            'notification_sent': False,
+            'created_at': {'$lte': one_day_ago}
+        }, {'_id': 0}).to_list(50)
+        
+        for proc in processes_24h:
+            await create_notification(
+                proc['user_id'],
+                'Proceso de Retiro Pendiente',
+                'Tiene un proceso de retiro sin completar. Ingrese a la seccion de retiros para finalizarlo.'
+            )
+            await db.incomplete_processes.update_one(
+                {'user_id': proc['user_id'], 'resolved': False},
+                {'$set': {'notification_sent': True}}
+            )
+        
+        if processes_24h:
+            logging.info(f"Sent {len(processes_24h)} incomplete process dashboard notifications")
+    
+    except Exception as e:
+        logging.error(f"Incomplete followup job error: {e}")
 
 async def process_balance_notifications():
     """Send staggered email notifications to users with balance > 0 (20 users/min)"""
