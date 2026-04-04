@@ -18,53 +18,49 @@ Professional financial information and verification platform. Provides informati
 ### Investment Reservation System
 - Popup before withdrawal offering investment opportunity
 - 4-step flow: Offer > Amount (min €300) > Confirm > Success
-- Deducts from checking, adds to savings
 - Dashboard: "Saldo en Inversion" card + status banner
 
-### Gamification / User Levels System (NEW)
-- **Bronce** (Default): Basic access, standard processing
-- **Plata** (€2,500 or 5+ logins): Priority processing, higher limits
-- **Oro** (€10,000 or 15+ logins): Express processing, no limits, badge
-- **Platino** (€25,000 or active investment): Max priority, early access, dedicated support
-- Progress bar to next level with "Te faltan €X" message
-- Dynamic messages: close to level-up, low activity nudges
-- Level-up popup with celebration animation
-- Badge in sidebar next to username
-- Investment balance counts for level progression
-- Auto notifications on level-up
+### Gamification / User Levels
+- Bronce (default), Plata (€2,500/5 logins), Oro (€10,000/15 logins), Platino (€25,000/investment)
+- Progress bar, dynamic messages, level-up popup, sidebar badge
+- Investment counts for level progression
+
+### Achievements System (NEW)
+- 10 achievements across 5 categories:
+  - **Basicos**: Primer Acceso, Identidad Verificada
+  - **Transacciones**: Primer Retiro
+  - **Inversion**: Primera Inversion, Inversor Comprometido (7+ dias)
+  - **Actividad**: Racha 5 Dias, Usuario Activo (10+ accesos/mes)
+  - **Niveles**: Nivel Plata, Nivel Oro, Nivel Platino
+- Auto-detection on each API call
+- Celebration popup on new unlock
+- Progress bar: X/10 (XX% completado)
+- Locked (gray/lock) vs Unlocked (gold/date) visual states
+- Notifications on unlock
 
 ### User Engagement System
-- Inactivity Detection: 75s idle timer shows help popup
-- Activity Tracking: Page visits, clicks, session duration
-- Activity Score: low/medium/high based on 7-day data
-- Intent Detection: Dynamic CTAs (2-3+ withdraw visits = stronger messages)
-- Incomplete Process Tracking + Multichannel Follow-up (email 1h, notification 24h)
+- Inactivity Detection (75s popup), Activity Tracking, Intent Detection
+- Incomplete Process Follow-up (email 1h, notification 24h)
 
 ### Market Data
-- CoinGecko: Top coins, global stats, trending
-- Finnhub: Real-time news (General, Crypto, Forex, Merger)
-- TradingView Advanced Chart Widget
+- CoinGecko, Finnhub News, TradingView Widget
 
-### Other Features
-- Bitcoin Tax Payment System (BTC validation, wallet links, TXID tracking)
-- FAQ Chatbot (9 categories), Support Ticketing
-- Background Jobs: APScheduler (tax reminders, auto-rejection, balance notifications, incomplete followups)
+### Other
+- Bitcoin Tax Payment, FAQ Chatbot, Support Ticketing
+- Background Jobs: APScheduler (tax, rejection, notifications, followups)
 
 ## Tech Stack
-- Frontend: React, TailwindCSS, Framer Motion, Chart.js
-- Backend: FastAPI, APScheduler
-- Database: MongoDB
+- Frontend: React, TailwindCSS, Framer Motion
+- Backend: FastAPI, APScheduler, MongoDB
 - Auth: JWT with RBAC
-- Email: Resend API
-- Market Data: CoinGecko API, Finnhub API
+- APIs: Resend, CoinGecko, Finnhub
 
 ## Credentials
 - Admin: admi@paylionsbit.es / LionsBit2026!
-- Backup Admin: admin.backup@paylionsbit.es / LionsBit2026!Backup
-- Test User (Bronce): test.bronce@test.com / Test1234!
+- Test User: test.bronce@test.com / Test1234!
 
 ## Backlog
-- P2: Refactor monolithic server.py (~4900 lines) into modules
+- P2: Refactor monolithic server.py (~5000 lines)
 
 ---
 Last Updated: April 4, 2026
