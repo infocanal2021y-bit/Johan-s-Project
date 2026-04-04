@@ -1981,6 +1981,144 @@ async def reserve_investment(req: InvestmentRequest, current_user: dict = Depend
 
 # ==================== USER ACTIVITY TRACKING ====================
 
+# ==================== GAMIFICATION / USER LEVELS ====================
+
+LEVEL_CONFIG = {
+    'bronce': {'min_balance': 0, 'min_logins': 0, 'label': 'Bronce', 'icon': '🥉', 'order': 0,
+               'benefits': ['Acceso basico a la plataforma', 'Tiempo de procesamiento estandar']},
+    'plata': {'min_balance': 2500, 'min_logins': 5, 'label': 'Plata', 'icon': '🥈', 'order': 1,
+              'benefits': ['Procesamiento prioritario', 'Limites de retiro mas altos', 'Soporte preferente']},
+    'oro': {'min_balance': 10000, 'min_logins': 15, 'label': 'Oro', 'icon': '🥇', 'order': 2,
+            'benefits': ['Procesamiento express', 'Sin limites de retiro', 'Badge visible en perfil', 'Alertas avanzadas']},
+    'platino': {'min_balance': 25000, 'min_logins': 0, 'label': 'Platino', 'icon': '💎', 'order': 3,
+                'benefits': ['Maxima prioridad', 'Acceso anticipado a nuevas funciones', 'Soporte dedicado', 'Beneficios exclusivos']},
+}
+
+def calculate_user_level(total_balance_eur: float, login_count: int, has_investment: bool):
+    """Calculate user level based on balance + logins + investment"""
+    # Platino: balance >= 25000 OR active investment with balance >= 25000
+    if total_balance_eur >= 25000 or (has_investment and total_balance_eur >= 25000):
+        return 'platino'
+    # Oro: balance >= 10000 OR 15+ logins
+    if total_balance_eur >= 10000 or login_count >= 15:
+        return 'oro'
+    # Plata: balance >= 2500 OR 5+ logins
+    if total_balance_eur >= 2500 or login_count >= 5:
+        return 'plata'
+    return 'bronce'
+
+def get_next_level_info(current_level: str, total_balance_eur: float, login_count: int):
+    """Get progress toward next level"""
+    levels = ['bronce', 'plata', 'oro', 'platino']
+    idx = levels.index(current_level)
+    if idx >= len(levels) - 1:
+        return None  # Already max level
+    
+    next_lvl = levels[idx + 1]
+    cfg = LEVEL_CONFIG[next_lvl]
+    
+    balance_needed = max(0, cfg['min_balance'] - total_balance_eur)
+    logins_needed = max(0, cfg['min_logins'] - login_count) if cfg['min_logins'] > 0 else None
+    
+    # Progress percentage (based on balance toward next level)
+    if cfg['min_balance'] > 0:
+        prev_min = LEVEL_CONFIG[current_level]['min_balance']
+        range_total = cfg['min_balance'] - prev_min
+        progress_amount = total_balance_eur - prev_min
+        balance_progress = min(100, max(0, (progress_amount / range_total) * 100)) if range_total > 0 else 0
+    else:
+        balance_progress = 0
+    
+    # Login progress
+    if cfg['min_logins'] > 0:
+        prev_logins = LEVEL_CONFIG[current_level].get('min_logins', 0)
+        range_logins = cfg['min_logins'] - prev_logins
+        login_progress = min(100, max(0, ((login_count - prev_logins) / range_logins) * 100)) if range_logins > 0 else 0
+    else:
+        login_progress = 0
+    
+    overall_progress = max(balance_progress, login_progress)
+    
+    return {
+        'next_level': next_lvl,
+        'next_label': cfg['label'],
+        'next_icon': cfg['icon'],
+        'balance_needed': round(balance_needed, 2),
+        'logins_needed': logins_needed,
+        'progress': round(overall_progress, 1),
+        'next_benefits': cfg['benefits'],
+    }
+
+@api_router.get("/user/level")
+async def get_user_level(current_user: dict = Depends(get_current_user)):
+    """Get user's gamification level, progress, and dynamic messages"""
+    # Calculate total balance (checking + savings)
+    accounts = await db.accounts.find({'user_id': current_user['id']}, {'_id': 0}).to_list(100)
+    total_eur = sum(acc.get('balance_eur', 0) for acc in accounts)
+    total_usd = sum(acc.get('balance_usd', 0) for acc in accounts)
+    
+    savings = next((acc for acc in accounts if acc['account_type'] == 'savings'), None)
+    has_investment = (savings and (savings.get('balance_eur', 0) > 0 or savings.get('balance_usd', 0) > 0))
+    investment_eur = savings.get('balance_eur', 0) if savings else 0
+    
+    # Count logins in last 30 days
+    since_30d = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    login_count = await db.login_history.count_documents({
+        'user_id': current_user['id'],
+        'timestamp': {'$gte': since_30d}
+    })
+    
+    current_level = calculate_user_level(total_eur, login_count, has_investment)
+    next_info = get_next_level_info(current_level, total_eur, login_count)
+    cfg = LEVEL_CONFIG[current_level]
+    
+    # Check for level-up
+    stored_level = current_user.get('gamification_level', 'bronce')
+    leveled_up = False
+    if LEVEL_CONFIG[current_level]['order'] > LEVEL_CONFIG.get(stored_level, LEVEL_CONFIG['bronce'])['order']:
+        leveled_up = True
+        await db.users.update_one(
+            {'id': current_user['id']},
+            {'$set': {'gamification_level': current_level}}
+        )
+        await create_notification(
+            current_user['id'],
+            f'Has subido a nivel {cfg["label"]}!',
+            f'Felicidades! Ahora eres nivel {cfg["label"]} {cfg["icon"]}. Disfruta de tus nuevos beneficios.'
+        )
+    elif stored_level != current_level:
+        await db.users.update_one(
+            {'id': current_user['id']},
+            {'$set': {'gamification_level': current_level}}
+        )
+    
+    # Dynamic message
+    message = None
+    if next_info:
+        if next_info['progress'] >= 80:
+            message = f'Estas muy cerca de subir a {next_info["next_label"]}!'
+        elif next_info['progress'] >= 50:
+            message = f'Te faltan €{next_info["balance_needed"]:,.0f} para alcanzar {next_info["next_label"]}'
+        elif next_info['progress'] < 20:
+            message = 'Completa tu proceso para mejorar tus beneficios'
+    
+    return {
+        'level': current_level,
+        'label': cfg['label'],
+        'icon': cfg['icon'],
+        'benefits': cfg['benefits'],
+        'order': cfg['order'],
+        'total_balance_eur': round(total_eur, 2),
+        'investment_eur': round(investment_eur, 2),
+        'login_count_30d': login_count,
+        'has_investment': bool(has_investment),
+        'next': next_info,
+        'leveled_up': leveled_up,
+        'message': message,
+    }
+
+# ==================== USER ACTIVITY TRACKING ====================
+
 class ActivityEvent(BaseModel):
     event_type: str  # page_visit, button_click, session_active
     page: Optional[str] = None

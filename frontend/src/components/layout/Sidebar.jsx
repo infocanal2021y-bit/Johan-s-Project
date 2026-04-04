@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationBell } from '../NotificationBell';
+import { LevelBadge } from '../dashboard/LevelBadge';
 import { 
     LayoutDashboard, 
     Wallet, 
@@ -176,7 +177,10 @@ export const Sidebar = () => {
                             <p className="text-sm text-white truncate" style={{ fontWeight: 500 }}>{user?.name}</p>
                             {getVerificationBadge()}
                         </div>
-                        <p className="text-xs text-slate-500 truncate font-light">{user?.email}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-xs text-slate-500 truncate font-light">{user?.email}</p>
+                        </div>
+                        {!isAdmin && <div className="mt-1"><LevelBadge /></div>}
                     </div>
                     {isAdmin && (
                         <span className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 rounded" style={{ fontWeight: 500 }}>

@@ -4,6 +4,7 @@ import { Layout } from '../components/layout/Layout';
 import { BalanceCard } from '../components/dashboard/BalanceCard';
 import { RecentTransactions } from '../components/dashboard/RecentTransactions';
 import { TransactionChart } from '../components/dashboard/TransactionChart';
+import { UserLevelCard } from '../components/dashboard/UserLevelCard';
 import { accountsAPI, transactionsAPI, kycAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -225,6 +226,9 @@ export const DashboardPage = () => {
                         </div>
                     </motion.div>
                 )}
+
+                {/* User Level Card */}
+                <UserLevelCard />
 
                 {/* Transaction Chart */}
                 <TransactionChart />

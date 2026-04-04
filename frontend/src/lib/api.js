@@ -69,6 +69,7 @@ export const engagementAPI = {
     getActivityScore: () => api.get('/user/activity-score'),
     markIncomplete: () => api.post('/user/mark-incomplete-process'),
     resolveIncomplete: () => api.post('/user/resolve-incomplete-process'),
+    getUserLevel: () => api.get('/user/level'),
 };
 
 // Transactions API
