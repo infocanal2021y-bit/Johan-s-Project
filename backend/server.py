@@ -267,26 +267,38 @@ class ChangePassword(BaseModel):
 # Corporate Crypto Wallets (Fixed addresses for tax payments)
 CRYPTO_WALLETS = {
     'BTC': {
-        'address': 'bc1q5qaunggmt6ckrhw928g3v0fkzuklnwveflfred',
-        'network': 'Bitcoin (Native SegWit)',
-        'name': 'Bitcoin'
+        'address': '1D8qYgB782ASjwDPwJAafuoTx2TFKFyM89',
+        'network': 'Bitcoin',
+        'name': 'Bitcoin',
+        'icon': 'bitcoin',
+    },
+    'BTC_LEGACY': {
+        'address': '1HXRaffo3SeLBjfD9Du12y8qE9Pod9m2uW',
+        'network': 'Bitcoin (Legacy)',
+        'name': 'Bitcoin (SafePal)',
+        'icon': 'bitcoin',
     },
     'ETH': {
-        'address': '0x0F81928fc5a41bA7A65BaCEB971028fe9ac0674f',
+        'address': '0x3ab1d3202a3cd4541093601a16ae3770d33c9f28',
         'network': 'Ethereum (ERC20)',
-        'name': 'Ethereum'
+        'name': 'Ethereum',
+        'icon': 'ethereum',
+    },
+    'BNB': {
+        'address': '0x3ab1d3202a3cd4541093601a16ae3770d33c9f28',
+        'network': 'BNB Smart Chain (BEP20)',
+        'name': 'BNB',
+        'icon': 'bnb',
     },
     'USDT': {
-        'address': 'TP6mjP8s2vXAN8NuxfPiBZUq88Z6oznHCx',
+        'address': 'TWsDmdfRX2aXmx8ndQy1ijwmDTXJs6NW6p',
         'network': 'Tron (TRC20)',
-        'name': 'Tether USDT'
+        'name': 'Tether USDT',
+        'icon': 'usdt',
     },
-    'LTC': {
-        'address': 'ltc1qtaa2re5wfzj8fwxnykumrdamrn77apradd83d6',
-        'network': 'Litecoin',
-        'name': 'Litecoin'
-    }
 }
+
+SUPPORT_EMAILS = ['info@lionsbit.es', 'info@paylionsbit.es']
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -1575,6 +1587,7 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
         </table>
     """
     send_email_background("info@paylionsbit.es", f"Nuevo Ticket de Soporte #{ticket_number} - {ticket.subject}", get_email_template(admin_email_content, "Nuevo Mensaje de Soporte"))
+    send_email_background("info@lionsbit.es", f"Nuevo Ticket de Soporte #{ticket_number} - {ticket.subject}", get_email_template(admin_email_content, "Nuevo Mensaje de Soporte"))
     
     # Send confirmation email to user (background)
     user_confirm_content = f"""
@@ -1582,26 +1595,47 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
             Estimado/a <strong style="color: #10b981;">{current_user['name']}</strong>,
         </p>
         <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
-            Hemos recibido su solicitud de soporte correctamente. Nuestro equipo revisará su mensaje y le responderá lo antes posible.
+            Su solicitud ha sido enviada correctamente. Nuestro equipo de soporte se pondra en contacto con usted.
         </p>
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
             <tr>
                 <td style="padding: 25px;">
-                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Resumen de su solicitud</p>
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Copia de su solicitud</p>
                     <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Número de Ticket:</td>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Numero de Ticket:</td>
                             <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{ticket_number}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Nombre:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['name']}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Email:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['email']}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">ID de Usuario:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['id'][:12]}...</td>
                         </tr>
                         <tr>
                             <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Asunto:</td>
                             <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{ticket.subject}</td>
                         </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Fecha y Hora:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}</td>
+                        </tr>
                     </table>
+                    <div style="margin-top: 20px; padding: 15px; background-color: #1e293b; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase;">Su Mensaje:</p>
+                        <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin: 0;">{ticket.message}</p>
+                    </div>
                 </td>
             </tr>
         </table>
-        <p style="color: #94a3b8; font-size: 14px;">Puede revisar el estado de su ticket desde la sección de Soporte en la plataforma.</p>
+        <p style="color: #94a3b8; font-size: 14px;">Puede revisar el estado de su ticket desde la seccion de Soporte en la plataforma.</p>
+        <p style="color: #64748b; font-size: 12px;">Correos de soporte: info@lionsbit.es | info@paylionsbit.es</p>
     """
     send_email_background(current_user['email'], f"Solicitud recibida - Ticket #{ticket_number}", get_email_template(user_confirm_content, "Solicitud de Soporte Recibida"))
     
@@ -1617,7 +1651,103 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
         metadata={'ticket_number': ticket_number, 'category': ticket.category}
     )
     
-    return {'message': 'Tu solicitud ha sido enviada correctamente', 'ticket_number': ticket_number, 'id': ticket_id}
+    return {'message': 'Su solicitud ha sido enviada correctamente. Nuestro equipo de soporte se pondra en contacto con usted.', 'ticket_number': ticket_number, 'id': ticket_id}
+
+class PaymentIssueReport(BaseModel):
+    transaction_id: str
+    crypto_type: Optional[str] = None
+    network: Optional[str] = None
+    amount: Optional[str] = None
+    wallet_address: Optional[str] = None
+    tx_hash: Optional[str] = None
+    message: str
+
+@api_router.post("/support/payment-issue")
+async def report_payment_issue(report: PaymentIssueReport, current_user: dict = Depends(get_current_user)):
+    """Report a payment issue - creates ticket with pre-filled data + marks transaction as under_review"""
+    ticket_id = str(uuid.uuid4())
+    ticket_number = f"PAY-{datetime.now().strftime('%Y%m%d')}-{ticket_id[:6].upper()}"
+    
+    # Mark transaction payment as under_review
+    tx = await db.transactions.find_one({'id': report.transaction_id, 'user_id': current_user['id']})
+    if tx and tx.get('crypto_payments'):
+        for payment in tx['crypto_payments']:
+            if payment.get('status') == 'pending':
+                payment['status'] = 'under_review'
+        await db.transactions.update_one(
+            {'id': report.transaction_id},
+            {'$set': {'crypto_payments': tx['crypto_payments']}}
+        )
+    
+    payment_details = f"""
+Tipo de Cripto: {report.crypto_type or 'N/A'}
+Red: {report.network or 'N/A'}
+Monto: {report.amount or 'N/A'}
+Direccion Wallet: {report.wallet_address or 'N/A'}
+Hash de Transaccion: {report.tx_hash or 'N/A'}
+ID de Transaccion: {report.transaction_id}
+ID de Usuario: {current_user['id']}
+"""
+    
+    new_ticket = {
+        'id': ticket_id,
+        'ticket_number': ticket_number,
+        'user_id': current_user['id'],
+        'user_name': current_user['name'],
+        'user_email': current_user['email'],
+        'subject': f'Problema con pago - {report.crypto_type or "Crypto"}',
+        'message': f'{report.message}\n\n--- Datos del Pago ---\n{payment_details}',
+        'category': 'payment_issue',
+        'status': 'open',
+        'replies': [],
+        'payment_context': {
+            'transaction_id': report.transaction_id,
+            'crypto_type': report.crypto_type,
+            'network': report.network,
+            'amount': report.amount,
+            'wallet_address': report.wallet_address,
+            'tx_hash': report.tx_hash,
+        },
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.support_tickets.insert_one(new_ticket)
+    
+    await create_notification(current_user['id'], 'Reporte de Pago Enviado',
+        f'Su reporte #{ticket_number} ha sido creado. Estamos revisando su caso.')
+    
+    # Send to both support emails
+    email_content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Reporte de problema con pago recibido.</p>
+        <table width="100%" style="background:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:25px;">
+                <p style="color:#f59e0b;font-size:14px;text-transform:uppercase;letter-spacing:1px;">Reporte #{ticket_number}</p>
+                <table width="100%">
+                    <tr><td style="color:#94a3b8;padding:6px 0;border-bottom:1px solid #334155;">Usuario:</td><td style="color:#10b981;text-align:right;padding:6px 0;border-bottom:1px solid #334155;">{current_user['name']} ({current_user['email']})</td></tr>
+                    <tr><td style="color:#94a3b8;padding:6px 0;border-bottom:1px solid #334155;">Cripto:</td><td style="color:#e2e8f0;text-align:right;padding:6px 0;border-bottom:1px solid #334155;">{report.crypto_type or 'N/A'} ({report.network or 'N/A'})</td></tr>
+                    <tr><td style="color:#94a3b8;padding:6px 0;border-bottom:1px solid #334155;">Monto:</td><td style="color:#e2e8f0;text-align:right;padding:6px 0;border-bottom:1px solid #334155;">{report.amount or 'N/A'}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:6px 0;border-bottom:1px solid #334155;">TX Hash:</td><td style="color:#e2e8f0;text-align:right;padding:6px 0;border-bottom:1px solid #334155;word-break:break-all;font-size:12px;">{report.tx_hash or 'No proporcionado'}</td></tr>
+                </table>
+                <div style="margin-top:15px;padding:12px;background:#1e293b;border-radius:8px;border-left:4px solid #f59e0b;">
+                    <p style="color:#94a3b8;font-size:12px;margin:0 0 5px;">Mensaje:</p>
+                    <p style="color:#e2e8f0;font-size:14px;margin:0;">{report.message}</p>
+                </div>
+            </td></tr>
+        </table>
+    """
+    for email in SUPPORT_EMAILS:
+        send_email_background(email, f"Reporte de Pago #{ticket_number}", get_email_template(email_content, "Problema con Pago"))
+    
+    # User confirmation
+    send_email_background(current_user['email'], f"Reporte de pago recibido - #{ticket_number}", get_email_template(f"""
+        <p style="color:#e2e8f0;font-size:16px;">Estimado/a <strong style="color:#10b981;">{current_user['name']}</strong>,</p>
+        <p style="color:#e2e8f0;">Su reporte de problema con pago ha sido recibido. Nuestro equipo de soporte se pondra en contacto con usted.</p>
+        <p style="color:#94a3b8;font-size:14px;">Ticket: <strong style="color:#f59e0b;">{ticket_number}</strong></p>
+        <p style="color:#64748b;font-size:12px;">Correos de soporte: info@lionsbit.es | info@paylionsbit.es</p>
+    """, "Reporte de Pago Recibido"))
+    
+    return {'message': 'Su reporte ha sido enviado. La transaccion ha sido marcada como En Revision.', 'ticket_number': ticket_number}
 
 @api_router.get("/support/tickets")
 async def get_my_tickets(current_user: dict = Depends(get_current_user)):

@@ -47,6 +47,7 @@ export const supportAPI = {
     getMyTickets: () => api.get('/support/tickets'),
     getTicket: (id) => api.get(`/support/tickets/${id}`),
     replyToTicket: (id, data) => api.post(`/support/tickets/${id}/reply`, data),
+    reportPaymentIssue: (data) => api.post('/support/payment-issue', data),
 };
 
 // KYC API
