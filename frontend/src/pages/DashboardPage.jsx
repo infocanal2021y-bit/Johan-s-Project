@@ -8,8 +8,9 @@ import { UserLevelCard } from '../components/dashboard/UserLevelCard';
 import { accountsAPI, transactionsAPI, kycAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert } from 'lucide-react';
+import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
@@ -20,18 +21,21 @@ export const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
     const [currency, setCurrency] = useState('USD');
     const [kycStatus, setKycStatus] = useState(null);
+    const [investHistory, setInvestHistory] = useState(null);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [summaryRes, txRes, kycRes] = await Promise.all([
+            const [summaryRes, txRes, kycRes, investRes] = await Promise.all([
                 accountsAPI.getSummary(),
                 transactionsAPI.getAll({ limit: 10 }),
                 kycAPI.getStatus(),
+                accountsAPI.getInvestmentHistory().catch(() => ({ data: null })),
             ]);
             setSummary(summaryRes.data);
             setTransactions(txRes.data);
             setKycStatus(kycRes.data);
+            setInvestHistory(investRes.data);
         } catch (error) {
             toast.error('Failed to load dashboard data');
         } finally {
@@ -209,23 +213,103 @@ export const DashboardPage = () => {
                     />
                 </div>
 
-                {/* Investment Status Banner */}
-                {getBalanceForCurrency(summary?.invested) > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3"
-                        data-testid="investment-status-banner"
-                    >
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                            <BadgeCheck className="w-4 h-4 text-emerald-400" />
-                        </div>
-                        <div>
-                            <p className="text-emerald-400 text-sm font-medium">Fondos reservados para inversion futura</p>
-                            <p className="text-emerald-400/60 text-xs mt-0.5">Sus fondos de inversion estaran disponibles cuando se active la seccion de mercado financiero.</p>
-                        </div>
-                    </motion.div>
-                )}
+                {/* Wallet de Inversion */}
+                <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    <Card className="bg-slate-900/70 border-slate-800" data-testid="investment-wallet-card">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-white text-base flex items-center gap-2">
+                                <Wallet className="w-5 h-5 text-emerald-400" />
+                                Wallet de Inversion
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Investment Balance */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                                    <p className="text-xs text-slate-500">Saldo Invertido</p>
+                                    <p className="text-xl font-bold text-emerald-400 font-mono mt-1" data-testid="invested-balance">
+                                        {currency === 'EUR' ? '€' : '$'}
+                                        {(currency === 'EUR'
+                                            ? (investHistory?.total_invested_eur || 0)
+                                            : (investHistory?.total_invested_usd || 0)
+                                        ).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                                    <p className="text-xs text-slate-500">Estado</p>
+                                    <p className="text-sm font-medium text-amber-400 mt-1 flex items-center gap-1.5" data-testid="investment-status">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        {investHistory?.status || 'Sin inversiones'}
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                                    <p className="text-xs text-slate-500">Operaciones</p>
+                                    <p className="text-xl font-bold text-white font-mono mt-1" data-testid="investment-count">
+                                        {investHistory?.count || 0}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Status Message */}
+                            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
+                                <TrendingUp className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <p className="text-emerald-400 text-sm font-medium">
+                                        {(investHistory?.total_invested_eur > 0 || investHistory?.total_invested_usd > 0)
+                                            ? 'Fondos reservados'
+                                            : 'Invierta desde la seccion de retiro'}
+                                    </p>
+                                    <p className="text-emerald-400/60 text-xs mt-0.5">
+                                        Disponible proximamente para inversion en mercado financiero
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Recent Investment History */}
+                            {investHistory?.history?.length > 0 && (
+                                <div className="space-y-2">
+                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Historial de Inversiones</p>
+                                    <div className="space-y-1.5">
+                                        {investHistory.history.slice(0, 5).map((inv) => (
+                                            <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors" data-testid={`invest-history-${inv.id}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                                                        <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-slate-300 text-sm font-medium">{inv.type}</p>
+                                                        <p className="text-slate-500 text-xs">
+                                                            {new Date(inv.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-emerald-400 font-mono text-sm font-medium">
+                                                        +{inv.currency === 'EUR' ? '€' : '$'}{inv.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                                    </p>
+                                                    <p className="text-xs text-emerald-500/60">Completado</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CTA if no investments */}
+                            {(!investHistory?.history || investHistory.history.length === 0) && (
+                                <Link to="/withdraw">
+                                    <Button variant="outline" className="w-full border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" data-testid="invest-cta-btn">
+                                        <Wallet className="w-4 h-4 mr-2" />
+                                        Invertir desde la seccion de retiro
+                                    </Button>
+                                </Link>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
                 {/* User Level Card */}
                 <UserLevelCard />

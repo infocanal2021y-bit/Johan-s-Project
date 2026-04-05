@@ -62,6 +62,7 @@ export const accountsAPI = {
     getById: (id) => api.get(`/accounts/${id}`),
     getSummary: () => api.get('/accounts/summary/total'),
     invest: (data) => api.post('/accounts/invest', data),
+    getInvestmentHistory: () => api.get('/accounts/investment-history'),
 };
 
 // User Engagement API

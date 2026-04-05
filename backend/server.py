@@ -2026,13 +2026,6 @@ async def get_accounts(current_user: dict = Depends(get_current_user)):
     accounts = await db.accounts.find({'user_id': current_user['id']}, {'_id': 0}).to_list(100)
     return [AccountResponse(**acc) for acc in accounts]
 
-@api_router.get("/accounts/{account_id}", response_model=AccountResponse)
-async def get_account(account_id: str, current_user: dict = Depends(get_current_user)):
-    account = await db.accounts.find_one({'id': account_id, 'user_id': current_user['id']}, {'_id': 0})
-    if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
-    return AccountResponse(**account)
-
 @api_router.get("/accounts/summary/total")
 async def get_account_summary(current_user: dict = Depends(get_current_user)):
     accounts = await db.accounts.find({'user_id': current_user['id']}, {'_id': 0}).to_list(100)
@@ -2054,6 +2047,43 @@ async def get_account_summary(current_user: dict = Depends(get_current_user)):
         'invested': {'usd': invested_usd, 'eur': invested_eur},
         'accounts': accounts
     }
+
+@api_router.get("/accounts/investment-history")
+async def get_investment_history(current_user: dict = Depends(get_current_user)):
+    """Get investment reservation history for current user"""
+    investments = await db.transactions.find(
+        {'user_id': current_user['id'], 'transaction_type': 'investment_reserve'},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(100)
+
+    savings = await db.accounts.find_one(
+        {'user_id': current_user['id'], 'account_type': 'savings'}, {'_id': 0}
+    )
+    total_invested_eur = savings.get('balance_eur', 0) if savings else 0
+    total_invested_usd = savings.get('balance_usd', 0) if savings else 0
+
+    return {
+        'total_invested_eur': round(total_invested_eur, 2),
+        'total_invested_usd': round(total_invested_usd, 0),
+        'status': 'Fondos reservados' if (total_invested_eur > 0 or total_invested_usd > 0) else 'Sin inversiones',
+        'count': len(investments),
+        'history': [{
+            'id': inv.get('id'),
+            'amount': inv.get('amount', 0),
+            'currency': inv.get('currency', 'EUR'),
+            'status': inv.get('status', 'completed'),
+            'description': inv.get('description', ''),
+            'type': 'Reserva para inversion',
+            'created_at': inv.get('created_at'),
+        } for inv in investments],
+    }
+
+@api_router.get("/accounts/{account_id}", response_model=AccountResponse)
+async def get_account(account_id: str, current_user: dict = Depends(get_current_user)):
+    account = await db.accounts.find_one({'id': account_id, 'user_id': current_user['id']}, {'_id': 0})
+    if not account:
+        raise HTTPException(status_code=404, detail='Account not found')
+    return AccountResponse(**account)
 
 # ==================== INVESTMENT RESERVATION ====================
 

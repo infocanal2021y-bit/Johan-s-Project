@@ -98,10 +98,10 @@ export const InvestmentPopup = ({ show, onClose, onContinueWithdraw, accountId, 
                                         Proximamente estara disponible la seccion de inversion en el mercado financiero.
                                     </p>
                                     <p className="text-white text-sm mt-3 font-medium">
-                                        Puede mantener un saldo minimo de <span className="text-emerald-400">€300</span> en su cuenta para participar en la apertura.
+                                        Puede mantener un saldo minimo de <span className="text-emerald-400">€300</span> en su cuenta para participar.
                                     </p>
                                     <p className="text-cyan-400 text-sm mt-2 font-medium">
-                                        Desea formar parte?
+                                        ¿Desea invertir parte de su saldo?
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -110,7 +110,7 @@ export const InvestmentPopup = ({ show, onClose, onContinueWithdraw, accountId, 
                                         className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-5"
                                         data-testid="invest-yes-btn"
                                     >
-                                        SI, PARTICIPAR
+                                        Si, invertir
                                     </Button>
                                     <Button
                                         onClick={() => { handleClose(); onContinueWithdraw(); }}
@@ -118,7 +118,7 @@ export const InvestmentPopup = ({ show, onClose, onContinueWithdraw, accountId, 
                                         className="border-slate-700 text-slate-300 hover:bg-slate-800 font-semibold py-5"
                                         data-testid="invest-no-btn"
                                     >
-                                        NO, CONTINUAR RETIRO
+                                        No, continuar retiro
                                     </Button>
                                 </div>
                             </div>
@@ -191,10 +191,10 @@ export const InvestmentPopup = ({ show, onClose, onContinueWithdraw, accountId, 
                                         <AlertTriangle className="w-4 h-4" /> Confirmar Inversion
                                     </p>
                                     <p className="text-slate-300 text-sm">
-                                        Esta a punto de asignar <strong className="text-white">€{numAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</strong> a la seccion de inversion.
+                                        Esta a punto de asignar <strong className="text-white">€{numAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</strong> a su wallet de inversion.
                                     </p>
                                     <p className="text-slate-400 text-xs mt-2">
-                                        Los fondos se moveran a su cuenta de inversion y estaran disponibles cuando se active la seccion.
+                                        Estos fondos quedaran reservados para oportunidades de inversion dentro de la plataforma.
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -226,11 +226,12 @@ export const InvestmentPopup = ({ show, onClose, onContinueWithdraw, accountId, 
                                 <div>
                                     <p className="text-white font-semibold text-lg">Fondos Reservados</p>
                                     <p className="text-slate-400 text-sm mt-1">
-                                        €{numAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} han sido asignados a la seccion de inversion.
+                                        €{numAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} han sido asignados a su wallet de inversion.
                                     </p>
                                 </div>
                                 <div className="p-3 rounded-lg bg-slate-800/50 text-sm">
-                                    <p className="text-slate-400">Estado: <span className="text-emerald-400 font-medium">Fondos reservados para inversion futura</span></p>
+                                    <p className="text-slate-400">Estado: <span className="text-emerald-400 font-medium">Fondos reservados</span></p>
+                                    <p className="text-slate-500 text-xs mt-1">Disponible proximamente para inversion en mercado financiero</p>
                                 </div>
                                 <Button
                                     onClick={() => { handleClose(); onContinueWithdraw(); }}
