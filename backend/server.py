@@ -4914,84 +4914,79 @@ async def get_binance_tickers():
 
 @api_router.get("/binance/wallet")
 async def get_binance_wallet(current_user: dict = Depends(get_current_user)):
-    """Get user's simulated crypto wallet with live Binance prices"""
-    wallet = await db.crypto_wallets_sim.find_one(
-        {'user_id': current_user['id']}, {'_id': 0}
-    )
-    if not wallet:
-        # Create default wallet with demo assets
-        wallet = {
-            'id': str(uuid.uuid4()),
-            'user_id': current_user['id'],
-            'assets': [
-                {'coin': 'BTC', 'name': 'Bitcoin', 'available': 1.2450, 'locked': 0.1500},
-                {'coin': 'ETH', 'name': 'Ethereum', 'available': 15.8200, 'locked': 2.0000},
-                {'coin': 'BNB', 'name': 'BNB', 'available': 45.5000, 'locked': 5.0000},
-                {'coin': 'SOL', 'name': 'Solana', 'available': 120.0000, 'locked': 0.0000},
-                {'coin': 'XRP', 'name': 'Ripple', 'available': 5000.0000, 'locked': 500.0000},
-                {'coin': 'ADA', 'name': 'Cardano', 'available': 8500.0000, 'locked': 0.0000},
-                {'coin': 'DOGE', 'name': 'Dogecoin', 'available': 25000.0000, 'locked': 0.0000},
-                {'coin': 'DOT', 'name': 'Polkadot', 'available': 350.0000, 'locked': 50.0000},
-                {'coin': 'AVAX', 'name': 'Avalanche', 'available': 200.0000, 'locked': 0.0000},
-                {'coin': 'LINK', 'name': 'Chainlink', 'available': 500.0000, 'locked': 100.0000},
-            ],
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'updated_at': datetime.now(timezone.utc).isoformat(),
-        }
-        await db.crypto_wallets_sim.insert_one(wallet)
+    """Get user's wallet with REAL balances converted to crypto equivalents using live Binance prices"""
+    # Get user's REAL platform balances
+    accounts = await db.accounts.find({'user_id': current_user['id']}, {'_id': 0}).to_list(10)
+    checking = next((a for a in accounts if a['account_type'] == 'checking'), None)
+    savings = next((a for a in accounts if a['account_type'] == 'savings'), None)
 
-    # Re-fetch without _id
-    wallet = await db.crypto_wallets_sim.find_one(
-        {'user_id': current_user['id']}, {'_id': 0}
-    )
+    available_usd = checking.get('balance_usd', 0) if checking else 0
+    available_eur = checking.get('balance_eur', 0) if checking else 0
+    locked_usd = savings.get('balance_usd', 0) if savings else 0
+    locked_eur = savings.get('balance_eur', 0) if savings else 0
 
-    # Fetch live prices
+    total_usd = available_usd + locked_usd
+
+    # Fetch live prices from Binance
     prices = await get_binance_tickers()
 
-    total_value = 0
-    total_available = 0
-    total_locked = 0
+    # Allocation percentages for the simulated crypto distribution
+    ALLOCATION = [
+        {'coin': 'BTC', 'name': 'Bitcoin', 'pct': 0.40},
+        {'coin': 'ETH', 'name': 'Ethereum', 'pct': 0.25},
+        {'coin': 'BNB', 'name': 'BNB', 'pct': 0.12},
+        {'coin': 'SOL', 'name': 'Solana', 'pct': 0.08},
+        {'coin': 'XRP', 'name': 'Ripple', 'pct': 0.05},
+        {'coin': 'ADA', 'name': 'Cardano', 'pct': 0.03},
+        {'coin': 'DOGE', 'name': 'Dogecoin', 'pct': 0.02},
+        {'coin': 'DOT', 'name': 'Polkadot', 'pct': 0.02},
+        {'coin': 'AVAX', 'name': 'Avalanche', 'pct': 0.02},
+        {'coin': 'LINK', 'name': 'Chainlink', 'pct': 0.01},
+    ]
+
     enriched_assets = []
-    for asset in wallet.get('assets', []):
-        coin = asset['coin']
+    for alloc in ALLOCATION:
+        coin = alloc['coin']
         price_data = prices.get(coin, {})
         price = price_data.get('price', 0)
-        avail = asset.get('available', 0)
-        locked = asset.get('locked', 0)
-        total_qty = avail + locked
-        value = total_qty * price
-        avail_value = avail * price
-        locked_value = locked * price
-        total_value += value
-        total_available += avail_value
-        total_locked += locked_value
+        if price <= 0:
+            continue
+
+        # Calculate equivalent crypto amount from user's USD balance
+        alloc_usd = total_usd * alloc['pct']
+        crypto_qty = alloc_usd / price
+
+        # Split available/locked proportionally
+        avail_ratio = available_usd / total_usd if total_usd > 0 else 1
+        avail_qty = crypto_qty * avail_ratio
+        locked_qty = crypto_qty * (1 - avail_ratio)
+
         enriched_assets.append({
             'coin': coin,
-            'name': asset.get('name', coin),
-            'available': avail,
-            'locked': locked,
-            'total': total_qty,
+            'name': alloc['name'],
+            'available': round(avail_qty, 8),
+            'locked': round(locked_qty, 8),
+            'total': round(crypto_qty, 8),
             'price': price,
             'price_change_pct': price_data.get('price_change_pct', 0),
             'high_24h': price_data.get('high_24h', 0),
             'low_24h': price_data.get('low_24h', 0),
-            'value_usd': value,
-            'available_value_usd': avail_value,
-            'locked_value_usd': locked_value,
+            'value_usd': round(alloc_usd, 2),
+            'available_value_usd': round(alloc_usd * avail_ratio, 2),
+            'locked_value_usd': round(alloc_usd * (1 - avail_ratio), 2),
         })
-
-    enriched_assets.sort(key=lambda x: x['value_usd'], reverse=True)
 
     distribution = []
     for a in enriched_assets:
-        pct = (a['value_usd'] / total_value * 100) if total_value > 0 else 0
+        pct = (a['value_usd'] / total_usd * 100) if total_usd > 0 else 0
         distribution.append({'coin': a['coin'], 'name': a['name'], 'value': a['value_usd'], 'percentage': round(pct, 2)})
 
     return {
-        'wallet_id': wallet.get('id'),
-        'total_value_usd': round(total_value, 2),
-        'total_available_usd': round(total_available, 2),
-        'total_locked_usd': round(total_locked, 2),
+        'total_value_usd': round(total_usd, 2),
+        'total_available_usd': round(available_usd, 2),
+        'total_locked_usd': round(locked_usd, 2),
+        'total_available_eur': round(available_eur, 2),
+        'total_locked_eur': round(locked_eur, 2),
         'assets': enriched_assets,
         'distribution': distribution,
         'top_assets': enriched_assets[:5],
