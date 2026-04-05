@@ -15,16 +15,29 @@ Professional financial information and verification platform. Provides informati
 - Withdrawal with $4,850 USD mandatory tax, min $200 partial payments
 - International bank support: IBAN (Europe) + Account Number (worldwide, 55+ countries)
 
-### Crypto Payment System (UPDATED Apr 5, 2026)
+### Crypto Payment System
 - Multi-crypto selector: BTC, ETH, BNB, USDT with dynamic QR codes
 - Dynamic wallet addresses per crypto from backend
-- Blockchain explorer links per crypto type (blockchain.com, etherscan, bscscan, tronscan)
-- "Problema con el pago" button opens report dialog with pre-filled data
+- Blockchain explorer links per crypto type
+- "Problema con el pago" button with pre-filled report dialog
 - Payment inactivity popup (90s) offering help
 - Dual-email support: info@lionsbit.es & info@paylionsbit.es
 - Proof of payment upload (image + TXID hash)
 
-### Binance Wallet Integration (NEW Apr 5, 2026)
+### Investment Wallet System (UPDATED Apr 5, 2026)
+- Automatic wallet interna per user (savings account)
+- Popup intercepts withdrawal flow offering investment option
+- Messages: "¿Desea invertir parte de su saldo?" / "Si, invertir" / "No, continuar retiro"
+- Min €300 investment, deducted from checking → savings
+- Confirmation: "Está a punto de asignar €[monto] a su wallet de inversión"
+- Dashboard "Wallet de Inversión" section with:
+  - Saldo invertido, Estado (Fondos reservados), Operaciones count
+  - Message: "Disponible próximamente para inversión en mercado financiero"
+  - Investment history (monto, fecha, estado, tipo: "Reserva para inversión")
+- Investment counts for gamification levels
+- Connected to: withdrawal system, levels, dashboard, history
+
+### Binance Wallet Integration
 - Real-time prices from Binance API (via api.binance.us)
 - Simulated crypto wallet per user (admin-managed balances)
 - 10 tracked coins: BTC, ETH, BNB, SOL, XRP, ADA, DOGE, DOT, AVAX, LINK
@@ -33,28 +46,20 @@ Professional financial information and verification platform. Provides informati
 - Top 5 assets view with 24h price changes
 - Full asset table with prices, balances, and USD values
 - WebSocket live price updates (wss://stream.binance.us:9443)
-- Auto-refresh every 60s + manual refresh button
 - Admin endpoint to assign/modify wallet assets
-- Phase 1: Visualization only (no trading)
 
-### ChatBot & Support (UPDATED Apr 5, 2026)
+### ChatBot & Support
 - FAQ chatbot with keyword matching (9 topics)
 - Ticket creation directly from chat when FAQ doesn't match
-- Permanent "Hablar con soporte (crear ticket)" button in chat
+- "Hablar con soporte (crear ticket)" permanent button
 - Support ticket system with dual-email routing
 
-### Investment Reservation System
-- Popup before withdrawal offering investment opportunity
-- 4-step flow: Offer > Amount (min €300) > Confirm > Success
-- Dashboard: "Saldo en Inversion" card + status banner
-
 ### Gamification / User Levels
-- Bronce (default), Plata (€2,500/5 logins), Oro (€10,000/15 logins), Platino (€25,000/investment)
+- Bronce, Plata, Oro, Platino levels based on balance + logins + investment
 - Progress bar, dynamic messages, level-up popup, sidebar badge
 
 ### Achievements System
-- 10 achievements across 5 categories
-- Auto-detection on each API call, celebration popup on unlock
+- 10 achievements across 5 categories, auto-detection, celebration popup
 
 ### User Engagement System
 - Inactivity Detection (75s popup), Activity Tracking, Intent Detection
@@ -63,9 +68,8 @@ Professional financial information and verification platform. Provides informati
 - CoinGecko, Finnhub News, TradingView Widget, Binance API
 
 ### Financial Analysis Suite
-- Real-Time Market (TradingView), Crypto Market, Converter, Projections
-- Portfolio, Alerts, Market Reports, Investment Comparator
-- Global Market Map, Live Market News
+- Real-Time Market, Crypto Market, Converter, Projections, Portfolio
+- Alerts, Market Reports, Investment Comparator, Global Market Map, Live News
 
 ## Tech Stack
 - Frontend: React, TailwindCSS, Framer Motion, Recharts, qrcode.react
@@ -79,7 +83,7 @@ Professional financial information and verification platform. Provides informati
 - Test User: test.bronce@test.com / Test1234!
 
 ## Backlog
-- P2: Refactor monolithic server.py (~5400 lines)
+- P2: Refactor monolithic server.py (~5500 lines)
 - P2: Email notifications for withdrawal status changes
 - P3: Binance Phase 2: Transaction history, deposits/withdrawals, advanced features
 
