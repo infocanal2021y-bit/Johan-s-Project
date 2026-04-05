@@ -1,0 +1,409 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Layout } from '../components/layout/Layout';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import {
+    Wallet, TrendingUp, TrendingDown, RefreshCw, Lock, ArrowUpRight, ArrowDownRight,
+    Activity, BarChart3, Loader2, Wifi, WifiOff, AlertTriangle
+} from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+
+const API_URL = '/api';
+
+const CHART_COLORS = [
+    '#f59e0b', '#6366f1', '#10b981', '#8b5cf6', '#ef4444',
+    '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#3b82f6'
+];
+
+const formatUSD = (val) => {
+    if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
+    if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
+    if (val >= 1e3) return `$${val.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+    return `$${val.toFixed(2)}`;
+};
+
+const formatPrice = (price) => {
+    if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (price >= 1) return price.toFixed(4);
+    return price.toFixed(6);
+};
+
+const formatQty = (qty) => {
+    if (qty >= 10000) return qty.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    if (qty >= 1) return qty.toFixed(4);
+    return qty.toFixed(8);
+};
+
+const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <div className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 shadow-xl">
+                <p className="text-white text-sm font-medium">{data.name || data.coin}</p>
+                <p className="text-emerald-400 text-sm font-mono">{formatUSD(data.value)}</p>
+                <p className="text-slate-400 text-xs">{data.percentage}%</p>
+            </div>
+        );
+    }
+    return null;
+};
+
+export default function BinanceWalletPage() {
+    const [wallet, setWallet] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [wsConnected, setWsConnected] = useState(false);
+    const [livePrices, setLivePrices] = useState({});
+    const [error, setError] = useState(null);
+    const wsRef = useRef(null);
+    const reconnectRef = useRef(null);
+
+    const token = localStorage.getItem('token');
+
+    const fetchWallet = useCallback(async (showRefresh = false) => {
+        if (showRefresh) setRefreshing(true);
+        try {
+            const resp = await fetch(`${API_URL}/binance/wallet`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) throw new Error('Error al cargar wallet');
+            const data = await resp.json();
+            setWallet(data);
+            setError(null);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [token]);
+
+    useEffect(() => {
+        fetchWallet();
+    }, [fetchWallet]);
+
+    // Auto-refresh every 60s
+    useEffect(() => {
+        const interval = setInterval(() => fetchWallet(), 60000);
+        return () => clearInterval(interval);
+    }, [fetchWallet]);
+
+    // Binance WebSocket for live price updates
+    const connectWs = useCallback(() => {
+        if (wsRef.current) {
+            wsRef.current.close();
+        }
+        const streams = ['btcusdt', 'ethusdt', 'bnbusdt', 'solusdt', 'xrpusdt', 'adausdt', 'dogeusdt', 'dotusdt', 'avaxusdt', 'linkusdt']
+            .map(s => `${s}@miniTicker`).join('/');
+        const ws = new WebSocket(`wss://stream.binance.us:9443/stream?streams=${streams}`);
+
+        ws.onopen = () => setWsConnected(true);
+        ws.onclose = () => {
+            setWsConnected(false);
+            // Reconnect after 5s
+            reconnectRef.current = setTimeout(connectWs, 5000);
+        };
+        ws.onerror = () => setWsConnected(false);
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.data) {
+                    const d = msg.data;
+                    const symbol = d.s; // e.g. BTCUSDT
+                    const SYMBOL_MAP = {
+                        'BTCUSDT': 'BTC', 'ETHUSDT': 'ETH', 'BNBUSDT': 'BNB',
+                        'SOLUSDT': 'SOL', 'XRPUSDT': 'XRP', 'ADAUSDT': 'ADA',
+                        'DOGEUSDT': 'DOGE', 'DOTUSDT': 'DOT', 'AVAXUSDT': 'AVAX',
+                        'LINKUSDT': 'LINK',
+                    };
+                    const coin = SYMBOL_MAP[symbol];
+                    if (coin) {
+                        setLivePrices(prev => ({
+                            ...prev,
+                            [coin]: { price: parseFloat(d.c), high: parseFloat(d.h), low: parseFloat(d.l) }
+                        }));
+                    }
+                }
+            } catch { /* ignore parse errors */ }
+        };
+        wsRef.current = ws;
+    }, []);
+
+    useEffect(() => {
+        connectWs();
+        return () => {
+            if (wsRef.current) wsRef.current.close();
+            if (reconnectRef.current) clearTimeout(reconnectRef.current);
+        };
+    }, [connectWs]);
+
+    // Merge live prices with wallet data
+    const getEnrichedAssets = () => {
+        if (!wallet?.assets) return [];
+        return wallet.assets.map(asset => {
+            const live = livePrices[asset.coin];
+            const price = live?.price || asset.price;
+            const totalQty = asset.available + asset.locked;
+            const value = totalQty * price;
+            return { ...asset, price, value_usd: value, available_value_usd: asset.available * price, locked_value_usd: asset.locked * price };
+        });
+    };
+
+    const enrichedAssets = getEnrichedAssets();
+    const totalValue = enrichedAssets.reduce((s, a) => s + a.value_usd, 0);
+    const totalAvailable = enrichedAssets.reduce((s, a) => s + a.available_value_usd, 0);
+    const totalLocked = enrichedAssets.reduce((s, a) => s + a.locked_value_usd, 0);
+
+    const distribution = enrichedAssets.map(a => ({
+        coin: a.coin, name: a.name,
+        value: a.value_usd,
+        percentage: totalValue > 0 ? Math.round(a.value_usd / totalValue * 10000) / 100 : 0,
+    })).filter(d => d.value > 0);
+
+    if (loading) {
+        return (
+            <Layout>
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                </div>
+            </Layout>
+        );
+    }
+
+    return (
+        <Layout>
+            <div className="space-y-6 max-w-7xl mx-auto" data-testid="binance-wallet-page">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+                            <Wallet className="w-7 h-7 text-amber-400" />
+                            Wallet / Activos
+                        </h1>
+                        <p className="text-slate-400 text-sm mt-1">Portafolio con precios en tiempo real via Binance</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+                            wsConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                        }`} data-testid="ws-status">
+                            {wsConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                            {wsConnected ? 'En vivo' : 'Desconectado'}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchWallet(true)}
+                            disabled={refreshing}
+                            className="border-slate-700 text-slate-300 hover:text-white"
+                            data-testid="refresh-wallet-btn"
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+                            Actualizar
+                        </Button>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                        <p className="text-red-400 text-sm">{error}</p>
+                    </div>
+                )}
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card className="bg-slate-900/70 border-slate-800" data-testid="total-value-card">
+                        <CardContent className="p-5">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                                    <BarChart3 className="w-5 h-5 text-amber-400" />
+                                </div>
+                                <p className="text-slate-400 text-sm">Valor Estimado Total</p>
+                            </div>
+                            <p className="text-3xl font-bold text-white font-mono" data-testid="total-value">
+                                {formatUSD(totalValue)}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-900/70 border-slate-800" data-testid="available-value-card">
+                        <CardContent className="p-5">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                    <Wallet className="w-5 h-5 text-emerald-400" />
+                                </div>
+                                <p className="text-slate-400 text-sm">Balance Disponible</p>
+                            </div>
+                            <p className="text-3xl font-bold text-emerald-400 font-mono" data-testid="available-value">
+                                {formatUSD(totalAvailable)}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-900/70 border-slate-800" data-testid="locked-value-card">
+                        <CardContent className="p-5">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                                    <Lock className="w-5 h-5 text-orange-400" />
+                                </div>
+                                <p className="text-slate-400 text-sm">Balance Bloqueado</p>
+                            </div>
+                            <p className="text-3xl font-bold text-orange-400 font-mono" data-testid="locked-value">
+                                {formatUSD(totalLocked)}
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Distribution Chart + Top Assets */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Distribution Chart */}
+                    <Card className="bg-slate-900/70 border-slate-800 lg:col-span-1" data-testid="distribution-chart">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-white text-base flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-indigo-400" />
+                                Distribución
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[220px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={distribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={55}
+                                            outerRadius={90}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                            stroke="none"
+                                        >
+                                            {distribution.map((_, idx) => (
+                                                <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip content={<CustomTooltip />} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                                {distribution.slice(0, 6).map((d, i) => (
+                                    <div key={d.coin} className="flex items-center gap-2 text-xs">
+                                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                        <span className="text-slate-400">{d.coin}</span>
+                                        <span className="text-slate-500 ml-auto">{d.percentage}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Top Assets */}
+                    <Card className="bg-slate-900/70 border-slate-800 lg:col-span-2" data-testid="top-assets-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-white text-base flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                                Top Activos
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                {enrichedAssets.slice(0, 5).map((asset, i) => (
+                                    <div key={asset.coin} className="flex items-center gap-4 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/60 transition-colors" data-testid={`top-asset-${asset.coin}`}>
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ backgroundColor: `${CHART_COLORS[i]}20`, color: CHART_COLORS[i] }}>
+                                            {asset.coin.slice(0, 2)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-white font-medium text-sm">{asset.name}</p>
+                                            <p className="text-slate-500 text-xs">{formatQty(asset.total)} {asset.coin}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-white font-mono text-sm">{formatUSD(asset.value_usd)}</p>
+                                            <div className={`flex items-center justify-end gap-1 text-xs ${asset.price_change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {asset.price_change_pct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                                {Math.abs(asset.price_change_pct).toFixed(2)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Full Asset List */}
+                <Card className="bg-slate-900/70 border-slate-800" data-testid="asset-list-card">
+                    <CardHeader>
+                        <CardTitle className="text-white text-base flex items-center gap-2">
+                            <Wallet className="w-4 h-4 text-amber-400" />
+                            Lista de Activos
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm" data-testid="asset-table">
+                                <thead>
+                                    <tr className="border-b border-slate-800">
+                                        <th className="text-left text-slate-500 text-xs uppercase py-3 px-3">Activo</th>
+                                        <th className="text-right text-slate-500 text-xs uppercase py-3 px-3">Precio</th>
+                                        <th className="text-right text-slate-500 text-xs uppercase py-3 px-3">24h</th>
+                                        <th className="text-right text-slate-500 text-xs uppercase py-3 px-3">Disponible</th>
+                                        <th className="text-right text-slate-500 text-xs uppercase py-3 px-3">Bloqueado</th>
+                                        <th className="text-right text-slate-500 text-xs uppercase py-3 px-3">Total</th>
+                                        <th className="text-right text-slate-500 text-xs uppercase py-3 px-3">Valor USD</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {enrichedAssets.map((asset, i) => (
+                                        <tr key={asset.coin} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors" data-testid={`asset-row-${asset.coin}`}>
+                                            <td className="py-4 px-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: `${CHART_COLORS[i % CHART_COLORS.length]}20`, color: CHART_COLORS[i % CHART_COLORS.length] }}>
+                                                        {asset.coin.slice(0, 2)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-white font-medium">{asset.coin}</p>
+                                                        <p className="text-slate-500 text-xs">{asset.name}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-3 text-right text-white font-mono">${formatPrice(asset.price)}</td>
+                                            <td className="py-4 px-3 text-right">
+                                                <span className={`inline-flex items-center gap-1 text-xs font-medium ${asset.price_change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {asset.price_change_pct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                                    {asset.price_change_pct >= 0 ? '+' : ''}{asset.price_change_pct.toFixed(2)}%
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-3 text-right text-slate-300 font-mono text-xs">{formatQty(asset.available)}</td>
+                                            <td className="py-4 px-3 text-right">
+                                                {asset.locked > 0 ? (
+                                                    <span className="inline-flex items-center gap-1 text-orange-400 font-mono text-xs">
+                                                        <Lock className="w-3 h-3" />
+                                                        {formatQty(asset.locked)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-600 text-xs">0</span>
+                                                )}
+                                            </td>
+                                            <td className="py-4 px-3 text-right text-slate-300 font-mono text-xs">{formatQty(asset.total)}</td>
+                                            <td className="py-4 px-3 text-right text-white font-mono font-medium">{formatUSD(asset.value_usd)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Disclaimer */}
+                <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <p className="text-slate-500 text-xs text-center">
+                        Precios proporcionados por Binance API. La informacion es exclusivamente con fines informativos.
+                        LIONSBIT VERIFICACION no esta habilitada para inversiones reales ni trading.
+                    </p>
+                </div>
+            </div>
+        </Layout>
+    );
+}

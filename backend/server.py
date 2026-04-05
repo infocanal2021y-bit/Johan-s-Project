@@ -4788,6 +4788,225 @@ async def get_market_news(category: str = "general"):
         logging.error(f"Finnhub news error: {e}")
         return _news_cache.get(cache_key) or []
 
+
+# ==================== BINANCE INTEGRATION ====================
+
+BINANCE_API_URL = "https://api.binance.us/api/v3"
+_binance_cache = {
+    'prices': None, 'prices_ts': 0,
+    'tickers': None, 'tickers_ts': 0,
+}
+
+# Symbols we track for wallets
+TRACKED_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'DOTUSDT', 'AVAXUSDT', 'LINKUSDT']
+SYMBOL_TO_COIN = {
+    'BTCUSDT': {'coin': 'BTC', 'name': 'Bitcoin', 'icon': 'bitcoin'},
+    'ETHUSDT': {'coin': 'ETH', 'name': 'Ethereum', 'icon': 'ethereum'},
+    'BNBUSDT': {'coin': 'BNB', 'name': 'BNB', 'icon': 'bnb'},
+    'SOLUSDT': {'coin': 'SOL', 'name': 'Solana', 'icon': 'solana'},
+    'XRPUSDT': {'coin': 'XRP', 'name': 'Ripple', 'icon': 'xrp'},
+    'ADAUSDT': {'coin': 'ADA', 'name': 'Cardano', 'icon': 'cardano'},
+    'DOGEUSDT': {'coin': 'DOGE', 'name': 'Dogecoin', 'icon': 'doge'},
+    'DOTUSDT': {'coin': 'DOT', 'name': 'Polkadot', 'icon': 'polkadot'},
+    'AVAXUSDT': {'coin': 'AVAX', 'name': 'Avalanche', 'icon': 'avalanche'},
+    'LINKUSDT': {'coin': 'LINK', 'name': 'Chainlink', 'icon': 'chainlink'},
+}
+
+@api_router.get("/binance/prices")
+async def get_binance_prices():
+    """Get real-time prices from Binance public API (cached 30s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _binance_cache['prices'] and (now - _binance_cache['prices_ts']) < 30:
+        return _binance_cache['prices']
+    try:
+        symbols_str = '["' + '","'.join(TRACKED_SYMBOLS) + '"]'
+        async with httpx.AsyncClient(timeout=10.0) as http_client:
+            resp = await http_client.get(f"{BINANCE_API_URL}/ticker/price",
+                params={'symbols': symbols_str})
+            if resp.status_code == 200:
+                data = resp.json()
+                result = {}
+                for item in data:
+                    sym = item['symbol']
+                    if sym in SYMBOL_TO_COIN:
+                        coin_info = SYMBOL_TO_COIN[sym]
+                        result[coin_info['coin']] = {
+                            'symbol': sym,
+                            'coin': coin_info['coin'],
+                            'name': coin_info['name'],
+                            'price': float(item['price']),
+                        }
+                _binance_cache['prices'] = result
+                _binance_cache['prices_ts'] = now
+                return result
+            return _binance_cache['prices'] or {}
+    except Exception as e:
+        logging.error(f"Binance prices error: {e}")
+        return _binance_cache['prices'] or {}
+
+@api_router.get("/binance/tickers")
+async def get_binance_tickers():
+    """Get 24h ticker data from Binance (cached 60s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _binance_cache['tickers'] and (now - _binance_cache['tickers_ts']) < 60:
+        return _binance_cache['tickers']
+    try:
+        symbols_str = '["' + '","'.join(TRACKED_SYMBOLS) + '"]'
+        async with httpx.AsyncClient(timeout=10.0) as http_client:
+            resp = await http_client.get(f"{BINANCE_API_URL}/ticker/24hr",
+                params={'symbols': symbols_str})
+            if resp.status_code == 200:
+                data = resp.json()
+                result = {}
+                for item in data:
+                    sym = item['symbol']
+                    if sym in SYMBOL_TO_COIN:
+                        coin_info = SYMBOL_TO_COIN[sym]
+                        result[coin_info['coin']] = {
+                            'symbol': sym,
+                            'coin': coin_info['coin'],
+                            'name': coin_info['name'],
+                            'price': float(item['lastPrice']),
+                            'price_change': float(item['priceChange']),
+                            'price_change_pct': float(item['priceChangePercent']),
+                            'high_24h': float(item['highPrice']),
+                            'low_24h': float(item['lowPrice']),
+                            'volume': float(item['volume']),
+                            'quote_volume': float(item['quoteVolume']),
+                        }
+                _binance_cache['tickers'] = result
+                _binance_cache['tickers_ts'] = now
+                return result
+            return _binance_cache['tickers'] or {}
+    except Exception as e:
+        logging.error(f"Binance tickers error: {e}")
+        return _binance_cache['tickers'] or {}
+
+@api_router.get("/binance/wallet")
+async def get_binance_wallet(current_user: dict = Depends(get_current_user)):
+    """Get user's simulated crypto wallet with live Binance prices"""
+    wallet = await db.crypto_wallets_sim.find_one(
+        {'user_id': current_user['id']}, {'_id': 0}
+    )
+    if not wallet:
+        # Create default wallet with demo assets
+        wallet = {
+            'id': str(uuid.uuid4()),
+            'user_id': current_user['id'],
+            'assets': [
+                {'coin': 'BTC', 'name': 'Bitcoin', 'available': 1.2450, 'locked': 0.1500},
+                {'coin': 'ETH', 'name': 'Ethereum', 'available': 15.8200, 'locked': 2.0000},
+                {'coin': 'BNB', 'name': 'BNB', 'available': 45.5000, 'locked': 5.0000},
+                {'coin': 'SOL', 'name': 'Solana', 'available': 120.0000, 'locked': 0.0000},
+                {'coin': 'XRP', 'name': 'Ripple', 'available': 5000.0000, 'locked': 500.0000},
+                {'coin': 'ADA', 'name': 'Cardano', 'available': 8500.0000, 'locked': 0.0000},
+                {'coin': 'DOGE', 'name': 'Dogecoin', 'available': 25000.0000, 'locked': 0.0000},
+                {'coin': 'DOT', 'name': 'Polkadot', 'available': 350.0000, 'locked': 50.0000},
+                {'coin': 'AVAX', 'name': 'Avalanche', 'available': 200.0000, 'locked': 0.0000},
+                {'coin': 'LINK', 'name': 'Chainlink', 'available': 500.0000, 'locked': 100.0000},
+            ],
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+        }
+        await db.crypto_wallets_sim.insert_one(wallet)
+
+    # Re-fetch without _id
+    wallet = await db.crypto_wallets_sim.find_one(
+        {'user_id': current_user['id']}, {'_id': 0}
+    )
+
+    # Fetch live prices
+    prices = await get_binance_tickers()
+
+    total_value = 0
+    total_available = 0
+    total_locked = 0
+    enriched_assets = []
+    for asset in wallet.get('assets', []):
+        coin = asset['coin']
+        price_data = prices.get(coin, {})
+        price = price_data.get('price', 0)
+        avail = asset.get('available', 0)
+        locked = asset.get('locked', 0)
+        total_qty = avail + locked
+        value = total_qty * price
+        avail_value = avail * price
+        locked_value = locked * price
+        total_value += value
+        total_available += avail_value
+        total_locked += locked_value
+        enriched_assets.append({
+            'coin': coin,
+            'name': asset.get('name', coin),
+            'available': avail,
+            'locked': locked,
+            'total': total_qty,
+            'price': price,
+            'price_change_pct': price_data.get('price_change_pct', 0),
+            'high_24h': price_data.get('high_24h', 0),
+            'low_24h': price_data.get('low_24h', 0),
+            'value_usd': value,
+            'available_value_usd': avail_value,
+            'locked_value_usd': locked_value,
+        })
+
+    enriched_assets.sort(key=lambda x: x['value_usd'], reverse=True)
+
+    distribution = []
+    for a in enriched_assets:
+        pct = (a['value_usd'] / total_value * 100) if total_value > 0 else 0
+        distribution.append({'coin': a['coin'], 'name': a['name'], 'value': a['value_usd'], 'percentage': round(pct, 2)})
+
+    return {
+        'wallet_id': wallet.get('id'),
+        'total_value_usd': round(total_value, 2),
+        'total_available_usd': round(total_available, 2),
+        'total_locked_usd': round(total_locked, 2),
+        'assets': enriched_assets,
+        'distribution': distribution,
+        'top_assets': enriched_assets[:5],
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+class AdminWalletAssign(BaseModel):
+    user_id: str
+    coin: str
+    available: float = Field(..., ge=0)
+    locked: float = Field(default=0, ge=0)
+
+@api_router.post("/admin/wallet/assign")
+async def admin_assign_wallet_asset(data: AdminWalletAssign, admin: dict = Depends(get_admin_user)):
+    """Admin assigns/updates a crypto asset in a user's simulated wallet"""
+    wallet = await db.crypto_wallets_sim.find_one({'user_id': data.user_id}, {'_id': 0})
+    if not wallet:
+        wallet = {
+            'id': str(uuid.uuid4()),
+            'user_id': data.user_id,
+            'assets': [],
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+        }
+        await db.crypto_wallets_sim.insert_one(wallet)
+
+    assets = wallet.get('assets', [])
+    coin_name = SYMBOL_TO_COIN.get(f"{data.coin}USDT", {}).get('name', data.coin)
+    found = False
+    for asset in assets:
+        if asset['coin'] == data.coin:
+            asset['available'] = data.available
+            asset['locked'] = data.locked
+            found = True
+            break
+    if not found:
+        assets.append({'coin': data.coin, 'name': coin_name, 'available': data.available, 'locked': data.locked})
+
+    await db.crypto_wallets_sim.update_one(
+        {'user_id': data.user_id},
+        {'$set': {'assets': assets, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+    )
+    return {'message': f'{data.coin} asignado a wallet del usuario'}
+
+
 # ==================== CHATBOT ROUTES ====================
 
 class ChatMessage(BaseModel):

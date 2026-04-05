@@ -67,6 +67,7 @@ export const Sidebar = () => {
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
+        { to: '/binance-wallet', icon: Bitcoin, label: 'Wallet / Activos' },
         { to: '/achievements', icon: Trophy, label: 'Logros' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
         { to: '/support', icon: HeadphonesIcon, label: 'Support' },

@@ -157,6 +157,18 @@ export const adminAPI = {
 
 export const getExchangeRates = () => api.get('/exchange-rates');
 
+// Binance API
+export const binanceAPI = {
+    getPrices: () => api.get('/binance/prices'),
+    getTickers: () => api.get('/binance/tickers'),
+    getWallet: () => api.get('/binance/wallet'),
+};
+
+// Admin Wallet
+export const adminWalletAPI = {
+    assignAsset: (data) => api.post('/admin/wallet/assign', data),
+};
+
 // Chatbot API
 export const chatbotAPI = {
     sendMessage: (message) => api.post('/chatbot/message', { message }),

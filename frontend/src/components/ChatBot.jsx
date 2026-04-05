@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, ChevronDown } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Ticket, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
+import { supportAPI } from '../lib/api';
+import { toast } from 'sonner';
 
 const FAQ_SUGGESTIONS = [
   '¿Cómo retiro mi dinero?',
@@ -22,7 +24,7 @@ const FAQ_RESPONSES = {
   },
   'tiempo': {
     keywords: ['cuánto tarda', 'tiempo', 'demora', 'cuanto tiempo', 'rápido', 'plazo', 'esperar'],
-    answer: 'Los tiempos de procesamiento son:\n\n- **Pago de impuesto:** Tiene **72 horas** para completar el pago del impuesto\n- **Revisión admin:** Una vez pagado el impuesto, el administrador revisa en 24-48 horas\n- **Procesamiento:** Después de aprobado, el retiro se procesa en 1-3 días hábiles\n\n⚠️ Si no se completa el pago del impuesto en 72 horas, el retiro se rechaza automáticamente.'
+    answer: 'Los tiempos de procesamiento son:\n\n- **Pago de impuesto:** Tiene **72 horas** para completar el pago del impuesto\n- **Revisión admin:** Una vez pagado el impuesto, el administrador revisa en 24-48 horas\n- **Procesamiento:** Después de aprobado, el retiro se procesa en 1-3 días hábiles\n\nSi no se completa el pago del impuesto en 72 horas, el retiro se rechaza automáticamente.'
   },
   'minimo': {
     keywords: ['mínimo', 'minimo', 'pago parcial', 'abono', 'parcial', '200'],
@@ -34,11 +36,11 @@ const FAQ_RESPONSES = {
   },
   'lionsbit': {
     keywords: ['lionsbit', 'plataforma', 'qué es', 'que es', 'información', 'informacion'],
-    answer: '**LIONSBIT VERIFICACION** es una plataforma de verificación digital y análisis financiero informativo. Ofrecemos herramientas de análisis de mercado, información de criptomonedas, conversor de divisas, proyecciones y más.\n\n⚠️ **Aviso legal:** Esta plataforma es exclusivamente informativa y no está habilitada para inversiones reales.'
+    answer: '**LIONSBIT VERIFICACION** es una plataforma de verificación digital y análisis financiero informativo. Ofrecemos herramientas de análisis de mercado, información de criptomonedas, conversor de divisas, proyecciones y más.\n\n**Aviso legal:** Esta plataforma es exclusivamente informativa y no está habilitada para inversiones reales.'
   },
   'soporte': {
     keywords: ['soporte', 'ayuda', 'contactar', 'problema', 'ticket', 'contacto'],
-    answer: 'Para contactar soporte:\n\n1. Ve a **Support** en el menú lateral\n2. Cree un nuevo ticket con su consulta\n3. Seleccione la categoría apropiada\n4. Nuestro equipo responderá lo antes posible\n\nTambién puede consultar sus tickets existentes en la misma sección.'
+    answer: 'Puede crear un **ticket de soporte** directamente desde este chat haciendo clic en el botón de ticket debajo de este mensaje, o ir a la sección **Support** en el menú lateral.\n\nNuestro equipo responderá lo antes posible.'
   },
   'transferencia': {
     keywords: ['transferir', 'transferencia', 'enviar', 'transfer'],
@@ -46,16 +48,14 @@ const FAQ_RESPONSES = {
   },
   'crypto': {
     keywords: ['crypto', 'bitcoin', 'ethereum', 'usdt', 'criptomoneda', 'wallet', 'billetera'],
-    answer: 'Los pagos de impuestos se aceptan en las siguientes criptomonedas:\n\n- **Bitcoin (BTC)**\n- **Ethereum (ETH)**\n- **USDT (Tether)**\n\nAl realizar un pago, se le proporcionará la dirección de la wallet y deberá enviar el comprobante de la transacción (TXID y captura).'
+    answer: 'Los pagos de impuestos se aceptan en las siguientes criptomonedas:\n\n- **Bitcoin (BTC)**\n- **Ethereum (ETH)**\n- **BNB (BEP20)**\n- **USDT (TRC20)**\n\nAl realizar un pago, se le proporcionará la dirección de la wallet y un código QR para enviar el monto.'
   }
 };
 
 function findResponse(message) {
   const lower = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  
   let bestMatch = null;
   let bestScore = 0;
-  
   for (const [, faq] of Object.entries(FAQ_RESPONSES)) {
     let score = 0;
     for (const keyword of faq.keywords) {
@@ -69,19 +69,18 @@ function findResponse(message) {
       bestMatch = faq;
     }
   }
-  
   if (bestMatch && bestScore > 0) {
-    return bestMatch.answer;
+    return { text: bestMatch.answer, matched: true };
   }
-  
-  return 'No he encontrado una respuesta exacta a su pregunta. Le sugiero:\n\n- Intente con palabras clave como: **retiro, impuesto, verificación, tiempo, soporte**\n- O cree un **ticket de soporte** para atención personalizada desde el menú **Support**.\n\n¿En qué más puedo ayudarle?';
+  return {
+    text: 'No he encontrado una respuesta exacta a su pregunta. Puede crear un **ticket de soporte** para recibir atención personalizada de nuestro equipo.',
+    matched: false
+  };
 }
 
 function formatMessage(text) {
   return text.split('\n').map((line, i) => {
-    let formatted = line
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/⚠️/g, '<span class="text-amber-400">⚠️</span>');
+    let formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     return <p key={i} className={line === '' ? 'h-2' : ''} dangerouslySetInnerHTML={{ __html: formatted }} />;
   });
 }
@@ -93,12 +92,19 @@ export const ChatBot = () => {
       id: 'welcome',
       role: 'bot',
       text: '¡Hola! Soy el asistente virtual de LIONSBIT. ¿En qué puedo ayudarle hoy?',
-      time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      showTicketBtn: false,
     }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  // Ticket creation state
+  const [ticketMode, setTicketMode] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketMessage, setTicketMessage] = useState('');
+  const [ticketSending, setTicketSending] = useState(false);
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -114,26 +120,26 @@ export const ChatBot = () => {
 
   const sendMessage = (text) => {
     if (!text.trim()) return;
-    
     const userMsg = {
       id: Date.now().toString(),
       role: 'user',
       text: text.trim(),
-      time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      showTicketBtn: false,
     };
-    
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setShowSuggestions(false);
     setIsTyping(true);
-    
+
     setTimeout(() => {
       const response = findResponse(text);
       const botMsg = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
-        text: response,
-        time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        text: response.text,
+        time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        showTicketBtn: !response.matched,
       };
       setMessages(prev => [...prev, botMsg]);
       setIsTyping(false);
@@ -145,8 +151,39 @@ export const ChatBot = () => {
     sendMessage(input);
   };
 
-  const handleSuggestion = (suggestion) => {
-    sendMessage(suggestion);
+  const handleCreateTicket = async () => {
+    if (!ticketSubject.trim() || ticketSubject.trim().length < 5) {
+      toast.error('El asunto debe tener al menos 5 caracteres');
+      return;
+    }
+    if (!ticketMessage.trim() || ticketMessage.trim().length < 10) {
+      toast.error('El mensaje debe tener al menos 10 caracteres');
+      return;
+    }
+    setTicketSending(true);
+    try {
+      await supportAPI.createTicket({
+        subject: ticketSubject.trim(),
+        message: ticketMessage.trim(),
+        category: 'general',
+      });
+      toast.success('Ticket de soporte creado exitosamente');
+      setTicketMode(false);
+      setTicketSubject('');
+      setTicketMessage('');
+      // Add confirmation message
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'bot',
+        text: 'Su **ticket de soporte** ha sido creado exitosamente. Nuestro equipo le responderá lo antes posible. Puede ver el estado de sus tickets en la sección **Support** del menú.',
+        time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        showTicketBtn: false,
+      }]);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al crear ticket');
+    } finally {
+      setTicketSending(false);
+    }
   };
 
   return (
@@ -171,12 +208,17 @@ export const ChatBot = () => {
           {/* Header */}
           <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
+              {ticketMode && (
+                <button onClick={() => setTicketMode(false)} className="w-8 h-8 rounded-full hover:bg-slate-700 flex items-center justify-center transition-colors" data-testid="ticket-back-btn">
+                  <ArrowLeft className="w-4 h-4 text-slate-400" />
+                </button>
+              )}
               <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center">
                 <Bot className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">Asistente LIONSBIT</p>
-                <p className="text-xs text-emerald-400">En línea</p>
+                <p className="text-sm font-semibold text-white">{ticketMode ? 'Crear Ticket' : 'Asistente LIONSBIT'}</p>
+                <p className="text-xs text-emerald-400">{ticketMode ? 'Soporte personalizado' : 'En línea'}</p>
               </div>
             </div>
             <button
@@ -188,95 +230,154 @@ export const ChatBot = () => {
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          {/* Ticket Creation Mode */}
+          {ticketMode ? (
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <p className="text-emerald-400 text-sm">Nuestro equipo revisará su consulta y le responderá lo antes posible.</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-slate-300 text-sm font-medium">Asunto *</label>
+                <input
+                  value={ticketSubject}
+                  onChange={(e) => setTicketSubject(e.target.value)}
+                  placeholder="Ej: Problema con mi pago de impuesto"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  data-testid="ticket-subject-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-slate-300 text-sm font-medium">Mensaje *</label>
+                <textarea
+                  value={ticketMessage}
+                  onChange={(e) => setTicketMessage(e.target.value)}
+                  placeholder="Describa su problema o consulta en detalle..."
+                  rows={5}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
+                  data-testid="ticket-message-input"
+                />
+              </div>
+              <Button
+                onClick={handleCreateTicket}
+                disabled={ticketSending || !ticketSubject.trim() || ticketSubject.trim().length < 5 || !ticketMessage.trim() || ticketMessage.trim().length < 10}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-2.5"
+                data-testid="ticket-submit-btn"
               >
-                {msg.role === 'bot' && (
-                  <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                    <Bot className="w-4 h-4 text-emerald-400" />
-                  </div>
+                {ticketSending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                ) : (
+                  <><Ticket className="w-4 h-4 mr-2" /> Crear Ticket de Soporte</>
                 )}
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-emerald-500 text-white rounded-br-md'
-                      : 'bg-slate-800 text-slate-200 rounded-bl-md'
-                  }`}
-                >
-                  <div className="space-y-0.5">{formatMessage(msg.text)}</div>
-                  <p className={`text-[10px] mt-1.5 ${msg.role === 'user' ? 'text-emerald-100/60' : 'text-slate-500'}`}>
-                    {msg.time}
-                  </p>
-                </div>
-                {msg.role === 'user' && (
-                  <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
-                    <User className="w-4 h-4 text-slate-300" />
-                  </div>
-                )}
-              </div>
-            ))}
-            
-            {isTyping && (
-              <div className="flex gap-2 items-start">
-                <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-emerald-400" />
-                </div>
-                <div className="bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Suggestions */}
-          {showSuggestions && messages.length <= 1 && (
-            <div className="px-4 pb-2 flex-shrink-0">
-              <p className="text-xs text-slate-500 mb-2">Preguntas frecuentes:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {FAQ_SUGGESTIONS.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSuggestion(s)}
-                    data-testid={`chatbot-suggestion-${i}`}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700 hover:border-emerald-500/50 transition-colors"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+              </Button>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+                {messages.map((msg) => (
+                  <div key={msg.id}>
+                    <div className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.role === 'bot' && (
+                        <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Bot className="w-4 h-4 text-emerald-400" />
+                        </div>
+                      )}
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-emerald-500 text-white rounded-br-md'
+                          : 'bg-slate-800 text-slate-200 rounded-bl-md'
+                      }`}>
+                        <div className="space-y-0.5">{formatMessage(msg.text)}</div>
+                        <p className={`text-[10px] mt-1.5 ${msg.role === 'user' ? 'text-emerald-100/60' : 'text-slate-500'}`}>{msg.time}</p>
+                      </div>
+                      {msg.role === 'user' && (
+                        <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
+                          <User className="w-4 h-4 text-slate-300" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Show create ticket button when FAQ didn't match */}
+                    {msg.showTicketBtn && (
+                      <div className="ml-9 mt-2">
+                        <button
+                          onClick={() => setTicketMode(true)}
+                          data-testid="chatbot-create-ticket-btn"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+                        >
+                          <Ticket className="w-3.5 h-3.5" />
+                          Crear ticket de soporte
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {isTyping && (
+                  <div className="flex gap-2 items-start">
+                    <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div className="bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
 
-          {/* Input */}
-          <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-slate-700 flex gap-2 flex-shrink-0">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Escriba su pregunta..."
-              data-testid="chatbot-input"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-colors"
-            />
-            <Button
-              type="submit"
-              disabled={!input.trim() || isTyping}
-              data-testid="chatbot-send-btn"
-              className="w-10 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 p-0 flex items-center justify-center"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
+              {/* Suggestions */}
+              {showSuggestions && messages.length <= 1 && (
+                <div className="px-4 pb-2 flex-shrink-0">
+                  <p className="text-xs text-slate-500 mb-2">Preguntas frecuentes:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {FAQ_SUGGESTIONS.map((s, i) => (
+                      <button key={i} onClick={() => sendMessage(s)} data-testid={`chatbot-suggestion-${i}`}
+                        className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700 hover:border-emerald-500/50 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Input + Ticket CTA */}
+              <div className="border-t border-slate-700 flex-shrink-0">
+                <form onSubmit={handleSubmit} className="px-4 py-3 flex gap-2">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Escriba su pregunta..."
+                    data-testid="chatbot-input"
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  />
+                  <Button type="submit" disabled={!input.trim() || isTyping} data-testid="chatbot-send-btn"
+                    className="w-10 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 p-0 flex items-center justify-center"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </form>
+                {/* Permanent ticket button */}
+                <div className="px-4 pb-3 pt-0">
+                  <button
+                    onClick={() => setTicketMode(true)}
+                    data-testid="chatbot-ticket-btn"
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white text-xs transition-colors"
+                  >
+                    <Ticket className="w-3.5 h-3.5" />
+                    Hablar con soporte (crear ticket)
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>
