@@ -17,65 +17,47 @@ Professional financial information and verification platform. Provides informati
 
 ### Crypto Payment System
 - Multi-crypto selector: BTC, ETH, BNB, USDT with dynamic QR codes
-- Dynamic wallet addresses per crypto from backend
-- Blockchain explorer links per crypto type
 - "Problema con el pago" button with pre-filled report dialog
 - Payment inactivity popup (90s) offering help
 - Dual-email support: info@lionsbit.es & info@paylionsbit.es
 - Proof of payment upload (image + TXID hash)
 
-### Investment Wallet System (UPDATED Apr 5, 2026)
-- Automatic wallet interna per user (savings account)
-- Popup intercepts withdrawal flow offering investment option
-- Messages: "¿Desea invertir parte de su saldo?" / "Si, invertir" / "No, continuar retiro"
+### Investment Wallet System
+- Popup intercepts withdrawal flow: "¿Desea invertir parte de su saldo?"
+- Buttons: "Sí, invertir" / "No, continuar retiro"
 - Min €300 investment, deducted from checking → savings
-- Confirmation: "Está a punto de asignar €[monto] a su wallet de inversión"
-- Dashboard "Wallet de Inversión" section with:
-  - Saldo invertido, Estado (Fondos reservados), Operaciones count
-  - Message: "Disponible próximamente para inversión en mercado financiero"
-  - Investment history (monto, fecha, estado, tipo: "Reserva para inversión")
+- Dashboard "Wallet de Inversión" section with: saldo, estado, historial
 - Investment counts for gamification levels
-- Connected to: withdrawal system, levels, dashboard, history
 
-### Binance Wallet Integration
-- Real-time prices from Binance API (via api.binance.us)
-- Simulated crypto wallet per user (admin-managed balances)
-- 10 tracked coins: BTC, ETH, BNB, SOL, XRP, ADA, DOGE, DOT, AVAX, LINK
-- Portfolio summary: Total value, available balance, locked balance
-- Distribution donut chart (recharts PieChart)
-- Top 5 assets view with 24h price changes
-- Full asset table with prices, balances, and USD values
-- WebSocket live price updates (wss://stream.binance.us:9443)
-- Admin endpoint to assign/modify wallet assets
+### Binance Wallet / Activos (UPDATED Apr 5, 2026)
+- Uses REAL user balances (checking=disponible, savings=bloqueado)
+- Converts balances to crypto equivalents using REAL Binance prices
+- Allocation: BTC 40%, ETH 25%, BNB 12%, SOL 8%, XRP 5%, ADA 3%, DOGE 2%, DOT 2%, AVAX 2%, LINK 1%
+- 2 summary cards only: Saldo Disponible + Saldo Bloqueado
+- Distribution donut chart, Top 5 assets, equivalents table
+- WebSocket live price updates via Binance US
+- Backend caching (prices 30s, tickers 60s)
+- NO hardcoded fake holdings - all derived from real balance
 
 ### ChatBot & Support
 - FAQ chatbot with keyword matching (9 topics)
-- Ticket creation directly from chat when FAQ doesn't match
-- "Hablar con soporte (crear ticket)" permanent button
+- Ticket creation directly from chat
 - Support ticket system with dual-email routing
 
 ### Gamification / User Levels
 - Bronce, Plata, Oro, Platino levels based on balance + logins + investment
-- Progress bar, dynamic messages, level-up popup, sidebar badge
 
 ### Achievements System
 - 10 achievements across 5 categories, auto-detection, celebration popup
 
-### User Engagement System
-- Inactivity Detection (75s popup), Activity Tracking, Intent Detection
-
 ### Market Data
-- CoinGecko, Finnhub News, TradingView Widget, Binance API
-
-### Financial Analysis Suite
-- Real-Time Market, Crypto Market, Converter, Projections, Portfolio
-- Alerts, Market Reports, Investment Comparator, Global Market Map, Live News
+- CoinGecko, Finnhub News, TradingView Widget, Binance API (api.binance.us)
 
 ## Tech Stack
 - Frontend: React, TailwindCSS, Framer Motion, Recharts, qrcode.react
 - Backend: FastAPI, APScheduler, MongoDB
 - Auth: JWT with RBAC
-- APIs: Resend, CoinGecko, Finnhub, Binance (api.binance.us), TradingView
+- APIs: Resend, CoinGecko (key stored), Finnhub, Binance US, TradingView
 
 ## Credentials
 - Admin: admi@paylionsbit.es / LionsBit2026!
@@ -85,7 +67,7 @@ Professional financial information and verification platform. Provides informati
 ## Backlog
 - P2: Refactor monolithic server.py (~5500 lines)
 - P2: Email notifications for withdrawal status changes
-- P3: Binance Phase 2: Transaction history, deposits/withdrawals, advanced features
+- P3: Binance Phase 2: Transaction history, advanced features
 
 ---
 Last Updated: April 5, 2026
