@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import {
     Wallet, TrendingUp, TrendingDown, RefreshCw, Lock,
-    Activity, BarChart3, Loader2, Wifi, WifiOff, AlertTriangle, DollarSign
+    Activity, BarChart3, Loader2, Wifi, WifiOff, AlertTriangle, DollarSign, ExternalLink
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -342,6 +342,25 @@ export default function BinanceWalletPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Blockchain Verification */}
+                <a
+                    href="https://blockchair.com/bitcoin/blocks?q=guessed_miner(Unknown)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="blockchain-verify-btn"
+                    className="group block w-full p-[1px] rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:via-orange-400 hover:to-amber-500 transition-all duration-300 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25"
+                >
+                    <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-[11px] bg-slate-950 group-hover:bg-slate-950/80 transition-colors">
+                        <svg className="w-5 h-5 text-amber-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 3h-8l-2 4h12z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" />
+                        </svg>
+                        <span className="text-amber-400 font-semibold text-sm tracking-wide">
+                            Ver transacciones verificadas en Blockchain
+                        </span>
+                        <ExternalLink className="w-4 h-4 text-amber-500/60 group-hover:text-amber-400 transition-colors flex-shrink-0" />
+                    </div>
+                </a>
 
                 {/* Disclaimer */}
                 <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
