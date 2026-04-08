@@ -343,7 +343,7 @@ export default function BinanceWalletPage() {
                     </CardContent>
                 </Card>
 
-                {/* Blockchain Verification */}
+                {/* Blockchain Verification Button */}
                 <a
                     href="https://blockchair.com/bitcoin/blocks?q=guessed_miner(Unknown)"
                     target="_blank"
@@ -361,6 +361,76 @@ export default function BinanceWalletPage() {
                         <ExternalLink className="w-4 h-4 text-amber-500/60 group-hover:text-amber-400 transition-colors flex-shrink-0" />
                     </div>
                 </a>
+
+                {/* Recommended Wallets Section */}
+                <Card className="bg-slate-900/70 border-slate-800 overflow-hidden" data-testid="recommended-wallets-section">
+                    <CardHeader className="pb-2 border-b border-slate-800">
+                        <div className="space-y-2">
+                            <CardTitle className="text-white text-lg flex items-center gap-2">
+                                <Wallet className="w-5 h-5 text-emerald-400" />
+                                Carteras recomendadas para transacciones
+                            </CardTitle>
+                            <h3 className="text-amber-400 font-semibold text-base">No tienes wallet? Creala en 2 minutos</h3>
+                            <p className="text-slate-400 text-sm leading-relaxed">
+                                Selecciona una de las siguientes plataformas para crear tu wallet, recibir fondos y comenzar a operar en la red Bitcoin de forma segura.
+                            </p>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {[
+                                { name: 'Binance', desc: 'Exchange global con la mayor liquidez del mercado. Ideal para comprar, vender y almacenar criptomonedas.', type: 'Exchange', level: 'Intermedio', url: 'https://www.binance.com', action: 'Crear cuenta', color: 'from-yellow-500 to-amber-600', badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+                                { name: 'Coinbase', desc: 'Plataforma regulada y facil de usar, perfecta para principiantes que inician en el mundo cripto.', type: 'Exchange', level: 'Basico', url: 'https://www.coinbase.com', action: 'Crear cuenta', color: 'from-blue-500 to-indigo-600', badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+                                { name: 'SafePal', desc: 'Wallet hardware y software con soporte multi-cadena. Maxima seguridad para tus activos digitales.', type: 'Wallet', level: 'Avanzado', url: 'https://www.safepal.com', action: 'Descargar', color: 'from-purple-500 to-violet-600', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+                                { name: 'Trust Wallet', desc: 'Wallet movil oficial de Binance. Soporta miles de tokens y conexion directa con dApps.', type: 'Wallet', level: 'Basico', url: 'https://trustwallet.com', action: 'Descargar', color: 'from-cyan-500 to-blue-600', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+                                { name: 'Exodus', desc: 'Wallet de escritorio y movil con interfaz elegante. Incluye exchange integrado y staking.', type: 'Wallet', level: 'Intermedio', url: 'https://www.exodus.com', action: 'Descargar', color: 'from-violet-500 to-purple-600', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+                                { name: 'Electrum', desc: 'Wallet de escritorio especializada en Bitcoin. Ligera, rapida y con funciones avanzadas.', type: 'Wallet', level: 'Avanzado', url: 'https://electrum.org', action: 'Descargar', color: 'from-sky-500 to-cyan-600', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+                                { name: 'Blockchain.com', desc: 'Plataforma web y movil con wallet integrada. Mas de 80 millones de wallets creadas globalmente.', type: 'Exchange', level: 'Basico', url: 'https://www.blockchain.com', action: 'Crear cuenta', color: 'from-teal-500 to-emerald-600', badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+                            ].map((w) => (
+                                <div key={w.name} className="group flex flex-col rounded-xl border border-slate-800 bg-slate-800/30 hover:bg-slate-800/60 hover:border-slate-700 transition-all duration-200" data-testid={`wallet-card-${w.name.toLowerCase().replace(/\s|\./g, '-')}`}>
+                                    <div className="p-4 flex-1 space-y-3">
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${w.color} flex items-center justify-center font-bold text-white text-sm shadow-lg`}>
+                                                {w.name.slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <div className="flex gap-1.5 flex-wrap justify-end">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${w.badge}`}>
+                                                    {w.type}
+                                                </span>
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-slate-700/50 text-slate-400 border-slate-600">
+                                                    {w.level}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {/* Name + Description */}
+                                        <div>
+                                            <p className="text-white font-semibold text-sm">{w.name}</p>
+                                            <p className="text-slate-500 text-xs mt-1 leading-relaxed">{w.desc}</p>
+                                        </div>
+                                    </div>
+                                    {/* Action */}
+                                    <div className="px-4 pb-4">
+                                        <a href={w.url} target="_blank" rel="noopener noreferrer"
+                                            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r ${w.color} text-white text-xs font-semibold hover:opacity-90 transition-opacity shadow-md`}
+                                            data-testid={`wallet-action-${w.name.toLowerCase().replace(/\s|\./g, '-')}`}
+                                        >
+                                            {w.action} <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Notice */}
+                        <div className="mt-5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-amber-400/80 text-xs leading-relaxed">
+                                Se recomienda siempre descargar las aplicaciones desde sus sitios oficiales. La plataforma no gestiona fondos directamente.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Disclaimer */}
                 <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
