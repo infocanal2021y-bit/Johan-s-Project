@@ -10,9 +10,84 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, TrendingUp, ArrowRight, ArrowUpRight, ArrowDownLeft, ExternalLink, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+
+const BlockchainTransactions = () => {
+    const [active, setActive] = useState(null); // 'paid' | 'received' | null
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="bg-slate-900/70 border-slate-800" data-testid="blockchain-tx-section">
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-white text-base flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-cyan-400" />
+                        Transacciones en Blockchain
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button
+                            variant={active === 'paid' ? 'default' : 'outline'}
+                            onClick={() => setActive(active === 'paid' ? null : 'paid')}
+                            className={active === 'paid'
+                                ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white py-5'
+                                : 'border-slate-700 text-slate-300 hover:bg-slate-800 py-5'}
+                            data-testid="btn-tx-paid"
+                        >
+                            <ArrowUpRight className="w-4 h-4 mr-2" />
+                            Transacciones pagadas
+                        </Button>
+                        <Button
+                            variant={active === 'received' ? 'default' : 'outline'}
+                            onClick={() => setActive(active === 'received' ? null : 'received')}
+                            className={active === 'received'
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-5'
+                                : 'border-slate-700 text-slate-300 hover:bg-slate-800 py-5'}
+                            data-testid="btn-tx-received"
+                        >
+                            <ArrowDownLeft className="w-4 h-4 mr-2" />
+                            Transacciones recibidas
+                        </Button>
+                    </div>
+
+                    {active && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="p-4 rounded-xl bg-slate-800/40 border border-slate-700 space-y-3"
+                            data-testid={`tx-link-${active}`}
+                        >
+                            <p className="text-slate-400 text-sm">
+                                {active === 'paid' ? 'Registro publico de transacciones pagadas (inputs):' : 'Registro publico de transacciones recibidas (outputs):'}
+                            </p>
+                            <a
+                                href={active === 'paid'
+                                    ? 'https://gz.blockchair.com/bitcoin/inputs/'
+                                    : 'https://gz.blockchair.com/bitcoin/outputs/'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                data-testid={`tx-link-href-${active}`}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                {active === 'paid'
+                                    ? 'gz.blockchair.com/bitcoin/inputs'
+                                    : 'gz.blockchair.com/bitcoin/outputs'}
+                            </a>
+                        </motion.div>
+                    )}
+
+                    <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                        <p className="text-slate-500 text-xs text-center leading-relaxed">
+                            Las transacciones mostradas corresponden a registros publicos de la red blockchain y pueden ser verificadas externamente para garantizar transparencia.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        </motion.div>
+    );
+};
 
 export const DashboardPage = () => {
     const { user } = useAuth();
@@ -313,6 +388,9 @@ export const DashboardPage = () => {
 
                 {/* User Level Card */}
                 <UserLevelCard />
+
+                {/* Blockchain Transactions */}
+                <BlockchainTransactions />
 
                 {/* Transaction Chart */}
                 <TransactionChart />
