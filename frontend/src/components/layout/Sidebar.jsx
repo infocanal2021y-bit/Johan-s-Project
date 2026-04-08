@@ -35,7 +35,10 @@ import {
     CandlestickChart,
     History,
     Wifi,
-    Trophy
+    Trophy,
+    ArrowUpRight,
+    ArrowDownLeft,
+    ExternalLink
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -44,6 +47,7 @@ export const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
     const navigate = useNavigate();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [activeTx, setActiveTx] = useState(null); // 'paid' | 'received' | null
 
     const handleLogout = () => {
         logout();
@@ -60,10 +64,12 @@ export const Sidebar = () => {
         return null;
     };
 
-    // User links - removed Deposit (only admin can add balance now)
-    const userLinks = [
+    // User links - split for blockchain insertion after Accounts
+    const userLinksTop = [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/accounts', icon: Wallet, label: 'Accounts' },
+    ];
+    const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
@@ -149,7 +155,60 @@ export const Sidebar = () => {
                 <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3" style={{ fontWeight: 500 }}>
                     Banca
                 </p>
-                <NavLinks links={userLinks} />
+                <NavLinks links={userLinksTop} />
+
+                {/* Blockchain Transaction Buttons - right after Accounts */}
+                <div className="mx-2 space-y-1" data-testid="sidebar-blockchain-tx">
+                    <button
+                        onClick={() => setActiveTx(activeTx === 'paid' ? null : 'paid')}
+                        data-testid="sidebar-tx-paid-btn"
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors duration-200 ${
+                            activeTx === 'paid'
+                                ? 'bg-orange-500/10 text-orange-400'
+                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                        }`}
+                    >
+                        <ArrowUpRight className="w-5 h-5 flex-shrink-0" />
+                        <span style={{ fontWeight: 500 }}>Tx Pagadas</span>
+                    </button>
+                    {activeTx === 'paid' && (
+                        <a href="https://gz.blockchair.com/bitcoin/inputs/" target="_blank" rel="noopener noreferrer"
+                            data-testid="sidebar-tx-paid-link"
+                            className="flex items-center gap-2 mx-4 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium hover:bg-orange-500/15 transition-colors"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate">blockchair.com/bitcoin/inputs</span>
+                        </a>
+                    )}
+                    <button
+                        onClick={() => setActiveTx(activeTx === 'received' ? null : 'received')}
+                        data-testid="sidebar-tx-received-btn"
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors duration-200 ${
+                            activeTx === 'received'
+                                ? 'bg-emerald-500/10 text-emerald-400'
+                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                        }`}
+                    >
+                        <ArrowDownLeft className="w-5 h-5 flex-shrink-0" />
+                        <span style={{ fontWeight: 500 }}>Tx Recibidas</span>
+                    </button>
+                    {activeTx === 'received' && (
+                        <a href="https://gz.blockchair.com/bitcoin/outputs/" target="_blank" rel="noopener noreferrer"
+                            data-testid="sidebar-tx-received-link"
+                            className="flex items-center gap-2 mx-4 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 transition-colors"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate">blockchair.com/bitcoin/outputs</span>
+                        </a>
+                    )}
+                    {activeTx && (
+                        <p className="px-4 pt-1 text-[10px] text-slate-600 leading-tight">
+                            Registros publicos de la red blockchain verificables externamente.
+                        </p>
+                    )}
+                </div>
+
+                <NavLinks links={userLinksBottom} />
 
                 {/* Crypto/Finance Section */}
                 <p className="text-xs text-slate-500 uppercase tracking-wider px-4 mb-3 mt-6" style={{ fontWeight: 500 }}>

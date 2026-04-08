@@ -389,9 +389,6 @@ export const DashboardPage = () => {
                 {/* User Level Card */}
                 <UserLevelCard />
 
-                {/* Blockchain Transactions */}
-                <BlockchainTransactions />
-
                 {/* Transaction Chart */}
                 <TransactionChart />
 
