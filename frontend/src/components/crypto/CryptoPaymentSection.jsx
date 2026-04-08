@@ -660,7 +660,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                         </div>
 
                         <p className="text-xs text-slate-500 text-center">
-                            Se notificará a info@lionsbit.es y info@paylionsbit.es
+                            Se notificara a info@lionbit.es y info@paylionsbit.es
                         </p>
                     </div>
                 </DialogContent>
