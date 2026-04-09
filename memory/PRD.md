@@ -74,7 +74,12 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - P1: Fixed SPA crash/reload with browser translation
   - Changed lang="en" to lang="es"
   - Added MutationObserver to prevent Google Translate DOM mutations from crashing React
-  - Added notranslate class to html element
+- Improved BankTransferPage:
+  - Added "Opciones de pago en linea" section with 3 Wise payment links
+  - Buttons open in new tab with modern card-style hover effects
+  - Changed button text to "Confirmar pago realizado"
+  - Highlighted reference field with amber border and validation note
+  - Added informational text about payment options
 
 ### Earlier Sessions
 - Connected routing for InvestmentComparatorPage, GlobalMarketMapPage, LiveMarketNewsPage

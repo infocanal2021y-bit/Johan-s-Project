@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Banknote, Copy, Check, Loader2, CheckCircle, Info, Clock, Upload, X, FileText, Shield } from 'lucide-react';
+import { Banknote, Copy, Check, Loader2, CheckCircle, Info, Clock, Upload, X, FileText, Shield, ExternalLink, CreditCard, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { paymentsAPI } from '../lib/api';
 import { toast } from 'sonner';
@@ -17,7 +17,13 @@ const BANK_TRANSFER_DATA = {
     address: 'Wise, Rue du Trone 100, 3rd floor, Brussels, 1050, Belgium',
 };
 
-const CopyField = ({ label, value, testId }) => {
+const ONLINE_PAYMENT_LINKS = [
+    { id: 1, label: 'Opcion de Pago 1', url: 'https://wise.com/pay/r/rfpnQQbtekFJtl4' },
+    { id: 2, label: 'Opcion de Pago 2', url: 'https://wise.com/pay/r/Go2syT073Li3q2I' },
+    { id: 3, label: 'Opcion de Pago 3', url: 'https://wise.com/pay/r/HIgKfdc2gMgLwhM' },
+];
+
+const CopyField = ({ label, value, testId, highlight }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => {
         navigator.clipboard.writeText(value.replace(/\s/g, ''));
@@ -26,13 +32,24 @@ const CopyField = ({ label, value, testId }) => {
         setTimeout(() => setCopied(false), 2000);
     };
     return (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+        <div className={`flex items-center justify-between p-4 rounded-xl border ${
+            highlight
+                ? 'bg-amber-500/5 border-amber-500/30'
+                : 'bg-slate-950/60 border-slate-800'
+        }`}>
             <div className="min-w-0">
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider">{label}</p>
-                <p className="text-white font-mono text-sm mt-1 break-all">{value}</p>
+                <p className={`text-[11px] uppercase tracking-wider ${highlight ? 'text-amber-400' : 'text-slate-500'}`}>{label}</p>
+                <p className={`font-mono text-sm mt-1 break-all ${highlight ? 'text-amber-200 font-bold' : 'text-white'}`}>{value}</p>
+                {highlight && (
+                    <p className="text-amber-400/70 text-[10px] mt-1.5 leading-tight">
+                        Incluya esta referencia en su transferencia para facilitar la validacion del pago.
+                    </p>
+                )}
             </div>
-            <button onClick={handleCopy} className="ml-3 flex-shrink-0 p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors" data-testid={testId}>
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
+            <button onClick={handleCopy} className={`ml-3 flex-shrink-0 p-2.5 rounded-lg transition-colors ${
+                highlight ? 'bg-amber-500/20 hover:bg-amber-500/30' : 'bg-slate-800 hover:bg-slate-700'
+            }`} data-testid={testId}>
+                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className={`w-4 h-4 ${highlight ? 'text-amber-300' : 'text-slate-400'}`} />}
             </button>
         </div>
     );
@@ -129,7 +146,7 @@ export default function BankTransferPage() {
                         <p className="text-emerald-400 font-bold text-xl mt-1">{BANK_TRANSFER_DATA.amount}</p>
                     </div>
 
-                    <CopyField label="Referencia obligatoria" value={BANK_TRANSFER_DATA.reference} testId="copy-reference-btn" />
+                    <CopyField label="Referencia obligatoria" value={BANK_TRANSFER_DATA.reference} testId="copy-reference-btn" highlight />
                     <CopyField label="IBAN" value={BANK_TRANSFER_DATA.iban} testId="copy-iban-btn" />
 
                     <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
@@ -143,7 +160,47 @@ export default function BankTransferPage() {
                     </div>
                 </div>
 
-                {/* Action button */}
+                {/* ── Online Payment Options ── */}
+                <div className="mb-6" data-testid="online-payment-section">
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+                            <CreditCard className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <h2 className="text-base font-semibold text-white">Opciones de pago en linea</h2>
+                    </div>
+
+                    <div className="space-y-3">
+                        {ONLINE_PAYMENT_LINKS.map((link) => (
+                            <a
+                                key={link.id}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-slate-900/80 to-slate-800/40 border border-slate-700/60 hover:border-cyan-500/40 hover:from-cyan-950/30 hover:to-slate-800/50 transition-all duration-200"
+                                data-testid={`online-payment-btn-${link.id}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-cyan-500/10 group-hover:bg-cyan-500/20 flex items-center justify-center transition-colors">
+                                        <CreditCard className="w-4 h-4 text-cyan-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-white text-sm font-medium group-hover:text-cyan-300 transition-colors">{link.label}</p>
+                                        <p className="text-slate-500 text-[11px] mt-0.5">Pago seguro via Wise</p>
+                                    </div>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                            </a>
+                        ))}
+                    </div>
+
+                    <div className="mt-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/40">
+                        <p className="text-slate-400 text-xs leading-relaxed text-center">
+                            Puede utilizar cualquiera de las opciones anteriores para completar su pago de forma segura. Al finalizar, confirme el pago realizado desde esta pagina.
+                        </p>
+                    </div>
+                </div>
+
+                {/* ── Confirm Payment Button ── */}
                 {confirmed ? (
                     <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 mb-6" data-testid="transfer-confirmed-status">
                         <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
@@ -158,16 +215,16 @@ export default function BankTransferPage() {
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base mb-6"
                         data-testid="confirm-transfer-btn"
                     >
-                        <CheckCircle className="w-4 h-4 mr-2" /> Ya realice la transferencia
+                        <CheckCircle className="w-4 h-4 mr-2" /> Confirmar pago realizado
                     </Button>
                 )}
 
                 {/* Info messages */}
                 <div className="space-y-2 mb-6">
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                        <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                        <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
                         <p className="text-amber-300 text-xs leading-relaxed">
-                            Utiliza la referencia proporcionada al realizar la transferencia para garantizar la correcta identificacion del pago.
+                            <span className="font-semibold">Importante:</span> Incluya la referencia <span className="font-mono font-bold text-amber-200">{BANK_TRANSFER_DATA.reference}</span> en su transferencia para garantizar la correcta validacion del pago.
                         </p>
                     </div>
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
