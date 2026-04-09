@@ -70,9 +70,6 @@ if not db_name:
     db_name = parsed.path.strip('/') if parsed.path and parsed.path != '/' else 'lionsbit_bank'
 db = client[db_name]
 
-# Create the main app
-app = FastAPI(title="LIONSBIT VERIFICACION API")
-
 # Custom JSON encoder to handle MongoDB ObjectId
 class MongoJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -92,29 +89,11 @@ def sanitize_mongo_doc(obj):
         return str(obj)
     return obj
 
-# Middleware to catch ObjectId serialization errors
-@app.middleware("http")
-async def sanitize_objectid_middleware(request: Request, call_next):
-    response = await call_next(request)
-    content_type = response.headers.get('content-type', '')
-    if not content_type.startswith('application/json'):
-        return response
-    try:
-        body = b''
-        async for chunk in response.body_iterator:
-            body += chunk if isinstance(chunk, bytes) else chunk.encode()
-        data = json.loads(body)
-        clean = sanitize_mongo_doc(data)
-        new_body = json.dumps(clean, cls=MongoJSONEncoder)
-        return Response(
-            content=new_body,
-            status_code=response.status_code,
-            media_type='application/json'
-        )
-    except Exception:
-        if body:
-            return Response(content=body, status_code=response.status_code, media_type='application/json')
-        return response
+class SafeJSONResponse(JSONResponse):
+    """JSONResponse that auto-sanitizes MongoDB ObjectId and _id fields"""
+    def render(self, content) -> bytes:
+        clean = sanitize_mongo_doc(content)
+        return json.dumps(clean, cls=MongoJSONEncoder, ensure_ascii=False).encode("utf-8")
 
 def strip_id(doc):
     """Remove _id from a MongoDB document"""
@@ -125,6 +104,9 @@ def strip_id(doc):
     if isinstance(doc, list):
         return [strip_id(d) for d in doc]
     return doc
+
+# Create the main app
+app = FastAPI(title="LIONSBIT VERIFICACION API", default_response_class=SafeJSONResponse)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
