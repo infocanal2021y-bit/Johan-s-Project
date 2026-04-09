@@ -1,0 +1,125 @@
+{
+  "summary": "Tested Admin Withdrawals Accordion System - Complete UI rewrite with 6 status sections. All 13 backend tests passed (100%). All frontend UI tests passed. Accordion sections expand/collapse correctly, row expansion shows user details and withdrawal history, Reactivar/Agregar saldo buttons work in Rechazados section, Reject dialog works with reason input.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dialogs",
+        "issues": ["Console warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent} - minor accessibility issue"]
+      }
+    ]
+  },
+
+  "passed_tests": [
+    "✅ Backend: GET /api/admin/withdrawals/all returns 200 with list of withdrawals",
+    "✅ Backend: Withdrawals have required fields (id, user_id, amount, currency, status, created_at, user.name, user.email)",
+    "✅ Backend: All withdrawals have valid status values",
+    "✅ Backend: GET /api/admin/withdrawals/{id}/details returns user info, balance, banking_info, withdrawal_history",
+    "✅ Backend: Withdrawal details include withdrawal history list with id, amount, status, created_at",
+    "✅ Backend: GET /api/admin/withdrawals/{id}/details returns 404 for invalid ID",
+    "✅ Backend: POST /api/admin/withdrawals/{id}/reactivate changes rejected to pending",
+    "✅ Backend: POST /api/admin/withdrawals/{id}/reactivate returns 400 for non-rejected withdrawals",
+    "✅ Backend: POST /api/admin/withdrawals/{id}/reactivate returns 404 for invalid ID",
+    "✅ Backend: PUT /api/admin/withdrawals/update-status advances pending to processing",
+    "✅ Backend: PUT /api/admin/withdrawals/update-status advances processing to transfer_in_progress",
+    "✅ Backend: PUT /api/admin/withdrawals/update-status can reject with reason",
+    "✅ Backend: All admin withdrawal endpoints require authentication",
+    "✅ Frontend: Admin Withdrawals page loads at /admin/withdrawals",
+    "✅ Frontend: 6 accordion sections present with correct labels (Impuesto Pendiente, Pendientes, Procesando, En Transferencia, Completados, Rechazados)",
+    "✅ Frontend: Each section has data-testid='section-toggle-{status}' for expand/collapse",
+    "✅ Frontend: Badge counts display correctly (0, 2, 1, 0, 2, 19)",
+    "✅ Frontend: Refresh button (data-testid='refresh-btn') reloads data",
+    "✅ Frontend: Expanded section shows table with columns (Usuario, Email, Monto, Banco, Fecha, Acciones)",
+    "✅ Frontend: Clicking row expands to show UserDetailPanel",
+    "✅ Frontend: Expanded row shows 'Datos del Usuario' section (Nombre, Email, IBAN, Saldo USD, Saldo EUR)",
+    "✅ Frontend: Expanded row shows 'Historial de Retiros' section with withdrawal history",
+    "✅ Frontend: Rejected section expanded row shows 'Motivo del Rechazo' section",
+    "✅ Frontend: Rejected section has 'Reactivar retiro' button (data-testid='reactivate-btn-{id}')",
+    "✅ Frontend: Rejected section has 'Agregar saldo' button (data-testid='add-balance-btn-{id}')",
+    "✅ Frontend: 'Agregar saldo' button opens Add Balance dialog (data-testid='add-balance-dialog')",
+    "✅ Frontend: Add Balance dialog has amount input (data-testid='balance-amount-input') and USD/EUR toggle",
+    "✅ Frontend: Add Balance dialog has confirm button (data-testid='confirm-balance-btn')",
+    "✅ Frontend: Reject button opens Reject dialog (data-testid='reject-dialog')",
+    "✅ Frontend: Reject dialog has reason input (data-testid='rejection-reason-input')",
+    "✅ Frontend: Reject dialog has confirm button (data-testid='confirm-reject-btn')",
+    "✅ Frontend: Aprobar buttons present for status advancement (pending→processing→transfer→completed)"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_withdrawal_accordion.py",
+    "/app/test_reports/pytest/withdrawal_accordion_results.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "Minor: DialogContent components missing aria-describedby for accessibility - consider adding DialogDescription or aria-describedby prop"
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_withdrawal_accordion.py (new test file)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all UI features verified)"
+  },
+
+  "test_credentials": {
+    "admin_email": "admi@paylionsbit.es",
+    "admin_password": "LionsBit2026!"
+  },
+
+  "seed_data_creation": "No new seed data created. Used existing withdrawals (2 pending, 1 processing, 2 completed, 19 rejected).",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Admin Withdrawals Accordion System fully tested. Key features: 1) /admin/withdrawals page shows 6 accordion sections grouped by status. 2) Each section has data-testid='section-toggle-{key}' where key is pending_tax, pending, processing, transfer, completed, rejected. 3) Clicking section expands to show table with columns Usuario, Email, Monto, Banco, Fecha, Acciones. 4) Clicking row expands UserDetailPanel showing Datos del Usuario (name, email, IBAN, balances) and Historial de Retiros. 5) Rejected section expanded rows show Motivo del Rechazo and buttons: Reactivar retiro (data-testid='reactivate-btn-{id}') and Agregar saldo (data-testid='add-balance-btn-{id}'). 6) Backend endpoints: GET /api/admin/withdrawals/all, GET /api/admin/withdrawals/{id}/details, POST /api/admin/withdrawals/{id}/reactivate, PUT /api/admin/withdrawals/update-status.",
+
+  "features_verified": {
+    "accordion_sections": {
+      "section_testid_pattern": "section-{key}",
+      "toggle_testid_pattern": "section-toggle-{key}",
+      "keys": ["pending_tax", "pending", "processing", "transfer", "completed", "rejected"],
+      "labels": ["Impuesto Pendiente", "Pendientes", "Procesando", "En Transferencia", "Completados", "Rechazados"]
+    },
+    "table_columns": ["Usuario", "Email", "Monto", "Banco", "Fecha", "Acciones"],
+    "row_expansion": {
+      "row_testid_pattern": "withdrawal-row-{id}",
+      "user_detail_sections": ["Datos del Usuario", "Historial de Retiros"],
+      "user_fields": ["Nombre", "Email", "IBAN", "Saldo USD", "Saldo EUR"]
+    },
+    "rejected_section_buttons": {
+      "reactivate_btn_testid": "reactivate-btn-{id}",
+      "add_balance_btn_testid": "add-balance-btn-{id}"
+    },
+    "dialogs": {
+      "add_balance_dialog_testid": "add-balance-dialog",
+      "balance_amount_input_testid": "balance-amount-input",
+      "confirm_balance_btn_testid": "confirm-balance-btn",
+      "reject_dialog_testid": "reject-dialog",
+      "rejection_reason_input_testid": "rejection-reason-input",
+      "confirm_reject_btn_testid": "confirm-reject-btn"
+    },
+    "backend_endpoints": {
+      "get_all_withdrawals": "GET /api/admin/withdrawals/all",
+      "get_withdrawal_details": "GET /api/admin/withdrawals/{id}/details",
+      "reactivate_withdrawal": "POST /api/admin/withdrawals/{id}/reactivate",
+      "update_status": "PUT /api/admin/withdrawals/update-status"
+    }
+  },
+
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

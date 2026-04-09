@@ -1,31 +1,153 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { 
-    Clock, CheckCircle, XCircle, Loader2, RefreshCw, 
+import {
+    Clock, CheckCircle, XCircle, Loader2, RefreshCw, ChevronDown,
     Building2, CreditCard, Globe, User, ArrowRight, Ban,
-    Banknote, FileText
+    Banknote, FileText, RotateCcw, DollarSign, Mail, Calendar,
+    AlertTriangle, History
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const STATUS_CONFIG = [
+    { key: 'pending_tax', label: 'Impuesto Pendiente', icon: AlertTriangle, color: 'orange', filter: w => w.status === 'pending_tax' },
+    { key: 'pending', label: 'Pendientes', icon: Clock, color: 'amber', filter: w => w.status === 'pending' },
+    { key: 'processing', label: 'Procesando', icon: Loader2, color: 'cyan', filter: w => w.status === 'processing' },
+    { key: 'transfer', label: 'En Transferencia', icon: ArrowRight, color: 'blue', filter: w => w.status === 'transfer_in_progress' },
+    { key: 'completed', label: 'Completados', icon: CheckCircle, color: 'emerald', filter: w => w.status === 'completed' },
+    { key: 'rejected', label: 'Rechazados', icon: XCircle, color: 'red', filter: w => w.status === 'rejected' },
+];
+
+const colorMap = {
+    orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', badge: 'bg-orange-500' },
+    amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', badge: 'bg-amber-500' },
+    cyan: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', badge: 'bg-cyan-500' },
+    blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', badge: 'bg-blue-500' },
+    emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', badge: 'bg-emerald-500' },
+    red: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', badge: 'bg-red-500' },
+};
+
+const statusLabels = {
+    pending: 'Pendiente', processing: 'Procesando', transfer_in_progress: 'En Transferencia',
+    completed: 'Completado', rejected: 'Rechazado', pending_tax: 'Impuesto Pendiente', under_review: 'En Revision',
+};
+
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
+const getNextStatus = (s) => ({ pending: 'processing', processing: 'transfer_in_progress', transfer_in_progress: 'completed' }[s] || null);
+const getNextLabel = (s) => ({ pending: 'Aprobar', processing: 'En Transferencia', transfer_in_progress: 'Completar' }[s] || null);
+
+/* ── Expanded User Row ── */
+const UserDetailPanel = ({ withdrawal, onReactivate, onAddBalance, reactivating }) => {
+    const [details, setDetails] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        adminAPI.getWithdrawalDetails(withdrawal.id)
+            .then(res => setDetails(res.data))
+            .catch(() => toast.error('Error al cargar detalles'))
+            .finally(() => setLoading(false));
+    }, [withdrawal.id]);
+
+    if (loading) return <div className="p-4 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>;
+    if (!details) return null;
+
+    const isRejected = withdrawal.status === 'rejected';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+        >
+            <div className="px-4 pb-4 pt-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* User info */}
+                <div className="p-3 rounded-lg bg-slate-800/60 space-y-2">
+                    <p className="text-xs text-slate-500 uppercase tracking-wider flex items-center gap-1"><User className="w-3 h-3" /> Datos del Usuario</p>
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                        <span className="text-slate-500">Nombre:</span><span className="text-white">{details.user.name}</span>
+                        <span className="text-slate-500">Email:</span><span className="text-white">{details.user.email}</span>
+                        <span className="text-slate-500">IBAN:</span><span className="text-white font-mono text-xs">{details.banking_info?.iban || '-'}</span>
+                        <span className="text-slate-500">Saldo USD:</span><span className="text-emerald-400">${details.balance.available_usd?.toFixed(2)}</span>
+                        <span className="text-slate-500">Saldo EUR:</span><span className="text-emerald-400">{details.balance.available_eur?.toFixed(2)} EUR</span>
+                    </div>
+                </div>
+
+                {/* Withdrawal history */}
+                <div className="p-3 rounded-lg bg-slate-800/60 space-y-2">
+                    <p className="text-xs text-slate-500 uppercase tracking-wider flex items-center gap-1"><History className="w-3 h-3" /> Historial de Retiros</p>
+                    <div className="max-h-36 overflow-y-auto space-y-1">
+                        {details.withdrawal_history?.length > 0 ? details.withdrawal_history.map(h => (
+                            <div key={h.id} className="flex items-center justify-between text-xs py-1 border-b border-slate-700/40 last:border-0">
+                                <span className="text-slate-400">{formatDate(h.created_at)}</span>
+                                <span className="text-white font-mono">{h.currency === 'USD' ? '$' : 'EUR '}{h.amount?.toFixed(2)}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                    h.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                                    h.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                                    'bg-amber-500/20 text-amber-400'
+                                }`}>{statusLabels[h.status] || h.status}</span>
+                            </div>
+                        )) : <p className="text-slate-600 text-xs">Sin historial</p>}
+                    </div>
+                </div>
+
+                {/* Rejection section */}
+                {isRejected && (
+                    <div className="md:col-span-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 space-y-3">
+                        {withdrawal.rejection_reason && (
+                            <div>
+                                <p className="text-xs text-red-400 uppercase tracking-wider">Motivo del Rechazo</p>
+                                <p className="text-white text-sm mt-1">{withdrawal.rejection_reason}</p>
+                            </div>
+                        )}
+                        <p className="text-slate-400 text-xs">Puede reactivar este retiro para que vuelva al estado pendiente.</p>
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                onClick={() => onReactivate(withdrawal.id)}
+                                disabled={reactivating}
+                                className="bg-amber-500 hover:bg-amber-600 text-white"
+                                data-testid={`reactivate-btn-${withdrawal.id}`}
+                            >
+                                {reactivating ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />}
+                                Reactivar retiro
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => onAddBalance(withdrawal)}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                                data-testid={`add-balance-btn-${withdrawal.id}`}
+                            >
+                                <DollarSign className="w-3 h-3 mr-1" /> Agregar saldo
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+};
+
+/* ── Main Page ── */
 export const AdminWithdrawalsPage = () => {
     const [withdrawals, setWithdrawals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
-    const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-    const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
+    const [openSections, setOpenSections] = useState(['pending_tax', 'pending']);
+    const [expandedRows, setExpandedRows] = useState({});
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
     const [rejectionReason, setRejectionReason] = useState('');
-    const [activeTab, setActiveTab] = useState('pending');
+    const [addBalanceDialog, setAddBalanceDialog] = useState(false);
+    const [balanceAmount, setBalanceAmount] = useState('');
+    const [balanceCurrency, setBalanceCurrency] = useState('USD');
 
     const fetchWithdrawals = async () => {
         setLoading(true);
@@ -39,15 +161,21 @@ export const AdminWithdrawalsPage = () => {
         }
     };
 
-    useEffect(() => {
-        fetchWithdrawals();
-    }, []);
+    useEffect(() => { fetchWithdrawals(); }, []);
+
+    const toggleSection = (key) => {
+        setOpenSections(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+    };
+
+    const toggleRow = (id) => {
+        setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     const handleStatusChange = async (transactionId, newStatus) => {
         setProcessingId(transactionId);
         try {
-            await adminAPI.updateWithdrawalStatus({ 
-                transaction_id: transactionId, 
+            await adminAPI.updateWithdrawalStatus({
+                transaction_id: transactionId,
                 status: newStatus,
                 rejection_reason: newStatus === 'rejected' ? rejectionReason : null
             });
@@ -56,528 +184,241 @@ export const AdminWithdrawalsPage = () => {
             setRejectionReason('');
             fetchWithdrawals();
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Error al actualizar estado');
+            toast.error(error.response?.data?.detail || 'Error al actualizar');
         } finally {
             setProcessingId(null);
         }
     };
 
-    const openDetailsDialog = (withdrawal) => {
-        setSelectedWithdrawal(withdrawal);
-        setDetailsDialogOpen(true);
-    };
-
-    const openRejectDialog = (withdrawal) => {
-        setSelectedWithdrawal(withdrawal);
-        setRejectionReason('');
-        setRejectDialogOpen(true);
-    };
-
-    const handleReject = () => {
-        if (selectedWithdrawal) {
-            handleStatusChange(selectedWithdrawal.id, 'rejected');
+    const handleReactivate = async (id) => {
+        setProcessingId(id);
+        try {
+            await adminAPI.reactivateWithdrawal(id);
+            toast.success('Retiro reactivado');
+            fetchWithdrawals();
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Error al reactivar');
+        } finally {
+            setProcessingId(null);
         }
     };
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('es-ES', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+    const handleAddBalance = async () => {
+        if (!selectedWithdrawal || !balanceAmount) return;
+        setProcessingId('balance');
+        try {
+            await adminAPI.addBalance({
+                user_id: selectedWithdrawal.user_id || selectedWithdrawal.user?.id,
+                amount: parseFloat(balanceAmount),
+                currency: balanceCurrency,
+                description: `Saldo agregado desde gestion de retiros (Ref: ${selectedWithdrawal.id?.slice(0, 8)})`
+            });
+            toast.success('Saldo agregado exitosamente');
+            setAddBalanceDialog(false);
+            setBalanceAmount('');
+            fetchWithdrawals();
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Error al agregar saldo');
+        } finally {
+            setProcessingId(null);
+        }
     };
 
-    const statusLabels = {
-        pending: 'Pendiente de Aprobación',
-        processing: 'Procesando',
-        transfer_in_progress: 'Transferencia en Proceso',
-        completed: 'Completado',
-        rejected: 'Rechazado',
-        pending_tax: 'Impuesto Pendiente',
-        under_review: 'En Revisión'
-    };
-
-    const statusColors = {
-        pending: 'text-amber-400 bg-amber-500/20 border-amber-500/30',
-        processing: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30',
-        transfer_in_progress: 'text-blue-400 bg-blue-500/20 border-blue-500/30',
-        completed: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30',
-        rejected: 'text-red-400 bg-red-500/20 border-red-500/30',
-        pending_tax: 'text-orange-400 bg-orange-500/20 border-orange-500/30',
-        under_review: 'text-purple-400 bg-purple-500/20 border-purple-500/30'
-    };
-
-    // Filter withdrawals by status
-    const filteredWithdrawals = withdrawals.filter(w => {
-        if (activeTab === 'pending') return w.status === 'pending';
-        if (activeTab === 'pending_tax') return w.status === 'pending_tax';
-        if (activeTab === 'processing') return w.status === 'processing' || w.status === 'transfer_in_progress';
-        if (activeTab === 'completed') return w.status === 'completed';
-        if (activeTab === 'rejected') return w.status === 'rejected';
-        return true; // 'all' tab
-    });
-
-    const getNextStatus = (currentStatus) => {
-        const flow = {
-            'pending': 'processing',
-            'processing': 'transfer_in_progress',
-            'transfer_in_progress': 'completed'
-        };
-        return flow[currentStatus] || null;
-    };
-
-    const getNextStatusLabel = (currentStatus) => {
-        const labels = {
-            'pending': 'Aprobar → Procesando',
-            'processing': 'Transferencia en Proceso',
-            'transfer_in_progress': 'Marcar Completado'
-        };
-        return labels[currentStatus] || null;
+    const openAddBalanceDialog = (w) => {
+        setSelectedWithdrawal(w);
+        setBalanceAmount('');
+        setAddBalanceDialog(true);
     };
 
     return (
         <Layout>
-            <div className="max-w-7xl mx-auto space-y-8" data-testid="admin-withdrawals-page">
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-between"
-                >
+            <div className="max-w-7xl mx-auto space-y-6" data-testid="admin-withdrawals-page">
+                {/* Header */}
+                <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                            Gestión de Retiros
-                        </h1>
-                        <p className="text-slate-500 mt-1 font-light">Administrar solicitudes de retiro de usuarios</p>
+                        <h1 className="text-2xl sm:text-3xl text-white font-bold tracking-tight">Gestion de Retiros</h1>
+                        <p className="text-slate-500 text-sm mt-1">Sistema de gestion por estados con acordeon</p>
                     </div>
-                    <Button
-                        onClick={fetchWithdrawals}
-                        variant="outline"
-                        className="border-slate-700 hover:bg-slate-800 text-slate-300"
-                    >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                        Actualizar
+                    <Button onClick={fetchWithdrawals} variant="outline" className="border-slate-700 hover:bg-slate-800 text-slate-300" data-testid="refresh-btn">
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Actualizar
                     </Button>
-                </motion.div>
+                </div>
 
-                {/* Stats Cards */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 md:grid-cols-6 gap-4"
-                >
-                    <Card className="bg-orange-500/10 border-orange-500/30">
-                        <CardContent className="p-4 text-center">
-                            <p className="text-3xl text-orange-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {withdrawals.filter(w => w.status === 'pending_tax').length}
-                            </p>
-                            <p className="text-xs text-orange-400/70 mt-1">Impuesto Pendiente</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-amber-500/10 border-amber-500/30">
-                        <CardContent className="p-4 text-center">
-                            <p className="text-3xl text-amber-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {withdrawals.filter(w => w.status === 'pending').length}
-                            </p>
-                            <p className="text-xs text-amber-400/70 mt-1">Pendientes</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-cyan-500/10 border-cyan-500/30">
-                        <CardContent className="p-4 text-center">
-                            <p className="text-3xl text-cyan-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {withdrawals.filter(w => w.status === 'processing').length}
-                            </p>
-                            <p className="text-xs text-cyan-400/70 mt-1">Procesando</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-blue-500/10 border-blue-500/30">
-                        <CardContent className="p-4 text-center">
-                            <p className="text-3xl text-blue-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {withdrawals.filter(w => w.status === 'transfer_in_progress').length}
-                            </p>
-                            <p className="text-xs text-blue-400/70 mt-1">En Transferencia</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-emerald-500/10 border-emerald-500/30">
-                        <CardContent className="p-4 text-center">
-                            <p className="text-3xl text-emerald-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {withdrawals.filter(w => w.status === 'completed').length}
-                            </p>
-                            <p className="text-xs text-emerald-400/70 mt-1">Completados</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-red-500/10 border-red-500/30">
-                        <CardContent className="p-4 text-center">
-                            <p className="text-3xl text-red-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {withdrawals.filter(w => w.status === 'rejected').length}
-                            </p>
-                            <p className="text-xs text-red-400/70 mt-1">Rechazados</p>
-                        </CardContent>
-                    </Card>
-                </motion.div>
+                {/* Accordion Sections */}
+                {loading ? (
+                    <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-slate-800/50 rounded-xl animate-pulse" />)}</div>
+                ) : (
+                    <div className="space-y-3">
+                        {STATUS_CONFIG.map(section => {
+                            const items = withdrawals.filter(section.filter);
+                            const cm = colorMap[section.color];
+                            const isOpen = openSections.includes(section.key);
+                            const SIcon = section.icon;
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
-                        <CardHeader className="border-b border-slate-800">
-                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="bg-slate-800/50 w-full justify-start flex-wrap">
-                                    <TabsTrigger value="pending_tax" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
-                                        Impuesto Pendiente ({withdrawals.filter(w => w.status === 'pending_tax').length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="pending" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
-                                        Pendientes ({withdrawals.filter(w => w.status === 'pending').length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="processing" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
-                                        En Proceso ({withdrawals.filter(w => w.status === 'processing' || w.status === 'transfer_in_progress').length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="completed" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
-                                        Completados ({withdrawals.filter(w => w.status === 'completed').length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="rejected" className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400">
-                                        Rechazados ({withdrawals.filter(w => w.status === 'rejected').length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="all" className="data-[state=active]:bg-slate-600">
-                                        Todos ({withdrawals.length})
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {loading ? (
-                                <div className="p-8 space-y-4">
-                                    {[...Array(3)].map((_, i) => (
-                                        <div key={i} className="h-20 bg-slate-800/50 rounded animate-pulse" />
-                                    ))}
-                                </div>
-                            ) : filteredWithdrawals.length === 0 ? (
-                                <div className="py-16 text-center">
-                                    <Banknote className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                    <p className="text-slate-500">No hay retiros en esta categoría</p>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="border-slate-800 hover:bg-transparent">
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Usuario</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Monto</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Banco</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Estado</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Fecha</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Acciones</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredWithdrawals.map((w) => {
-                                                const currentStatus = w.status || 'pending';
-                                                const statusColor = statusColors[currentStatus] || statusColors.pending;
-                                                const nextStatus = getNextStatus(currentStatus);
-                                                const nextStatusLabel = getNextStatusLabel(currentStatus);
-                                                const bankingInfo = w.banking_info || {};
-                                                
-                                                return (
-                                                    <TableRow 
-                                                        key={w.id} 
-                                                        className="border-slate-800/50 hover:bg-slate-800/30" 
-                                                        data-testid={`withdrawal-row-${w.id}`}
-                                                    >
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
-                                                                    <span className="text-sm font-medium text-white">
-                                                                        {w.user?.name?.charAt(0).toUpperCase() || '?'}
-                                                                    </span>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-medium text-white">{w.user?.name || 'Desconocido'}</p>
-                                                                    <p className="text-xs text-slate-500">{w.user?.email || ''}</p>
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <span 
-                                                                className="text-red-400"
-                                                                style={{ 
-                                                                    fontSize: '18px',
-                                                                    fontWeight: 600, 
-                                                                    fontVariantNumeric: 'tabular-nums' 
-                                                                }}
-                                                            >
-                                                                -{w.currency === 'USD' ? '$' : '€'}{w.amount?.toFixed(2)}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="space-y-1">
-                                                                <p className="text-white text-sm font-medium">
-                                                                    {bankingInfo.bank_name || 'No especificado'}
-                                                                </p>
-                                                                <p className="text-xs text-slate-500">
-                                                                    {bankingInfo.iban ? `****${bankingInfo.iban.slice(-4)}` : 'Sin IBAN'}
-                                                                </p>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <span className={`px-3 py-1 rounded-full text-xs border ${statusColor}`} style={{ fontWeight: 500 }}>
-                                                                {statusLabels[currentStatus]}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <p className="text-slate-400 text-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                                                                {formatDate(w.created_at)}
-                                                            </p>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => openDetailsDialog(w)}
-                                                                    className="border-slate-700 hover:bg-slate-800 text-slate-300"
-                                                                    data-testid={`details-btn-${w.id}`}
-                                                                >
-                                                                    <FileText className="w-4 h-4" />
-                                                                </Button>
-                                                                
-                                                                {nextStatus && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleStatusChange(w.id, nextStatus)}
-                                                                        disabled={processingId === w.id}
-                                                                        className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                                                                        data-testid={`advance-btn-${w.id}`}
+                            return (
+                                <div key={section.key} className={`rounded-xl border ${cm.border} overflow-hidden transition-colors`} data-testid={`section-${section.key}`}>
+                                    {/* Section header */}
+                                    <button
+                                        onClick={() => toggleSection(section.key)}
+                                        className={`w-full flex items-center justify-between p-4 ${cm.bg} hover:brightness-110 transition-all`}
+                                        data-testid={`section-toggle-${section.key}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <SIcon className={`w-5 h-5 ${cm.text}`} />
+                                            <span className={`font-semibold ${cm.text}`}>{section.label}</span>
+                                            <span className={`w-6 h-6 rounded-full ${cm.badge} text-white text-xs font-bold flex items-center justify-center`}>
+                                                {items.length}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 ${cm.text} transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {/* Section content */}
+                                    <AnimatePresence>
+                                        {isOpen && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                className="overflow-hidden"
+                                            >
+                                                {items.length === 0 ? (
+                                                    <div className="p-8 text-center">
+                                                        <Banknote className="w-10 h-10 mx-auto text-slate-700 mb-2" />
+                                                        <p className="text-slate-600 text-sm">No hay retiros en esta categoria</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="divide-y divide-slate-800/50">
+                                                        {/* Table header */}
+                                                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 bg-slate-900/50 text-[11px] text-slate-500 uppercase tracking-wider">
+                                                            <span>Usuario</span><span>Email</span><span>Monto</span><span>Banco</span><span>Fecha</span><span className="text-right">Acciones</span>
+                                                        </div>
+                                                        {items.map(w => {
+                                                            const banking = w.banking_info || {};
+                                                            const isExpanded = expandedRows[w.id];
+                                                            const nextStatus = getNextStatus(w.status);
+                                                            const nextLabel = getNextLabel(w.status);
+
+                                                            return (
+                                                                <div key={w.id} data-testid={`withdrawal-row-${w.id}`}>
+                                                                    {/* Row */}
+                                                                    <div
+                                                                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-800/20' : ''}`}
+                                                                        onClick={() => toggleRow(w.id)}
                                                                     >
-                                                                        {processingId === w.id ? (
-                                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                                        ) : (
-                                                                            <>
-                                                                                <ArrowRight className="w-4 h-4 mr-1" />
-                                                                                {nextStatusLabel}
-                                                                            </>
+                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                            <ChevronDown className={`w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                                                                <span className="text-xs font-medium text-white">{w.user?.name?.charAt(0)?.toUpperCase() || '?'}</span>
+                                                                            </div>
+                                                                            <span className="text-white text-sm font-medium truncate">{w.user?.name || 'Desconocido'}</span>
+                                                                        </div>
+                                                                        <span className="text-slate-400 text-xs truncate">{w.user?.email || '-'}</span>
+                                                                        <span className="text-red-400 font-semibold text-sm font-mono">{w.currency === 'USD' ? '$' : 'EUR '}{w.amount?.toFixed(2)}</span>
+                                                                        <span className="text-slate-400 text-xs truncate">{banking.bank_name || '-'}</span>
+                                                                        <span className="text-slate-500 text-xs">{formatDate(w.created_at)}</span>
+                                                                        <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                                                                            {nextStatus && (
+                                                                                <Button size="sm" onClick={() => handleStatusChange(w.id, nextStatus)} disabled={processingId === w.id}
+                                                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 text-xs px-2" data-testid={`advance-btn-${w.id}`}>
+                                                                                    {processingId === w.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <>{nextLabel}</>}
+                                                                                </Button>
+                                                                            )}
+                                                                            {w.status !== 'completed' && w.status !== 'rejected' && (
+                                                                                <Button size="sm" variant="outline" onClick={() => { setSelectedWithdrawal(w); setRejectionReason(''); setRejectDialogOpen(true); }}
+                                                                                    disabled={processingId === w.id} className="border-red-500/50 text-red-400 hover:bg-red-500/10 h-7 text-xs px-2" data-testid={`reject-btn-${w.id}`}>
+                                                                                    <Ban className="w-3 h-3" />
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Expanded detail */}
+                                                                    <AnimatePresence>
+                                                                        {isExpanded && (
+                                                                            <UserDetailPanel
+                                                                                withdrawal={w}
+                                                                                onReactivate={handleReactivate}
+                                                                                onAddBalance={openAddBalanceDialog}
+                                                                                reactivating={processingId === w.id}
+                                                                            />
                                                                         )}
-                                                                    </Button>
-                                                                )}
-                                                                
-                                                                {currentStatus !== 'completed' && currentStatus !== 'rejected' && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => openRejectDialog(w)}
-                                                                        disabled={processingId === w.id}
-                                                                        className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                                                                        data-testid={`reject-btn-${w.id}`}
-                                                                    >
-                                                                        <Ban className="w-4 h-4" />
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
-            {/* Withdrawal Details Dialog */}
-            <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 max-w-lg">
+            {/* Reject Dialog */}
+            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+                <DialogContent className="bg-slate-900 border-slate-800 max-w-md" data-testid="reject-dialog">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
-                            <Banknote className="w-5 h-5 text-emerald-400" />
-                            Detalles del Retiro
+                            <XCircle className="w-5 h-5 text-red-400" /> Rechazar Retiro
                         </DialogTitle>
                     </DialogHeader>
                     {selectedWithdrawal && (
-                        <div className="space-y-4 pt-4">
-                            {/* User Info */}
-                            <div className="p-4 rounded-lg bg-slate-800/50 space-y-3">
-                                <h3 className="text-white font-medium flex items-center gap-2">
-                                    <User className="w-4 h-4 text-cyan-400" />
-                                    Información del Usuario
-                                </h3>
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <span className="text-slate-400">Nombre:</span>
-                                    <span className="text-white">{selectedWithdrawal.user?.name}</span>
-                                    <span className="text-slate-400">Email:</span>
-                                    <span className="text-white">{selectedWithdrawal.user?.email}</span>
-                                    <span className="text-slate-400">Verificación:</span>
-                                    <span className={selectedWithdrawal.user?.verification_status === 'verified' ? 'text-emerald-400' : 'text-amber-400'}>
-                                        {selectedWithdrawal.user?.verification_status === 'verified' ? 'Verificado' : 'No verificado'}
-                                    </span>
-                                </div>
+                        <div className="space-y-4 pt-2">
+                            <div className="p-3 rounded-lg bg-slate-800/50 text-sm text-slate-400">
+                                Rechazar retiro de <span className="text-white font-medium">{selectedWithdrawal.user?.name}</span> por{' '}
+                                <span className="text-red-400 font-mono">{selectedWithdrawal.currency === 'USD' ? '$' : 'EUR '}{selectedWithdrawal.amount?.toFixed(2)}</span>
                             </div>
-
-                            {/* Amount Info */}
-                            <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
-                                <h3 className="text-red-400 font-medium flex items-center gap-2">
-                                    <CreditCard className="w-4 h-4" />
-                                    Monto a Retirar
-                                </h3>
-                                <p className="text-3xl text-red-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                    -{selectedWithdrawal.currency === 'USD' ? '$' : '€'}{selectedWithdrawal.amount?.toFixed(2)} {selectedWithdrawal.currency}
-                                </p>
-                                {selectedWithdrawal.transaction_reference && (
-                                    <p className="text-xs text-slate-500">
-                                        Ref: {selectedWithdrawal.transaction_reference}
-                                    </p>
-                                )}
+                            <div className="space-y-2">
+                                <Label className="text-slate-300">Motivo del rechazo</Label>
+                                <Input placeholder="Ej: Informacion bancaria incorrecta..." value={rejectionReason} onChange={e => setRejectionReason(e.target.value)}
+                                    className="bg-slate-950 border-slate-800 text-white" data-testid="rejection-reason-input" />
                             </div>
-
-                            {/* Banking Info */}
-                            {selectedWithdrawal.banking_info && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 space-y-3">
-                                    <h3 className="text-white font-medium flex items-center gap-2">
-                                        <Building2 className="w-4 h-4 text-cyan-400" />
-                                        Datos Bancarios
-                                    </h3>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <span className="text-slate-400">Titular:</span>
-                                        <span className="text-white">{selectedWithdrawal.banking_info.account_holder}</span>
-                                        <span className="text-slate-400">IBAN:</span>
-                                        <span className="text-white font-mono text-xs">{selectedWithdrawal.banking_info.iban}</span>
-                                        <span className="text-slate-400">Banco:</span>
-                                        <span className="text-white">{selectedWithdrawal.banking_info.bank_name}</span>
-                                        <span className="text-slate-400">País:</span>
-                                        <span className="text-white flex items-center gap-1">
-                                            <Globe className="w-3 h-3" />
-                                            {selectedWithdrawal.banking_info.bank_country}
-                                        </span>
-                                        {selectedWithdrawal.banking_info.bank_city && (
-                                            <>
-                                                <span className="text-slate-400">Ciudad:</span>
-                                                <span className="text-white">{selectedWithdrawal.banking_info.bank_city}</span>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Status */}
-                            <div className="p-4 rounded-lg bg-slate-800/50 space-y-3">
-                                <h3 className="text-white font-medium flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-cyan-400" />
-                                    Estado Actual
-                                </h3>
-                                <span className={`inline-block px-3 py-1 rounded-full text-sm border ${statusColors[selectedWithdrawal.status]}`}>
-                                    {statusLabels[selectedWithdrawal.status]}
-                                </span>
-                                <p className="text-xs text-slate-500">
-                                    Solicitado: {formatDate(selectedWithdrawal.created_at)}
-                                </p>
-                                {selectedWithdrawal.completed_at && (
-                                    <p className="text-xs text-emerald-400">
-                                        Completado: {formatDate(selectedWithdrawal.completed_at)}
-                                    </p>
-                                )}
-                                {selectedWithdrawal.rejection_reason && (
-                                    <p className="text-xs text-red-400">
-                                        Razón de rechazo: {selectedWithdrawal.rejection_reason}
-                                    </p>
-                                )}
+                            <div className="flex gap-2">
+                                <Button onClick={() => setRejectDialogOpen(false)} variant="outline" className="flex-1 border-slate-700 text-slate-300">Cancelar</Button>
+                                <Button onClick={() => handleStatusChange(selectedWithdrawal.id, 'rejected')} disabled={processingId === selectedWithdrawal.id}
+                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white" data-testid="confirm-reject-btn">
+                                    {processingId === selectedWithdrawal.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 mr-2" />Confirmar Rechazo</>}
+                                </Button>
                             </div>
-
-                            {/* Quick Actions */}
-                            {selectedWithdrawal.status !== 'completed' && selectedWithdrawal.status !== 'rejected' && (
-                                <div className="flex gap-2">
-                                    {getNextStatus(selectedWithdrawal.status) && (
-                                        <Button
-                                            onClick={() => {
-                                                handleStatusChange(selectedWithdrawal.id, getNextStatus(selectedWithdrawal.status));
-                                                setDetailsDialogOpen(false);
-                                            }}
-                                            disabled={processingId === selectedWithdrawal.id}
-                                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-                                        >
-                                            {processingId === selectedWithdrawal.id ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                                    {getNextStatusLabel(selectedWithdrawal.status)}
-                                                </>
-                                            )}
-                                        </Button>
-                                    )}
-                                    <Button
-                                        onClick={() => {
-                                            setDetailsDialogOpen(false);
-                                            openRejectDialog(selectedWithdrawal);
-                                        }}
-                                        variant="outline"
-                                        className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                                    >
-                                        <XCircle className="w-4 h-4 mr-2" />
-                                        Rechazar
-                                    </Button>
-                                </div>
-                            )}
                         </div>
                     )}
                 </DialogContent>
             </Dialog>
 
-            {/* Reject Dialog */}
-            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 max-w-md">
+            {/* Add Balance Dialog */}
+            <Dialog open={addBalanceDialog} onOpenChange={setAddBalanceDialog}>
+                <DialogContent className="bg-slate-900 border-slate-800 max-w-sm" data-testid="add-balance-dialog">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
-                            <XCircle className="w-5 h-5 text-red-400" />
-                            Rechazar Retiro
+                            <DollarSign className="w-5 h-5 text-emerald-400" /> Agregar Saldo
                         </DialogTitle>
                     </DialogHeader>
                     {selectedWithdrawal && (
-                        <div className="space-y-4 pt-4">
-                            <div className="p-3 rounded-lg bg-slate-800/50">
-                                <p className="text-sm text-slate-400">
-                                    Está a punto de rechazar el retiro de <span className="text-white font-medium">{selectedWithdrawal.user?.name}</span> por{' '}
-                                    <span className="text-red-400 font-mono">${selectedWithdrawal.amount?.toFixed(2)}</span>
-                                </p>
-                            </div>
-
+                        <div className="space-y-4 pt-2">
+                            <p className="text-slate-400 text-sm">
+                                Agregar saldo a <span className="text-white font-medium">{selectedWithdrawal.user?.name}</span>
+                            </p>
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Razón del rechazo (opcional)</Label>
-                                <Input
-                                    placeholder="Ej: Información bancaria incorrecta..."
-                                    value={rejectionReason}
-                                    onChange={(e) => setRejectionReason(e.target.value)}
-                                    className="bg-slate-950 border-slate-800 text-white"
-                                />
+                                <Label className="text-slate-300">Monto</Label>
+                                <Input type="number" placeholder="0.00" value={balanceAmount} onChange={e => setBalanceAmount(e.target.value)}
+                                    className="bg-slate-950 border-slate-800 text-white" data-testid="balance-amount-input" />
                             </div>
-
                             <div className="flex gap-2">
-                                <Button
-                                    onClick={() => setRejectDialogOpen(false)}
-                                    variant="outline"
-                                    className="flex-1 border-slate-700 text-slate-300"
-                                >
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    onClick={handleReject}
-                                    disabled={processingId === selectedWithdrawal.id}
-                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                                >
-                                    {processingId === selectedWithdrawal.id ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <>
-                                            <XCircle className="w-4 h-4 mr-2" />
-                                            Confirmar Rechazo
-                                        </>
-                                    )}
-                                </Button>
+                                <Button onClick={() => setBalanceCurrency('USD')} variant={balanceCurrency === 'USD' ? 'default' : 'outline'}
+                                    className={balanceCurrency === 'USD' ? 'bg-emerald-500 text-white' : 'border-slate-700 text-slate-300'}>USD</Button>
+                                <Button onClick={() => setBalanceCurrency('EUR')} variant={balanceCurrency === 'EUR' ? 'default' : 'outline'}
+                                    className={balanceCurrency === 'EUR' ? 'bg-emerald-500 text-white' : 'border-slate-700 text-slate-300'}>EUR</Button>
                             </div>
+                            <Button onClick={handleAddBalance} disabled={processingId === 'balance' || !balanceAmount}
+                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="confirm-balance-btn">
+                                {processingId === 'balance' ? <Loader2 className="w-4 h-4 animate-spin" /> : <><DollarSign className="w-4 h-4 mr-2" />Agregar Saldo</>}
+                            </Button>
                         </div>
                     )}
                 </DialogContent>

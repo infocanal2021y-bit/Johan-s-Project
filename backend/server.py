@@ -3646,6 +3646,58 @@ async def admin_get_all_withdrawals(admin: dict = Depends(get_admin_user)):
     
     return withdrawals
 
+@api_router.get("/admin/withdrawals/{transaction_id}/details")
+async def admin_get_withdrawal_details(transaction_id: str, admin: dict = Depends(get_admin_user)):
+    """Get expanded details for a specific withdrawal including user balance and withdrawal history"""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
+    account = await db.accounts.find_one({'user_id': tx['user_id'], 'account_type': 'checking'}, {'_id': 0})
+    
+    history = await db.transactions.find(
+        {'user_id': tx['user_id'], 'transaction_type': 'withdraw'},
+        {'_id': 0, 'id': 1, 'amount': 1, 'currency': 1, 'status': 1, 'created_at': 1}
+    ).sort('created_at', -1).to_list(20)
+    
+    return {
+        'transaction': tx,
+        'user': {
+            'name': user.get('name', '') if user else '',
+            'email': user.get('email', '') if user else '',
+            'verification_status': user.get('verification_status', 'pending') if user else 'pending',
+        },
+        'balance': {
+            'available_usd': account.get('balance_usd', 0) if account else 0,
+            'available_eur': account.get('balance_eur', 0) if account else 0,
+        },
+        'banking_info': tx.get('banking_info', {}),
+        'withdrawal_history': history
+    }
+
+@api_router.post("/admin/withdrawals/{transaction_id}/reactivate")
+async def admin_reactivate_withdrawal(transaction_id: str, admin: dict = Depends(get_admin_user)):
+    """Reactivate a rejected withdrawal - sets status back to pending"""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    if tx.get('status') != 'rejected':
+        raise HTTPException(status_code=400, detail='Solo se pueden reactivar retiros rechazados')
+    
+    now = datetime.now(timezone.utc).isoformat()
+    await db.transactions.update_one(
+        {'id': transaction_id},
+        {'$set': {'status': 'pending', 'rejection_reason': None, 'reactivated_at': now, 'updated_at': now}}
+    )
+    
+    await create_notification(tx['user_id'], 'Retiro Reactivado',
+        f'Su retiro de {tx["amount"]} {tx["currency"]} ha sido reactivado y esta pendiente de aprobacion.')
+    
+    return {'message': 'Retiro reactivado exitosamente', 'transaction_id': transaction_id}
+
+
+
 @api_router.put("/admin/balance")
 async def admin_update_balance(data: AdminUpdateBalance, admin: dict = Depends(get_admin_user)):
     account = await db.accounts.find_one({'id': data.account_id}, {'_id': 0})
