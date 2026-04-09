@@ -28,27 +28,39 @@ const SkrillLogo = () => (
     </svg>
 );
 
-const CryptoLogo = () => (
+const BankLogo = ({ color = '#0A2540', accent = '#00D4AA' }) => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill="#1a1a2e" />
-        <circle cx="270" cy="250" r="90" fill="#F7931A" />
-        <text x="270" y="265" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="100">B</text>
-        <circle cx="430" cy="200" r="55" fill="#627EEA" />
-        <text x="430" y="212" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="48">E</text>
-        <circle cx="540" cy="300" r="55" fill="#26A17B" />
-        <text x="540" y="312" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="42">T</text>
+        <rect width="780" height="500" rx="40" fill={color} />
+        <path d="M390 100l-180 90v20h360v-20L390 100z" fill={accent} />
+        <rect x="250" y="230" width="40" height="130" rx="4" fill={accent} />
+        <rect x="330" y="230" width="40" height="130" rx="4" fill={accent} />
+        <rect x="410" y="230" width="40" height="130" rx="4" fill={accent} />
+        <rect x="490" y="230" width="40" height="130" rx="4" fill={accent} />
+        <rect x="220" y="370" width="340" height="30" rx="4" fill={accent} />
     </svg>
 );
 
-const BankLogo = () => (
+const MexicoLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill="#0A2540" />
-        <path d="M390 100l-180 90v20h360v-20L390 100z" fill="#00D4AA" />
-        <rect x="250" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
-        <rect x="330" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
-        <rect x="410" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
-        <rect x="490" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
-        <rect x="220" y="370" width="340" height="30" rx="4" fill="#00D4AA" />
+        <rect width="780" height="500" rx="40" fill="#006847" />
+        <rect x="260" y="0" width="260" height="500" fill="white" />
+        <rect x="520" y="0" width="260" height="500" rx="0" fill="#CE1126" />
+        <rect x="520" y="0" width="220" height="500" fill="#CE1126" />
+        <rect x="740" y="0" width="40" height="500" rx="40" fill="#CE1126" />
+        <circle cx="390" cy="250" r="50" fill="#006847" opacity="0.3" />
+        <text x="390" y="260" textAnchor="middle" dominantBaseline="central" fill="#006847" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="40">MX</text>
+    </svg>
+);
+
+const ChileLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#D52B1E" />
+        <rect y="0" width="780" height="250" rx="0" fill="white" />
+        <rect x="0" y="0" width="40" height="250" rx="40" fill="white" />
+        <rect x="0" y="0" width="260" height="250" fill="#0039A6" />
+        <polygon points="130,70 143,115 190,115 152,142 165,187 130,160 95,187 108,142 70,115 117,115" fill="white" />
+        <rect x="0" y="0" width="40" height="500" rx="40" fill="#0039A6" />
+        <rect x="0" y="250" width="40" height="250" fill="#D52B1E" />
     </svg>
 );
 
@@ -56,8 +68,9 @@ const METHODS = [
     { id: 'visa', name: 'Visa', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', Logo: SkrillLogo },
-    { id: 'crypto', name: 'Criptomonedas', Logo: CryptoLogo },
     { id: 'bank', name: 'Transferencia Bancaria', Logo: BankLogo },
+    { id: 'mexico', name: 'Bancos de Mexico', Logo: MexicoLogo },
+    { id: 'chile', name: 'Bancos de Chile', Logo: ChileLogo },
 ];
 
 export default function WithdrawMethodsPage() {
@@ -83,7 +96,7 @@ export default function WithdrawMethodsPage() {
                 </div>
 
                 {/* Cards Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5" data-testid="methods-grid">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5" data-testid="methods-grid">
                     {METHODS.map((m) => (
                         <button
                             key={m.id}
