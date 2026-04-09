@@ -138,7 +138,7 @@ export default function BankTransferPage() {
                 <div className="space-y-3 mb-6">
                     <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
                         <p className="text-[11px] text-slate-500 uppercase tracking-wider">Titular</p>
-                        <p className="text-white font-medium text-sm mt-1">{BANK_TRANSFER_DATA.holder}</p>
+                        <p className="text-white font-medium text-sm mt-1">{BANK_TRANSFER_DATA.holder} <span className="text-slate-400 font-normal">— Agente autorizado por Wise</span></p>
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
@@ -185,7 +185,7 @@ export default function BankTransferPage() {
                                     </div>
                                     <div>
                                         <p className="text-white text-sm font-medium group-hover:text-cyan-300 transition-colors">{link.label}</p>
-                                        <p className="text-slate-500 text-[11px] mt-0.5">Pago seguro via Wise</p>
+                                        <p className="text-slate-500 text-[11px] mt-0.5">Juan Gomez — Pago seguro via Wise</p>
                                     </div>
                                 </div>
                                 <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
