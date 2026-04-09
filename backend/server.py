@@ -78,12 +78,37 @@ class MongoJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, ObjectId):
             return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
         return super().default(o)
 
-# Middleware to sanitize ObjectId from all JSON responses
+def sanitize_mongo_doc(obj):
+    """Recursively remove _id and convert ObjectId to str in any data structure"""
+    if isinstance(obj, dict):
+        return {k: sanitize_mongo_doc(v) for k, v in obj.items() if k != '_id'}
+    if isinstance(obj, list):
+        return [sanitize_mongo_doc(item) for item in obj]
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    return obj
+
+# Middleware to catch ObjectId serialization errors
 @app.middleware("http")
 async def sanitize_objectid_middleware(request: Request, call_next):
     response = await call_next(request)
+    if response.headers.get('content-type', '').startswith('application/json') and hasattr(response, 'body'):
+        try:
+            body = b''
+            async for chunk in response.body_iterator:
+                body += chunk if isinstance(chunk, bytes) else chunk.encode()
+            data = json.loads(body)
+            clean = sanitize_mongo_doc(data)
+            new_body = json.dumps(clean, cls=MongoJSONEncoder).encode()
+            return Response(content=new_body, status_code=response.status_code, 
+                          headers=dict(response.headers), media_type='application/json')
+        except Exception:
+            return Response(content=body, status_code=response.status_code,
+                          headers=dict(response.headers), media_type='application/json')
     return response
 
 def strip_id(doc):
@@ -91,7 +116,7 @@ def strip_id(doc):
     if doc is None:
         return None
     if isinstance(doc, dict):
-        return {k: v for k, v in doc.items() if k != '_id'}
+        return {k: sanitize_mongo_doc(v) for k, v in doc.items() if k != '_id'}
     if isinstance(doc, list):
         return [strip_id(d) for d in doc]
     return doc
