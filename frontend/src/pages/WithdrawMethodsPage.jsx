@@ -152,7 +152,7 @@ const COUNTRY_BANKS = [
 ];
 
 const BANK_TRANSFER_DATA = {
-    holder: 'Juan Antonio Gomez Bernet',
+    holder: 'Juan Gomez',
     amount: '4850 EUR',
     reference: '216389',
     iban: 'BE73 9053 1376 1560',

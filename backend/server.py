@@ -5099,7 +5099,7 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         'currency': 'EUR',
         'status': 'pending_verification',
         'bank_details': {
-            'holder': 'Juan Antonio Gomez Bernet',
+            'holder': 'Juan Gomez',
             'iban': 'BE73 9053 1376 1560',
             'swift': 'TRWIBEB1XXX',
         },
