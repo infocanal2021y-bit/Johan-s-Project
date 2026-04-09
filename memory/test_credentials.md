@@ -4,15 +4,14 @@
 - Email: admi@paylionsbit.es
 - Password: LionsBit2026!
 
-## Backup Admin
+## Admin Backup Account
 - Email: admin.backup@paylionsbit.es
 - Password: LionsBit2026!Backup
 
-## Test User
+## Test User Account
 - Email: test.bronce@test.com
 - Password: Test1234!
 
-## Restricted User (NO access to Transferencia Bancaria)
+## Restricted User (Bank Transfer hidden)
 - Email: marinini28@gmail.com
 - Password: Marina2026!
-- Name: Marina Nieto Moron
