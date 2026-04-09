@@ -5072,6 +5072,9 @@ RESTRICTED_BANK_TRANSFER_EMAILS = ['marinini28@gmail.com']
 
 class BankTransferConfirm(BaseModel):
     reference: str
+    comment: Optional[str] = None
+    proof_file: Optional[str] = None
+    proof_filename: Optional[str] = None
 
 @api_router.get("/payments/bank-transfer-access")
 async def check_bank_transfer_access(current_user: dict = Depends(get_current_user)):
@@ -5081,12 +5084,22 @@ async def check_bank_transfer_access(current_user: dict = Depends(get_current_us
 
 @api_router.post("/payments/bank-transfer-confirm")
 async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = Depends(get_current_user)):
-    """Record bank transfer confirmation - status pending_verification"""
+    """Record bank transfer confirmation with proof upload + email notifications"""
     if current_user['email'].lower() in RESTRICTED_BANK_TRANSFER_EMAILS:
         raise HTTPException(status_code=403, detail='No tiene acceso a este metodo de pago')
     
+    # Validate file if provided
+    if data.proof_file and data.proof_filename:
+        allowed_ext = ('.jpg', '.jpeg', '.png', '.pdf')
+        if not data.proof_filename.lower().endswith(allowed_ext):
+            raise HTTPException(status_code=400, detail='Formato de archivo no permitido. Use JPG, PNG o PDF.')
+        # Check base64 size (~5MB limit -> ~6.7MB base64)
+        if len(data.proof_file) > 7_000_000:
+            raise HTTPException(status_code=400, detail='Archivo demasiado grande. Maximo 5MB.')
+    
     record_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    now_formatted = datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')
     
     record = {
         'id': record_id,
@@ -5098,6 +5111,9 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         'amount': 4850,
         'currency': 'EUR',
         'status': 'pending_verification',
+        'comment': data.comment,
+        'proof_filename': data.proof_filename,
+        'has_proof': bool(data.proof_file),
         'bank_details': {
             'holder': 'Juan Gomez',
             'iban': 'BE73 9053 1376 1560',
@@ -5107,18 +5123,91 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         'updated_at': now
     }
     
+    # Store proof file separately if provided (keep main record lean)
+    if data.proof_file:
+        await db.bank_transfer_proofs.insert_one({
+            'payment_id': record_id,
+            'filename': data.proof_filename,
+            'data': data.proof_file,
+            'created_at': now
+        })
+    
     await db.bank_transfer_payments.insert_one(record)
     
-    await create_notification(current_user['id'], 'Transferencia Registrada',
-        f'Su transferencia bancaria con referencia {data.reference} ha sido registrada. Estado: Pendiente de verificacion.')
+    # Notification to user
+    await create_notification(current_user['id'], 'Comprobante Recibido',
+        f'Su comprobante de transferencia bancaria (Ref: {data.reference}) ha sido recibido. Estado: Pendiente de verificacion.')
     
-    # Notify admins
+    # Notification to admins
     admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1}).to_list(10)
     for admin in admins:
         await create_notification(admin['id'], 'Nueva Transferencia Bancaria',
-            f'{current_user["name"]} ha confirmado una transferencia bancaria. Referencia: {data.reference}')
+            f'{current_user["name"]} ({current_user["email"]}) ha enviado comprobante de transferencia. Referencia: {data.reference}. Monto: 4850 EUR.')
     
-    return {'message': 'Transferencia registrada. Pendiente de verificacion.', 'id': record_id, 'status': 'pending_verification'}
+    # ── Email to info@lionbit.es ──
+    admin_email_content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Se ha recibido un nuevo comprobante de transferencia bancaria.</p>
+        <table width="100%" style="background:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:25px;">
+                <p style="color:#10b981;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Datos de la Transferencia</p>
+                <table width="100%">
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Nombre:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{current_user['name']}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Email:</td><td style="color:#10b981;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{current_user['email']}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Monto:</td><td style="color:#f59e0b;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">4850 EUR</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Referencia:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-family:monospace;">{data.reference}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Fecha:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{now_formatted}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Comprobante:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{'Adjunto' if data.proof_file else 'No proporcionado'}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;">Comentario:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;">{data.comment or 'Sin comentario'}</td></tr>
+                </table>
+            </td></tr>
+        </table>
+    """
+    admin_html = get_email_template(admin_email_content, "Nuevo Comprobante de Transferencia")
+    
+    # Build email params with optional attachment
+    email_params = {
+        "from": f"LIONSBIT VERIFICACION <{SENDER_EMAIL}>",
+        "to": ["info@lionbit.es"],
+        "subject": "Nuevo comprobante de transferencia recibido",
+        "html": admin_html
+    }
+    
+    if data.proof_file and data.proof_filename:
+        import base64 as b64module
+        # Extract raw base64 from data URI
+        raw_b64 = data.proof_file
+        if ',' in raw_b64:
+            raw_b64 = raw_b64.split(',', 1)[1]
+        email_params["attachments"] = [{
+            "filename": data.proof_filename,
+            "content": raw_b64
+        }]
+    
+    if RESEND_API_KEY:
+        try:
+            await asyncio.to_thread(resend.Emails.send, email_params)
+        except Exception as e:
+            logging.error(f"Failed to send admin transfer email: {e}")
+    
+    # ── Confirmation email to user ──
+    user_email_content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Hemos recibido tu comprobante de transferencia bancaria.</p>
+        <table width="100%" style="background:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:25px;">
+                <p style="color:#10b981;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Resumen</p>
+                <table width="100%">
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Monto:</td><td style="color:#f59e0b;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">4850 EUR</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Referencia:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-family:monospace;">{data.reference}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;">Estado:</td><td style="color:#f59e0b;text-align:right;padding:8px 0;font-weight:bold;">Pendiente de verificacion</td></tr>
+                </table>
+            </td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:14px;">Sera verificado en un plazo de 1 a 3 dias habiles.</p>
+    """
+    user_html = get_email_template(user_email_content, "Comprobante Recibido")
+    send_email_background(current_user['email'], "Comprobante recibido - LIONSBIT VERIFICACION", user_html)
+    
+    return {'message': 'Comprobante enviado correctamente. Pendiente de verificacion.', 'id': record_id, 'status': 'pending_verification'}
 
 
 @api_router.post("/chatbot/message")

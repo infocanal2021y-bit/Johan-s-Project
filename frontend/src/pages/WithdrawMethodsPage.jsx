@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { paymentsAPI } from '../lib/api';
@@ -214,6 +214,11 @@ export default function WithdrawMethodsPage() {
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
     const [bankTransferOpen, setBankTransferOpen] = useState(false);
+    const [proofModalOpen, setProofModalOpen] = useState(false);
+    const [proofFile, setProofFile] = useState(null);
+    const [proofPreview, setProofPreview] = useState(null);
+    const [proofFilename, setProofFilename] = useState('');
+    const [proofComment, setProofComment] = useState('');
     const [confirming, setConfirming] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
     const [hasBankAccess, setHasBankAccess] = useState(true);
@@ -258,17 +263,58 @@ export default function WithdrawMethodsPage() {
         openModal(bankName);
     };
 
+    const handleProofFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        if (!allowed.includes(file.type)) {
+            toast.error('Formato no permitido. Use JPG, PNG o PDF.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Archivo demasiado grande. Maximo 5MB.');
+            return;
+        }
+        setProofFilename(file.name);
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => { setProofFile(reader.result); setProofPreview(reader.result); };
+            reader.readAsDataURL(file);
+        } else {
+            const reader = new FileReader();
+            reader.onloadend = () => { setProofFile(reader.result); setProofPreview(null); };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleConfirmTransfer = async () => {
+        if (!proofFile) {
+            toast.error('Debe subir un comprobante.');
+            return;
+        }
         setConfirming(true);
         try {
-            await paymentsAPI.confirmBankTransfer({ reference: BANK_TRANSFER_DATA.reference });
+            await paymentsAPI.confirmBankTransfer({
+                reference: BANK_TRANSFER_DATA.reference,
+                comment: proofComment.trim() || null,
+                proof_file: proofFile,
+                proof_filename: proofFilename,
+            });
             setConfirmed(true);
-            toast.success('Transferencia registrada. Pendiente de verificacion.');
+            setProofModalOpen(false);
+            toast.success('Comprobante enviado correctamente.');
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Error al registrar la transferencia');
+            toast.error(error.response?.data?.detail || 'Error al enviar el comprobante');
         } finally {
             setConfirming(false);
         }
+    };
+
+    const resetProofState = () => {
+        setProofFile(null);
+        setProofPreview(null);
+        setProofFilename('');
+        setProofComment('');
     };
 
     // Filter payment methods based on access
@@ -448,22 +494,17 @@ export default function WithdrawMethodsPage() {
                             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3" data-testid="transfer-confirmed-status">
                                 <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                                 <div>
-                                    <p className="text-emerald-400 font-semibold text-sm">Pendiente de verificacion</p>
-                                    <p className="text-slate-400 text-xs mt-0.5">Su transferencia ha sido registrada y sera verificada por nuestro equipo.</p>
+                                    <p className="text-emerald-400 font-semibold text-sm">Comprobante enviado correctamente</p>
+                                    <p className="text-slate-400 text-xs mt-0.5">Estado: Pendiente de verificacion</p>
                                 </div>
                             </div>
                         ) : (
                             <Button
-                                onClick={handleConfirmTransfer}
-                                disabled={confirming}
+                                onClick={() => { resetProofState(); setProofModalOpen(true); }}
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base"
                                 data-testid="confirm-transfer-btn"
                             >
-                                {confirming ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Registrando...</>
-                                ) : (
-                                    <><CheckCircle className="w-4 h-4 mr-2" /> Ya realice el pago</>
-                                )}
+                                <CheckCircle className="w-4 h-4 mr-2" /> Ya realice la transferencia
                             </Button>
                         )}
 
@@ -482,6 +523,85 @@ export default function WithdrawMethodsPage() {
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            {/* ── Proof Upload Modal ── */}
+            <Dialog open={proofModalOpen} onOpenChange={(open) => { setProofModalOpen(open); }}>
+                <DialogContent className="bg-slate-900 border-slate-700 max-w-md" data-testid="proof-upload-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <Upload className="w-5 h-5 text-cyan-400" />
+                            Subir Comprobante
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {/* File upload */}
+                        <div className="space-y-2">
+                            <p className="text-slate-300 text-sm font-medium">Comprobante de transferencia</p>
+                            <label className="cursor-pointer block">
+                                <div className={`p-5 rounded-xl border-2 border-dashed transition-colors ${
+                                    proofFile ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700 hover:border-slate-500'
+                                }`}>
+                                    <div className="flex flex-col items-center gap-2">
+                                        {proofPreview ? (
+                                            <div className="relative">
+                                                <img src={proofPreview} alt="Comprobante" className="max-h-32 rounded-lg" />
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.preventDefault(); resetProofState(); }}
+                                                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600"
+                                                    data-testid="remove-proof-btn"
+                                                >
+                                                    <X className="w-3 h-3 text-white" />
+                                                </button>
+                                            </div>
+                                        ) : proofFilename ? (
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="w-8 h-8 text-cyan-400" />
+                                                <div>
+                                                    <p className="text-white text-sm font-medium">{proofFilename}</p>
+                                                    <button type="button" onClick={(e) => { e.preventDefault(); resetProofState(); }} className="text-red-400 text-xs hover:text-red-300">Eliminar</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-10 h-10 text-slate-500" />
+                                                <p className="text-sm text-slate-400 text-center">Haga clic para subir comprobante</p>
+                                                <p className="text-xs text-slate-600">JPG, PNG o PDF (max. 5MB)</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleProofFileChange} className="hidden" data-testid="proof-file-input" />
+                            </label>
+                        </div>
+
+                        {/* Comment */}
+                        <div className="space-y-2">
+                            <p className="text-slate-300 text-sm font-medium">Comentario o referencia adicional <span className="text-slate-600 text-xs">(opcional)</span></p>
+                            <textarea
+                                value={proofComment}
+                                onChange={(e) => setProofComment(e.target.value)}
+                                placeholder="Ej: Transferencia realizada desde cuenta BBVA..."
+                                className="w-full bg-slate-950/50 border border-slate-800 rounded-lg text-white text-sm p-3 min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                                data-testid="proof-comment-input"
+                            />
+                        </div>
+
+                        {/* Submit */}
+                        <Button
+                            onClick={handleConfirmTransfer}
+                            disabled={confirming || !proofFile}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base disabled:opacity-40"
+                            data-testid="submit-proof-btn"
+                        >
+                            {confirming ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando comprobante...</>
+                            ) : (
+                                <><Upload className="w-4 h-4 mr-2" /> Enviar comprobante</>
+                            )}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
