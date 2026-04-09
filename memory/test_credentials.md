@@ -1,15 +1,13 @@
 # Test Credentials
 
 ## Admin Account
-- Email: `admi@paylionsbit.es`
-- Password: `LionsBit2026!`
-- Level: Platino
+- Email: admi@paylionsbit.es
+- Password: LionsBit2026!
 
 ## Backup Admin
-- Email: `admin.backup@paylionsbit.es`
-- Password: `LionsBit2026!Backup`
+- Email: admin.backup@paylionsbit.es
+- Password: LionsBit2026!Backup
 
-## Test User (Bronce)
-- Email: `test.bronce@test.com`
-- Password: `Test1234!`
-- Level: Bronce (€0 balance)
+## Test User
+- Email: test.bronce@test.com
+- Password: Test1234!
