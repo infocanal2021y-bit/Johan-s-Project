@@ -20,37 +20,38 @@ Professional financial information and verification platform. Provides informati
   - Section 1 "Metodos de Pago": Visa, Mastercard, Skrill, Transferencia Bancaria
   - Section 2 "Pagos Internacionales": Criptomonedas, PayPal, Wise, SWIFT
   - Section 3 "Bancos por Pais": Mexico (5 banks), Chile (5 banks), Colombia (5 banks) with dropdown lists
-- Each card has logo, name, description
-- Bank dropdowns expand on click showing individual banks
-- All methods show "Proximamente" modal (stubs for future activation)
-- Dark fintech design with hover effects and responsive grid
+
+### Transferencia Bancaria (NEW - Apr 9, 2026)
+- Opens detailed dialog with bank transfer info:
+  - Titular: Juan Antonio Gomez Bernet
+  - Monto: 4850 EUR
+  - Referencia obligatoria: 216389
+  - IBAN: BE73 9053 1376 1560
+  - SWIFT/BIC: TRWIBEB1XXX
+  - Direccion: Wise, Brussels, Belgium
+- Copy buttons for IBAN and Referencia
+- "Ya realice el pago" button → status "Pendiente de verificacion"
+- Records saved in bank_transfer_payments collection
+- ACCESS RESTRICTION: marinini28@gmail.com cannot see or use this method (hidden frontend + 403 backend)
 
 ### Crypto Payment System
 - Multi-crypto selector: BTC, ETH, BNB, USDT with dynamic QR codes
-- "Problema con el pago" button with pre-filled report dialog
-- Payment issue dialog includes: TX Hash input, proof image upload, message
-- Payment inactivity popup (90s) offering help
-- Dual-email support: info@lionsbit.es & info@paylionsbit.es
-- Proof of payment upload (image + TXID hash)
+- Payment issue dialog with TX Hash input, proof image upload
+- Payment inactivity popup (90s), dual-email support
 
 ### Investment Wallet System
-- Popup intercepts withdrawal flow: "Desea invertir parte de su saldo?"
-- Min 300 EUR investment, deducted from checking to savings
-- Dashboard "Wallet de Inversion" section with: saldo, estado, historial
+- Popup intercepts withdrawal flow
+- Min 300 EUR investment, dashboard history
 
 ### Binance Wallet / Activos
-- Uses REAL user balances converted to crypto equivalents via Binance prices
-- Allocation: BTC 40%, ETH 25%, BNB 12%, SOL 8%, XRP 5%, ADA 3%, DOGE 2%, DOT 2%, AVAX 2%, LINK 1%
-- Distribution donut chart, Top 5 assets, equivalents table
+- Real user balances converted to crypto equivalents via Binance prices
 
 ### ChatBot & Support
-- FAQ chatbot with keyword matching (9 topics)
-- Ticket creation directly from chat
-- Support ticket system with dual-email routing
+- FAQ chatbot, ticket creation, dual-email routing
 
 ### Gamification / Achievements
 - Bronce, Plata, Oro, Platino levels
-- 10 achievements across 5 categories, auto-detection, celebration popup
+- 10 achievements across 5 categories
 
 ### Market Data
 - CoinGecko, Finnhub News, TradingView Widget, Binance API
@@ -65,9 +66,10 @@ Professional financial information and verification platform. Provides informati
 - Admin: admi@paylionsbit.es / LionsBit2026!
 - Backup Admin: admin.backup@paylionsbit.es / LionsBit2026!Backup
 - Test User: test.bronce@test.com / Test1234!
+- Restricted User: marinini28@gmail.com / Marina2026!
 
 ## Backlog
-- P2: Refactor monolithic server.py (~5500 lines) into modular architecture
+- P2: Refactor monolithic server.py (~5500 lines)
 - P2: Email notifications for withdrawal status changes
 - P3: Fix SPA crash/reload loop with browser translation
 
