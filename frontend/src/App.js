@@ -30,6 +30,7 @@ import { LiveMarketNewsPage } from "./pages/LiveMarketNewsPage";
 import { RealTimeMarketPage } from "./pages/RealTimeMarketPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import BinanceWalletPage from "./pages/BinanceWalletPage";
+import WithdrawMethodsPage from "./pages/WithdrawMethodsPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -120,6 +121,7 @@ function AppRoutes() {
             <Route path="/realtime-market" element={<ProtectedRoute><RealTimeMarketPage /></ProtectedRoute>} />
             <Route path="/achievements" element={<ProtectedRoute><AchievementsPage /></ProtectedRoute>} />
             <Route path="/binance-wallet" element={<ProtectedRoute><BinanceWalletPage /></ProtectedRoute>} />
+            <Route path="/withdraw-methods" element={<ProtectedRoute><WithdrawMethodsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
