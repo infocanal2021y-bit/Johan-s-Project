@@ -8,36 +8,36 @@ Professional financial information and verification platform. Informational tool
 ### Authentication & User Management
 - JWT auth with admin/user roles, password reset, login history, suspicious access detection
 
-### Banking & Withdrawals
-- Multi-currency accounts (USD/EUR), admin-only deposits
-- $4,850 USD mandatory tax, $200 min partial payments
+### User Interest Scoring System (NEW - Apr 9, 2026)
+- Automatic classification: Hot (login 3+/week + balance), Warm (login 1+/week or pending), Cold (inactive)
+- Badges in admin user list: red Flame (Alto), amber TrendingUp (Medio), blue Snowflake (Frio)
+- Recalculated every hour via APScheduler
+- Score data: logins_7d, balance, days_inactive, has_pending_withdrawal
 
-### Admin Withdrawal Accordion System (NEW - Apr 9, 2026)
-- 6 status sections as accordions: Impuesto Pendiente, Pendientes, Procesando, En Transferencia, Completados, Rechazados
-- Table inside each section: Usuario, Email, Monto, Banco, Fecha, Acciones
-- Expandable user rows: Nombre, Email, IBAN, Saldos USD/EUR, Historial de Retiros
-- Rejected section: Motivo del rechazo, Reactivar retiro, Agregar saldo buttons
-- Status advancement: pending→processing→transfer_in_progress→completed
-- Reject with reason dialog
-- Framer Motion accordion animations
+### Automated Notifications & Reminders (NEW - Apr 9, 2026)
+- Every 12h: Notify users with pending processes
+- Every 12h: Notify inactive users with available balance
+- In-app bell notifications (not just email)
+
+### Admin Withdrawal Accordion System
+- 6 status sections: Impuesto Pendiente, Pendientes, Procesando, En Transferencia, Completados, Rechazados
+- Expandable user rows with full details + withdrawal history
+- Reactivar retiro + Agregar saldo for rejected
+
+### Mobile Optimization (NEW - Apr 9, 2026)
+- Admin Users: Card layout on mobile with avatar, score, saldos, action buttons
+- Admin Withdrawals: Mobile card rows with name, email, amount, actions
+- Responsive breakpoints: sm(640px), md(768px)
 
 ### Payment Methods Page
 - 3 sections: Metodos de Pago, Pagos Internacionales, Bancos por Pais (MX/CL/CO)
-- Transferencia Bancaria: detailed bank info + proof upload modal
-- Access restriction for marinini28@gmail.com
+- Transferencia Bancaria dedicated page with proof upload + email
 
-### Interactive Notifications
-- Click notification → detail modal, mark as read, mark all as read
-
-### Crypto Payment System
-- Multi-crypto QR, payment issue dialog with TX Hash + proof upload
-
-### SafeJSONResponse (Bug Fix - Apr 9, 2026)
-- Custom JSONResponse class auto-sanitizes MongoDB ObjectId and removes _id fields
-- Fixes production deployment serialization errors
+### SafeJSONResponse
+- Custom JSONResponse auto-sanitizes MongoDB ObjectId
 
 ### Other Features
-- Investment Wallet, Binance Wallet, ChatBot, Gamification, Market Data
+- Crypto Payment, Investment Wallet, Binance Wallet, ChatBot, Gamification, Market Data
 
 ## Tech Stack
 - Frontend: React, TailwindCSS, Framer Motion, Recharts
@@ -51,7 +51,7 @@ Professional financial information and verification platform. Informational tool
 - Restricted: marinini28@gmail.com / Marina2026!
 
 ## Backlog
-- P2: Refactor server.py (~5700 lines)
+- P2: Refactor server.py (~5800 lines)
 - P3: Fix SPA translation crash
 
 ---
