@@ -1661,6 +1661,7 @@ class PaymentIssueReport(BaseModel):
     wallet_address: Optional[str] = None
     tx_hash: Optional[str] = None
     message: str
+    proof_image: Optional[str] = None
 
 @api_router.post("/support/payment-issue")
 async def report_payment_issue(report: PaymentIssueReport, current_user: dict = Depends(get_current_user)):
@@ -1707,6 +1708,7 @@ ID de Usuario: {current_user['id']}
             'amount': report.amount,
             'wallet_address': report.wallet_address,
             'tx_hash': report.tx_hash,
+            'proof_image': report.proof_image,
         },
         'created_at': datetime.now(timezone.utc).isoformat(),
         'updated_at': datetime.now(timezone.utc).isoformat()

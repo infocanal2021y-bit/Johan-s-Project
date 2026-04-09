@@ -59,6 +59,9 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
     const [issueDialogOpen, setIssueDialogOpen] = useState(false);
     const [issueMessage, setIssueMessage] = useState('');
     const [issueSending, setIssueSending] = useState(false);
+    const [issueProofImage, setIssueProofImage] = useState(null);
+    const [issueProofPreview, setIssueProofPreview] = useState(null);
+    const [issueTxHash, setIssueTxHash] = useState('');
     // Inactivity popup
     const [showInactivityPopup, setShowInactivityPopup] = useState(false);
     const inactivityTimerRef = useRef(null);
@@ -180,18 +183,37 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 network: currentWallet?.network || selectedCrypto,
                 amount: amountSent || null,
                 wallet_address: currentWallet?.address || null,
-                tx_hash: txid || null,
-                message: issueMessage.trim()
+                tx_hash: issueTxHash.trim() || txid || null,
+                message: issueMessage.trim(),
+                proof_image: issueProofImage || null
             });
             toast.success('Reporte enviado. Su transacción ha sido marcada como En Revisión.');
             setIssueDialogOpen(false);
             setIssueMessage('');
+            setIssueTxHash('');
+            setIssueProofImage(null);
+            setIssueProofPreview(null);
             onPaymentSubmitted?.();
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Error al enviar el reporte');
         } finally {
             setIssueSending(false);
         }
+    };
+
+    const handleIssueImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Imagen muy grande. Máximo 5MB');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setIssueProofImage(reader.result);
+            setIssueProofPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
     };
 
     const formatDate = (iso) => {
@@ -639,6 +661,55 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                                 className="bg-slate-950/50 border-slate-800 text-white min-h-[100px] resize-none"
                                 data-testid="issue-message-input"
                             />
+                        </div>
+
+                        {/* TX Hash field for issue */}
+                        <div className="space-y-2">
+                            <Label className="text-slate-300 text-sm">
+                                Hash / TXID de la transacción
+                                <span className="text-slate-500 text-xs ml-1">(si no fue completado arriba)</span>
+                            </Label>
+                            <Input
+                                value={issueTxHash}
+                                onChange={(e) => setIssueTxHash(e.target.value)}
+                                placeholder="Ej: 0xabc123... o a1b2c3d4..."
+                                className="bg-slate-950/50 border-slate-800 text-white font-mono text-sm"
+                                data-testid="issue-tx-hash-input"
+                            />
+                        </div>
+
+                        {/* Proof image upload for issue */}
+                        <div className="space-y-2">
+                            <Label className="text-slate-300 text-sm">
+                                Comprobante de pago (captura de pantalla)
+                            </Label>
+                            <label className="cursor-pointer block">
+                                <div className={`p-3 rounded-lg border-2 border-dashed transition-colors ${
+                                    issueProofPreview ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700 hover:border-slate-600'
+                                }`}>
+                                    <div className="flex flex-col items-center gap-2">
+                                        {issueProofPreview ? (
+                                            <div className="relative">
+                                                <img src={issueProofPreview} alt="Comprobante" className="max-h-24 rounded" />
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.preventDefault(); setIssueProofImage(null); setIssueProofPreview(null); }}
+                                                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center"
+                                                    data-testid="issue-remove-proof-btn"
+                                                >
+                                                    <X className="w-3 h-3 text-white" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-6 h-6 text-slate-500" />
+                                                <p className="text-xs text-slate-500">Adjuntar comprobante (máx. 5MB)</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                <input type="file" accept="image/*" onChange={handleIssueImageChange} className="hidden" data-testid="issue-proof-input" />
+                            </label>
                         </div>
 
                         <div className="flex gap-3">
