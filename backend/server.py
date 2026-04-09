@@ -96,20 +96,25 @@ def sanitize_mongo_doc(obj):
 @app.middleware("http")
 async def sanitize_objectid_middleware(request: Request, call_next):
     response = await call_next(request)
-    if response.headers.get('content-type', '').startswith('application/json') and hasattr(response, 'body'):
-        try:
-            body = b''
-            async for chunk in response.body_iterator:
-                body += chunk if isinstance(chunk, bytes) else chunk.encode()
-            data = json.loads(body)
-            clean = sanitize_mongo_doc(data)
-            new_body = json.dumps(clean, cls=MongoJSONEncoder).encode()
-            return Response(content=new_body, status_code=response.status_code, 
-                          headers=dict(response.headers), media_type='application/json')
-        except Exception:
-            return Response(content=body, status_code=response.status_code,
-                          headers=dict(response.headers), media_type='application/json')
-    return response
+    content_type = response.headers.get('content-type', '')
+    if not content_type.startswith('application/json'):
+        return response
+    try:
+        body = b''
+        async for chunk in response.body_iterator:
+            body += chunk if isinstance(chunk, bytes) else chunk.encode()
+        data = json.loads(body)
+        clean = sanitize_mongo_doc(data)
+        new_body = json.dumps(clean, cls=MongoJSONEncoder)
+        return Response(
+            content=new_body,
+            status_code=response.status_code,
+            media_type='application/json'
+        )
+    except Exception:
+        if body:
+            return Response(content=body, status_code=response.status_code, media_type='application/json')
+        return response
 
 def strip_id(doc):
     """Remove _id from a MongoDB document"""
