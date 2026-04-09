@@ -36,6 +36,7 @@ import {
     History,
     Wifi,
     CreditCard,
+    Banknote,
     Trophy,
     ArrowUpRight,
     ArrowDownLeft,
@@ -72,6 +73,7 @@ export const Sidebar = () => {
     ];
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
+        { to: '/bank-transfer', icon: Banknote, label: 'Transferencia Bancaria' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
         { to: '/withdraw-methods', icon: CreditCard, label: 'Metodos de Retiro' },
