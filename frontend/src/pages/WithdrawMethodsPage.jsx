@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2 } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/* ─── SVG Logos ─── */
 const VisaLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#1A1F71" />
@@ -29,7 +30,7 @@ const SkrillLogo = () => (
     </svg>
 );
 
-const BankLogo = () => (
+const BankTransferLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#0A2540" />
         <path d="M390 100l-180 90v20h360v-20L390 100z" fill="#00D4AA" />
@@ -41,66 +42,153 @@ const BankLogo = () => (
     </svg>
 );
 
-const MexicoLogo = () => (
+const CryptoLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill="#006847" />
-        <rect x="260" y="0" width="260" height="500" fill="white" />
-        <rect x="520" y="0" width="260" height="500" fill="#CE1126" />
-        <rect x="520" y="0" width="220" height="500" fill="#CE1126" />
-        <rect x="740" y="0" width="40" height="500" rx="40" fill="#CE1126" />
-        <circle cx="390" cy="250" r="50" fill="#006847" opacity="0.3" />
-        <text x="390" y="260" textAnchor="middle" dominantBaseline="central" fill="#006847" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="40">MX</text>
+        <rect width="780" height="500" rx="40" fill="#0D1117" />
+        <circle cx="280" cy="250" r="80" fill="#F7931A" />
+        <text x="280" y="265" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="80">B</text>
+        <circle cx="500" cy="250" r="80" fill="#627EEA" />
+        <text x="500" y="258" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="70">E</text>
     </svg>
 );
 
-const ChileLogo = () => (
+const PayPalLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill="#D52B1E" />
-        <rect y="0" width="780" height="250" fill="white" />
-        <rect x="0" y="0" width="40" height="250" rx="40" fill="white" />
-        <rect x="0" y="0" width="260" height="250" fill="#0039A6" />
-        <polygon points="130,70 143,115 190,115 152,142 165,187 130,160 95,187 108,142 70,115 117,115" fill="white" />
-        <rect x="0" y="0" width="40" height="500" rx="40" fill="#0039A6" />
-        <rect x="0" y="250" width="40" height="250" fill="#D52B1E" />
+        <rect width="780" height="500" rx="40" fill="#003087" />
+        <text x="390" y="260" textAnchor="middle" dominantBaseline="central" fill="#009CDE" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="110">Pay</text>
+        <text x="390" y="260" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="110" dx="95">Pal</text>
     </svg>
 );
 
-const BANKS = {
-    mexico: [
-        { name: 'BBVA Mexico', color: '#004B93' },
-        { name: 'Banorte', color: '#E3000B' },
-        { name: 'Santander Mexico', color: '#EC0000' },
-        { name: 'Citibanamex', color: '#056DAE' },
-        { name: 'HSBC Mexico', color: '#DB0011' },
-    ],
-    chile: [
-        { name: 'Banco de Chile', color: '#002D72' },
-        { name: 'BancoEstado', color: '#009A3B' },
-        { name: 'Banco BCI', color: '#E87722' },
-        { name: 'Scotiabank Chile', color: '#EC111A' },
-        { name: 'Itau Chile', color: '#003A70' },
-    ],
-};
+const WiseLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#9FE870" />
+        <text x="390" y="270" textAnchor="middle" dominantBaseline="central" fill="#163300" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="150">Wise</text>
+    </svg>
+);
 
-const SIMPLE_METHODS = [
-    { id: 'visa', name: 'Visa', Logo: VisaLogo },
-    { id: 'mastercard', name: 'Mastercard', Logo: MastercardLogo },
-    { id: 'skrill', name: 'Skrill', Logo: SkrillLogo },
-    { id: 'bank', name: 'Transferencia Bancaria', Logo: BankLogo },
+const SwiftLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#E31837" />
+        <text x="390" y="270" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="130">SWIFT</text>
+    </svg>
+);
+
+const MexicoFlag = () => (
+    <svg viewBox="0 0 60 40" className="w-full h-full rounded">
+        <rect width="20" height="40" fill="#006847" />
+        <rect x="20" width="20" height="40" fill="white" />
+        <rect x="40" width="20" height="40" fill="#CE1126" />
+        <circle cx="30" cy="20" r="6" fill="#006847" opacity="0.4" />
+    </svg>
+);
+
+const ChileFlag = () => (
+    <svg viewBox="0 0 60 40" className="w-full h-full rounded">
+        <rect y="0" width="60" height="20" fill="white" />
+        <rect y="20" width="60" height="20" fill="#D52B1E" />
+        <rect x="0" y="0" width="20" height="20" fill="#0039A6" />
+        <polygon points="10,4 12,9 17,9 13,12 14,17 10,14 6,17 7,12 3,9 8,9" fill="white" />
+    </svg>
+);
+
+const ColombiaFlag = () => (
+    <svg viewBox="0 0 60 40" className="w-full h-full rounded">
+        <rect width="60" height="20" fill="#FCD116" />
+        <rect y="20" width="60" height="10" fill="#003893" />
+        <rect y="30" width="60" height="10" fill="#CE1126" />
+    </svg>
+);
+
+/* ─── Data ─── */
+const PAYMENT_METHODS = [
+    { id: 'visa', name: 'Visa', desc: 'Tarjeta de credito / debito', Logo: VisaLogo },
+    { id: 'mastercard', name: 'Mastercard', desc: 'Tarjeta de credito / debito', Logo: MastercardLogo },
+    { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
+    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Transferencia directa', Logo: BankTransferLogo },
 ];
 
-const COUNTRY_METHODS = [
-    { id: 'mexico', name: 'Bancos de Mexico', Logo: MexicoLogo, banks: BANKS.mexico },
-    { id: 'chile', name: 'Bancos de Chile', Logo: ChileLogo, banks: BANKS.chile },
+const INTERNATIONAL_METHODS = [
+    { id: 'crypto', name: 'Criptomonedas', desc: 'Bitcoin / USDT / ETH', Logo: CryptoLogo },
+    { id: 'paypal', name: 'PayPal', desc: 'Pago digital global', Logo: PayPalLogo },
+    { id: 'wise', name: 'Wise', desc: 'Transferencia internacional', Logo: WiseLogo },
+    { id: 'swift', name: 'SWIFT', desc: 'Transferencia interbancaria', Logo: SwiftLogo },
 ];
 
+const COUNTRY_BANKS = [
+    {
+        id: 'mexico',
+        name: 'Bancos de Mexico',
+        Flag: MexicoFlag,
+        accent: '#006847',
+        banks: [
+            { name: 'BBVA Mexico', color: '#004B93' },
+            { name: 'Banorte', color: '#E3000B' },
+            { name: 'Santander Mexico', color: '#EC0000' },
+            { name: 'Citibanamex', color: '#056DAE' },
+            { name: 'HSBC Mexico', color: '#DB0011' },
+        ],
+    },
+    {
+        id: 'chile',
+        name: 'Bancos de Chile',
+        Flag: ChileFlag,
+        accent: '#0039A6',
+        banks: [
+            { name: 'Banco de Chile', color: '#002D72' },
+            { name: 'BancoEstado', color: '#009A3B' },
+            { name: 'Banco BCI', color: '#E87722' },
+            { name: 'Scotiabank Chile', color: '#EC111A' },
+            { name: 'Itau Chile', color: '#003A70' },
+        ],
+    },
+    {
+        id: 'colombia',
+        name: 'Bancos de Colombia',
+        Flag: ColombiaFlag,
+        accent: '#FCD116',
+        banks: [
+            { name: 'Bancolombia', color: '#FDDA24' },
+            { name: 'Banco de Bogota', color: '#00529B' },
+            { name: 'Davivienda', color: '#ED1C24' },
+            { name: 'BBVA Colombia', color: '#004B93' },
+            { name: 'Banco de Occidente', color: '#003F72' },
+        ],
+    },
+];
+
+/* ─── Card component ─── */
+const MethodCard = ({ name, desc, Logo, onClick, testId }) => (
+    <button
+        onClick={onClick}
+        data-testid={testId}
+        className="group flex flex-col items-center rounded-2xl bg-slate-800/60 border border-slate-700/50 p-5 transition-all duration-300 hover:border-slate-500/70 hover:bg-slate-800/90 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+    >
+        <div className="w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-shadow">
+            <Logo />
+        </div>
+        <span className="text-white text-sm font-semibold text-center leading-tight">{name}</span>
+        <span className="text-slate-500 text-xs mt-1 text-center leading-snug">{desc}</span>
+    </button>
+);
+
+/* ─── Section title ─── */
+const SectionTitle = ({ icon: Icon, title, iconColor }) => (
+    <div className="flex items-center gap-3 mb-5">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconColor}`}>
+            <Icon className="w-4.5 h-4.5" />
+        </div>
+        <h2 className="text-white text-lg font-bold tracking-tight">{title}</h2>
+    </div>
+);
+
+/* ─── Main Page ─── */
 export default function WithdrawMethodsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
     const dropdownRef = useRef(null);
 
-    // Close dropdown on outside click
     useEffect(() => {
         const handler = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -111,105 +199,112 @@ export default function WithdrawMethodsPage() {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const handleSimpleClick = (name) => {
+    const openModal = (name) => {
         setSelectedMethod(name);
         setModalOpen(true);
     };
 
-    const handleCountryClick = (id) => {
+    const toggleDropdown = (id) => {
         setOpenDropdown(openDropdown === id ? null : id);
     };
 
     const handleBankClick = (bankName) => {
         setOpenDropdown(null);
-        setSelectedMethod(bankName);
-        setModalOpen(true);
+        openModal(bankName);
     };
 
     return (
         <Layout>
-            <div className="max-w-5xl mx-auto space-y-8" data-testid="withdraw-methods-page">
+            <div className="max-w-5xl mx-auto space-y-10" data-testid="withdraw-methods-page">
                 {/* Header */}
                 <div className="text-center space-y-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                        Metodos de retiro
+                    <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                        Metodos de Pago
                     </h1>
                     <p className="text-slate-400 text-sm max-w-xl mx-auto">
-                        Seleccione el metodo de retiro de su preferencia para gestionar sus fondos de forma segura.
+                        Seleccione su metodo preferido para gestionar sus fondos de forma segura y rapida.
                     </p>
                 </div>
 
-                {/* Simple Methods */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
-                    {SIMPLE_METHODS.map((m) => (
-                        <button
-                            key={m.id}
-                            onClick={() => handleSimpleClick(m.name)}
-                            data-testid={`method-card-${m.id}`}
-                            className="group flex flex-col items-center rounded-2xl bg-white/[0.04] border border-slate-700/60 hover:border-slate-500 hover:bg-white/[0.07] p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-                        >
-                            <div className="w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-shadow">
-                                <m.Logo />
+                {/* ── Section 1: Métodos de pago ── */}
+                <section>
+                    <SectionTitle icon={CreditCard} title="Metodos de Pago" iconColor="bg-cyan-500/20 text-cyan-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="payment-methods-grid">
+                        {PAYMENT_METHODS.map((m) => (
+                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => openModal(m.name)} testId={`method-card-${m.id}`} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* ── Section 2: Pagos internacionales ── */}
+                <section>
+                    <SectionTitle icon={Globe} title="Pagos Internacionales" iconColor="bg-violet-500/20 text-violet-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="international-methods-grid">
+                        {INTERNATIONAL_METHODS.map((m) => (
+                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => openModal(m.name)} testId={`method-card-${m.id}`} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* ── Section 3: Bancos por país ── */}
+                <section>
+                    <SectionTitle icon={Banknote} title="Bancos por Pais" iconColor="bg-emerald-500/20 text-emerald-400" />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" ref={dropdownRef} data-testid="country-banks-grid">
+                        {COUNTRY_BANKS.map((country) => (
+                            <div key={country.id} className="relative" data-testid={`country-method-${country.id}`}>
+                                {/* Country toggle */}
+                                <button
+                                    onClick={() => toggleDropdown(country.id)}
+                                    data-testid={`method-card-${country.id}`}
+                                    className={`w-full flex items-center gap-3.5 rounded-2xl border p-4 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 ${
+                                        openDropdown === country.id
+                                            ? 'bg-slate-800/90 border-slate-500/70 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
+                                            : 'bg-slate-800/60 border-slate-700/50 hover:border-slate-500/70 hover:bg-slate-800/90'
+                                    }`}
+                                >
+                                    <div className="w-10 h-7 rounded overflow-hidden shadow flex-shrink-0">
+                                        <country.Flag />
+                                    </div>
+                                    <span className="text-white font-semibold text-sm flex-1 text-left">{country.name}</span>
+                                    <ChevronDown className={`w-4.5 h-4.5 text-slate-400 transition-transform duration-300 ${openDropdown === country.id ? 'rotate-180 text-white' : ''}`} />
+                                </button>
+
+                                {/* Bank list dropdown */}
+                                <AnimatePresence>
+                                    {openDropdown === country.id && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="mt-2 rounded-xl border border-slate-700/60 bg-slate-900/95 backdrop-blur-md overflow-hidden" data-testid={`bank-list-${country.id}`}>
+                                                {country.banks.map((bank, i) => (
+                                                    <button
+                                                        key={bank.name}
+                                                        onClick={() => handleBankClick(bank.name)}
+                                                        data-testid={`bank-item-${country.id}-${i}`}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors border-b border-slate-800/50 last:border-b-0"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${bank.color}18` }}>
+                                                            <Building2 className="w-3.5 h-3.5" style={{ color: bank.color }} />
+                                                        </div>
+                                                        <span className="text-slate-200 text-sm font-medium text-left flex-1">{bank.name}</span>
+                                                        <span className="text-slate-600 text-[11px]">Seleccionar</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                            <span className="text-white text-sm font-medium text-center leading-tight">{m.name}</span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* Country Bank Methods with Dropdowns */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" ref={dropdownRef}>
-                    {COUNTRY_METHODS.map((cm) => (
-                        <div key={cm.id} className="relative" data-testid={`country-method-${cm.id}`}>
-                            <button
-                                onClick={() => handleCountryClick(cm.id)}
-                                data-testid={`method-card-${cm.id}`}
-                                className={`group w-full flex items-center gap-4 rounded-2xl border p-4 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 ${
-                                    openDropdown === cm.id
-                                        ? 'bg-white/[0.07] border-slate-500 shadow-xl shadow-black/20'
-                                        : 'bg-white/[0.04] border-slate-700/60 hover:border-slate-500 hover:bg-white/[0.07]'
-                                }`}
-                            >
-                                <div className="w-16 h-10 rounded-lg overflow-hidden shadow-md flex-shrink-0">
-                                    <cm.Logo />
-                                </div>
-                                <span className="text-white font-medium text-sm flex-1 text-left">{cm.name}</span>
-                                <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${openDropdown === cm.id ? 'rotate-180 text-white' : ''}`} />
-                            </button>
-
-                            <AnimatePresence>
-                                {openDropdown === cm.id && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        transition={{ duration: 0.25, ease: 'easeInOut' }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="mt-2 rounded-xl border border-slate-700/60 bg-slate-900/90 backdrop-blur-sm overflow-hidden max-h-[280px] overflow-y-auto" data-testid={`bank-list-${cm.id}`}>
-                                            {cm.banks.map((bank, i) => (
-                                                <button
-                                                    key={bank.name}
-                                                    onClick={() => handleBankClick(bank.name)}
-                                                    data-testid={`bank-item-${cm.id}-${i}`}
-                                                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] transition-colors border-b border-slate-800/50 last:border-b-0"
-                                                >
-                                                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${bank.color}20` }}>
-                                                        <Building2 className="w-4 h-4" style={{ color: bank.color }} />
-                                                    </div>
-                                                    <span className="text-slate-200 text-sm font-medium text-left">{bank.name}</span>
-                                                    <span className="ml-auto text-slate-600 text-xs">Seleccionar</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                </section>
 
                 {/* Trust bar */}
-                <div className="flex items-center justify-center gap-6 py-3">
+                <div className="flex items-center justify-center gap-6 pt-2 pb-4">
                     <div className="flex items-center gap-2 text-slate-500 text-xs">
                         <Shield className="w-4 h-4 text-emerald-500" />
                         <span>Conexion segura SSL</span>
@@ -233,7 +328,7 @@ export default function WithdrawMethodsPage() {
                     </DialogHeader>
                     <div className="space-y-4">
                         <p className="text-slate-300 text-sm">
-                            El metodo de retiro <strong className="text-white">{selectedMethod}</strong> estara habilitado proximamente.
+                            El metodo <strong className="text-white">{selectedMethod}</strong> estara habilitado proximamente.
                         </p>
                         <Button onClick={() => setModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white" data-testid="modal-close-btn">
                             <X className="w-4 h-4 mr-2" /> Cerrar
