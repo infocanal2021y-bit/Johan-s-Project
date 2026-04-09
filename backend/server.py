@@ -30,80 +30,36 @@ from apscheduler.triggers.interval import IntervalTrigger
 from bson import ObjectId
 import httpx
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+# Import from refactored modules
+from config import (
+    db, client, ROOT_DIR, RESEND_API_KEY, SENDER_EMAIL, ADMIN_EMAIL,
+    JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRATION_HOURS,
+    EXCHANGE_RATES, DAILY_TRANSFER_LIMIT_EUR, UNVERIFIED_TRANSFER_LIMIT_EUR,
+    TAX_AMOUNT, GOVERNMENT_TREASURY_ID, FRAUD_THRESHOLD_AMOUNT,
+    FRAUD_THRESHOLD_COUNT, FRAUD_THRESHOLD_MINUTES,
+    ADMIN_ACCOUNTS, RESTRICTED_BANK_TRANSFER_EMAILS,
+    MongoJSONEncoder, SafeJSONResponse, sanitize_mongo_doc, strip_id
+)
+from models import (
+    UserCreate, UserLogin, UserResponse, AccountResponse, BankingInfo,
+    TransactionCreate, TransactionResponse, PayTaxRequest,
+    AdminUpdateBalance, AdminUpdateTransactionStatus, AdminUpdateUserRole,
+    KYCSubmission, AdminKYCAction, AdminSuspendUser, AdminForceRelease,
+    AdminAddBalance, CryptoPaymentSubmission, AdminCryptoPaymentAction,
+    AdminManualTaxPayment, AdminUpdateWithdrawalStatus,
+    SupportTicket, TicketReply, PasswordResetRequest, PasswordResetConfirm,
+    ChangePassword, PaymentIssueReport, BankTransferConfirm
+)
+from services.auth import (
+    security, hash_password, verify_password, create_token,
+    generate_transaction_reference, get_current_user, get_admin_user
+)
+from services.notifications import create_notification, notify_admins, create_admin_notification
+from services.scoring import process_user_scoring, process_user_reminders
 
-# Email Configuration
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@paylionsbit.es')
+# ==================== APP SETUP ====================
+# Refactored: config.py, models.py, services/auth.py, services/notifications.py, services/scoring.py
 resend.api_key = RESEND_API_KEY
-
-# JWT Configuration
-JWT_SECRET = os.environ.get('JWT_SECRET', 'super-secret-banking-key-change-in-production')
-JWT_ALGORITHM = 'HS256'
-JWT_EXPIRATION_HOURS = 24
-
-# Exchange rates (static)
-EXCHANGE_RATES = {
-    'USD': 1.0,
-    'EUR': 0.92
-}
-
-# Constants
-DAILY_TRANSFER_LIMIT_EUR = 10000
-UNVERIFIED_TRANSFER_LIMIT_EUR = 1000
-TAX_AMOUNT = 4850.0
-GOVERNMENT_TREASURY_ID = "GOVT-TREASURY-001"
-FRAUD_THRESHOLD_AMOUNT = 5000
-FRAUD_THRESHOLD_COUNT = 3
-FRAUD_THRESHOLD_MINUTES = 5
-
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-# Use database name from environment if set, otherwise extract from connection string
-db_name = os.environ.get('DB_NAME')
-if not db_name:
-    # Extract database name from MongoDB URL if present
-    from urllib.parse import urlparse
-    parsed = urlparse(mongo_url)
-    db_name = parsed.path.strip('/') if parsed.path and parsed.path != '/' else 'lionsbit_bank'
-db = client[db_name]
-
-# Custom JSON encoder to handle MongoDB ObjectId
-class MongoJSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, ObjectId):
-            return str(o)
-        if isinstance(o, datetime):
-            return o.isoformat()
-        return super().default(o)
-
-def sanitize_mongo_doc(obj):
-    """Recursively remove _id and convert ObjectId to str in any data structure"""
-    if isinstance(obj, dict):
-        return {k: sanitize_mongo_doc(v) for k, v in obj.items() if k != '_id'}
-    if isinstance(obj, list):
-        return [sanitize_mongo_doc(item) for item in obj]
-    if isinstance(obj, ObjectId):
-        return str(obj)
-    return obj
-
-class SafeJSONResponse(JSONResponse):
-    """JSONResponse that auto-sanitizes MongoDB ObjectId and _id fields"""
-    def render(self, content) -> bytes:
-        clean = sanitize_mongo_doc(content)
-        return json.dumps(clean, cls=MongoJSONEncoder, ensure_ascii=False).encode("utf-8")
-
-def strip_id(doc):
-    """Remove _id from a MongoDB document"""
-    if doc is None:
-        return None
-    if isinstance(doc, dict):
-        return {k: sanitize_mongo_doc(v) for k, v in doc.items() if k != '_id'}
-    if isinstance(doc, list):
-        return [strip_id(d) for d in doc]
-    return doc
 
 # Create the main app
 app = FastAPI(title="LIONSBIT VERIFICACION API", default_response_class=SafeJSONResponse)
