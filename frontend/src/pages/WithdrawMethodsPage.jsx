@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const VisaLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
@@ -28,15 +29,15 @@ const SkrillLogo = () => (
     </svg>
 );
 
-const BankLogo = ({ color = '#0A2540', accent = '#00D4AA' }) => (
+const BankLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill={color} />
-        <path d="M390 100l-180 90v20h360v-20L390 100z" fill={accent} />
-        <rect x="250" y="230" width="40" height="130" rx="4" fill={accent} />
-        <rect x="330" y="230" width="40" height="130" rx="4" fill={accent} />
-        <rect x="410" y="230" width="40" height="130" rx="4" fill={accent} />
-        <rect x="490" y="230" width="40" height="130" rx="4" fill={accent} />
-        <rect x="220" y="370" width="340" height="30" rx="4" fill={accent} />
+        <rect width="780" height="500" rx="40" fill="#0A2540" />
+        <path d="M390 100l-180 90v20h360v-20L390 100z" fill="#00D4AA" />
+        <rect x="250" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
+        <rect x="330" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
+        <rect x="410" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
+        <rect x="490" y="230" width="40" height="130" rx="4" fill="#00D4AA" />
+        <rect x="220" y="370" width="340" height="30" rx="4" fill="#00D4AA" />
     </svg>
 );
 
@@ -44,7 +45,7 @@ const MexicoLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#006847" />
         <rect x="260" y="0" width="260" height="500" fill="white" />
-        <rect x="520" y="0" width="260" height="500" rx="0" fill="#CE1126" />
+        <rect x="520" y="0" width="260" height="500" fill="#CE1126" />
         <rect x="520" y="0" width="220" height="500" fill="#CE1126" />
         <rect x="740" y="0" width="40" height="500" rx="40" fill="#CE1126" />
         <circle cx="390" cy="250" r="50" fill="#006847" opacity="0.3" />
@@ -55,7 +56,7 @@ const MexicoLogo = () => (
 const ChileLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#D52B1E" />
-        <rect y="0" width="780" height="250" rx="0" fill="white" />
+        <rect y="0" width="780" height="250" fill="white" />
         <rect x="0" y="0" width="40" height="250" rx="40" fill="white" />
         <rect x="0" y="0" width="260" height="250" fill="#0039A6" />
         <polygon points="130,70 143,115 190,115 152,142 165,187 130,160 95,187 108,142 70,115 117,115" fill="white" />
@@ -64,21 +65,64 @@ const ChileLogo = () => (
     </svg>
 );
 
-const METHODS = [
+const BANKS = {
+    mexico: [
+        { name: 'BBVA Mexico', color: '#004B93' },
+        { name: 'Banorte', color: '#E3000B' },
+        { name: 'Santander Mexico', color: '#EC0000' },
+        { name: 'Citibanamex', color: '#056DAE' },
+        { name: 'HSBC Mexico', color: '#DB0011' },
+    ],
+    chile: [
+        { name: 'Banco de Chile', color: '#002D72' },
+        { name: 'BancoEstado', color: '#009A3B' },
+        { name: 'Banco BCI', color: '#E87722' },
+        { name: 'Scotiabank Chile', color: '#EC111A' },
+        { name: 'Itau Chile', color: '#003A70' },
+    ],
+};
+
+const SIMPLE_METHODS = [
     { id: 'visa', name: 'Visa', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', Logo: SkrillLogo },
     { id: 'bank', name: 'Transferencia Bancaria', Logo: BankLogo },
-    { id: 'mexico', name: 'Bancos de Mexico', Logo: MexicoLogo },
-    { id: 'chile', name: 'Bancos de Chile', Logo: ChileLogo },
+];
+
+const COUNTRY_METHODS = [
+    { id: 'mexico', name: 'Bancos de Mexico', Logo: MexicoLogo, banks: BANKS.mexico },
+    { id: 'chile', name: 'Bancos de Chile', Logo: ChileLogo, banks: BANKS.chile },
 ];
 
 export default function WithdrawMethodsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
+    const [openDropdown, setOpenDropdown] = useState(null);
+    const dropdownRef = useRef(null);
 
-    const handleClick = (name) => {
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handler = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setOpenDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const handleSimpleClick = (name) => {
         setSelectedMethod(name);
+        setModalOpen(true);
+    };
+
+    const handleCountryClick = (id) => {
+        setOpenDropdown(openDropdown === id ? null : id);
+    };
+
+    const handleBankClick = (bankName) => {
+        setOpenDropdown(null);
+        setSelectedMethod(bankName);
         setModalOpen(true);
     };
 
@@ -95,12 +139,12 @@ export default function WithdrawMethodsPage() {
                     </p>
                 </div>
 
-                {/* Cards Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5" data-testid="methods-grid">
-                    {METHODS.map((m) => (
+                {/* Simple Methods */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
+                    {SIMPLE_METHODS.map((m) => (
                         <button
                             key={m.id}
-                            onClick={() => handleClick(m.name)}
+                            onClick={() => handleSimpleClick(m.name)}
                             data-testid={`method-card-${m.id}`}
                             className="group flex flex-col items-center rounded-2xl bg-white/[0.04] border border-slate-700/60 hover:border-slate-500 hover:bg-white/[0.07] p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
                         >
@@ -109,6 +153,58 @@ export default function WithdrawMethodsPage() {
                             </div>
                             <span className="text-white text-sm font-medium text-center leading-tight">{m.name}</span>
                         </button>
+                    ))}
+                </div>
+
+                {/* Country Bank Methods with Dropdowns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" ref={dropdownRef}>
+                    {COUNTRY_METHODS.map((cm) => (
+                        <div key={cm.id} className="relative" data-testid={`country-method-${cm.id}`}>
+                            <button
+                                onClick={() => handleCountryClick(cm.id)}
+                                data-testid={`method-card-${cm.id}`}
+                                className={`group w-full flex items-center gap-4 rounded-2xl border p-4 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 ${
+                                    openDropdown === cm.id
+                                        ? 'bg-white/[0.07] border-slate-500 shadow-xl shadow-black/20'
+                                        : 'bg-white/[0.04] border-slate-700/60 hover:border-slate-500 hover:bg-white/[0.07]'
+                                }`}
+                            >
+                                <div className="w-16 h-10 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                                    <cm.Logo />
+                                </div>
+                                <span className="text-white font-medium text-sm flex-1 text-left">{cm.name}</span>
+                                <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${openDropdown === cm.id ? 'rotate-180 text-white' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {openDropdown === cm.id && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="mt-2 rounded-xl border border-slate-700/60 bg-slate-900/90 backdrop-blur-sm overflow-hidden max-h-[280px] overflow-y-auto" data-testid={`bank-list-${cm.id}`}>
+                                            {cm.banks.map((bank, i) => (
+                                                <button
+                                                    key={bank.name}
+                                                    onClick={() => handleBankClick(bank.name)}
+                                                    data-testid={`bank-item-${cm.id}-${i}`}
+                                                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] transition-colors border-b border-slate-800/50 last:border-b-0"
+                                                >
+                                                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${bank.color}20` }}>
+                                                        <Building2 className="w-4 h-4" style={{ color: bank.color }} />
+                                                    </div>
+                                                    <span className="text-slate-200 text-sm font-medium text-left">{bank.name}</span>
+                                                    <span className="ml-auto text-slate-600 text-xs">Seleccionar</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     ))}
                 </div>
 
