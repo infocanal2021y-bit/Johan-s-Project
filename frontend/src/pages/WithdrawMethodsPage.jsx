@@ -108,7 +108,7 @@ const PAYMENT_METHODS = [
     { id: 'visa', name: 'Visa', desc: 'Tarjeta de credito / debito', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', desc: 'Tarjeta de credito / debito', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
-    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Transferencia directa', Logo: BankTransferLogo, special: true },
+    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Agente autorizado', Logo: BankTransferLogo, special: true },
 ];
 
 const INTERNATIONAL_METHODS = [
