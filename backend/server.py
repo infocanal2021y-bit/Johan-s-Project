@@ -3363,6 +3363,17 @@ async def admin_reactivate_withdrawal(transaction_id: str, admin: dict = Depends
     await create_notification(tx['user_id'], 'Retiro Reactivado',
         f'Su retiro de {tx["amount"]} {tx["currency"]} ha sido reactivado y esta pendiente de aprobacion.')
     
+    # Send email notification
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0})
+    if user:
+        await send_withdrawal_status_email(
+            user_email=user['email'],
+            user_name=user['name'],
+            amount=tx['amount'],
+            currency=tx['currency'],
+            status='pending'
+        )
+    
     return {'message': 'Retiro reactivado exitosamente', 'transaction_id': transaction_id}
 
 
