@@ -111,16 +111,6 @@ export default function WithdrawMethodsPage() {
                         <span>Procesamiento rapido</span>
                     </div>
                 </div>
-
-                {/* Info note */}
-                <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 text-center space-y-2">
-                    <p className="text-slate-400 text-sm leading-relaxed">
-                        Los metodos de retiro estaran disponibles proximamente. Estamos trabajando para ofrecer una experiencia segura y eficiente.
-                    </p>
-                    <p className="text-slate-600 text-xs">
-                        Este modulo transmite confianza visual, similar a una plataforma bancaria profesional.
-                    </p>
-                </div>
             </div>
 
             {/* Modal */}
