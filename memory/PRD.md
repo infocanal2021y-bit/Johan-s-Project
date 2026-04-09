@@ -15,24 +15,30 @@ Professional financial information and verification platform. Provides informati
 - Withdrawal with $4,850 USD mandatory tax, min $200 partial payments
 - International bank support: IBAN (Europe) + Account Number (worldwide, 55+ countries)
 
-### Payment Methods Page (UPDATED Apr 9, 2026)
+### Payment Methods Page
 - 3-section fintech layout:
   - Section 1 "Metodos de Pago": Visa, Mastercard, Skrill, Transferencia Bancaria
   - Section 2 "Pagos Internacionales": Criptomonedas, PayPal, Wise, SWIFT
-  - Section 3 "Bancos por Pais": Mexico (5 banks), Chile (5 banks), Colombia (5 banks) with dropdown lists
+  - Section 3 "Bancos por Pais": Mexico (5), Chile (5), Colombia (5) with dropdown lists
 
-### Transferencia Bancaria (NEW - Apr 9, 2026)
-- Opens detailed dialog with bank transfer info:
-  - Titular: Juan Antonio Gomez Bernet
-  - Monto: 4850 EUR
-  - Referencia obligatoria: 216389
-  - IBAN: BE73 9053 1376 1560
-  - SWIFT/BIC: TRWIBEB1XXX
-  - Direccion: Wise, Brussels, Belgium
-- Copy buttons for IBAN and Referencia
-- "Ya realice el pago" button → status "Pendiente de verificacion"
-- Records saved in bank_transfer_payments collection
-- ACCESS RESTRICTION: marinini28@gmail.com cannot see or use this method (hidden frontend + 403 backend)
+### Transferencia Bancaria (Detailed View)
+- Dialog with bank details: Titular (Juan Gomez), Monto (4850 EUR), Ref (216389), IBAN, SWIFT
+- Copy buttons for IBAN and Reference
+- "Ya realice la transferencia" → Proof Upload Modal:
+  - File upload: JPG, PNG, PDF (max 5MB)
+  - Optional comment/reference
+  - "Enviar comprobante" button
+  - Saves to bank_transfer_payments + bank_transfer_proofs collections
+  - Email to info@lionbit.es with attachment via Resend
+  - Confirmation email to user
+- ACCESS RESTRICTION: marinini28@gmail.com blocked (frontend hidden + backend 403)
+
+### Interactive Notifications System
+- Clickable notifications → detail modal with full content
+- Mark as read on click (visual change: bold→normal, muted color, no green dot)
+- "Marcar todo leido" button marks all as read
+- Category-based icons (transfers, support, KYC, etc.)
+- Real-time badge count (9+)
 
 ### Crypto Payment System
 - Multi-crypto selector: BTC, ETH, BNB, USDT with dynamic QR codes
@@ -40,18 +46,17 @@ Professional financial information and verification platform. Provides informati
 - Payment inactivity popup (90s), dual-email support
 
 ### Investment Wallet System
-- Popup intercepts withdrawal flow
-- Min 300 EUR investment, dashboard history
+- Popup intercepts withdrawal flow, min 300 EUR
+- Dashboard history section
 
 ### Binance Wallet / Activos
-- Real user balances converted to crypto equivalents via Binance prices
+- Real user balances converted to crypto via Binance prices
 
 ### ChatBot & Support
 - FAQ chatbot, ticket creation, dual-email routing
 
 ### Gamification / Achievements
-- Bronce, Plata, Oro, Platino levels
-- 10 achievements across 5 categories
+- 4 levels, 10 achievements, celebration popup
 
 ### Market Data
 - CoinGecko, Finnhub News, TradingView Widget, Binance API
@@ -69,7 +74,7 @@ Professional financial information and verification platform. Provides informati
 - Restricted User: marinini28@gmail.com / Marina2026!
 
 ## Backlog
-- P2: Refactor monolithic server.py (~5500 lines)
+- P2: Refactor monolithic server.py (~5600 lines)
 - P2: Email notifications for withdrawal status changes
 - P3: Fix SPA crash/reload loop with browser translation
 
