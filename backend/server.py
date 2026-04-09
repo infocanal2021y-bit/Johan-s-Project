@@ -5355,6 +5355,25 @@ def start_scheduler():
         name='Follow up on incomplete processes',
         replace_existing=True
     )
+
+    # Run every hour to recalculate user scoring
+    scheduler.add_job(
+        process_user_scoring,
+        IntervalTrigger(hours=1),
+        id='user_scoring',
+        name='Recalculate user interest scoring',
+        replace_existing=True
+    )
+    
+    # Run every 12 hours to send process reminders
+    scheduler.add_job(
+        process_user_reminders,
+        IntervalTrigger(hours=12),
+        id='user_reminders',
+        name='Send process completion reminders (12h)',
+        replace_existing=True
+    )
+
     
     scheduler.start()
     logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min)")
@@ -5739,6 +5758,124 @@ async def ensure_admin_users():
             
             await db.accounts.insert_many([checking, savings])
             print(f"✅ Created admin: {admin_data['email']} (verified, active)")
+
+
+async def process_user_scoring():
+    """Calculate interest scoring for all users: hot/warm/cold"""
+    logging.info("Running user scoring job...")
+    try:
+        now = datetime.now(timezone.utc)
+        users = await db.users.find({'role': 'user'}, {'_id': 0, 'id': 1, 'email': 1, 'last_active': 1}).to_list(1000)
+        
+        for user in users:
+            user_id = user['id']
+            # Login count last 7 days
+            seven_days_ago = (now - timedelta(days=7)).isoformat()
+            login_count_7d = await db.login_history.count_documents({
+                'user_id': user_id,
+                'timestamp': {'$gte': seven_days_ago}
+            })
+            
+            # Check balance
+            account = await db.accounts.find_one({'user_id': user_id, 'account_type': 'checking'}, {'_id': 0})
+            balance = (account.get('balance_usd', 0) if account else 0) + (account.get('balance_eur', 0) if account else 0)
+            
+            # Days since last active
+            last_active = user.get('last_active')
+            if last_active:
+                try:
+                    la = datetime.fromisoformat(last_active.replace('Z', '+00:00')) if isinstance(last_active, str) else last_active
+                    days_inactive = (now - la).days
+                except Exception:
+                    days_inactive = 999
+            else:
+                days_inactive = 999
+            
+            # Pending withdrawal?
+            has_pending = await db.transactions.count_documents({
+                'user_id': user_id, 'transaction_type': 'withdraw',
+                'status': {'$in': ['pending', 'pending_tax', 'processing']}
+            })
+            
+            # Calculate score
+            if login_count_7d >= 3 and balance > 0:
+                score = 'hot'
+                score_label = 'Alto interes'
+            elif login_count_7d >= 1 or has_pending > 0:
+                score = 'warm'
+                score_label = 'Medio'
+            else:
+                score = 'cold'
+                score_label = 'Frio'
+            
+            await db.users.update_one(
+                {'id': user_id},
+                {'$set': {
+                    'interest_score': score,
+                    'interest_label': score_label,
+                    'score_data': {
+                        'logins_7d': login_count_7d,
+                        'balance': round(balance, 2),
+                        'days_inactive': days_inactive,
+                        'has_pending_withdrawal': has_pending > 0,
+                        'updated_at': now.isoformat()
+                    }
+                }}
+            )
+        
+        logging.info(f"User scoring completed for {len(users)} users")
+    except Exception as e:
+        logging.error(f"Error in user scoring: {e}")
+
+async def process_user_reminders():
+    """Send reminders to users every 12 hours if they have pending processes"""
+    logging.info("Running user reminder job (12h)...")
+    try:
+        now = datetime.now(timezone.utc)
+        
+        # Users with pending withdrawals that need tax payment
+        pending_tax = await db.transactions.find({
+            'transaction_type': 'withdraw',
+            'status': {'$in': ['pending_tax', 'pending']}
+        }, {'_id': 0, 'user_id': 1, 'amount': 1, 'currency': 1}).to_list(100)
+        
+        notified = set()
+        for tx in pending_tax:
+            uid = tx['user_id']
+            if uid in notified:
+                continue
+            notified.add(uid)
+            
+            await create_notification(uid, 'Proceso Pendiente',
+                f'Tienes un retiro de {tx["amount"]} {tx["currency"]} pendiente. Completa el proceso para continuar.')
+        
+        # Users with balance but no recent activity
+        users_with_balance = await db.accounts.find({
+            'account_type': 'checking',
+            '$or': [{'balance_usd': {'$gt': 0}}, {'balance_eur': {'$gt': 0}}]
+        }, {'_id': 0, 'user_id': 1, 'balance_usd': 1, 'balance_eur': 1}).to_list(100)
+        
+        for acc in users_with_balance:
+            uid = acc['user_id']
+            if uid in notified:
+                continue
+            
+            user = await db.users.find_one({'id': uid}, {'_id': 0, 'last_active': 1})
+            if user and user.get('last_active'):
+                try:
+                    la = datetime.fromisoformat(user['last_active'].replace('Z', '+00:00')) if isinstance(user['last_active'], str) else user['last_active']
+                    if (now - la).total_seconds() > 43200:  # >12h inactive
+                        total = acc.get('balance_usd', 0) + acc.get('balance_eur', 0)
+                        await create_notification(uid, 'Saldo Disponible',
+                            f'Tienes saldo disponible (${total:.2f}). Inicia sesion para gestionar tus fondos.')
+                        notified.add(uid)
+                except Exception:
+                    pass
+        
+        logging.info(f"Reminders sent to {len(notified)} users")
+    except Exception as e:
+        logging.error(f"Error in user reminders: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

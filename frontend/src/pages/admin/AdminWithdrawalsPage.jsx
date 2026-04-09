@@ -290,8 +290,8 @@ export const AdminWithdrawalsPage = () => {
                                                     </div>
                                                 ) : (
                                                     <div className="divide-y divide-slate-800/50">
-                                                        {/* Table header */}
-                                                        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 bg-slate-900/50 text-[11px] text-slate-500 uppercase tracking-wider">
+                                                        {/* Table header - desktop only */}
+                                                        <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 bg-slate-900/50 text-[11px] text-slate-500 uppercase tracking-wider">
                                                             <span>Usuario</span><span>Email</span><span>Monto</span><span>Banco</span><span>Fecha</span><span className="text-right">Acciones</span>
                                                         </div>
                                                         {items.map(w => {
@@ -302,9 +302,9 @@ export const AdminWithdrawalsPage = () => {
 
                                                             return (
                                                                 <div key={w.id} data-testid={`withdrawal-row-${w.id}`}>
-                                                                    {/* Row */}
+                                                                    {/* Desktop Row */}
                                                                     <div
-                                                                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-800/20' : ''}`}
+                                                                        className={`hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-800/20' : ''}`}
                                                                         onClick={() => toggleRow(w.id)}
                                                                     >
                                                                         <div className="flex items-center gap-2 min-w-0">
@@ -331,6 +331,43 @@ export const AdminWithdrawalsPage = () => {
                                                                                     <Ban className="w-3 h-3" />
                                                                                 </Button>
                                                                             )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Mobile Card */}
+                                                                    <div
+                                                                        className={`sm:hidden p-4 cursor-pointer hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-800/20' : ''}`}
+                                                                        onClick={() => toggleRow(w.id)}
+                                                                    >
+                                                                        <div className="flex items-center justify-between mb-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                                                                                    <span className="text-xs font-medium text-white">{w.user?.name?.charAt(0)?.toUpperCase() || '?'}</span>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-white text-sm font-medium">{w.user?.name || 'Desconocido'}</p>
+                                                                                    <p className="text-slate-500 text-xs">{w.user?.email || '-'}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <span className="text-red-400 font-bold font-mono">{w.currency === 'USD' ? '$' : 'EUR '}{w.amount?.toFixed(2)}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between mt-2" onClick={e => e.stopPropagation()}>
+                                                                            <span className="text-slate-600 text-xs">{formatDate(w.created_at)}</span>
+                                                                            <div className="flex gap-1.5">
+                                                                                {nextStatus && (
+                                                                                    <Button size="sm" onClick={() => handleStatusChange(w.id, nextStatus)} disabled={processingId === w.id}
+                                                                                        className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 text-xs px-3">
+                                                                                        {processingId === w.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <>{nextLabel}</>}
+                                                                                    </Button>
+                                                                                )}
+                                                                                {w.status !== 'completed' && w.status !== 'rejected' && (
+                                                                                    <Button size="sm" variant="outline" onClick={() => { setSelectedWithdrawal(w); setRejectionReason(''); setRejectDialogOpen(true); }}
+                                                                                        className="border-red-500/50 text-red-400 h-8 text-xs px-3">
+                                                                                        <Ban className="w-3 h-3" />
+                                                                                    </Button>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
 

@@ -9,8 +9,21 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle } from 'lucide-react';
+import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+
+const getScoreBadge = (score) => {
+    switch (score) {
+        case 'hot':
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30"><Flame className="w-3 h-3" />Alto</span>;
+        case 'warm':
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30"><TrendingUp className="w-3 h-3" />Medio</span>;
+        case 'cold':
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30"><Snowflake className="w-3 h-3" />Frio</span>;
+        default:
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-slate-700 text-slate-500">Sin datos</span>;
+    }
+};
 
 export const AdminUsersPage = () => {
     const [users, setUsers] = useState([]);
@@ -120,8 +133,8 @@ export const AdminUsersPage = () => {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <h1 className="text-3xl font-heading font-bold text-white">User Management</h1>
-                    <p className="text-slate-500 mt-1">View and manage all users</p>
+                    <h1 className="text-2xl sm:text-3xl font-heading font-bold text-white">Gestion de Usuarios</h1>
+                    <p className="text-slate-500 mt-1">Administrar usuarios y puntuacion de interes</p>
                 </motion.div>
 
                 <motion.div
@@ -144,11 +157,14 @@ export const AdminUsersPage = () => {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
+                                <>
+                                {/* Desktop Table */}
+                                <div className="hidden md:block overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">User</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase">Score</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Role</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">KYC Status</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Account Status</TableHead>
@@ -175,6 +191,9 @@ export const AdminUsersPage = () => {
                                                                     <p className="text-xs text-slate-500">{user.email}</p>
                                                                 </div>
                                                             </div>
+                                                        </TableCell>
+                                                        <TableCell data-testid={`user-score-${user.id}`}>
+                                                            {getScoreBadge(user.interest_score)}
                                                         </TableCell>
                                                         <TableCell>
                                                             <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -261,6 +280,44 @@ export const AdminUsersPage = () => {
                                         </TableBody>
                                     </Table>
                                 </div>
+                                {/* Mobile Cards */}
+                                <div className="md:hidden divide-y divide-slate-800/50">
+                                    {users.map((user) => {
+                                        const checkingAcc = user.accounts?.find(a => a.account_type === 'checking');
+                                        return (
+                                            <div key={user.id} className="p-4 space-y-3" data-testid={`mobile-user-${user.id}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
+                                                            <span className="text-sm font-medium text-white">{user.name?.charAt(0).toUpperCase()}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-white text-sm">{user.name}</span>
+                                                            <p className="text-xs text-slate-500">{user.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    {getScoreBadge(user.interest_score)}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    <div><span className="text-slate-500">Rol:</span> <span className={`ml-1 ${user.role === 'admin' ? 'text-amber-400' : 'text-slate-300'}`}>{user.role}</span></div>
+                                                    <div><span className="text-slate-500">KYC:</span> <span className="ml-1">{getVerificationBadge(user.verification_status)}</span></div>
+                                                    <div><span className="text-slate-500">USD:</span> <span className="text-emerald-400 ml-1">${checkingAcc?.balance_usd?.toFixed(2) || '0.00'}</span></div>
+                                                    <div><span className="text-slate-500">EUR:</span> <span className="text-emerald-400 ml-1">{checkingAcc?.balance_eur?.toFixed(2) || '0.00'}</span></div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {checkingAcc && <Button size="sm" variant="outline" className="flex-1 border-slate-700 text-xs h-9" onClick={() => handleEditBalance(user, checkingAcc)}><Edit className="w-3 h-3 mr-1" />Saldo</Button>}
+                                                    <Button size="sm" variant="outline" className="flex-1 border-slate-700 text-xs h-9" onClick={() => handleEditRole(user)}><Shield className="w-3 h-3 mr-1" />Rol</Button>
+                                                    {user.account_status === 'active' ? (
+                                                        <Button size="sm" className="flex-1 border-red-500/50 text-red-400 text-xs h-9" variant="outline" onClick={() => handleSuspendUser(user.id, 'suspend')}><Ban className="w-3 h-3 mr-1" />Susp.</Button>
+                                                    ) : (
+                                                        <Button size="sm" className="flex-1 bg-emerald-500 text-white text-xs h-9" onClick={() => handleSuspendUser(user.id, 'activate')}><CheckCircle className="w-3 h-3 mr-1" />Act.</Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                </>
                             )}
                         </CardContent>
                     </Card>
