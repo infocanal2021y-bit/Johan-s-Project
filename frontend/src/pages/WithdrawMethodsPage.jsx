@@ -2,8 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
+import { paymentsAPI } from '../lib/api';
+import { toast } from 'sonner';
 
 /* ─── SVG Logos ─── */
 const VisaLogo = () => (
@@ -105,7 +108,7 @@ const PAYMENT_METHODS = [
     { id: 'visa', name: 'Visa', desc: 'Tarjeta de credito / debito', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', desc: 'Tarjeta de credito / debito', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
-    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Transferencia directa', Logo: BankTransferLogo },
+    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Transferencia directa', Logo: BankTransferLogo, special: true },
 ];
 
 const INTERNATIONAL_METHODS = [
@@ -117,10 +120,7 @@ const INTERNATIONAL_METHODS = [
 
 const COUNTRY_BANKS = [
     {
-        id: 'mexico',
-        name: 'Bancos de Mexico',
-        Flag: MexicoFlag,
-        accent: '#006847',
+        id: 'mexico', name: 'Bancos de Mexico', Flag: MexicoFlag,
         banks: [
             { name: 'BBVA Mexico', color: '#004B93' },
             { name: 'Banorte', color: '#E3000B' },
@@ -130,10 +130,7 @@ const COUNTRY_BANKS = [
         ],
     },
     {
-        id: 'chile',
-        name: 'Bancos de Chile',
-        Flag: ChileFlag,
-        accent: '#0039A6',
+        id: 'chile', name: 'Bancos de Chile', Flag: ChileFlag,
         banks: [
             { name: 'Banco de Chile', color: '#002D72' },
             { name: 'BancoEstado', color: '#009A3B' },
@@ -143,10 +140,7 @@ const COUNTRY_BANKS = [
         ],
     },
     {
-        id: 'colombia',
-        name: 'Bancos de Colombia',
-        Flag: ColombiaFlag,
-        accent: '#FCD116',
+        id: 'colombia', name: 'Bancos de Colombia', Flag: ColombiaFlag,
         banks: [
             { name: 'Bancolombia', color: '#FDDA24' },
             { name: 'Banco de Bogota', color: '#00529B' },
@@ -157,7 +151,16 @@ const COUNTRY_BANKS = [
     },
 ];
 
-/* ─── Card component ─── */
+const BANK_TRANSFER_DATA = {
+    holder: 'Juan Antonio Gomez Bernet',
+    amount: '4850 EUR',
+    reference: '216389',
+    iban: 'BE73 9053 1376 1560',
+    swift: 'TRWIBEB1XXX',
+    address: 'Wise, Rue du Trone 100, 3rd floor, Brussels, 1050, Belgium',
+};
+
+/* ─── Reusable Card ─── */
 const MethodCard = ({ name, desc, Logo, onClick, testId }) => (
     <button
         onClick={onClick}
@@ -182,12 +185,46 @@ const SectionTitle = ({ icon: Icon, title, iconColor }) => (
     </div>
 );
 
+/* ─── Copy button helper ─── */
+const CopyField = ({ label, value, testId }) => {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = () => {
+        navigator.clipboard.writeText(value.replace(/\s/g, ''));
+        setCopied(true);
+        toast.success(`${label} copiado`);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    return (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950/60 border border-slate-800">
+            <div className="min-w-0">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider">{label}</p>
+                <p className="text-white font-mono text-sm mt-0.5 break-all">{value}</p>
+            </div>
+            <button onClick={handleCopy} className="ml-3 flex-shrink-0 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors" data-testid={testId}>
+                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
+            </button>
+        </div>
+    );
+};
+
 /* ─── Main Page ─── */
 export default function WithdrawMethodsPage() {
+    const { user } = useAuth();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
+    const [bankTransferOpen, setBankTransferOpen] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const [confirmed, setConfirmed] = useState(false);
+    const [hasBankAccess, setHasBankAccess] = useState(true);
     const dropdownRef = useRef(null);
+
+    // Check bank transfer access
+    useEffect(() => {
+        paymentsAPI.checkBankTransferAccess()
+            .then(res => setHasBankAccess(res.data.has_access))
+            .catch(() => setHasBankAccess(true));
+    }, []);
 
     useEffect(() => {
         const handler = (e) => {
@@ -204,6 +241,14 @@ export default function WithdrawMethodsPage() {
         setModalOpen(true);
     };
 
+    const handleMethodClick = (method) => {
+        if (method.special && method.id === 'bank-transfer') {
+            setBankTransferOpen(true);
+            return;
+        }
+        openModal(method.name);
+    };
+
     const toggleDropdown = (id) => {
         setOpenDropdown(openDropdown === id ? null : id);
     };
@@ -212,6 +257,25 @@ export default function WithdrawMethodsPage() {
         setOpenDropdown(null);
         openModal(bankName);
     };
+
+    const handleConfirmTransfer = async () => {
+        setConfirming(true);
+        try {
+            await paymentsAPI.confirmBankTransfer({ reference: BANK_TRANSFER_DATA.reference });
+            setConfirmed(true);
+            toast.success('Transferencia registrada. Pendiente de verificacion.');
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Error al registrar la transferencia');
+        } finally {
+            setConfirming(false);
+        }
+    };
+
+    // Filter payment methods based on access
+    const visiblePaymentMethods = PAYMENT_METHODS.filter(m => {
+        if (m.id === 'bank-transfer' && !hasBankAccess) return false;
+        return true;
+    });
 
     return (
         <Layout>
@@ -226,17 +290,17 @@ export default function WithdrawMethodsPage() {
                     </p>
                 </div>
 
-                {/* ── Section 1: Métodos de pago ── */}
+                {/* Section 1: Métodos de pago */}
                 <section>
                     <SectionTitle icon={CreditCard} title="Metodos de Pago" iconColor="bg-cyan-500/20 text-cyan-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="payment-methods-grid">
-                        {PAYMENT_METHODS.map((m) => (
-                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => openModal(m.name)} testId={`method-card-${m.id}`} />
+                        {visiblePaymentMethods.map((m) => (
+                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => handleMethodClick(m)} testId={`method-card-${m.id}`} />
                         ))}
                     </div>
                 </section>
 
-                {/* ── Section 2: Pagos internacionales ── */}
+                {/* Section 2: Pagos internacionales */}
                 <section>
                     <SectionTitle icon={Globe} title="Pagos Internacionales" iconColor="bg-violet-500/20 text-violet-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="international-methods-grid">
@@ -246,13 +310,12 @@ export default function WithdrawMethodsPage() {
                     </div>
                 </section>
 
-                {/* ── Section 3: Bancos por país ── */}
+                {/* Section 3: Bancos por país */}
                 <section>
                     <SectionTitle icon={Banknote} title="Bancos por Pais" iconColor="bg-emerald-500/20 text-emerald-400" />
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" ref={dropdownRef} data-testid="country-banks-grid">
                         {COUNTRY_BANKS.map((country) => (
                             <div key={country.id} className="relative" data-testid={`country-method-${country.id}`}>
-                                {/* Country toggle */}
                                 <button
                                     onClick={() => toggleDropdown(country.id)}
                                     data-testid={`method-card-${country.id}`}
@@ -269,7 +332,6 @@ export default function WithdrawMethodsPage() {
                                     <ChevronDown className={`w-4.5 h-4.5 text-slate-400 transition-transform duration-300 ${openDropdown === country.id ? 'rotate-180 text-white' : ''}`} />
                                 </button>
 
-                                {/* Bank list dropdown */}
                                 <AnimatePresence>
                                     {openDropdown === country.id && (
                                         <motion.div
@@ -317,7 +379,7 @@ export default function WithdrawMethodsPage() {
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* ── Próximamente Modal ── */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent className="bg-slate-900 border-slate-700 max-w-sm" data-testid="method-modal">
                     <DialogHeader>
@@ -333,6 +395,93 @@ export default function WithdrawMethodsPage() {
                         <Button onClick={() => setModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white" data-testid="modal-close-btn">
                             <X className="w-4 h-4 mr-2" /> Cerrar
                         </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Bank Transfer Detail Dialog ── */}
+            <Dialog open={bankTransferOpen} onOpenChange={(open) => { setBankTransferOpen(open); if (!open) setConfirmed(false); }}>
+                <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[90vh] overflow-y-auto" data-testid="bank-transfer-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <Banknote className="w-5 h-5 text-emerald-400" />
+                            Transferencia Bancaria
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-5">
+                        {/* Provider info */}
+                        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+                            <p className="text-cyan-400 text-sm font-semibold mb-1">Proveedor de servicios de pago autorizado</p>
+                            <p className="text-slate-400 text-xs leading-relaxed">
+                                Las transferencias son procesadas a traves de un proveedor de servicios de pago autorizado, garantizando seguridad y correcta identificacion de la operacion.
+                            </p>
+                        </div>
+
+                        {/* Transfer details card */}
+                        <div className="space-y-3" data-testid="bank-transfer-details">
+                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Titular</p>
+                                <p className="text-white font-medium text-sm mt-0.5">{BANK_TRANSFER_DATA.holder}</p>
+                            </div>
+
+                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Monto</p>
+                                <p className="text-emerald-400 font-bold text-lg mt-0.5">{BANK_TRANSFER_DATA.amount}</p>
+                            </div>
+
+                            <CopyField label="Referencia obligatoria" value={BANK_TRANSFER_DATA.reference} testId="copy-reference-btn" />
+                            <CopyField label="IBAN" value={BANK_TRANSFER_DATA.iban} testId="copy-iban-btn" />
+
+                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">SWIFT / BIC</p>
+                                <p className="text-white font-mono text-sm mt-0.5">{BANK_TRANSFER_DATA.swift}</p>
+                            </div>
+
+                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Direccion</p>
+                                <p className="text-slate-300 text-sm mt-0.5 leading-relaxed">{BANK_TRANSFER_DATA.address}</p>
+                            </div>
+                        </div>
+
+                        {/* Confirm button */}
+                        {confirmed ? (
+                            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3" data-testid="transfer-confirmed-status">
+                                <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                                <div>
+                                    <p className="text-emerald-400 font-semibold text-sm">Pendiente de verificacion</p>
+                                    <p className="text-slate-400 text-xs mt-0.5">Su transferencia ha sido registrada y sera verificada por nuestro equipo.</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <Button
+                                onClick={handleConfirmTransfer}
+                                disabled={confirming}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base"
+                                data-testid="confirm-transfer-btn"
+                            >
+                                {confirming ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Registrando...</>
+                                ) : (
+                                    <><CheckCircle className="w-4 h-4 mr-2" /> Ya realice el pago</>
+                                )}
+                            </Button>
+                        )}
+
+                        {/* Info messages */}
+                        <div className="space-y-2">
+                            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-amber-300 text-xs leading-relaxed">
+                                    Utiliza la referencia proporcionada al realizar la transferencia para garantizar la correcta identificacion del pago.
+                                </p>
+                            </div>
+                            <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                                <Clock className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-slate-400 text-xs leading-relaxed">
+                                    Las transferencias pueden tardar entre 1 y 3 dias habiles en procesarse.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

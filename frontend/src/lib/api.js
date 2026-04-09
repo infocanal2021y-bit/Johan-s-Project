@@ -65,6 +65,12 @@ export const accountsAPI = {
     getInvestmentHistory: () => api.get('/accounts/investment-history'),
 };
 
+// Payments API
+export const paymentsAPI = {
+    checkBankTransferAccess: () => api.get('/payments/bank-transfer-access'),
+    confirmBankTransfer: (data) => api.post('/payments/bank-transfer-confirm', data),
+};
+
 // User Engagement API
 export const engagementAPI = {
     trackActivity: (data) => api.post('/user/activity', data),

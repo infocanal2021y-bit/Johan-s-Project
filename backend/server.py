@@ -5066,6 +5066,61 @@ CHATBOT_FAQ = {
     }
 }
 
+
+# ─── Bank Transfer Payment Confirmation ───
+RESTRICTED_BANK_TRANSFER_EMAILS = ['marinini28@gmail.com']
+
+class BankTransferConfirm(BaseModel):
+    reference: str
+
+@api_router.get("/payments/bank-transfer-access")
+async def check_bank_transfer_access(current_user: dict = Depends(get_current_user)):
+    """Check if user has access to bank transfer method"""
+    has_access = current_user['email'].lower() not in RESTRICTED_BANK_TRANSFER_EMAILS
+    return {'has_access': has_access}
+
+@api_router.post("/payments/bank-transfer-confirm")
+async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = Depends(get_current_user)):
+    """Record bank transfer confirmation - status pending_verification"""
+    if current_user['email'].lower() in RESTRICTED_BANK_TRANSFER_EMAILS:
+        raise HTTPException(status_code=403, detail='No tiene acceso a este metodo de pago')
+    
+    record_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    record = {
+        'id': record_id,
+        'user_id': current_user['id'],
+        'user_name': current_user['name'],
+        'user_email': current_user['email'],
+        'type': 'bank_transfer',
+        'reference': data.reference,
+        'amount': 4850,
+        'currency': 'EUR',
+        'status': 'pending_verification',
+        'bank_details': {
+            'holder': 'Juan Antonio Gomez Bernet',
+            'iban': 'BE73 9053 1376 1560',
+            'swift': 'TRWIBEB1XXX',
+        },
+        'created_at': now,
+        'updated_at': now
+    }
+    
+    await db.bank_transfer_payments.insert_one(record)
+    
+    await create_notification(current_user['id'], 'Transferencia Registrada',
+        f'Su transferencia bancaria con referencia {data.reference} ha sido registrada. Estado: Pendiente de verificacion.')
+    
+    # Notify admins
+    admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1}).to_list(10)
+    for admin in admins:
+        await create_notification(admin['id'], 'Nueva Transferencia Bancaria',
+            f'{current_user["name"]} ha confirmado una transferencia bancaria. Referencia: {data.reference}')
+    
+    return {'message': 'Transferencia registrada. Pendiente de verificacion.', 'id': record_id, 'status': 'pending_verification'}
+
+
 @api_router.post("/chatbot/message")
 async def chatbot_message(data: ChatMessage):
     """Process chatbot message and return FAQ response"""
