@@ -70,7 +70,9 @@ const CopyField = ({ label, value, testId, highlight }) => {
 /* ── Crypto Address Card ── */
 const CryptoAddressCard = ({ coinKey, wallet }) => {
     const [copied, setCopied] = useState(false);
+    const [showQR, setShowQR] = useState(false);
     const icon = CRYPTO_ICONS[coinKey] || { color: 'text-slate-400', bg: 'bg-slate-500/15', label: coinKey };
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(wallet.address)}&size=180x180&bgcolor=0f172a&color=e2e8f0`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(wallet.address);
@@ -81,15 +83,31 @@ const CryptoAddressCard = ({ coinKey, wallet }) => {
 
     return (
         <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 transition-colors" data-testid={`crypto-wallet-${coinKey}`}>
-            <div className="flex items-center gap-3 mb-3">
-                <div className={`w-9 h-9 rounded-lg ${icon.bg} flex items-center justify-center`}>
-                    <Bitcoin className={`w-4 h-4 ${icon.color}`} />
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg ${icon.bg} flex items-center justify-center`}>
+                        <Bitcoin className={`w-4 h-4 ${icon.color}`} />
+                    </div>
+                    <div>
+                        <p className="text-white text-sm font-semibold">{wallet.name}</p>
+                        <p className="text-slate-500 text-[11px]">{wallet.network}</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="text-white text-sm font-semibold">{wallet.name}</p>
-                    <p className="text-slate-500 text-[11px]">{wallet.network}</p>
-                </div>
+                <button
+                    onClick={() => setShowQR(!showQR)}
+                    className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors ${showQR ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                    data-testid={`qr-toggle-${coinKey}`}
+                >
+                    {showQR ? 'Ocultar QR' : 'Ver QR'}
+                </button>
             </div>
+
+            {showQR && (
+                <div className="flex justify-center mb-3 p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+                    <img src={qrUrl} alt={`QR ${wallet.name}`} className="rounded-lg" width={150} height={150} data-testid={`qr-img-${coinKey}`} />
+                </div>
+            )}
+
             <div className="flex items-center gap-2">
                 <p className="font-mono text-xs text-slate-300 break-all flex-1 bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
                     {wallet.address}

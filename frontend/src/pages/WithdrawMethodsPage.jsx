@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { paymentsAPI } from '../lib/api';
+import api from '../lib/api';
 import { toast } from 'sonner';
 
 /* ─── SVG Logos ─── */
@@ -208,14 +208,67 @@ const CopyField = ({ label, value, testId }) => {
     );
 };
 
+/* ─── Crypto Wallet Card with QR ─── */
+const CryptoWalletCard = ({ coinKey, wallet, colors }) => {
+    const [copied, setCopied] = useState(false);
+    const [showQR, setShowQR] = useState(false);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(wallet.address)}&size=180x180&bgcolor=0f172a&color=e2e8f0`;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(wallet.address);
+        setCopied(true);
+        toast.success(`Direccion ${wallet.name} copiada`);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className={`p-4 rounded-xl border ${colors.border} bg-slate-950/60`} data-testid={`crypto-card-${coinKey}`}>
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                        <Bitcoin className={`w-4 h-4 ${colors.text}`} />
+                    </div>
+                    <div>
+                        <p className="text-white text-sm font-semibold">{wallet.name}</p>
+                        <p className="text-slate-500 text-[10px]">{wallet.network}</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => setShowQR(!showQR)}
+                    className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors ${showQR ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                    data-testid={`qr-toggle-${coinKey}`}
+                >
+                    {showQR ? 'Ocultar QR' : 'Ver QR'}
+                </button>
+            </div>
+
+            {showQR && (
+                <div className="flex justify-center mb-3 p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+                    <img src={qrUrl} alt={`QR ${wallet.name}`} className="rounded-lg" width={150} height={150} data-testid={`qr-img-${coinKey}`} />
+                </div>
+            )}
+
+            <div className="flex items-center gap-2">
+                <p className="font-mono text-[11px] text-slate-300 break-all flex-1 bg-slate-900/50 p-2 rounded-lg border border-slate-800 leading-relaxed">
+                    {wallet.address}
+                </p>
+                <button onClick={handleCopy} className="flex-shrink-0 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors" data-testid={`copy-crypto-${coinKey}`}>
+                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 /* ─── Main Page ─── */
 export default function WithdrawMethodsPage() {
     const { user } = useAuth();
-    const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
     const [bankTransferOpen, setBankTransferOpen] = useState(false);
+    const [cryptoOpen, setCryptoOpen] = useState(false);
+    const [cryptoWallets, setCryptoWallets] = useState(null);
     const [proofModalOpen, setProofModalOpen] = useState(false);
     const [proofFile, setProofFile] = useState(null);
     const [proofPreview, setProofPreview] = useState(null);
@@ -250,8 +303,9 @@ export default function WithdrawMethodsPage() {
 
     const handleInternationalClick = (method) => {
         if (method.id === 'crypto') {
-            // Navigate to crypto payment section (using a fake transaction for standalone access)
-            navigate('/complete-withdrawal/select-crypto');
+            // Load wallets and open crypto dialog
+            api.get('/crypto-wallets').then(res => setCryptoWallets(res.data)).catch(() => toast.error('Error al cargar wallets'));
+            setCryptoOpen(true);
             return;
         }
         openModal(method.name);
@@ -452,6 +506,51 @@ export default function WithdrawMethodsPage() {
                         <Button onClick={() => setModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white" data-testid="modal-close-btn">
                             <X className="w-4 h-4 mr-2" /> Cerrar
                         </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Crypto Wallets Dialog ── */}
+            <Dialog open={cryptoOpen} onOpenChange={setCryptoOpen}>
+                <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[90vh] overflow-y-auto" data-testid="crypto-wallets-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <Bitcoin className="w-5 h-5 text-orange-400" />
+                            Pago con Criptomonedas
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/30">
+                            <p className="text-orange-400 text-sm font-semibold mb-1">Direcciones de pago</p>
+                            <p className="text-slate-400 text-xs leading-relaxed">
+                                Envie a cualquiera de las direcciones disponibles. Asegurese de utilizar la red correcta.
+                            </p>
+                        </div>
+
+                        {cryptoWallets ? Object.entries(cryptoWallets).map(([key, wallet]) => {
+                            const colors = {
+                                BTC: { border: 'border-orange-500/30', bg: 'bg-orange-500/10', text: 'text-orange-400' },
+                                BTC_LEGACY: { border: 'border-orange-500/30', bg: 'bg-orange-500/10', text: 'text-orange-400' },
+                                ETH: { border: 'border-blue-500/30', bg: 'bg-blue-500/10', text: 'text-blue-400' },
+                                BNB: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
+                                USDT: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+                            };
+                            const c = colors[key] || colors.BTC;
+                            return (
+                                <CryptoWalletCard key={key} coinKey={key} wallet={wallet} colors={c} />
+                            );
+                        }) : (
+                            <div className="flex justify-center py-8">
+                                <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
+                            </div>
+                        )}
+
+                        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                            <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-amber-300 text-xs leading-relaxed">
+                                Verifique la direccion y la red antes de enviar. Las transacciones en blockchain son irreversibles.
+                            </p>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
