@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const typeConfig = {
     deposit: {
@@ -38,8 +39,10 @@ const statusConfig = {
 };
 
 export const TransactionRow = ({ transaction, index = 0 }) => {
+    const navigate = useNavigate();
     const config = typeConfig[transaction.transaction_type] || typeConfig.deposit;
     const Icon = config.icon;
+    const showCompleteBtn = transaction.transaction_type === 'withdraw' && transaction.status === 'processing';
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -99,6 +102,15 @@ export const TransactionRow = ({ transaction, index = 0 }) => {
                     <span className={`w-2 h-2 rounded-full ${statusConfig[transaction.status] || 'bg-slate-500'}`} />
                     <span className="text-sm text-slate-400 capitalize font-normal">{transaction.status?.replace('_', ' ')}</span>
                 </div>
+                {showCompleteBtn && (
+                    <button
+                        onClick={() => navigate(`/complete-withdrawal/${transaction.id}`)}
+                        className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
+                        data-testid={`complete-process-btn-${transaction.id}`}
+                    >
+                        Completar proceso <ChevronRight className="w-3 h-3" />
+                    </button>
+                )}
             </td>
             <td className="py-4 px-4 text-right">
                 <span 

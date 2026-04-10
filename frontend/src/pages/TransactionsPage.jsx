@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { transactionsAPI } from '../lib/api';
@@ -10,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
-import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock } from 'lucide-react';
+import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 import { WithdrawalProgressBar } from '../components/WithdrawalProgressBar';
 
 export const TransactionsPage = () => {
+    const navigate = useNavigate();
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -311,6 +313,17 @@ export const TransactionsPage = () => {
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <div className="flex items-center gap-2 justify-end">
+                                                                {/* Complete Process Button - for processing withdrawals */}
+                                                                {tx.status === 'processing' && tx.transaction_type === 'withdraw' && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={() => navigate(`/complete-withdrawal/${tx.id}`)}
+                                                                        className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs"
+                                                                        data-testid={`complete-process-btn-${tx.id}`}
+                                                                    >
+                                                                        Completar proceso <ChevronRight className="w-3 h-3 ml-1" />
+                                                                    </Button>
+                                                                )}
                                                                 {/* Download Receipt Button - for completed transactions */}
                                                                 {isCompleted && (tx.transaction_type === 'transfer' || tx.transaction_type === 'withdraw') && (
                                                                     <Button

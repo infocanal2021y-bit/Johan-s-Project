@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
@@ -210,6 +211,7 @@ const CopyField = ({ label, value, testId }) => {
 /* ─── Main Page ─── */
 export default function WithdrawMethodsPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
@@ -244,6 +246,15 @@ export default function WithdrawMethodsPage() {
     const openModal = (name) => {
         setSelectedMethod(name);
         setModalOpen(true);
+    };
+
+    const handleInternationalClick = (method) => {
+        if (method.id === 'crypto') {
+            // Navigate to crypto payment section (using a fake transaction for standalone access)
+            navigate('/complete-withdrawal/select-crypto');
+            return;
+        }
+        openModal(method.name);
     };
 
     const handleMethodClick = (method) => {
@@ -351,7 +362,7 @@ export default function WithdrawMethodsPage() {
                     <SectionTitle icon={Globe} title="Pagos Internacionales" iconColor="bg-violet-500/20 text-violet-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="international-methods-grid">
                         {INTERNATIONAL_METHODS.map((m) => (
-                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => openModal(m.name)} testId={`method-card-${m.id}`} />
+                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => handleInternationalClick(m)} testId={`method-card-${m.id}`} />
                         ))}
                     </div>
                 </section>
@@ -504,7 +515,7 @@ export default function WithdrawMethodsPage() {
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base"
                                 data-testid="confirm-transfer-btn"
                             >
-                                <CheckCircle className="w-4 h-4 mr-2" /> Ya realice la transferencia
+                                <CheckCircle className="w-4 h-4 mr-2" /> Confirmar pago realizado
                             </Button>
                         )}
 
