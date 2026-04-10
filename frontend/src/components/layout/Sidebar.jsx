@@ -75,6 +75,7 @@ export const Sidebar = () => {
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
         { to: '/bank-transfer', icon: Banknote, label: 'Transferencia Bancaria' },
+        { to: '/bitcoin-outputs', icon: Hash, label: 'Bitcoin Outputs' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
         { to: '/withdraw-methods', icon: CreditCard, label: 'Metodos de Retiro' },
@@ -97,7 +98,6 @@ export const Sidebar = () => {
         { to: '/investment-comparator', icon: Scale, label: 'Comparador' },
         { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
         { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
-        { to: '/bitcoin-outputs', icon: Hash, label: 'Bitcoin Outputs' },
     ];
 
     const adminLinks = [
