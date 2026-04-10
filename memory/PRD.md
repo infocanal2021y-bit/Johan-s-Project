@@ -76,10 +76,16 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
   - Added MutationObserver to prevent Google Translate DOM mutations from crashing React
 - Improved BankTransferPage:
   - Added "Opciones de pago en linea" section with 3 Wise payment links
-  - Buttons open in new tab with modern card-style hover effects
   - Changed button text to "Confirmar pago realizado"
   - Highlighted reference field with amber border and validation note
-  - Added informational text about payment options
+- Complete Withdrawal Flow:
+  - New CompleteWithdrawalPage at /complete-withdrawal/:transactionId
+  - Method selection screen: Transferencia Bancaria or Criptomonedas
+  - Bank transfer: full data + 3 Wise payment links + proof upload
+  - Criptomonedas: BTC, BTC_LEGACY, ETH, BNB, USDT wallet addresses with copy buttons
+  - "Completar proceso" button in TransactionsPage for processing withdrawals
+  - Enabled Criptomonedas in WithdrawMethodsPage (replaced "proximamente" message)
+  - 100% test pass rate (14/14 backend + all UI)
 
 ### Earlier Sessions
 - Connected routing for InvestmentComparatorPage, GlobalMarketMapPage, LiveMarketNewsPage
