@@ -98,7 +98,6 @@ export const Sidebar = () => {
         { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
         { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
         { to: '/bitcoin-outputs', icon: Hash, label: 'Bitcoin Outputs' },
-        { to: '/feedback', icon: MessageSquare, label: 'Feedback' },
     ];
 
     const adminLinks = [
