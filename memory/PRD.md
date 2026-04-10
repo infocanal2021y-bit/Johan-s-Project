@@ -85,7 +85,13 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
   - Criptomonedas: BTC, BTC_LEGACY, ETH, BNB, USDT wallet addresses with copy buttons
   - "Completar proceso" button in TransactionsPage for processing withdrawals
   - Enabled Criptomonedas in WithdrawMethodsPage (replaced "proximamente" message)
-  - 100% test pass rate (14/14 backend + all UI)
+- Bitcoin Outputs Verification Page:
+  - New /api/bitcoin/outputs endpoint fetching real blockchain data (blockchain.info)
+  - Filters outputs in $40K-$110K USD range with BTC price from CoinGecko
+  - Professional table with expandable rows showing full hash, recipient, state
+  - Each row links to Blockchair for independent verification
+  - Search by hash/address/block, refresh button, 2-min cache
+  - Stats cards: BTC price, block height, outputs count, USD range
 
 ### Earlier Sessions
 - Connected routing for InvestmentComparatorPage, GlobalMarketMapPage, LiveMarketNewsPage

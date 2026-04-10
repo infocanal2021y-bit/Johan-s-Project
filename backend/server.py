@@ -4911,6 +4911,111 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
     return {'message': 'Comprobante enviado correctamente. Pendiente de verificacion.', 'id': record_id, 'status': 'pending_verification'}
 
 
+# ─── Bitcoin Outputs Verification ───
+_btc_outputs_cache = {'data': None, 'ts': 0}
+
+@api_router.get("/bitcoin/outputs")
+async def get_bitcoin_outputs():
+    """Fetch recent large Bitcoin outputs for transaction verification"""
+    import time as _time
+    now = _time.time()
+    # Cache for 2 minutes
+    if _btc_outputs_cache['data'] and (now - _btc_outputs_cache['ts']) < 120:
+        return _btc_outputs_cache['data']
+
+    outputs = []
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            # Get BTC price
+            price_resp = await client.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+            btc_price = 72000  # fallback
+            if price_resp.status_code == 200:
+                btc_price = price_resp.json().get('bitcoin', {}).get('usd', 72000)
+
+            # Get latest block hash
+            latest_resp = await client.get('https://blockchain.info/latestblock', headers={'User-Agent': 'Mozilla/5.0'})
+            if latest_resp.status_code != 200:
+                raise Exception('Failed to get latest block')
+            latest = latest_resp.json()
+            block_hash = latest['hash']
+            block_height = latest['height']
+
+            # Fetch last 2 blocks for more data
+            for offset in range(2):
+                bh = block_hash if offset == 0 else None
+                if offset > 0:
+                    prev_resp = await client.get(f'https://blockchain.info/rawblock/{block_hash}', headers={'User-Agent': 'Mozilla/5.0'})
+                    if prev_resp.status_code == 200:
+                        bh = prev_resp.json().get('prev_block')
+                    else:
+                        break
+                if not bh:
+                    break
+
+                block_resp = await client.get(f'https://blockchain.info/rawblock/{bh}', headers={'User-Agent': 'Mozilla/5.0'})
+                if block_resp.status_code != 200:
+                    break
+                block_data = block_resp.json()
+                block_time = block_data.get('time', 0)
+                block_hash = block_data.get('prev_block', '')
+
+                for tx in block_data.get('tx', []):
+                    for out_idx, out in enumerate(tx.get('out', [])):
+                        value_btc = out.get('value', 0) / 1e8
+                        value_usd = value_btc * btc_price
+                        # Filter: $40,000 - $110,000 USD range
+                        if 40000 <= value_usd <= 110000:
+                            outputs.append({
+                                'block_id': block_data.get('height', block_height - offset),
+                                'transaction_hash': tx.get('hash', ''),
+                                'index': out_idx,
+                                'time': datetime.fromtimestamp(block_time, tz=timezone.utc).isoformat(),
+                                'value_btc': round(value_btc, 8),
+                                'value_usd': round(value_usd, 2),
+                                'recipient': out.get('addr', 'Unknown'),
+                                'is_spent': out.get('spent', False),
+                                'script_hex': out.get('script', '')[:40] + '...' if out.get('script') else '',
+                            })
+
+                        if len(outputs) >= 50:
+                            break
+                    if len(outputs) >= 50:
+                        break
+                if len(outputs) >= 50:
+                    break
+
+        # Sort by time desc
+        outputs.sort(key=lambda x: x['time'], reverse=True)
+        result = {
+            'outputs': outputs[:50],
+            'btc_price': btc_price,
+            'block_height': block_height,
+            'total_found': len(outputs),
+            'filter': {'min_usd': 40000, 'max_usd': 110000},
+            'source': 'blockchain.info',
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }
+        _btc_outputs_cache['data'] = result
+        _btc_outputs_cache['ts'] = now
+        return result
+
+    except Exception as e:
+        logging.error(f"Bitcoin outputs fetch error: {e}")
+        if _btc_outputs_cache['data']:
+            return _btc_outputs_cache['data']
+        return {
+            'outputs': [],
+            'btc_price': 0,
+            'block_height': 0,
+            'total_found': 0,
+            'filter': {'min_usd': 40000, 'max_usd': 110000},
+            'source': 'blockchain.info',
+            'error': str(e),
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }
+
+
+
 @api_router.post("/chatbot/message")
 async def chatbot_message(data: ChatMessage):
     """Process chatbot message and return FAQ response"""

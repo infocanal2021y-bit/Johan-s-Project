@@ -33,6 +33,7 @@ import BinanceWalletPage from "./pages/BinanceWalletPage";
 import WithdrawMethodsPage from "./pages/WithdrawMethodsPage";
 import BankTransferPage from "./pages/BankTransferPage";
 import CompleteWithdrawalPage from "./pages/CompleteWithdrawalPage";
+import BitcoinOutputsPage from "./pages/BitcoinOutputsPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -126,6 +127,7 @@ function AppRoutes() {
             <Route path="/withdraw-methods" element={<ProtectedRoute><WithdrawMethodsPage /></ProtectedRoute>} />
             <Route path="/bank-transfer" element={<ProtectedRoute><BankTransferPage /></ProtectedRoute>} />
             <Route path="/complete-withdrawal/:transactionId" element={<ProtectedRoute><CompleteWithdrawalPage /></ProtectedRoute>} />
+            <Route path="/bitcoin-outputs" element={<ProtectedRoute><BitcoinOutputsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />

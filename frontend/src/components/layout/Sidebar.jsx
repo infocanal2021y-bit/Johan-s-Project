@@ -40,7 +40,8 @@ import {
     Trophy,
     ArrowUpRight,
     ArrowDownLeft,
-    ExternalLink
+    ExternalLink,
+    Hash
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -96,6 +97,7 @@ export const Sidebar = () => {
         { to: '/investment-comparator', icon: Scale, label: 'Comparador' },
         { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
         { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
+        { to: '/bitcoin-outputs', icon: Hash, label: 'Bitcoin Outputs' },
     ];
 
     const adminLinks = [
