@@ -109,6 +109,13 @@ export const notificationsAPI = {
     markAllAsRead: () => api.put('/notifications/read-all'),
 };
 
+// Feedback API
+export const feedbackAPI = {
+    submit: (data) => api.post('/feedback', data),
+    getMine: () => api.get('/feedback/mine'),
+    getAll: () => api.get('/admin/feedback'),
+};
+
 // Admin API
 export const adminAPI = {
     getUsers: () => api.get('/admin/users'),

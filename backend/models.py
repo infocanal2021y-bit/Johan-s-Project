@@ -190,3 +190,8 @@ class AdminWalletAssign(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
+
+class FeedbackSubmission(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
+    category: Optional[str] = None

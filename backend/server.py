@@ -45,7 +45,8 @@ from models import (
     AdminManualTaxPayment, AdminUpdateWithdrawalStatus,
     SupportTicket, TicketReply, PasswordResetRequest, PasswordResetConfirm,
     ChangePassword, PaymentIssueReport, BankTransferConfirm,
-    InvestmentRequest, ActivityEvent, AdminWalletAssign, ChatMessage
+    InvestmentRequest, ActivityEvent, AdminWalletAssign, ChatMessage,
+    FeedbackSubmission
 )
 from services.auth import (
     security, hash_password, verify_password, create_token,
@@ -5037,6 +5038,65 @@ async def chatbot_message(data: ChatMessage):
         'response': 'No encontré una respuesta exacta. Intente con palabras clave como: retiro, impuesto, verificación, tiempo, soporte. O cree un ticket de soporte para atención personalizada.',
         'matched': False
     }
+
+
+# ─── Feedback System ───
+
+@api_router.post("/feedback")
+async def submit_feedback(data: FeedbackSubmission, current_user: dict = Depends(get_current_user)):
+    """Submit user feedback (rating + comment)"""
+    feedback = {
+        'id': str(uuid.uuid4()),
+        'user_id': current_user['id'],
+        'user_email': current_user['email'],
+        'user_name': current_user.get('name', ''),
+        'rating': data.rating,
+        'comment': data.comment,
+        'category': data.category or 'general',
+        'created_at': datetime.now(timezone.utc).isoformat()
+    }
+    await db.feedback.insert_one(feedback)
+
+    # Notify admins of new feedback
+    stars = data.rating * '\u2605' + (5 - data.rating) * '\u2606'
+    await notify_admins('Nuevo Feedback',
+        f'{current_user.get("name", current_user["email"])} dejo feedback: {stars} ({data.rating}/5)')
+
+    return {'message': 'Feedback enviado correctamente', 'id': feedback['id']}
+
+
+@api_router.get("/feedback/mine")
+async def get_my_feedback(current_user: dict = Depends(get_current_user)):
+    """Get current user's feedback history"""
+    feedbacks = await db.feedback.find(
+        {'user_id': current_user['id']}, {'_id': 0}
+    ).sort('created_at', -1).to_list(50)
+    return feedbacks
+
+
+@api_router.get("/admin/feedback")
+async def get_all_feedback(admin: dict = Depends(get_admin_user)):
+    """Get all feedback for admin dashboard"""
+    feedbacks = await db.feedback.find({}, {'_id': 0}).sort('created_at', -1).to_list(200)
+
+    # Stats
+    total = len(feedbacks)
+    if total > 0:
+        avg_rating = sum(f['rating'] for f in feedbacks) / total
+        distribution = {i: sum(1 for f in feedbacks if f['rating'] == i) for i in range(1, 6)}
+    else:
+        avg_rating = 0
+        distribution = {i: 0 for i in range(1, 6)}
+
+    return {
+        'feedbacks': feedbacks,
+        'stats': {
+            'total': total,
+            'average_rating': round(avg_rating, 1),
+            'distribution': distribution
+        }
+    }
+
 
 # Include the router in the main app
 app.include_router(api_router)
