@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, DollarSign } from 'lucide-react';
 import { Card } from '../ui/card';
-import { useEffect, useState } from 'react';
+import { OdometerValue } from './OdometerValue';
 
 const iconMap = {
     total: Wallet,
@@ -10,28 +10,7 @@ const iconMap = {
 };
 
 export const BalanceCard = ({ title, amount, currency = 'USD', type = 'total', trend = null, delay = 0 }) => {
-    const [displayAmount, setDisplayAmount] = useState(0);
     const Icon = iconMap[type] || Wallet;
-
-    // Animated counter
-    useEffect(() => {
-        const duration = 1000;
-        const steps = 60;
-        const increment = amount / steps;
-        let current = 0;
-        
-        const timer = setInterval(() => {
-            current += increment;
-            if (current >= amount) {
-                setDisplayAmount(amount);
-                clearInterval(timer);
-            } else {
-                setDisplayAmount(current);
-            }
-        }, duration / steps);
-
-        return () => clearInterval(timer);
-    }, [amount]);
 
     const formatAmount = (value) => {
         return new Intl.NumberFormat('en-US', {
@@ -75,8 +54,9 @@ export const BalanceCard = ({ title, amount, currency = 'USD', type = 'total', t
                         )}
                     </div>
                     
-                    <p 
-                        className="text-white animate-count font-numbers"
+                    <div 
+                        className="text-white font-numbers"
+                        data-testid={`balance-${type}-amount`}
                         style={{ 
                             fontSize: '36px', 
                             fontWeight: 500, 
@@ -85,8 +65,12 @@ export const BalanceCard = ({ title, amount, currency = 'USD', type = 'total', t
                             lineHeight: 1.1
                         }}
                     >
-                        {formatAmount(displayAmount)}
-                    </p>
+                        <OdometerValue 
+                            value={formatAmount(amount)} 
+                            staggerMs={50}
+                            duration={1.4}
+                        />
+                    </div>
                     
                     <p className="text-xs text-slate-500 mt-2 font-light tracking-wide">
                         {currency === 'USD' ? 'US Dollar' : 'Euro'}
