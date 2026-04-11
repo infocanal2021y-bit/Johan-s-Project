@@ -107,9 +107,17 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Mobile-optimized Admin panels
 
 ## Backlog
-- P1: Implement "Chat inteligente" (Intelligent Support Chatbot) - automate FAQs
 - P2: Continue server.py refactoring (move routes to /routes/ modules)
 - P3: Email notifications when withdrawal status changes
 
+### Feb 2026
+- P1: Chat Inteligente fully verified and enhanced
+  - Integrated support phone +447400757168 (WhatsApp link in footer and bot responses)
+  - 7 FAQ categories: retiros, impuestos, tiempos, pagos mínimos, verificación KYC, info LIONSBIT, soporte
+  - Ticket creation flow integrated within chatbot
+  - Client-side FAQ matching with keyword scoring
+  - Floating widget visible globally on all authenticated pages
+  - 100% test pass rate (14/14 tests, iteration_22)
+
 ---
-Last Updated: April 10, 2026
+Last Updated: February 2026
