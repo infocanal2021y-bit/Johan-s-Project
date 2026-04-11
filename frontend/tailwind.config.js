@@ -10,7 +10,8 @@ module.exports = {
             fontFamily: {
                 sans: ['Source Sans 3', 'sans-serif'],
                 heading: ['Source Sans 3', 'sans-serif'],
-                mono: ['JetBrains Mono', 'monospace'],
+                numbers: ['Outfit', 'sans-serif'],
+                mono: ['Outfit', 'monospace'],
             },
             borderRadius: {
                 lg: 'var(--radius)',

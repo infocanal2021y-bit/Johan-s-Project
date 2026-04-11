@@ -87,11 +87,11 @@ export const TransactionRow = ({ transaction, index = 0 }) => {
             </td>
             <td className="py-4 px-4">
                 <span 
-                    className={`text-sm ${config.color}`}
+                    className={`text-sm font-numbers ${config.color}`}
                     style={{ 
-                        fontWeight: 600, 
+                        fontWeight: 500, 
                         fontVariantNumeric: 'tabular-nums',
-                        letterSpacing: '0.02em'
+                        letterSpacing: '-0.01em'
                     }}
                 >
                     {config.sign}{formatAmount(transaction.amount, transaction.currency)}

@@ -192,7 +192,7 @@ export const ConverterPage = () => {
                                         </SelectContent>
                                     </Select>
                                     <div className="flex-1 bg-slate-800 border border-slate-700 rounded-md px-4 py-2 flex items-center">
-                                        <span className="text-xl text-emerald-400" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                                        <span className="text-xl text-emerald-400 font-numbers" style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
                                             {CURRENCY_INFO[toCurrency].symbol} {formatResult(convertAmount())}
                                         </span>
                                     </div>
@@ -204,7 +204,7 @@ export const ConverterPage = () => {
                             <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
                                 <div className="flex items-center justify-between">
                                     <span className="text-slate-400">Tipo de cambio</span>
-                                    <span className="text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                    <span className="text-white font-numbers" style={{ fontVariantNumeric: 'tabular-nums' }}>
                                         1 {fromCurrency} = {formatRate(getExchangeRate())} {toCurrency}
                                     </span>
                                 </div>
@@ -257,7 +257,7 @@ export const ConverterPage = () => {
                                             <p className="text-slate-400 text-sm">
                                                 {conversion.amount} {conversion.from}
                                             </p>
-                                            <p className="text-white text-lg mt-1" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                                            <p className="text-white text-lg mt-1 font-numbers" style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
                                                 {CURRENCY_INFO[conversion.to].symbol} {displayResult}
                                             </p>
                                             <p className="text-slate-500 text-xs mt-1">{conversion.to}</p>

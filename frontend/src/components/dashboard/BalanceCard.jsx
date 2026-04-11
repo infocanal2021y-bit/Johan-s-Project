@@ -76,13 +76,13 @@ export const BalanceCard = ({ title, amount, currency = 'USD', type = 'total', t
                     </div>
                     
                     <p 
-                        className="text-white animate-count"
+                        className="text-white animate-count font-numbers"
                         style={{ 
                             fontSize: '36px', 
-                            fontWeight: 600, 
+                            fontWeight: 500, 
                             fontVariantNumeric: 'tabular-nums',
-                            letterSpacing: '0.02em',
-                            lineHeight: 1.2
+                            letterSpacing: '-0.02em',
+                            lineHeight: 1.1
                         }}
                     >
                         {formatAmount(displayAmount)}
