@@ -118,6 +118,12 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
   - Client-side FAQ matching with keyword scoring
   - Floating widget visible globally on all authenticated pages
   - 100% test pass rate (14/14 tests, iteration_22)
+- BBVA Color & Typography Overhaul
+  - Primary: #1973B8, Deep: #004481, Light: #49A2E0 (replacing emerald green)
+  - Typography: Source Sans 3 (replacing Inter) - closest to Benton Sans BBVA
+  - Updated: tailwind.config.js, index.css, App.css, and 8+ files with hardcoded rgba
+  - Semantic green preserved for USDT, deposits, success states
+  - 100% test pass rate (18/18 tests, iteration_23)
 
 ---
 Last Updated: February 2026
