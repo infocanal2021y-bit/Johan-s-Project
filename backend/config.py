@@ -52,6 +52,9 @@ APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://paylionsbit.es')
 # Support emails
 SUPPORT_EMAILS = ['info@lionbit.es', 'info@paylionsbit.es']
 
+# Support phone (WhatsApp)
+SUPPORT_PHONE = '+447400757168'
+
 # Corporate Crypto Wallets (Fixed addresses for tax payments)
 CRYPTO_WALLETS = {
     'BTC': {
@@ -109,8 +112,8 @@ CHATBOT_FAQ = {
         'answer': 'Para verificar su cuenta (KYC): 1) Vaya a Verification en el menu. 2) Suba la foto frontal del documento. 3) Suba la foto trasera. 4) Tome una selfie sosteniendo su documento. 5) Escriba su nombre legal como firma digital. 6) Acepte los terminos y envie. Revision: 24-48 horas.'
     },
     'soporte': {
-        'keywords': ['soporte', 'ayuda', 'contactar', 'problema', 'ticket'],
-        'answer': 'Para contactar soporte: 1) Vaya a Support en el menu. 2) Cree un nuevo ticket. 3) Seleccione la categoria. Nuestro equipo respondera lo antes posible.'
+        'keywords': ['soporte', 'ayuda', 'contactar', 'problema', 'ticket', 'telefono', 'whatsapp', 'llamar', 'numero'],
+        'answer': 'Puede contactarnos por estos medios:\n\n1) **WhatsApp/Telefono:** +447400757168\n2) **Ticket de soporte:** Cree uno desde este chat o en la seccion Support del menu\n3) **Email:** info@paylionsbit.es\n\nNuestro equipo respondera lo antes posible.'
     }
 }
 

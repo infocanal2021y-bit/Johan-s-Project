@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Ticket, ArrowLeft, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Ticket, ArrowLeft, Loader2, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { supportAPI } from '../lib/api';
 import { toast } from 'sonner';
+
+const SUPPORT_PHONE = '+447400757168';
+const WHATSAPP_LINK = `https://wa.me/447400757168`;
 
 const FAQ_SUGGESTIONS = [
   '¿Cómo retiro mi dinero?',
@@ -11,6 +14,7 @@ const FAQ_SUGGESTIONS = [
   '¿Cuál es el pago mínimo?',
   '¿Cómo verifico mi cuenta?',
   '¿Qué es LIONSBIT?',
+  'Contactar soporte',
 ];
 
 const FAQ_RESPONSES = {
@@ -39,8 +43,9 @@ const FAQ_RESPONSES = {
     answer: '**LIONSBIT VERIFICACION** es una plataforma de verificación digital y análisis financiero informativo. Ofrecemos herramientas de análisis de mercado, información de criptomonedas, conversor de divisas, proyecciones y más.\n\n**Aviso legal:** Esta plataforma es exclusivamente informativa y no está habilitada para inversiones reales.'
   },
   'soporte': {
-    keywords: ['soporte', 'ayuda', 'contactar', 'problema', 'ticket', 'contacto'],
-    answer: 'Puede crear un **ticket de soporte** directamente desde este chat haciendo clic en el botón de ticket debajo de este mensaje, o ir a la sección **Support** en el menú lateral.\n\nNuestro equipo responderá lo antes posible.'
+    keywords: ['soporte', 'ayuda', 'contactar', 'problema', 'ticket', 'contacto', 'telefono', 'whatsapp', 'llamar', 'numero'],
+    answer: 'Puede contactarnos por estos medios:\n\n**WhatsApp/Teléfono:** +447400757168\n\n**Ticket de soporte:** Cree uno desde este chat o vaya a **Support** en el menú\n\n**Email:** info@paylionsbit.es\n\nNuestro equipo responderá lo antes posible.',
+    showContact: true
   },
   'transferencia': {
     keywords: ['transferir', 'transferencia', 'enviar', 'transfer'],
@@ -70,11 +75,12 @@ function findResponse(message) {
     }
   }
   if (bestMatch && bestScore > 0) {
-    return { text: bestMatch.answer, matched: true };
+    return { text: bestMatch.answer, matched: true, showContact: !!bestMatch.showContact };
   }
   return {
-    text: 'No he encontrado una respuesta exacta a su pregunta. Puede crear un **ticket de soporte** para recibir atención personalizada de nuestro equipo.',
-    matched: false
+    text: 'No he encontrado una respuesta exacta a su pregunta. Puede crear un **ticket de soporte** o contactarnos por **WhatsApp** al +447400757168 para recibir atención personalizada.',
+    matched: false,
+    showContact: true
   };
 }
 
@@ -140,6 +146,7 @@ export const ChatBot = () => {
         text: response.text,
         time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         showTicketBtn: !response.matched,
+        showContact: response.showContact || false,
       };
       setMessages(prev => [...prev, botMsg]);
       setIsTyping(false);
@@ -296,17 +303,31 @@ export const ChatBot = () => {
                         </div>
                       )}
                     </div>
-                    {/* Show create ticket button when FAQ didn't match */}
-                    {msg.showTicketBtn && (
-                      <div className="ml-9 mt-2">
-                        <button
-                          onClick={() => setTicketMode(true)}
-                          data-testid="chatbot-create-ticket-btn"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
-                        >
-                          <Ticket className="w-3.5 h-3.5" />
-                          Crear ticket de soporte
-                        </button>
+                    {/* Show contact actions (WhatsApp + Ticket) */}
+                    {(msg.showTicketBtn || msg.showContact) && (
+                      <div className="ml-9 mt-2 flex flex-wrap gap-2">
+                        {msg.showContact && (
+                          <a
+                            href={WHATSAPP_LINK}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="chatbot-whatsapp-btn"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-colors"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                            WhatsApp
+                          </a>
+                        )}
+                        {msg.showTicketBtn && (
+                          <button
+                            onClick={() => setTicketMode(true)}
+                            data-testid="chatbot-create-ticket-btn"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+                          >
+                            <Ticket className="w-3.5 h-3.5" />
+                            Crear ticket
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -346,7 +367,7 @@ export const ChatBot = () => {
                 </div>
               )}
 
-              {/* Input + Ticket CTA */}
+              {/* Input + Contact CTAs */}
               <div className="border-t border-slate-700 flex-shrink-0">
                 <form onSubmit={handleSubmit} className="px-4 py-3 flex gap-2">
                   <input
@@ -364,15 +385,24 @@ export const ChatBot = () => {
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>
-                {/* Permanent ticket button */}
-                <div className="px-4 pb-3 pt-0">
+                <div className="px-4 pb-3 pt-0 flex gap-2">
+                  <a
+                    href={WHATSAPP_LINK}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="chatbot-footer-whatsapp"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 hover:text-green-300 text-xs transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    {SUPPORT_PHONE}
+                  </a>
                   <button
                     onClick={() => setTicketMode(true)}
                     data-testid="chatbot-ticket-btn"
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white text-xs transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white text-xs transition-colors"
                   >
                     <Ticket className="w-3.5 h-3.5" />
-                    Hablar con soporte (crear ticket)
+                    Crear ticket
                   </button>
                 </div>
               </div>
