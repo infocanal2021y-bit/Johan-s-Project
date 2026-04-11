@@ -162,7 +162,7 @@ export const DepositPage = () => {
                                     className={`w-full font-medium transition-all ${
                                         success 
                                             ? 'bg-emerald-600 hover:bg-emerald-600' 
-                                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]'
+                                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(25,115,184,0.4)] hover:shadow-[0_0_25px_rgba(25,115,184,0.5)]'
                                     } text-white`}
                                     data-testid="deposit-submit-btn"
                                 >

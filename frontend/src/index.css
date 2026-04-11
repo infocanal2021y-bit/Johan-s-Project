@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,27 +6,27 @@
 
 @layer base {
     :root {
-        --background: 222 47% 2%;
+        --background: 216 50% 3%;
         --foreground: 210 40% 98%;
-        --card: 222 47% 6%;
+        --card: 216 45% 7%;
         --card-foreground: 210 40% 98%;
-        --popover: 222 47% 6%;
+        --popover: 216 45% 7%;
         --popover-foreground: 210 40% 98%;
-        --primary: 160 84% 39%;
+        --primary: 210 100% 36%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 217 33% 27%;
+        --secondary: 213 35% 25%;
         --secondary-foreground: 210 40% 98%;
-        --muted: 217 33% 17%;
+        --muted: 213 35% 15%;
         --muted-foreground: 215 20% 55%;
-        --accent: 217 33% 17%;
+        --accent: 213 35% 15%;
         --accent-foreground: 210 40% 98%;
         --destructive: 0 62% 50%;
         --destructive-foreground: 210 40% 98%;
-        --border: 217 33% 17%;
-        --input: 217 33% 17%;
-        --ring: 160 84% 39%;
-        --chart-1: 160 84% 39%;
-        --chart-2: 187 85% 43%;
+        --border: 213 35% 17%;
+        --input: 213 35% 17%;
+        --ring: 210 100% 36%;
+        --chart-1: 210 100% 36%;
+        --chart-2: 199 90% 48%;
         --chart-3: 38 92% 50%;
         --chart-4: 280 65% 60%;
         --chart-5: 340 75% 55%;
@@ -44,7 +44,7 @@ html {
 
 body {
     margin: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: hsl(var(--background));
@@ -58,10 +58,10 @@ body {
     background-color: hsl(var(--background));
 }
 
-/* Typography Hierarchy - Fintech Style */
+/* Typography Hierarchy - BBVA Style */
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', sans-serif;
-    letter-spacing: -0.02em;
+    font-family: 'Source Sans 3', sans-serif;
+    letter-spacing: -0.01em;
     font-weight: 700;
 }
 
@@ -74,7 +74,7 @@ h4 { font-size: 1.25rem; }
 .font-mono, 
 .tabular-nums,
 [class*="font-mono"] {
-    font-family: 'Inter', monospace;
+    font-family: 'Source Sans 3', monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
 }
@@ -112,9 +112,9 @@ h4 { font-size: 1.25rem; }
     color: hsl(var(--muted-foreground));
 }
 
-/* Override font-mono to use Inter with tabular nums */
+/* Override font-mono to use Source Sans 3 with tabular nums */
 code {
-    font-family: 'Inter', monospace;
+    font-family: 'Source Sans 3', monospace;
     font-variant-numeric: tabular-nums;
 }
 
@@ -134,32 +134,32 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-    background: hsl(222, 47%, 6%);
+    background: hsl(216, 45%, 7%);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: hsl(217, 33%, 27%);
+    background: hsl(213, 35%, 25%);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(217, 33%, 35%);
+    background: hsl(213, 35%, 35%);
 }
 
 /* Glass effect utility */
 .glass {
-    background: hsla(222, 47%, 6%, 0.7);
+    background: hsla(216, 45%, 7%, 0.7);
     backdrop-filter: blur(16px);
     border: 1px solid hsla(0, 0%, 100%, 0.1);
 }
 
 /* Glow effects */
 .glow-emerald {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 20px rgba(25, 115, 184, 0.4);
 }
 
 .glow-emerald-subtle {
-    box-shadow: 0 0 40px rgba(16, 185, 129, 0.15);
+    box-shadow: 0 0 40px rgba(25, 115, 184, 0.15);
 }
 
 /* Noise overlay */
@@ -202,7 +202,7 @@ code {
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, rgba(25, 115, 184, 0.5), transparent);
     background-size: 200% 200%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);

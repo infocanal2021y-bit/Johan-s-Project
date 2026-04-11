@@ -150,7 +150,7 @@ export const WithdrawalProgressBar = ({ status, showSteps = true }) => {
                                             backgroundColor: isActive ? 
                                                 (config.color === 'orange' ? '#f97316' : 
                                                  config.color === 'cyan' ? '#06b6d4' : 
-                                                 config.color === 'blue' ? '#3b82f6' : '#10b981') : undefined
+                                                 config.color === 'blue' ? '#3b82f6' : '#1973B8') : undefined
                                         }}
                                     >
                                         {isCompleted ? (

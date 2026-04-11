@@ -169,7 +169,7 @@ export const RegisterPage = () => {
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-shadow hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]"
+                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-[0_0_15px_rgba(25,115,184,0.4)] transition-shadow hover:shadow-[0_0_25px_rgba(25,115,184,0.5)]"
                                 data-testid="register-submit-btn"
                             >
                                 {loading ? (

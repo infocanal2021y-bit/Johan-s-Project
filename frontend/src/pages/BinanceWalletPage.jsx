@@ -11,7 +11,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 const API_URL = '/api';
 
 const CHART_COLORS = [
-    '#f59e0b', '#6366f1', '#10b981', '#8b5cf6', '#ef4444',
+    '#f59e0b', '#6366f1', '#1973B8', '#8b5cf6', '#ef4444',
     '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#3b82f6'
 ];
 

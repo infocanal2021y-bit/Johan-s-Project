@@ -93,8 +93,8 @@ export const AdminCryptoStatsPage = () => {
             {
                 label: 'Total Submissions',
                 data: stats?.recent_trend?.slice(-14).map(d => d.count) || [],
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderColor: '#1973B8',
+                backgroundColor: 'rgba(25, 115, 184, 0.1)',
                 fill: true,
                 tension: 0.4,
             },

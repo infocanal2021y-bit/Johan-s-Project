@@ -8,8 +8,8 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['DM Sans', 'sans-serif'],
-                heading: ['Outfit', 'sans-serif'],
+                sans: ['Source Sans 3', 'sans-serif'],
+                heading: ['Source Sans 3', 'sans-serif'],
                 mono: ['JetBrains Mono', 'monospace'],
             },
             borderRadius: {
@@ -58,17 +58,18 @@ module.exports = {
                     '4': 'hsl(var(--chart-4))',
                     '5': 'hsl(var(--chart-5))'
                 },
-                // Custom banking theme colors
+                // Custom banking theme colors - BBVA Style
                 navy: {
-                    950: '#020617',
-                    900: '#0f172a',
-                    800: '#1e293b',
-                    700: '#334155',
+                    950: '#020a18',
+                    900: '#071a33',
+                    800: '#0d2b4f',
+                    700: '#1a3d6b',
                 },
                 emerald: {
-                    500: '#10b981',
-                    600: '#059669',
-                    400: '#34d399',
+                    500: '#1973B8',
+                    600: '#004481',
+                    400: '#49A2E0',
+                    300: '#72B4E8',
                 },
                 slate: {
                     950: '#020617',
@@ -99,8 +100,8 @@ module.exports = {
                     to: { opacity: '1', transform: 'translateX(0)' }
                 },
                 'pulse-glow': {
-                    '0%, 100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)' },
-                    '50%': { boxShadow: '0 0 40px rgba(16, 185, 129, 0.5)' }
+                    '0%, 100%': { boxShadow: '0 0 20px rgba(25, 115, 184, 0.3)' },
+                    '50%': { boxShadow: '0 0 40px rgba(25, 115, 184, 0.5)' }
                 }
             },
             animation: {
