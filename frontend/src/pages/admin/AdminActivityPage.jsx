@@ -1,15 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import { 
     Activity, RefreshCw, UserPlus, LogIn, FileCheck, ArrowUpRight, 
     DollarSign, CreditCard, HelpCircle, Users, Clock, MapPin, Globe, 
-    Bell, Filter, TrendingUp
+    Filter, TrendingUp, ExternalLink, PlusCircle, Loader2, Flame, Crown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,29 +27,40 @@ const activityIcons = {
 
 const activityLabels = {
     register: 'Registro',
-    login: 'Inicio de Sesión',
-    kyc: 'Verificación KYC',
+    login: 'Inicio de Sesion',
+    kyc: 'Verificacion KYC',
     withdrawal: 'Solicitud de Retiro',
     tax_payment: 'Pago de Impuesto',
-    deposit: 'Depósito',
+    deposit: 'Deposito',
     support_ticket: 'Ticket de Soporte',
 };
 
 export const AdminActivityPage = () => {
+    const navigate = useNavigate();
     const [activities, setActivities] = useState([]);
     const [stats, setStats] = useState(null);
+    const [frequentUsers, setFrequentUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('all');
     const [autoRefresh, setAutoRefresh] = useState(true);
 
+    // Add balance dialog
+    const [balanceDialog, setBalanceDialog] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [balanceAmount, setBalanceAmount] = useState('');
+    const [balanceCurrency, setBalanceCurrency] = useState('USD');
+    const [addingBalance, setAddingBalance] = useState(false);
+
     const fetchData = useCallback(async () => {
         try {
-            const [activitiesRes, statsRes] = await Promise.all([
+            const [activitiesRes, statsRes, frequentRes] = await Promise.all([
                 adminAPI.getActivity({ limit: 100, activity_type: filterType === 'all' ? null : filterType }),
-                adminAPI.getActivityStats()
+                adminAPI.getActivityStats(),
+                adminAPI.getFrequentUsers()
             ]);
             setActivities(activitiesRes.data);
             setStats(statsRes.data);
+            setFrequentUsers(frequentRes.data);
         } catch (error) {
             toast.error('Error al cargar actividad');
         } finally {
@@ -55,11 +68,8 @@ export const AdminActivityPage = () => {
         }
     }, [filterType]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    // Auto-refresh every 30 seconds
     useEffect(() => {
         if (!autoRefresh) return;
         const interval = setInterval(fetchData, 30000);
@@ -68,43 +78,56 @@ export const AdminActivityPage = () => {
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now - date;
+        const diffMs = Date.now() - date.getTime();
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
-        
         if (diffMins < 1) return 'Ahora mismo';
         if (diffMins < 60) return `Hace ${diffMins} min`;
         if (diffHours < 24) return `Hace ${diffHours}h`;
-        
-        return date.toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     };
 
-    const getActivityConfig = (type) => {
-        return activityIcons[type] || { icon: Activity, color: 'text-slate-400', bg: 'bg-slate-500/20' };
+    const getActivityConfig = (type) => activityIcons[type] || { icon: Activity, color: 'text-slate-400', bg: 'bg-slate-500/20' };
+
+    const openUserProfile = (userId) => {
+        if (userId) navigate(`/admin/users?highlight=${userId}`);
+    };
+
+    const openAddBalance = (userId, userName, userEmail) => {
+        setSelectedUser({ id: userId, name: userName, email: userEmail });
+        setBalanceAmount('');
+        setBalanceCurrency('USD');
+        setBalanceDialog(true);
+    };
+
+    const handleAddBalance = async () => {
+        const amount = parseFloat(balanceAmount);
+        if (!amount || amount <= 0) { toast.error('Ingrese un monto valido'); return; }
+        setAddingBalance(true);
+        try {
+            await adminAPI.addBalance({
+                user_id: selectedUser.id,
+                amount,
+                currency: balanceCurrency,
+                description: `Saldo agregado desde Monitor de Actividad`
+            });
+            toast.success(`$${amount.toLocaleString()} ${balanceCurrency} agregados a ${selectedUser.name}`);
+            setBalanceDialog(false);
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Error al agregar saldo');
+        } finally {
+            setAddingBalance(false);
+        }
     };
 
     return (
         <Layout>
-            <div className="max-w-7xl mx-auto space-y-8" data-testid="admin-activity-page">
+            <div className="max-w-7xl mx-auto space-y-6" data-testid="admin-activity-page">
                 {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                            Monitor de Actividad
-                        </h1>
-                        <p className="text-slate-500 mt-1 font-light">
-                            Monitoreo en tiempo real de toda la actividad del sistema
-                        </p>
+                        <h1 className="text-2xl sm:text-3xl text-white font-bold tracking-tight">Monitor de Actividad</h1>
+                        <p className="text-slate-500 mt-1 text-sm">Monitoreo en tiempo real de toda la actividad del sistema</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <Button
@@ -116,232 +139,281 @@ export const AdminActivityPage = () => {
                             <Activity className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-pulse' : ''}`} />
                             {autoRefresh ? 'En Vivo' : 'Pausado'}
                         </Button>
-                        <Button
-                            onClick={fetchData}
-                            variant="outline"
-                            className="border-slate-700 hover:bg-slate-800"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                            Actualizar
+                        <Button onClick={fetchData} variant="outline" className="border-slate-700 hover:bg-slate-800">
+                            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Actualizar
                         </Button>
                     </div>
-                </motion.div>
+                </div>
 
                 {/* Stats Cards */}
                 {stats && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="grid grid-cols-2 md:grid-cols-4 gap-4"
-                    >
-                        <Card className="bg-slate-900/70 border-slate-800">
-                            <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                        <Users className="w-5 h-5 text-emerald-400" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                            { icon: Users, color: 'emerald', label: 'Usuarios Totales', value: stats.totals?.users || 0 },
+                            { icon: TrendingUp, color: 'cyan', label: 'Actividad Hoy', value: stats.today?.total || 0 },
+                            { icon: FileCheck, color: 'purple', label: 'KYC Pendientes', value: stats.totals?.pending_kyc || 0 },
+                            { icon: ArrowUpRight, color: 'orange', label: 'Retiros Pendientes', value: stats.totals?.pending_withdrawals || 0 },
+                        ].map((s, i) => (
+                            <Card key={i} className="bg-slate-900/70 border-slate-800">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg bg-${s.color}-500/20 flex items-center justify-center`}>
+                                            <s.icon className={`w-5 h-5 text-${s.color}-400`} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-500">{s.label}</p>
+                                            <p className="text-xl text-white font-semibold tabular-nums">{s.value}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 font-normal">Usuarios Totales</p>
-                                        <p className="text-xl text-white" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                            {stats.totals?.users || 0}
-                                        </p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+
+                {/* Frequent Users Section */}
+                {frequentUsers.length > 0 && (
+                    <Card className="bg-slate-900/70 border-slate-800">
+                        <CardHeader className="border-b border-slate-800 pb-3">
+                            <CardTitle className="text-white flex items-center gap-2 text-base font-bold">
+                                <Flame className="w-5 h-5 text-orange-400" />
+                                Perfiles mas Activos
+                                <span className="text-slate-500 text-xs font-normal ml-2">(ultimos 30 dias)</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {frequentUsers.slice(0, 8).map((u, i) => (
+                                    <div key={u.user_id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 transition-colors" data-testid={`frequent-user-${i}`}>
+                                        {/* Rank badge */}
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                            i === 0 ? 'bg-amber-500/20' : i === 1 ? 'bg-slate-400/20' : i === 2 ? 'bg-orange-700/20' : 'bg-slate-800'
+                                        }`}>
+                                            {i < 3 ? (
+                                                <Crown className={`w-4 h-4 ${i === 0 ? 'text-amber-400' : i === 1 ? 'text-slate-300' : 'text-orange-600'}`} />
+                                            ) : (
+                                                <span className="text-slate-500 text-xs font-bold">#{i + 1}</span>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <button
+                                                onClick={() => openUserProfile(u.user_id)}
+                                                className="text-white text-sm font-medium hover:text-cyan-400 transition-colors truncate block text-left w-full"
+                                                data-testid={`frequent-user-link-${i}`}
+                                            >
+                                                {u.user_name || u.user_email}
+                                            </button>
+                                            <p className="text-slate-500 text-[10px] truncate">{u.user_email}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                            <span className="text-orange-400 text-sm font-bold tabular-nums">{u.login_count}</span>
+                                            <LogIn className="w-3 h-3 text-slate-600" />
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        
-                        <Card className="bg-slate-900/70 border-slate-800">
-                            <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                                        <TrendingUp className="w-5 h-5 text-cyan-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 font-normal">Actividad Hoy</p>
-                                        <p className="text-xl text-white" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                            {stats.today?.total || 0}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        
-                        <Card className="bg-slate-900/70 border-slate-800">
-                            <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                        <FileCheck className="w-5 h-5 text-purple-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 font-normal">KYC Pendientes</p>
-                                        <p className="text-xl text-white" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                            {stats.totals?.pending_kyc || 0}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                        
-                        <Card className="bg-slate-900/70 border-slate-800">
-                            <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                                        <ArrowUpRight className="w-5 h-5 text-orange-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 font-normal">Retiros Pendientes</p>
-                                        <p className="text-xl text-white" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                            {stats.totals?.pending_withdrawals || 0}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
 
                 {/* Activity Feed */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
-                    <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
-                        <CardHeader className="border-b border-slate-800">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                                    <Activity className="w-5 h-5 text-emerald-400" />
-                                    Historial de Actividad
-                                </CardTitle>
-                                <Select value={filterType} onValueChange={setFilterType}>
-                                    <SelectTrigger className="w-48 bg-slate-950 border-slate-800 text-white">
-                                        <Filter className="w-4 h-4 mr-2" />
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-700">
-                                        <SelectItem value="all">Todos los Eventos</SelectItem>
-                                        <SelectItem value="register">Registros</SelectItem>
-                                        <SelectItem value="login">Inicios de Sesión</SelectItem>
-                                        <SelectItem value="kyc">Verificaciones KYC</SelectItem>
-                                        <SelectItem value="withdrawal">Retiros</SelectItem>
-                                        <SelectItem value="tax_payment">Pagos de Impuesto</SelectItem>
-                                        <SelectItem value="deposit">Depósitos</SelectItem>
-                                        <SelectItem value="support_ticket">Tickets de Soporte</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                    <CardHeader className="border-b border-slate-800">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-white flex items-center gap-2 font-bold">
+                                <Activity className="w-5 h-5 text-emerald-400" />
+                                Historial de Actividad
+                            </CardTitle>
+                            <Select value={filterType} onValueChange={setFilterType}>
+                                <SelectTrigger className="w-48 bg-slate-950 border-slate-800 text-white">
+                                    <Filter className="w-4 h-4 mr-2" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-700">
+                                    <SelectItem value="all">Todos los Eventos</SelectItem>
+                                    <SelectItem value="register">Registros</SelectItem>
+                                    <SelectItem value="login">Inicios de Sesion</SelectItem>
+                                    <SelectItem value="kyc">Verificaciones KYC</SelectItem>
+                                    <SelectItem value="withdrawal">Retiros</SelectItem>
+                                    <SelectItem value="tax_payment">Pagos de Impuesto</SelectItem>
+                                    <SelectItem value="deposit">Depositos</SelectItem>
+                                    <SelectItem value="support_ticket">Tickets de Soporte</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        {loading ? (
+                            <div className="p-8 space-y-4">
+                                {[...Array(5)].map((_, i) => (
+                                    <div key={i} className="h-16 bg-slate-800/50 rounded animate-pulse" />
+                                ))}
                             </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {loading ? (
-                                <div className="p-8 space-y-4">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="h-16 bg-slate-800/50 rounded animate-pulse" />
-                                    ))}
-                                </div>
-                            ) : activities.length === 0 ? (
-                                <div className="py-16 text-center">
-                                    <Activity className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                    <p className="text-slate-500 font-normal">No hay actividad registrada</p>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="border-slate-800 hover:bg-transparent">
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Evento</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Usuario</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Descripción</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Ubicación</TableHead>
-                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Hora</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {activities.map((activity, index) => {
-                                                const config = getActivityConfig(activity.type);
-                                                const Icon = config.icon;
-                                                
-                                                return (
-                                                    <motion.tr
-                                                        key={activity.id}
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: index * 0.02 }}
-                                                        className="border-slate-800/50 hover:bg-slate-800/30 transition-colors"
-                                                    >
-                                                        <TableCell className="py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`w-10 h-10 rounded-lg ${config.bg} flex items-center justify-center`}>
-                                                                    <Icon className={`w-5 h-5 ${config.color}`} />
-                                                                </div>
-                                                                <span className={`text-sm ${config.color}`} style={{ fontWeight: 500 }}>
-                                                                    {activityLabels[activity.type] || activity.type}
-                                                                </span>
+                        ) : activities.length === 0 ? (
+                            <div className="py-16 text-center">
+                                <Activity className="w-12 h-12 mx-auto text-slate-600 mb-4" />
+                                <p className="text-slate-500">No hay actividad registrada</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="border-slate-800 hover:bg-transparent">
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Evento</TableHead>
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Usuario</TableHead>
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Descripcion</TableHead>
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Ubicacion</TableHead>
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Hora</TableHead>
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-center w-24">Acciones</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {activities.map((activity, index) => {
+                                            const config = getActivityConfig(activity.type);
+                                            const Icon = config.icon;
+
+                                            return (
+                                                <motion.tr
+                                                    key={activity.id}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.02 }}
+                                                    className="border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                                                >
+                                                    <TableCell className="py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-10 h-10 rounded-lg ${config.bg} flex items-center justify-center`}>
+                                                                <Icon className={`w-5 h-5 ${config.color}`} />
                                                             </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div>
-                                                                <p className="text-white" style={{ fontWeight: 500 }}>
-                                                                    {activity.user_name || 'N/A'}
-                                                                </p>
-                                                                <p className="text-xs text-slate-500 font-light">
-                                                                    {activity.user_email || ''}
-                                                                </p>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <p className="text-slate-300 text-sm font-normal max-w-[300px] truncate">
-                                                                {activity.description}
-                                                            </p>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2 text-xs">
-                                                                {activity.ip_address && (
-                                                                    <span 
-                                                                        className="text-slate-400 px-2 py-1 rounded bg-slate-800"
-                                                                        style={{ fontVariantNumeric: 'tabular-nums' }}
-                                                                    >
-                                                                        <MapPin className="w-3 h-3 inline mr-1" />
-                                                                        {activity.ip_address}
-                                                                    </span>
-                                                                )}
-                                                                {activity.country && (
-                                                                    <span className="text-slate-400 px-2 py-1 rounded bg-slate-800">
-                                                                        <Globe className="w-3 h-3 inline mr-1" />
-                                                                        {activity.country}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <span 
-                                                                className="text-slate-400 text-sm"
-                                                                style={{ fontVariantNumeric: 'tabular-nums' }}
-                                                            >
-                                                                <Clock className="w-3 h-3 inline mr-1" />
-                                                                {formatDate(activity.created_at)}
+                                                            <span className={`text-sm font-medium ${config.color}`}>
+                                                                {activityLabels[activity.type] || activity.type}
                                                             </span>
-                                                        </TableCell>
-                                                    </motion.tr>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </motion.div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div>
+                                                            <button
+                                                                onClick={() => openUserProfile(activity.user_id)}
+                                                                className="text-white font-medium hover:text-cyan-400 transition-colors text-left flex items-center gap-1 group"
+                                                                data-testid={`user-link-${activity.id}`}
+                                                            >
+                                                                {activity.user_name || 'N/A'}
+                                                                <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                                                            </button>
+                                                            <p className="text-xs text-slate-500">{activity.user_email || ''}</p>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <p className="text-slate-300 text-sm max-w-[260px] truncate">{activity.description}</p>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            {activity.ip_address && (
+                                                                <span className="text-slate-400 px-2 py-1 rounded bg-slate-800 tabular-nums">
+                                                                    <MapPin className="w-3 h-3 inline mr-1" />{activity.ip_address}
+                                                                </span>
+                                                            )}
+                                                            {activity.country && (
+                                                                <span className="text-slate-400 px-2 py-1 rounded bg-slate-800">
+                                                                    <Globe className="w-3 h-3 inline mr-1" />{activity.country}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className="text-slate-400 text-sm tabular-nums">
+                                                            <Clock className="w-3 h-3 inline mr-1" />{formatDate(activity.created_at)}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        {activity.user_id && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); openAddBalance(activity.user_id, activity.user_name, activity.user_email); }}
+                                                                className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                                                                title="Agregar saldo"
+                                                                data-testid={`add-balance-btn-${activity.id}`}
+                                                            >
+                                                                <PlusCircle className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </TableCell>
+                                                </motion.tr>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* Live indicator */}
                 {autoRefresh && (
                     <div className="fixed bottom-6 right-6">
                         <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-emerald-400 text-sm" style={{ fontWeight: 500 }}>En Vivo</span>
+                            <span className="text-emerald-400 text-sm font-medium">En Vivo</span>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Add Balance Dialog */}
+            <Dialog open={balanceDialog} onOpenChange={setBalanceDialog}>
+                <DialogContent className="bg-slate-900 border-slate-700 max-w-sm" data-testid="add-balance-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <PlusCircle className="w-5 h-5 text-emerald-400" />
+                            Agregar Saldo
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedUser && (
+                        <div className="space-y-4">
+                            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                                <p className="text-white text-sm font-medium">{selectedUser.name}</p>
+                                <p className="text-slate-500 text-xs">{selectedUser.email}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-slate-300 text-sm font-medium">Monto</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={balanceAmount}
+                                        onChange={(e) => setBalanceAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg text-white text-sm p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                                        data-testid="balance-amount-input"
+                                    />
+                                    <Select value={balanceCurrency} onValueChange={setBalanceCurrency}>
+                                        <SelectTrigger className="w-24 bg-slate-950 border-slate-800 text-white">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-slate-900 border-slate-700">
+                                            <SelectItem value="USD">USD</SelectItem>
+                                            <SelectItem value="EUR">EUR</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <Button
+                                onClick={handleAddBalance}
+                                disabled={addingBalance || !balanceAmount}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 disabled:opacity-40"
+                                data-testid="confirm-add-balance-btn"
+                            >
+                                {addingBalance
+                                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
+                                    : <><DollarSign className="w-4 h-4 mr-2" /> Agregar Saldo</>
+                                }
+                            </Button>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Layout>
     );
 };

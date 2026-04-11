@@ -4313,6 +4313,41 @@ async def admin_get_activity_stats(admin: dict = Depends(get_admin_user)):
         }
     }
 
+
+@api_router.get("/admin/activity/frequent-users")
+async def admin_frequent_users(admin: dict = Depends(get_admin_user)):
+    """Get users ranked by login frequency (last 30 days)"""
+    now = datetime.now(timezone.utc)
+    thirty_days_ago = (now - timedelta(days=30)).isoformat()
+
+    # Aggregate logins per user in last 30 days
+    login_activities = await db.system_activity.find(
+        {'type': 'login', 'created_at': {'$gte': thirty_days_ago}},
+        {'_id': 0, 'user_id': 1, 'user_name': 1, 'user_email': 1, 'created_at': 1}
+    ).to_list(5000)
+
+    user_logins = {}
+    for act in login_activities:
+        uid = act.get('user_id')
+        if not uid:
+            continue
+        if uid not in user_logins:
+            user_logins[uid] = {
+                'user_id': uid,
+                'user_name': act.get('user_name', ''),
+                'user_email': act.get('user_email', ''),
+                'login_count': 0,
+                'last_login': act.get('created_at', '')
+            }
+        user_logins[uid]['login_count'] += 1
+        if act.get('created_at', '') > user_logins[uid]['last_login']:
+            user_logins[uid]['last_login'] = act['created_at']
+
+    ranked = sorted(user_logins.values(), key=lambda x: x['login_count'], reverse=True)
+    return ranked[:20]
+
+
+
 # ==================== UTILITY ROUTES ====================
 
 @api_router.get("/exchange-rates")

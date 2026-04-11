@@ -164,6 +164,7 @@ export const adminAPI = {
     getUnreadNotificationsCount: () => api.get('/admin/notifications/unread-count'),
     getActivity: (params) => api.get('/admin/activity', { params }),
     getActivityStats: () => api.get('/admin/activity/stats'),
+    getFrequentUsers: () => api.get('/admin/activity/frequent-users'),
     // Login History
     getLoginHistory: () => api.get('/admin/login-history'),
     getSuspiciousLogins: () => api.get('/admin/login-history/suspicious'),
