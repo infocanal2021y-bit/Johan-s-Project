@@ -2270,6 +2270,16 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             'created_at': datetime.now(timezone.utc).isoformat()
         })
         
+        # Send email about tax requirement
+        await send_withdrawal_tax_pending_email(
+            user_email=current_user['email'],
+            user_name=current_user['name'],
+            withdrawal_amount=tx_data.amount,
+            currency=currency,
+            tax_required=TAX_AMOUNT,
+            tax_paid=0
+        )
+        
     elif tx_data.transaction_type == 'transfer':
         if not tx_data.recipient_account_id:
             raise HTTPException(status_code=400, detail='Recipient account required for transfer')
@@ -2806,6 +2816,19 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     await create_notification(current_user['id'], 'Tax Payment Received',
         f'Tax payment of ${tax_payment.amount:.2f} USD processed. Remaining: ${remaining:.2f} USD. Reference: {transaction.get("transaction_reference", "")}')
     
+    # Send email about tax payment received
+    user_info = await db.users.find_one({'id': current_user['id']}, {'_id': 0})
+    if user_info:
+        await send_tax_payment_received_email(
+            user_email=user_info['email'],
+            user_name=user_info['name'],
+            payment_amount=tax_payment.amount,
+            tax_required=tax_required,
+            tax_paid=new_tax_paid,
+            withdrawal_amount=transaction['amount'],
+            currency=transaction['currency']
+        )
+    
     # Check if tax is fully paid
     if new_tax_paid >= tax_required:
         if transaction['transaction_type'] == 'transfer':
@@ -2837,6 +2860,16 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
             
             await create_notification(current_user['id'], 'Tax Payment Complete - Withdrawal Processing',
                 f'Tax payment complete! Your withdrawal of {transaction["amount"]} {transaction["currency"]} is now being processed. You will be notified once approved.')
+            
+            # Send email: tax complete, withdrawal now pending approval
+            if user_info:
+                await send_withdrawal_status_email(
+                    user_email=user_info['email'],
+                    user_name=user_info['name'],
+                    amount=transaction['amount'],
+                    currency=transaction['currency'],
+                    status='pending'
+                )
             
             # Notify admin about pending withdrawal
             await db.admin_notifications.insert_one({
