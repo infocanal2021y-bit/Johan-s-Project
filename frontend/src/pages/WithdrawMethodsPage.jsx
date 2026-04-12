@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { paymentsAPI } from '../lib/api';
@@ -101,6 +101,54 @@ const SimplexLogo = () => (
     </svg>
 );
 
+const BinanceLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#0C0E12" />
+        <g transform="translate(240, 100)">
+            <polygon points="150,0 180,30 120,90 90,60" fill="#F0B90B" />
+            <polygon points="150,0 120,30 180,90 210,60" fill="#F0B90B" />
+            <polygon points="150,300 180,270 120,210 90,240" fill="#F0B90B" />
+            <polygon points="150,300 120,270 180,210 210,240" fill="#F0B90B" />
+            <polygon points="90,150 60,120 0,180 30,210" fill="#F0B90B" />
+            <polygon points="90,150 60,180 0,120 30,90" fill="#F0B90B" />
+            <polygon points="210,150 240,120 300,180 270,210" fill="#F0B90B" />
+            <polygon points="210,150 240,180 300,120 270,90" fill="#F0B90B" />
+            <rect x="120" y="120" width="60" height="60" transform="rotate(45 150 150)" fill="#F0B90B" />
+        </g>
+        <text x="390" y="450" textAnchor="middle" fill="#F0B90B" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="48">Binance</text>
+    </svg>
+);
+
+const CoinbaseLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#0052FF" />
+        <circle cx="390" cy="220" r="120" fill="white" />
+        <circle cx="390" cy="220" r="80" fill="#0052FF" />
+        <rect x="365" y="195" width="50" height="50" rx="8" fill="white" />
+        <text x="390" y="410" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="56">Coinbase</text>
+    </svg>
+);
+
+const AirwallexLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#1A1A2E" />
+        <polygon points="300,150 390,320 210,320" fill="#E94560" opacity="0.8" />
+        <polygon points="390,120 500,340 280,340" fill="#0F3460" opacity="0.6" />
+        <polygon points="480,150 570,320 390,320" fill="#E94560" opacity="0.5" />
+        <text x="390" y="420" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="56">Airwallex</text>
+    </svg>
+);
+
+const SantanderLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#EC0000" />
+        <circle cx="390" cy="210" r="100" fill="none" stroke="white" strokeWidth="8" />
+        <path d="M340,260 L390,160 L440,260" fill="none" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M360,220 L390,280 L420,220" fill="none" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+        <text x="390" y="400" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="52">Santander</text>
+    </svg>
+);
+
 const MexicoFlag = () => (
     <svg viewBox="0 0 60 40" className="w-full h-full rounded">
         <rect width="20" height="40" fill="#006847" />
@@ -135,13 +183,16 @@ const PAYMENT_METHODS = [
     { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
 ];
 
-const INTERNATIONAL_METHODS = [
-    { id: 'crypto', name: 'Criptomonedas', desc: 'Bitcoin / USDT / ETH', Logo: CryptoLogo },
-    { id: 'wise', name: 'Wise', desc: 'Transferencia internacional', Logo: WiseLogo, openBankTransfer: true },
-    { id: 'paypal-business', name: 'PayPal Business', desc: 'Pagos empresariales', Logo: PayPalBusinessLogo, openBankTransfer: true },
-    { id: 'swift', name: 'SWIFT', desc: 'Transferencia interbancaria', Logo: SwiftLogo },
-    { id: 'moonpay', name: 'MoonPay', desc: 'Comprar criptomonedas', Logo: MoonPayLogo, openBankTransfer: true },
-    { id: 'simplex', name: 'Simplex', desc: 'Comprar criptomonedas', Logo: SimplexLogo, openBankTransfer: true },
+const CRYPTO_PROVIDERS = [
+    { id: 'moonpay', name: 'MoonPay', desc: 'Comprar criptomonedas', Logo: MoonPayLogo, url: 'https://www.moonpay.com/es' },
+    { id: 'simplex', name: 'Simplex', desc: 'Comprar criptomonedas', Logo: SimplexLogo, url: 'https://www.simplex.com/' },
+    { id: 'binance', name: 'Binance', desc: 'Exchange global', Logo: BinanceLogo, url: 'https://www.binance.com/es-LA' },
+    { id: 'coinbase', name: 'Coinbase', desc: 'Exchange regulado', Logo: CoinbaseLogo, url: 'https://www.coinbase.com/es-es' },
+];
+
+const BANK_PROVIDERS = [
+    { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account' },
+    { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/' },
 ];
 
 const COUNTRY_BANKS = [
@@ -232,6 +283,27 @@ const SectionTitle = ({ icon: Icon, title, iconColor }) => (
     </div>
 );
 
+/* ─── Provider Card (External Link) ─── */
+const ProviderCard = ({ name, desc, Logo, url, testId }) => (
+    <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid={testId}
+        className="group flex flex-col items-center rounded-2xl bg-slate-800/60 border border-slate-700/50 p-5 transition-all duration-300 hover:border-slate-500/70 hover:bg-slate-800/90 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+    >
+        <div className="w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-shadow">
+            <Logo />
+        </div>
+        <span className="text-white text-sm font-semibold text-center leading-tight">{name}</span>
+        <span className="text-slate-500 text-xs mt-1 text-center leading-snug">{desc}</span>
+        <span className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold group-hover:bg-emerald-500/20 transition-colors">
+            <ExternalLink className="w-3.5 h-3.5" />
+            Acceder
+        </span>
+    </a>
+);
+
 /* ─── Copy button helper ─── */
 const CopyField = ({ label, value, testId }) => {
     const [copied, setCopied] = useState(false);
@@ -313,8 +385,6 @@ export default function WithdrawMethodsPage() {
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
     const [bankTransferOpen, setBankTransferOpen] = useState(false);
-    const [cryptoOpen, setCryptoOpen] = useState(false);
-    const [cryptoWallets, setCryptoWallets] = useState(null);
     const [proofModalOpen, setProofModalOpen] = useState(false);
     const [proofFile, setProofFile] = useState(null);
     const [proofPreview, setProofPreview] = useState(null);
@@ -345,20 +415,6 @@ export default function WithdrawMethodsPage() {
     const openModal = (name) => {
         setSelectedMethod(name);
         setModalOpen(true);
-    };
-
-    const handleInternationalClick = (method) => {
-        if (method.id === 'crypto') {
-            // Load wallets and open crypto dialog
-            api.get('/crypto-wallets').then(res => setCryptoWallets(res.data)).catch(() => toast.error('Error al cargar wallets'));
-            setCryptoOpen(true);
-            return;
-        }
-        if (method.openBankTransfer) {
-            setBankTransferOpen(true);
-            return;
-        }
-        openModal(method.name);
     };
 
     const handleMethodClick = (method) => {
@@ -461,12 +517,22 @@ export default function WithdrawMethodsPage() {
                     </div>
                 </section>
 
-                {/* Section 2: Pagos internacionales */}
+                {/* Section 2: Criptomonedas / Pagos */}
                 <section>
-                    <SectionTitle icon={Globe} title="Pagos Internacionales" iconColor="bg-violet-500/20 text-violet-400" />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="international-methods-grid">
-                        {INTERNATIONAL_METHODS.map((m) => (
-                            <MethodCard key={m.id} name={m.name} desc={m.desc} Logo={m.Logo} onClick={() => handleInternationalClick(m)} testId={`method-card-${m.id}`} />
+                    <SectionTitle icon={Coins} title="Criptomonedas / Pagos" iconColor="bg-orange-500/20 text-orange-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="crypto-providers-grid">
+                        {CRYPTO_PROVIDERS.map((p) => (
+                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* Section 3: Cuenta bancaria / alternativa */}
+                <section>
+                    <SectionTitle icon={Building2} title="Cuenta Bancaria / Alternativa" iconColor="bg-cyan-500/20 text-cyan-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="bank-providers-grid">
+                        {BANK_PROVIDERS.map((p) => (
+                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} />
                         ))}
                     </div>
                 </section>
@@ -577,51 +643,6 @@ export default function WithdrawMethodsPage() {
                         <Button onClick={() => setModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white" data-testid="modal-close-btn">
                             <X className="w-4 h-4 mr-2" /> Cerrar
                         </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* ── Crypto Wallets Dialog ── */}
-            <Dialog open={cryptoOpen} onOpenChange={setCryptoOpen}>
-                <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[90vh] overflow-y-auto" data-testid="crypto-wallets-dialog">
-                    <DialogHeader>
-                        <DialogTitle className="text-white flex items-center gap-2">
-                            <Bitcoin className="w-5 h-5 text-orange-400" />
-                            Pago con Criptomonedas
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/30">
-                            <p className="text-orange-400 text-sm font-semibold mb-1">Direcciones de pago</p>
-                            <p className="text-slate-400 text-xs leading-relaxed">
-                                Envie a cualquiera de las direcciones disponibles. Asegurese de utilizar la red correcta.
-                            </p>
-                        </div>
-
-                        {cryptoWallets ? Object.entries(cryptoWallets).map(([key, wallet]) => {
-                            const colors = {
-                                BTC: { border: 'border-orange-500/30', bg: 'bg-orange-500/10', text: 'text-orange-400' },
-                                BTC_LEGACY: { border: 'border-orange-500/30', bg: 'bg-orange-500/10', text: 'text-orange-400' },
-                                ETH: { border: 'border-blue-500/30', bg: 'bg-blue-500/10', text: 'text-blue-400' },
-                                BNB: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
-                                USDT: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
-                            };
-                            const c = colors[key] || colors.BTC;
-                            return (
-                                <CryptoWalletCard key={key} coinKey={key} wallet={wallet} colors={c} />
-                            );
-                        }) : (
-                            <div className="flex justify-center py-8">
-                                <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
-                            </div>
-                        )}
-
-                        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                            <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-amber-300 text-xs leading-relaxed">
-                                Verifique la direccion y la red antes de enviar. Las transacciones en blockchain son irreversibles.
-                            </p>
-                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
