@@ -191,8 +191,8 @@ const CRYPTO_PROVIDERS = [
 ];
 
 const BANK_PROVIDERS = [
-    { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account' },
-    { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/' },
+    { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account', disabled: true },
+    { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/', disabled: true },
 ];
 
 const COUNTRY_BANKS = [
@@ -284,25 +284,38 @@ const SectionTitle = ({ icon: Icon, title, iconColor }) => (
 );
 
 /* ─── Provider Card (External Link) ─── */
-const ProviderCard = ({ name, desc, Logo, url, testId }) => (
-    <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-testid={testId}
-        className="group flex flex-col items-center rounded-2xl bg-slate-800/60 border border-slate-700/50 p-5 transition-all duration-300 hover:border-slate-500/70 hover:bg-slate-800/90 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-    >
-        <div className="w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md group-hover:shadow-lg transition-shadow">
-            <Logo />
-        </div>
-        <span className="text-white text-sm font-semibold text-center leading-tight">{name}</span>
-        <span className="text-slate-500 text-xs mt-1 text-center leading-snug">{desc}</span>
-        <span className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold group-hover:bg-emerald-500/20 transition-colors">
-            <ExternalLink className="w-3.5 h-3.5" />
-            Acceder
-        </span>
-    </a>
-);
+const ProviderCard = ({ name, desc, Logo, url, testId, disabled }) => {
+    const Wrapper = disabled ? 'div' : 'a';
+    const wrapperProps = disabled ? {} : { href: url, target: '_blank', rel: 'noopener noreferrer' };
+    return (
+        <Wrapper
+            {...wrapperProps}
+            data-testid={testId}
+            className={`group flex flex-col items-center rounded-2xl border p-5 transition-all duration-300 focus:outline-none ${
+                disabled
+                    ? 'bg-slate-800/30 border-slate-700/30 opacity-60 cursor-not-allowed'
+                    : 'bg-slate-800/60 border-slate-700/50 hover:border-slate-500/70 hover:bg-slate-800/90 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus:ring-2 focus:ring-cyan-500/40'
+            }`}
+        >
+            <div className={`w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md transition-shadow ${disabled ? 'grayscale' : 'group-hover:shadow-lg'}`}>
+                <Logo />
+            </div>
+            <span className="text-white text-sm font-semibold text-center leading-tight">{name}</span>
+            <span className="text-slate-500 text-xs mt-1 text-center leading-snug">{desc}</span>
+            {disabled ? (
+                <span className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-slate-700/30 border border-slate-600/30 text-slate-500 text-xs font-semibold">
+                    <Clock className="w-3.5 h-3.5" />
+                    Proximo a habilitar
+                </span>
+            ) : (
+                <span className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold group-hover:bg-emerald-500/20 transition-colors">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Acceder
+                </span>
+            )}
+        </Wrapper>
+    );
+};
 
 /* ─── Copy button helper ─── */
 const CopyField = ({ label, value, testId }) => {
@@ -532,7 +545,7 @@ export default function WithdrawMethodsPage() {
                     <SectionTitle icon={Building2} title="Cuenta Bancaria / Alternativa" iconColor="bg-cyan-500/20 text-cyan-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="bank-providers-grid">
                         {BANK_PROVIDERS.map((p) => (
-                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} />
+                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} disabled={p.disabled} />
                         ))}
                     </div>
                 </section>
