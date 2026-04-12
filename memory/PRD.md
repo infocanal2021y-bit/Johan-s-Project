@@ -97,3 +97,5 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Payment methods page with provider redirects (MoonPay, Simplex, Binance, Coinbase)
 - Backend modularization: server.py 5786 -> 616 lines (Apr 12, 2026)
 - Market News redesign: Replaced Finnhub with Investing.com RSS feeds, BBVA-style card layout, image proxy, category filters (General/Crypto/Forex/Economia) (Apr 12, 2026)
+- Notification bell: Dropdown opens to the right, click opens detail modal with admin 'Agregar Saldo' inline form (Apr 12, 2026)
+- Registration form: Added phone+country selector (26 countries), investment year, deceased owner checkbox with relationship dropdown. Email to info@lionsbit.es with all details (Apr 12, 2026)
