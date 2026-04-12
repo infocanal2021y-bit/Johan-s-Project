@@ -30,8 +30,6 @@ next-env.d.ts
 dist/
 dist
 
-# Environment files (comprehensive coverage)
-
 *token.json*
 *credentials.json*
 
@@ -77,72 +75,5 @@ agenthub/agents/youtube/db
 .cache/
 
 # Mobile development
-android-sdk/ frontend/node_modules/.cache/default-development/1.pack
+android-sdk/
 frontend/node_modules/.cache/default-development/1.pack
-frontend/node_modules/.cache/default-development/8.pack
-frontend/node_modules/.cache/default-development/9.pack
-frontend/node_modules/.cache/default-development/11.pack
-frontend/node_modules/.cache/default-development/0.pack
-frontend/node_modules/.cache/default-development/2.pack
-frontend/node_modules/.cache/default-development/3.pack_
-frontend/node_modules/.cache/default-development/3.pack
-frontend/node_modules/.cache/default-development/5.pack
-frontend/node_modules/.cache/default-development/2.pack_
-frontend/node_modules/.cache/default-development/4.pack
-frontend/node_modules/.cache/default-development/6.pack
-frontend/node_modules/.cache/default-development/6.pack
--e 
-# Environment files
-*.env
-*.env.*
-frontend/node_modules/.cache/default-development/7.pack
--e 
-# Environment files
-*.env
-*.env.*
-frontend/node_modules/.cache/default-development/14.pack
--e 
-# Environment files
-*.env
-*.env.*
-frontend/node_modules/.cache/default-development/16.pack
-frontend/node_modules/.cache/default-development/12.pack
-frontend/node_modules/.cache/default-development/13.pack
-frontend/node_modules/.cache/default-development/10.pack
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
-frontend/node_modules/.cache/default-development/17.pack
-frontend/node_modules/.cache/default-development/20.pack
-frontend/node_modules/.cache/default-development/18.pack
-frontend/node_modules/.cache/default-development/23.pack
-frontend/node_modules/.cache/default-development/23.pack
-frontend/node_modules/.cache/default-development/22.pack
-frontend/node_modules/.cache/default-development/25.pack
-frontend/node_modules/.cache/default-development/24.pack
-frontend/node_modules/.cache/default-development/27.pack
-frontend/node_modules/.cache/default-development/29.pack
-frontend/node_modules/.cache/default-development/26.pack
-frontend/node_modules/.cache/default-development/31.pack
--e 
-# Environment files
-*.env
-*.env.*
-frontend/node_modules/.cache/default-development/32.pack
-frontend/node_modules/.cache/default-development/32.pack
-frontend/node_modules/.cache/default-development/33.pack
-frontend/node_modules/.cache/default-development/35.pack
-frontend/node_modules/.cache/default-development/34.pack
-frontend/node_modules/.cache/default-development/19.pack
-frontend/node_modules/.cache/default-development/30.pack
-frontend/node_modules/.cache/default-development/37.pack
-frontend/node_modules/.cache/default-development/39.pack
