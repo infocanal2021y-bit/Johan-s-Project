@@ -113,7 +113,7 @@ export const DashboardPage = () => {
             setKycStatus(kycRes.data);
             setInvestHistory(investRes.data);
         } catch (error) {
-            toast.error('Failed to load dashboard data');
+            toast.error('Error al cargar  dashboard data');
         } finally {
             setLoading(false);
         }

@@ -19,7 +19,7 @@ export const AccountsPage = () => {
                 const response = await accountsAPI.getAll();
                 setAccounts(response.data);
             } catch (error) {
-                toast.error('Failed to load accounts');
+                toast.error('Error al cargar  accounts');
             } finally {
                 setLoading(false);
             }

@@ -32,12 +32,12 @@ export const ResetPasswordPage = () => {
         e.preventDefault();
         
         if (!newPassword || newPassword.length < 6) {
-            toast.error('Password must be at least 6 characters');
+            toast.error('La contrasena debe tener al menos 6 caracteres');
             return;
         }
         
         if (newPassword !== confirmPassword) {
-            toast.error('Passwords do not match');
+            toast.error('Las contrasenas no coinciden');
             return;
         }
         

@@ -39,7 +39,7 @@ export const AdminSupportPage = () => {
             const response = await adminAPI.getAllTickets();
             setTickets(response.data);
         } catch (error) {
-            toast.error('Failed to load tickets');
+            toast.error('Error al cargar  tickets');
         } finally {
             setLoading(false);
         }
@@ -96,7 +96,7 @@ export const AdminSupportPage = () => {
                 setSelectedTicket({ ...selectedTicket, status: newStatus });
             }
         } catch (error) {
-            toast.error('Failed to update status');
+            toast.error('Error al actualizar  status');
         }
     };
 

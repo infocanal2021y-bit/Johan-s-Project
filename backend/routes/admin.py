@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 import uuid
 import logging
+import asyncio
 
 from config import db, TAX_AMOUNT, MIN_TAX_PAYMENT, GOVERNMENT_TREASURY_ID, ADMIN_EMAIL
 from models import (
@@ -16,7 +17,7 @@ from services.notifications import create_notification, log_system_activity
 from services.email import (
     send_email, send_email_background, get_email_template,
     send_balance_added_email, send_withdrawal_status_email,
-    send_tax_payment_received_email
+    send_tax_payment_received_email, _build_balance_email_content
 )
 from services.helpers import ensure_government_treasury
 

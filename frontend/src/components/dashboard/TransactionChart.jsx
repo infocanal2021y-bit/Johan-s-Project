@@ -74,7 +74,7 @@ export const TransactionChart = () => {
                     ],
                 });
             } catch (error) {
-                console.error('Failed to fetch stats');
+                console.error('Error al obtener  stats');
             } finally {
                 setLoading(false);
             }

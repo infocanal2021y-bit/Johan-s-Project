@@ -238,7 +238,7 @@ export const RealTimeMarketPage = () => {
                                 <div className="absolute inset-0 bg-slate-900/80 z-10 flex items-center justify-center">
                                     <div className="flex flex-col items-center gap-3">
                                         <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-                                        <p className="text-slate-400 text-sm">Cargando gráfico...</p>
+                                        <p className="text-slate-400 text-sm">Cargando grafico...</p>
                                     </div>
                                 </div>
                             )}

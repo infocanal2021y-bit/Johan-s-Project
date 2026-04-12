@@ -65,7 +65,7 @@ export const AdminCryptoStatsPage = () => {
                 const response = await adminAPI.getCryptoPaymentsStats();
                 setStats(response.data);
             } catch (error) {
-                toast.error('Failed to load crypto statistics');
+                toast.error('Error al cargar  crypto statistics');
             } finally {
                 setLoading(false);
             }
@@ -264,7 +264,7 @@ export const AdminCryptoStatsPage = () => {
                                 <Clock className="w-8 h-8 text-amber-400" />
                                 <div>
                                     <p className="text-2xl font-bold text-amber-400">{stats?.by_status?.under_review || 0}</p>
-                                    <p className="text-sm text-amber-400/70">Under Review</p>
+                                    <p className="text-sm text-amber-400/70">En revision</p>
                                 </div>
                             </CardContent>
                         </Card>

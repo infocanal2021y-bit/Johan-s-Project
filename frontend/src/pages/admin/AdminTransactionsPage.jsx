@@ -22,7 +22,7 @@ export const AdminTransactionsPage = () => {
             const response = await adminAPI.getTransactions(status);
             setTransactions(response.data);
         } catch (error) {
-            toast.error('Failed to load transactions');
+            toast.error('Error al cargar  transactions');
         } finally {
             setLoading(false);
         }
@@ -41,7 +41,7 @@ export const AdminTransactionsPage = () => {
             toast.success('Transaction status updated');
             fetchTransactions();
         } catch (error) {
-            toast.error('Failed to update status');
+            toast.error('Error al actualizar  status');
         }
     };
 
@@ -101,10 +101,10 @@ export const AdminTransactionsPage = () => {
                         <SelectContent className="bg-slate-900 border-slate-800">
                             <SelectItem value="all" className="text-white">All Status</SelectItem>
                             <SelectItem value="completed" className="text-white">Completed</SelectItem>
-                            <SelectItem value="pending" className="text-white">Pending</SelectItem>
+                            <SelectItem value="pending" className="text-white">Pendiente</SelectItem>
                             <SelectItem value="pending_tax" className="text-white">Pending Tax</SelectItem>
                             <SelectItem value="rejected" className="text-white">Rejected</SelectItem>
-                            <SelectItem value="under_review" className="text-white">Under Review</SelectItem>
+                            <SelectItem value="under_review" className="text-white">En revision</SelectItem>
                         </SelectContent>
                     </Select>
                 </motion.div>
@@ -208,10 +208,10 @@ export const AdminTransactionsPage = () => {
                                                                     </SelectTrigger>
                                                                     <SelectContent className="bg-slate-900 border-slate-800">
                                                                         <SelectItem value="completed" className="text-white text-xs">Completed</SelectItem>
-                                                                        <SelectItem value="pending" className="text-white text-xs">Pending</SelectItem>
+                                                                        <SelectItem value="pending" className="text-white text-xs">Pendiente</SelectItem>
                                                                         <SelectItem value="pending_tax" className="text-white text-xs">Pending Tax</SelectItem>
                                                                         <SelectItem value="rejected" className="text-white text-xs">Rejected</SelectItem>
-                                                                        <SelectItem value="under_review" className="text-white text-xs">Under Review</SelectItem>
+                                                                        <SelectItem value="under_review" className="text-white text-xs">En revision</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
                                                                 {canForceRelease && (

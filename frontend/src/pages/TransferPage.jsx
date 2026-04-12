@@ -30,7 +30,7 @@ export const TransferPage = () => {
                     setSourceAccount(response.data[0].id);
                 }
             } catch (error) {
-                toast.error('Failed to load accounts');
+                toast.error('Error al cargar  accounts');
             }
         };
         fetchAccounts();

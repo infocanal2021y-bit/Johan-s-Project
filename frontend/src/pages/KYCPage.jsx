@@ -39,7 +39,7 @@ export const KYCPage = () => {
                 const response = await kycAPI.getStatus();
                 setKycStatus(response.data);
             } catch (error) {
-                toast.error('Failed to load KYC status');
+                toast.error('Error al cargar  KYC status');
             } finally {
                 setLoading(false);
             }

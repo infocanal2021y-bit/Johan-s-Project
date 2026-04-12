@@ -18,7 +18,7 @@ export const AdminTreasuryPage = () => {
             const response = await adminAPI.getTreasury();
             setTreasury(response.data);
         } catch (error) {
-            toast.error('Failed to load treasury');
+            toast.error('Error al cargar  treasury');
         } finally {
             setLoading(false);
         }

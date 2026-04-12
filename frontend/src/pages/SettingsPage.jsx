@@ -51,7 +51,7 @@ export const SettingsPage = () => {
                 const response = await authAPI.getLoginHistory();
                 setLoginHistory(response.data);
             } catch (error) {
-                console.error('Failed to load login history');
+                console.error('Error al cargar  login history');
             } finally {
                 setLoading(false);
             }
@@ -70,7 +70,7 @@ export const SettingsPage = () => {
                 }
                 setExpandedDates(expanded);
             } catch (error) {
-                console.error('Failed to load withdrawal history');
+                console.error('Error al cargar  withdrawal history');
             } finally {
                 setLoadingWithdrawals(false);
             }
@@ -132,7 +132,7 @@ export const SettingsPage = () => {
                 current_password: passwords.current,
                 new_password: passwords.new
             });
-            toast.success('Password changed successfully');
+            toast.success('Contrasena cambiada exitosamente');
             setPasswords({ current: '', new: '', confirm: '' });
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Failed to change password');

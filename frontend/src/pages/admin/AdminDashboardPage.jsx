@@ -35,7 +35,7 @@ export const AdminDashboardPage = () => {
                     totalBalance,
                 });
             } catch (error) {
-                toast.error('Failed to load admin stats');
+                toast.error('Error al cargar  admin stats');
             } finally {
                 setLoading(false);
             }

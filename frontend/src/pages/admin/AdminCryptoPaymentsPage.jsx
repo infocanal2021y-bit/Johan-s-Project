@@ -51,7 +51,7 @@ export const AdminCryptoPaymentsPage = () => {
             const response = await adminAPI.getPendingCryptoPayments();
             setPayments(response.data);
         } catch (error) {
-            toast.error('Failed to load crypto payments');
+            toast.error('Error al cargar  crypto payments');
         } finally {
             setLoading(false);
         }
@@ -70,7 +70,7 @@ export const AdminCryptoPaymentsPage = () => {
             const response = await adminAPI.getCryptoPaymentProof(payment.id);
             setProofImage(response.data.proof_image);
         } catch (error) {
-            toast.error('Failed to load proof image');
+            toast.error('Error al cargar  proof image');
         } finally {
             setLoadingProof(false);
         }

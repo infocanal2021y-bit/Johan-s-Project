@@ -108,7 +108,7 @@ export const Sidebar = () => {
         { to: '/admin/credits', icon: PlusCircle, label: 'Agregar Saldo' },
         { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Pagos Crypto' },
         { to: '/admin/crypto-stats', icon: BarChart3, label: 'Analíticas Crypto' },
-        { to: '/admin/users', icon: Users, label: 'Usuarios' },
+        { to: '/admin/users', icon: Users, label: 'Usuarios Registrados' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'Transacciones' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Retiros Pendientes' },
         { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },

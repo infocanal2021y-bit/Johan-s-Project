@@ -570,7 +570,7 @@ export const WithdrawPage = () => {
 
     const currentBalance = getSelectedAccountBalance();
 
-    // Loading state
+    // Cargando...ate
     if (checkingKYC) {
         return (
             <Layout>
