@@ -120,10 +120,14 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
   - 100% test pass rate (14/14 tests, iteration_22)
 - BBVA Color & Typography Overhaul
   - Primary: #1973B8, Deep: #004481, Light: #49A2E0 (replacing emerald green)
-  - Typography: Source Sans 3 (replacing Inter) - closest to Benton Sans BBVA
+  - Typography: Source Sans 3 (body) + Outfit (numbers) - closest to Benton Sans BBVA
   - Updated: tailwind.config.js, index.css, App.css, and 8+ files with hardcoded rgba
   - Semantic green preserved for USDT, deposits, success states
   - 100% test pass rate (18/18 tests, iteration_23)
+- OdometerValue Animation (BBVA-style slot machine digits)
+  - Component: OdometerValue.jsx - each digit slides independently 0→target
+  - Applied to 12 files: BalanceCard, DashboardPage, AccountsPage, CryptoMarketPage, BitcoinOutputsPage, InvestmentSimulatorPage, PortfolioPage, TransactionChart, AdminDashboardPage, AdminTreasuryPage, WithdrawPage
+  - 100% test pass rate (14/14 tests, iteration_24)
 
 ---
 Last Updated: February 2026
