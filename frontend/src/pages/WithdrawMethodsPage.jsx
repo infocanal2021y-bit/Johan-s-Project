@@ -540,7 +540,17 @@ export default function WithdrawMethodsPage() {
                     </div>
                 </section>
 
-                {/* Section 2: Criptomonedas / Pagos */}
+                {/* Section 2: Cuenta Empresarial / Principal */}
+                <section>
+                    <SectionTitle icon={Building2} title="Cuenta Empresarial / Principal" iconColor="bg-cyan-500/20 text-cyan-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="bank-providers-grid">
+                        {BANK_PROVIDERS.map((p) => (
+                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} disabled={p.disabled} brandColor={p.brandColor} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* Section 3: Criptomonedas / Pagos */}
                 <section>
                     <SectionTitle icon={Coins} title="Criptomonedas / Pagos" iconColor="bg-orange-500/20 text-orange-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="crypto-providers-grid">
@@ -550,17 +560,7 @@ export default function WithdrawMethodsPage() {
                     </div>
                 </section>
 
-                {/* Section 3: Cuenta bancaria / alternativa */}
-                <section>
-                    <SectionTitle icon={Building2} title="Cuenta Bancaria / Alternativa" iconColor="bg-cyan-500/20 text-cyan-400" />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="bank-providers-grid">
-                        {BANK_PROVIDERS.map((p) => (
-                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} disabled={p.disabled} brandColor={p.brandColor} />
-                        ))}
-                    </div>
-                </section>
-
-                {/* Section 3: Bancos por país */}
+                {/* Section 4: Bancos por país */}
                 <section>
                     <SectionTitle icon={Banknote} title="Bancos por Pais" iconColor="bg-emerald-500/20 text-emerald-400" />
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" ref={dropdownRef} data-testid="country-banks-grid">
