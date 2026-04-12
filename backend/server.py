@@ -54,6 +54,19 @@ from services.auth import (
 )
 from services.notifications import create_notification, notify_admins
 from services.scoring import process_user_scoring, process_user_reminders
+from services.email import (
+    send_email, send_email_background, get_email_template,
+    send_balance_added_email, send_withdrawal_status_email,
+    send_password_changed_email, send_new_login_email, _build_new_login_email_content,
+    send_transfer_completed_email, send_withdrawal_tax_pending_email,
+    send_tax_payment_received_email, send_tax_reminder_email,
+    send_withdrawal_rejected_email
+)
+from services.helpers import (
+    get_ip_location, get_daily_transfer_total, check_fraud_pattern,
+    ensure_government_treasury
+)
+from routes import register_routes
 
 # ==================== APP SETUP ====================
 resend.api_key = RESEND_API_KEY
@@ -5189,6 +5202,7 @@ async def get_all_feedback(admin: dict = Depends(get_admin_user)):
 
 
 # Include the router in the main app
+register_routes(api_router)
 app.include_router(api_router)
 
 app.add_middleware(
