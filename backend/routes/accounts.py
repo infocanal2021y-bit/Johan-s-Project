@@ -1,17 +1,20 @@
-"""Account & user routes"""
+"""Account, investment, gamification, achievements, and activity routes"""
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, timezone
-import uuid, logging
-from config import db, strip_id
+from typing import List
+from datetime import datetime, timezone, timedelta
+import uuid
+import logging
+
+from config import db
+from models import AccountResponse, InvestmentRequest, ActivityEvent
 from services.auth import get_current_user
 from services.notifications import create_notification
+from services.gamification import (
+    LEVEL_CONFIG, ACHIEVEMENTS_DEF,
+    calculate_user_level, get_next_level_info, check_and_unlock_achievements
+)
 
 router = APIRouter()
-
-# Import gamification functions from server (they remain there for now)
-def _get_gamification():
-    import server
-    return server.calculate_user_level, server.get_next_level_info, server.check_and_unlock_achievements
 
 # ==================== ACCOUNT ROUTES ====================
 
@@ -491,4 +494,3 @@ async def resolve_incomplete_process(current_user: dict = Depends(get_current_us
         {'$set': {'resolved': True, 'resolved_at': datetime.now(timezone.utc).isoformat()}}
     )
     return {'status': 'ok'}
-

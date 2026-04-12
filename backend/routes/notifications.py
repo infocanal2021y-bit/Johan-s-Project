@@ -1,7 +1,6 @@
 """Notification routes"""
-from fastapi import APIRouter, Depends
-from datetime import datetime, timezone
-from config import db, strip_id
+from fastapi import APIRouter, HTTPException, Depends
+from config import db
 from services.auth import get_current_user
 
 router = APIRouter()
@@ -45,3 +44,4 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
     )
     return {'message': 'All notifications marked as read'}
 
+# ==================== ADMIN ROUTES ====================

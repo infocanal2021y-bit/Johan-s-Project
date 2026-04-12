@@ -1,11 +1,13 @@
-"""Support ticket routes"""
+"""Support ticket, KYC, and admin support routes"""
 from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone
-import uuid, logging
-from config import db, strip_id
+import uuid
+import logging
+
+from config import db, SUPPORT_EMAILS
 from models import SupportTicket, PaymentIssueReport, TicketReply, KYCSubmission
 from services.auth import get_current_user, get_admin_user
-from services.notifications import create_notification
+from services.notifications import create_notification, create_admin_notification, log_system_activity
 from services.email import send_email_background, get_email_template
 
 router = APIRouter()
@@ -379,6 +381,8 @@ async def admin_get_password_resets(admin: dict = Depends(get_admin_user)):
 
 # ==================== KYC ROUTES ====================
 
+# ==================== KYC ROUTES ====================
+
 @router.post("/kyc/submit")
 async def submit_kyc(kyc_data: KYCSubmission, request: Request, current_user: dict = Depends(get_current_user)):
     """Submit KYC documents for verification with legal consent"""
@@ -521,3 +525,4 @@ async def get_kyc_status(current_user: dict = Depends(get_current_user)):
         'rejection_reason': kyc_docs.get('rejection_reason') if kyc_docs else None
     }
 
+# ==================== ACCOUNT ROUTES ====================

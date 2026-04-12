@@ -2,7 +2,7 @@
 import logging
 import httpx
 from datetime import datetime, timezone, timedelta
-from config import db, FRAUD_THRESHOLD_AMOUNT, FRAUD_THRESHOLD_COUNT, FRAUD_THRESHOLD_MINUTES, GOVERNMENT_TREASURY_ID
+from config import db, EXCHANGE_RATES, FRAUD_THRESHOLD_AMOUNT, FRAUD_THRESHOLD_COUNT, FRAUD_THRESHOLD_MINUTES, GOVERNMENT_TREASURY_ID
 
 # ==================== IP GEOLOCATION ====================
 _geo_cache = {}

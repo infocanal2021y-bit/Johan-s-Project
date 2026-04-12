@@ -1,14 +1,478 @@
-"""Miscellaneous routes: chatbot, payments, bitcoin, feedback"""
+"""Utility, market data, Binance, chatbot, and miscellaneous routes"""
 from fastapi import APIRouter, HTTPException, Depends, Query
-from datetime import datetime, timezone
-import uuid, logging
+from datetime import datetime, timezone, timedelta
+import uuid
+import os
+import logging
 import httpx
-from config import db, strip_id, CHATBOT_FAQ, SUPPORT_EMAILS
-from models import ChatMessage, FeedbackSubmission, BankTransferConfirm
+
+from config import db, EXCHANGE_RATES, CHATBOT_FAQ, RESTRICTED_BANK_TRANSFER_EMAILS, RESEND_API_KEY, CRYPTO_WALLETS
+from models import ChatMessage, FeedbackSubmission, BankTransferConfirm, AdminWalletAssign
 from services.auth import get_current_user, get_admin_user
-from services.notifications import create_notification
+from services.notifications import create_notification, notify_admins
+from services.email import send_email_background, get_email_template
 
 router = APIRouter()
+
+# ==================== UTILITY ROUTES ====================
+
+@router.get("/exchange-rates")
+async def get_exchange_rates():
+    return EXCHANGE_RATES
+
+@router.get("/")
+async def root():
+    return {"message": "LIONSBIT VERIFICACION API", "version": "2.0.0"}
+
+# ==================== ONLINE PRESENCE / HEARTBEAT ====================
+
+@router.post("/auth/heartbeat")
+async def heartbeat(current_user: dict = Depends(get_current_user)):
+    """Update user's last_active timestamp to keep them online"""
+    await db.users.update_one(
+        {'id': current_user['id']},
+        {'$set': {'last_active': datetime.now(timezone.utc).isoformat(), 'is_online': True}}
+    )
+    return {'status': 'ok'}
+
+@router.post("/auth/logout-status")
+async def logout_status(current_user: dict = Depends(get_current_user)):
+    """Mark user as offline on logout"""
+    await db.users.update_one(
+        {'id': current_user['id']},
+        {'$set': {'is_online': False}}
+    )
+    return {'status': 'ok'}
+
+@router.get("/admin/users/online")
+async def admin_get_online_users(admin: dict = Depends(get_admin_user)):
+    """Get all currently online users (active in last 2 minutes)"""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    
+    online_users = await db.users.find(
+        {'is_online': True, 'last_active': {'$gte': cutoff}},
+        {'_id': 0, 'password': 0, 'hashed_password': 0}
+    ).to_list(100)
+    
+    # Also mark users as offline if their last_active is too old
+    await db.users.update_many(
+        {'is_online': True, 'last_active': {'$lt': cutoff}},
+        {'$set': {'is_online': False}}
+    )
+    
+    # Get last login info for each online user
+    result = []
+    for user in online_users:
+        last_login = await db.login_history.find_one(
+            {'user_id': user['id']},
+            {'_id': 0}
+        )
+        result.append({
+            'id': user['id'],
+            'name': user.get('name', 'Desconocido'),
+            'email': user.get('email', ''),
+            'role': user.get('role', 'user'),
+            'verification_status': user.get('verification_status', 'unverified'),
+            'last_active': user.get('last_active', ''),
+            'login_ip': last_login.get('ip_address', '-') if last_login else '-',
+            'login_location': last_login.get('location', '-') if last_login else '-',
+            'login_device': f"{last_login.get('browser', '?')} / {last_login.get('device', '?')}" if last_login else '-',
+            'logged_in_at': last_login.get('logged_in_at', '') if last_login else ''
+        })
+    
+    return result
+
+# ==================== ADMIN LOGIN HISTORY ROUTES ====================
+
+@router.get("/admin/login-history")
+async def admin_get_login_history(admin: dict = Depends(get_admin_user)):
+    """Get all login history for admin panel - most recent first"""
+    history = await db.login_history.find(
+        {},
+        {'_id': 0}
+    ).sort('logged_in_at', -1).limit(200).to_list(200)
+    return history
+
+@router.get("/admin/login-history/suspicious")
+async def admin_get_suspicious_logins(admin: dict = Depends(get_admin_user)):
+    """Detect suspicious logins: same user from different countries within 24 hours"""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    
+    # Get recent logins
+    recent = await db.login_history.find(
+        {'logged_in_at': {'$gte': cutoff}},
+        {'_id': 0}
+    ).sort('logged_in_at', -1).to_list(500)
+    
+    # Group by user_id and detect different countries
+    user_logins = {}
+    for login in recent:
+        uid = login.get('user_id', '')
+        if uid not in user_logins:
+            user_logins[uid] = []
+        user_logins[uid].append(login)
+    
+    suspicious = []
+    for uid, logins in user_logins.items():
+        countries = set()
+        for l in logins:
+            cc = l.get('country_code') or l.get('country', '')
+            if cc and cc != '--' and cc != 'Desconocido':
+                countries.add(cc)
+        if len(countries) > 1:
+            suspicious.append({
+                'user_id': uid,
+                'user_name': logins[0].get('user_name', 'Desconocido'),
+                'user_email': logins[0].get('user_email', 'Desconocido'),
+                'countries': list(countries),
+                'logins': logins[:10],
+                'alert': f"Acceso desde {len(countries)} países diferentes en 24h"
+            })
+    
+    return suspicious
+
+
+# ==================== MARKET DATA (CoinGecko) ====================
+
+_market_cache = {'data': None, 'timestamp': 0, 'global': None, 'global_ts': 0, 'trending': None, 'trending_ts': 0}
+
+COINGECKO_HEADERS = {'Accept': 'application/json', 'User-Agent': 'LIONSBIT/1.0'}
+
+@router.get("/market/crypto")
+async def get_market_crypto():
+    """Get top 50 cryptocurrencies from CoinGecko (cached 120s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _market_cache['data'] and (now - _market_cache['timestamp']) < 120:
+        return _market_cache['data']
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=COINGECKO_HEADERS) as client:
+            resp = await client.get(
+                "https://api.coingecko.com/api/v3/coins/markets",
+                params={
+                    'vs_currency': 'usd',
+                    'order': 'market_cap_desc',
+                    'per_page': 50,
+                    'page': 1,
+                    'sparkline': 'false',
+                    'price_change_percentage': '24h,7d'
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                _market_cache['data'] = data
+                _market_cache['timestamp'] = now
+                return data
+            elif resp.status_code == 429:
+                logging.warning("CoinGecko rate limited for /coins/markets")
+            else:
+                logging.warning(f"CoinGecko markets status {resp.status_code}")
+            return _market_cache['data'] or []
+    except Exception as e:
+        logging.error(f"CoinGecko markets error: {e}")
+        return _market_cache['data'] or []
+
+@router.get("/market/global")
+async def get_market_global():
+    """Get global crypto market data from CoinGecko (cached 180s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _market_cache['global'] and (now - _market_cache['global_ts']) < 180:
+        return _market_cache['global']
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=COINGECKO_HEADERS) as client:
+            resp = await client.get("https://api.coingecko.com/api/v3/global")
+            if resp.status_code == 200:
+                data = resp.json().get('data', {})
+                _market_cache['global'] = data
+                _market_cache['global_ts'] = now
+                return data
+            return _market_cache['global'] or {}
+    except Exception as e:
+        logging.error(f"CoinGecko global error: {e}")
+        return _market_cache['global'] or {}
+
+@router.get("/market/trending")
+async def get_market_trending():
+    """Get trending coins from CoinGecko (cached 600s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _market_cache['trending'] and (now - _market_cache['trending_ts']) < 600:
+        return _market_cache['trending']
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0, headers=COINGECKO_HEADERS) as client:
+            resp = await client.get("https://api.coingecko.com/api/v3/search/trending")
+            if resp.status_code == 200:
+                data = resp.json()
+                _market_cache['trending'] = data
+                _market_cache['trending_ts'] = now
+                return data
+            return _market_cache['trending'] or {'coins': [], 'categories': []}
+    except Exception as e:
+        logging.error(f"CoinGecko trending error: {e}")
+        return _market_cache['trending'] or {'coins': [], 'categories': []}
+
+# ==================== FINNHUB NEWS ====================
+
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "")
+_news_cache = {'general': None, 'general_ts': 0, 'crypto': None, 'crypto_ts': 0}
+
+@router.get("/market/news")
+async def get_market_news(category: str = "general"):
+    """Get market news from Finnhub (cached 300s). category: general, crypto, forex, merger"""
+    if category not in ("general", "crypto", "forex", "merger"):
+        category = "general"
+    
+    cache_key = category
+    now = datetime.now(timezone.utc).timestamp()
+    
+    if cache_key not in _news_cache:
+        _news_cache[cache_key] = None
+        _news_cache[f'{cache_key}_ts'] = 0
+    
+    if _news_cache.get(cache_key) and (now - _news_cache.get(f'{cache_key}_ts', 0)) < 300:
+        return _news_cache[cache_key]
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                "https://finnhub.io/api/v1/news",
+                params={'category': category, 'token': FINNHUB_API_KEY}
+            )
+            if resp.status_code == 200:
+                articles = resp.json()
+                result = []
+                for a in articles[:30]:
+                    result.append({
+                        'id': a.get('id'),
+                        'headline': a.get('headline', ''),
+                        'summary': a.get('summary', ''),
+                        'source': a.get('source', ''),
+                        'url': a.get('url', ''),
+                        'image': a.get('image', ''),
+                        'category': a.get('category', category),
+                        'datetime': a.get('datetime', 0),
+                        'related': a.get('related', ''),
+                    })
+                _news_cache[cache_key] = result
+                _news_cache[f'{cache_key}_ts'] = now
+                return result
+            elif resp.status_code == 429:
+                logging.warning("Finnhub rate limited")
+            else:
+                logging.warning(f"Finnhub news status {resp.status_code}")
+            return _news_cache.get(cache_key) or []
+    except Exception as e:
+        logging.error(f"Finnhub news error: {e}")
+        return _news_cache.get(cache_key) or []
+
+
+# ==================== BINANCE INTEGRATION ====================
+
+BINANCE_API_URL = "https://api.binance.us/api/v3"
+_binance_cache = {
+    'prices': None, 'prices_ts': 0,
+    'tickers': None, 'tickers_ts': 0,
+}
+
+# Symbols we track for wallets
+TRACKED_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'DOTUSDT', 'AVAXUSDT', 'LINKUSDT']
+SYMBOL_TO_COIN = {
+    'BTCUSDT': {'coin': 'BTC', 'name': 'Bitcoin', 'icon': 'bitcoin'},
+    'ETHUSDT': {'coin': 'ETH', 'name': 'Ethereum', 'icon': 'ethereum'},
+    'BNBUSDT': {'coin': 'BNB', 'name': 'BNB', 'icon': 'bnb'},
+    'SOLUSDT': {'coin': 'SOL', 'name': 'Solana', 'icon': 'solana'},
+    'XRPUSDT': {'coin': 'XRP', 'name': 'Ripple', 'icon': 'xrp'},
+    'ADAUSDT': {'coin': 'ADA', 'name': 'Cardano', 'icon': 'cardano'},
+    'DOGEUSDT': {'coin': 'DOGE', 'name': 'Dogecoin', 'icon': 'doge'},
+    'DOTUSDT': {'coin': 'DOT', 'name': 'Polkadot', 'icon': 'polkadot'},
+    'AVAXUSDT': {'coin': 'AVAX', 'name': 'Avalanche', 'icon': 'avalanche'},
+    'LINKUSDT': {'coin': 'LINK', 'name': 'Chainlink', 'icon': 'chainlink'},
+}
+
+@router.get("/binance/prices")
+async def get_binance_prices():
+    """Get real-time prices from Binance public API (cached 30s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _binance_cache['prices'] and (now - _binance_cache['prices_ts']) < 30:
+        return _binance_cache['prices']
+    try:
+        symbols_str = '["' + '","'.join(TRACKED_SYMBOLS) + '"]'
+        async with httpx.AsyncClient(timeout=10.0) as http_client:
+            resp = await http_client.get(f"{BINANCE_API_URL}/ticker/price",
+                params={'symbols': symbols_str})
+            if resp.status_code == 200:
+                data = resp.json()
+                result = {}
+                for item in data:
+                    sym = item['symbol']
+                    if sym in SYMBOL_TO_COIN:
+                        coin_info = SYMBOL_TO_COIN[sym]
+                        result[coin_info['coin']] = {
+                            'symbol': sym,
+                            'coin': coin_info['coin'],
+                            'name': coin_info['name'],
+                            'price': float(item['price']),
+                        }
+                _binance_cache['prices'] = result
+                _binance_cache['prices_ts'] = now
+                return result
+            return _binance_cache['prices'] or {}
+    except Exception as e:
+        logging.error(f"Binance prices error: {e}")
+        return _binance_cache['prices'] or {}
+
+@router.get("/binance/tickers")
+async def get_binance_tickers():
+    """Get 24h ticker data from Binance (cached 60s)"""
+    now = datetime.now(timezone.utc).timestamp()
+    if _binance_cache['tickers'] and (now - _binance_cache['tickers_ts']) < 60:
+        return _binance_cache['tickers']
+    try:
+        symbols_str = '["' + '","'.join(TRACKED_SYMBOLS) + '"]'
+        async with httpx.AsyncClient(timeout=10.0) as http_client:
+            resp = await http_client.get(f"{BINANCE_API_URL}/ticker/24hr",
+                params={'symbols': symbols_str})
+            if resp.status_code == 200:
+                data = resp.json()
+                result = {}
+                for item in data:
+                    sym = item['symbol']
+                    if sym in SYMBOL_TO_COIN:
+                        coin_info = SYMBOL_TO_COIN[sym]
+                        result[coin_info['coin']] = {
+                            'symbol': sym,
+                            'coin': coin_info['coin'],
+                            'name': coin_info['name'],
+                            'price': float(item['lastPrice']),
+                            'price_change': float(item['priceChange']),
+                            'price_change_pct': float(item['priceChangePercent']),
+                            'high_24h': float(item['highPrice']),
+                            'low_24h': float(item['lowPrice']),
+                            'volume': float(item['volume']),
+                            'quote_volume': float(item['quoteVolume']),
+                        }
+                _binance_cache['tickers'] = result
+                _binance_cache['tickers_ts'] = now
+                return result
+            return _binance_cache['tickers'] or {}
+    except Exception as e:
+        logging.error(f"Binance tickers error: {e}")
+        return _binance_cache['tickers'] or {}
+
+@router.get("/binance/wallet")
+async def get_binance_wallet(current_user: dict = Depends(get_current_user)):
+    """Get user's wallet with REAL balances converted to crypto equivalents using live Binance prices"""
+    # Get user's REAL platform balances
+    accounts = await db.accounts.find({'user_id': current_user['id']}, {'_id': 0}).to_list(10)
+    checking = next((a for a in accounts if a['account_type'] == 'checking'), None)
+    savings = next((a for a in accounts if a['account_type'] == 'savings'), None)
+
+    available_usd = checking.get('balance_usd', 0) if checking else 0
+    available_eur = checking.get('balance_eur', 0) if checking else 0
+    locked_usd = savings.get('balance_usd', 0) if savings else 0
+    locked_eur = savings.get('balance_eur', 0) if savings else 0
+
+    total_usd = available_usd + locked_usd
+
+    # Fetch live prices from Binance
+    prices = await get_binance_tickers()
+
+    # Allocation percentages for the simulated crypto distribution
+    ALLOCATION = [
+        {'coin': 'BTC', 'name': 'Bitcoin', 'pct': 0.40},
+        {'coin': 'ETH', 'name': 'Ethereum', 'pct': 0.25},
+        {'coin': 'BNB', 'name': 'BNB', 'pct': 0.12},
+        {'coin': 'SOL', 'name': 'Solana', 'pct': 0.08},
+        {'coin': 'XRP', 'name': 'Ripple', 'pct': 0.05},
+        {'coin': 'ADA', 'name': 'Cardano', 'pct': 0.03},
+        {'coin': 'DOGE', 'name': 'Dogecoin', 'pct': 0.02},
+        {'coin': 'DOT', 'name': 'Polkadot', 'pct': 0.02},
+        {'coin': 'AVAX', 'name': 'Avalanche', 'pct': 0.02},
+        {'coin': 'LINK', 'name': 'Chainlink', 'pct': 0.01},
+    ]
+
+    enriched_assets = []
+    for alloc in ALLOCATION:
+        coin = alloc['coin']
+        price_data = prices.get(coin, {})
+        price = price_data.get('price', 0)
+        if price <= 0:
+            continue
+
+        # Calculate equivalent crypto amount from user's USD balance
+        alloc_usd = total_usd * alloc['pct']
+        crypto_qty = alloc_usd / price
+
+        # Split available/locked proportionally
+        avail_ratio = available_usd / total_usd if total_usd > 0 else 1
+        avail_qty = crypto_qty * avail_ratio
+        locked_qty = crypto_qty * (1 - avail_ratio)
+
+        enriched_assets.append({
+            'coin': coin,
+            'name': alloc['name'],
+            'available': round(avail_qty, 8),
+            'locked': round(locked_qty, 8),
+            'total': round(crypto_qty, 8),
+            'price': price,
+            'price_change_pct': price_data.get('price_change_pct', 0),
+            'high_24h': price_data.get('high_24h', 0),
+            'low_24h': price_data.get('low_24h', 0),
+            'value_usd': round(alloc_usd, 2),
+            'available_value_usd': round(alloc_usd * avail_ratio, 2),
+            'locked_value_usd': round(alloc_usd * (1 - avail_ratio), 2),
+        })
+
+    distribution = []
+    for a in enriched_assets:
+        pct = (a['value_usd'] / total_usd * 100) if total_usd > 0 else 0
+        distribution.append({'coin': a['coin'], 'name': a['name'], 'value': a['value_usd'], 'percentage': round(pct, 2)})
+
+    return {
+        'total_value_usd': round(total_usd, 2),
+        'total_available_usd': round(available_usd, 2),
+        'total_locked_usd': round(locked_usd, 2),
+        'total_available_eur': round(available_eur, 2),
+        'total_locked_eur': round(locked_eur, 2),
+        'assets': enriched_assets,
+        'distribution': distribution,
+        'top_assets': enriched_assets[:5],
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+@router.post("/admin/wallet/assign")
+async def admin_assign_wallet_asset(data: AdminWalletAssign, admin: dict = Depends(get_admin_user)):
+    """Admin assigns/updates a crypto asset in a user's simulated wallet"""
+    wallet = await db.crypto_wallets_sim.find_one({'user_id': data.user_id}, {'_id': 0})
+    if not wallet:
+        wallet = {
+            'id': str(uuid.uuid4()),
+            'user_id': data.user_id,
+            'assets': [],
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+        }
+        await db.crypto_wallets_sim.insert_one(wallet)
+
+    assets = wallet.get('assets', [])
+    coin_name = SYMBOL_TO_COIN.get(f"{data.coin}USDT", {}).get('name', data.coin)
+    found = False
+    for asset in assets:
+        if asset['coin'] == data.coin:
+            asset['available'] = data.available
+            asset['locked'] = data.locked
+            found = True
+            break
+    if not found:
+        assets.append({'coin': data.coin, 'name': coin_name, 'available': data.available, 'locked': data.locked})
+
+    await db.crypto_wallets_sim.update_one(
+        {'user_id': data.user_id},
+        {'$set': {'assets': assets, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+    )
+    return {'message': f'{data.coin} asignado a wallet del usuario'}
+
 
 # ==================== CHATBOT ROUTES ====================
 
@@ -333,3 +797,7 @@ async def get_all_feedback(admin: dict = Depends(get_admin_user)):
             'distribution': distribution
         }
     }
+
+
+# Include the router in the main app
+# register_routes(api_router)  # Disabled: modularization in progress

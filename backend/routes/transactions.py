@@ -1,20 +1,35 @@
-"""Transaction & withdrawal routes"""
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from datetime import datetime, timezone
-import uuid, logging
-from config import db, strip_id, TAX_AMOUNT, MIN_TAX_PAYMENT, CRYPTO_WALLETS
-from models import WithdrawalRequest, TaxPaymentRequest, CryptoTaxPayment
-from services.auth import get_current_user
-from services.notifications import create_notification, notify_admins
+"""Transaction, withdrawal, and tax payment routes"""
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse, Response
+from typing import List
+from datetime import datetime, timezone, timedelta
+import uuid
+import logging
+import io
+import csv
+from collections import defaultdict
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+
+from config import (
+    db, TAX_AMOUNT, MIN_TAX_PAYMENT, EXCHANGE_RATES,
+    DAILY_TRANSFER_LIMIT_EUR, UNVERIFIED_TRANSFER_LIMIT_EUR, GOVERNMENT_TREASURY_ID,
+    CRYPTO_WALLETS
+)
+from models import TransactionCreate, PayTaxRequest, CryptoPaymentSubmission
+from services.auth import get_current_user, get_admin_user, generate_transaction_reference
+from services.notifications import create_notification, create_admin_notification, notify_admins, log_system_activity
 from services.email import (
+    send_email_background, get_email_template,
     send_withdrawal_status_email, send_withdrawal_tax_pending_email,
     send_tax_payment_received_email
 )
-from services.helpers import ensure_government_treasury
+from services.helpers import get_daily_transfer_total, check_fraud_pattern, ensure_government_treasury
 
 router = APIRouter()
-
-# ==================== TRANSACTION ROUTES ====================
 
 @router.post("/transactions")
 async def create_transaction(tx_data: TransactionCreate, current_user: dict = Depends(get_current_user)):
@@ -698,6 +713,8 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
 
 # ==================== CRYPTO TAX PAYMENT ROUTES ====================
 
+# ==================== CRYPTO TAX PAYMENT ROUTES ====================
+
 @router.get("/crypto-wallets")
 async def get_crypto_wallets():
     """Get corporate crypto wallet addresses for tax payments"""
@@ -883,3 +900,4 @@ async def admin_get_crypto_payment_proof(
     
     return {'proof_image': payment.get('proof_image')}
 
+# ==================== NOTIFICATIONS ROUTES ====================

@@ -1,16 +1,24 @@
-"""Admin routes"""
-from fastapi import APIRouter, HTTPException, Depends
+"""Admin routes: user management, withdrawals, KYC, crypto payments, notifications, activity"""
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import Optional
 from datetime import datetime, timezone, timedelta
-import uuid, logging
-from config import db, strip_id, TAX_AMOUNT, ADMIN_EMAIL
-from models import AdminBalanceUpdate, AdminCreditAdjustment
-from services.auth import get_admin_user
-from services.notifications import create_notification, notify_admins
+import uuid
+import logging
+
+from config import db, TAX_AMOUNT, MIN_TAX_PAYMENT, GOVERNMENT_TREASURY_ID, ADMIN_EMAIL
+from models import (
+    AdminUpdateBalance, AdminAddBalance, AdminUpdateTransactionStatus,
+    AdminUpdateUserRole, AdminKYCAction, AdminSuspendUser, AdminForceRelease,
+    AdminCryptoPaymentAction, AdminManualTaxPayment, AdminUpdateWithdrawalStatus
+)
+from services.auth import get_admin_user, generate_transaction_reference
+from services.notifications import create_notification, log_system_activity
 from services.email import (
     send_email, send_email_background, get_email_template,
     send_balance_added_email, send_withdrawal_status_email,
-    send_transfer_completed_email
+    send_tax_payment_received_email
 )
+from services.helpers import ensure_government_treasury
 
 router = APIRouter()
 
@@ -1302,3 +1310,4 @@ async def admin_frequent_users(admin: dict = Depends(get_admin_user)):
 
 
 
+# ==================== UTILITY ROUTES ====================
