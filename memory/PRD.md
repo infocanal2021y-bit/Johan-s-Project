@@ -99,3 +99,6 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Market News redesign: Replaced Finnhub with Investing.com RSS feeds, BBVA-style card layout, image proxy, category filters (General/Crypto/Forex/Economia) (Apr 12, 2026)
 - Notification bell: Dropdown opens to the right, click opens detail modal with admin 'Agregar Saldo' inline form (Apr 12, 2026)
 - Registration form: Added phone+country selector (26 countries), investment year, deceased owner checkbox with relationship dropdown. Email to info@lionsbit.es with all details (Apr 12, 2026)
+- Bug fix: admin/add-balance 500 error (missing _build_balance_email_content import in admin.py) (Apr 12, 2026)
+- Admin Users page: Renamed to 'Usuarios Registrados', added 'Agregar Saldo' button per user, search bar, full Spanish translation (Apr 12, 2026)
+- Spanish translation: Batch translation of toasts, labels, badges, status text across all pages (Apr 12, 2026)
