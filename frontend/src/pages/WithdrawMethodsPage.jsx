@@ -56,17 +56,14 @@ const CryptoLogo = () => (
     </svg>
 );
 
-const PayPalLogo = () => (
+const PayPalBusinessLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#003087" />
-        <g transform="translate(180, 120) scale(2.8)">
+        <g transform="translate(180, 100) scale(2.8)">
             <path d="M111.8 24.5H86.3c-1.7 0-3.2 1.2-3.4 2.9L73.7 91c-.2 1.2.7 2.3 2 2.3h13.1c1.2 0 2.2-.9 2.4-2l2.6-16.4c.2-1.7 1.7-2.9 3.4-2.9h7.9c16.5 0 26-8 28.5-23.7 1.1-6.9.04-12.3-3.2-16.1C126.7 27.6 120.3 24.5 111.8 24.5z M114.9 47.7c-1.4 8.9-8.2 8.9-14.8 8.9h-3.8l2.6-16.7c.2-1 1-1.8 2-1.8h1.7c4.5 0 8.7 0 10.9 2.6C114.8 42.2 115.4 44.5 114.9 47.7z" fill="#009CDE"/>
             <path d="M163.1 47.3h-13.2c-1 0-1.8.7-2 1.8l-.6 3.7-.9-1.3c-2.8-4.1-9.1-5.5-15.4-5.5-14.4 0-26.7 10.9-29.1 26.2-1.3 7.6.5 14.9 4.9 20 4.1 4.7 9.9 6.6 16.8 6.6 11.9 0 18.5-7.6 18.5-7.6l-.6 3.7c-.2 1.2.7 2.3 2 2.3h11.9c1.7 0 3.2-1.2 3.4-2.9l7.1-45C165.3 48.4 164.4 47.3 163.1 47.3z M146.9 73.8c-1.3 7.5-7.3 12.5-14.9 12.5-3.8 0-6.9-1.2-8.8-3.6-1.9-2.3-2.6-5.6-2-9.2 1.2-7.4 7.4-12.6 14.8-12.6 3.7 0 6.8 1.3 8.8 3.6C146.8 67 147.5 70.3 146.9 73.8z" fill="#009CDE"/>
         </g>
-        <g transform="translate(180, 120) scale(2.8)">
-            <path d="M111.8 24.5H86.3c-1.7 0-3.2 1.2-3.4 2.9L73.7 91c-.2 1.2.7 2.3 2 2.3h13.1c1.2 0 2.2-.9 2.4-2l2.6-16.4c.2-1.7 1.7-2.9 3.4-2.9h7.9c16.5 0 26-8 28.5-23.7 1.1-6.9.04-12.3-3.2-16.1C126.7 27.6 120.3 24.5 111.8 24.5z" fill="none"/>
-        </g>
-        <text x="390" y="380" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="50" opacity="0.8">PayPal</text>
+        <text x="390" y="370" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="42" opacity="0.9">PayPal Business</text>
     </svg>
 );
 
@@ -140,11 +137,11 @@ const PAYMENT_METHODS = [
 
 const INTERNATIONAL_METHODS = [
     { id: 'crypto', name: 'Criptomonedas', desc: 'Bitcoin / USDT / ETH', Logo: CryptoLogo },
-    { id: 'wise', name: 'Wise', desc: 'Transferencia internacional', Logo: WiseLogo },
-    { id: 'paypal', name: 'PayPal', desc: 'Pago digital global', Logo: PayPalLogo },
+    { id: 'wise', name: 'Wise', desc: 'Transferencia internacional', Logo: WiseLogo, openBankTransfer: true },
+    { id: 'paypal-business', name: 'PayPal Business', desc: 'Pagos empresariales', Logo: PayPalBusinessLogo, openBankTransfer: true },
     { id: 'swift', name: 'SWIFT', desc: 'Transferencia interbancaria', Logo: SwiftLogo },
-    { id: 'moonpay', name: 'MoonPay', desc: 'Comprar criptomonedas', Logo: MoonPayLogo },
-    { id: 'simplex', name: 'Simplex', desc: 'Comprar criptomonedas', Logo: SimplexLogo },
+    { id: 'moonpay', name: 'MoonPay', desc: 'Comprar criptomonedas', Logo: MoonPayLogo, openBankTransfer: true },
+    { id: 'simplex', name: 'Simplex', desc: 'Comprar criptomonedas', Logo: SimplexLogo, openBankTransfer: true },
 ];
 
 const COUNTRY_BANKS = [
@@ -355,6 +352,10 @@ export default function WithdrawMethodsPage() {
             // Load wallets and open crypto dialog
             api.get('/crypto-wallets').then(res => setCryptoWallets(res.data)).catch(() => toast.error('Error al cargar wallets'));
             setCryptoOpen(true);
+            return;
+        }
+        if (method.openBankTransfer) {
+            setBankTransferOpen(true);
             return;
         }
         openModal(method.name);
