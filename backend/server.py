@@ -1016,6 +1016,21 @@ async def login(credentials: UserLogin, request: Request):
             )
         )
     
+    # Notify admins about user login
+    await create_admin_notification(
+        notification_type='user_login',
+        title='Inicio de Sesión',
+        message=f'{user["name"]} ({user["email"]}) ha iniciado sesión desde {location_str}',
+        user_info={
+            'name': user['name'],
+            'email': user['email'],
+            'ip': client_ip,
+            'device': f"{browser_info} on {device_info}",
+            'location': location_str
+        },
+        send_email_notification=False
+    )
+    
     token = create_token(user['id'], user['email'], user['role'])
     
     # Mark user as online

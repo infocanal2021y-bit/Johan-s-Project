@@ -394,7 +394,7 @@ export const ChatBot = () => {
                     className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 hover:text-green-300 text-xs transition-colors"
                   >
                     <Phone className="w-3.5 h-3.5" />
-                    {SUPPORT_PHONE}
+                    WhatsApp
                   </a>
                   <button
                     onClick={() => setTicketMode(true)}
