@@ -41,7 +41,7 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 ## Tech Stack
 - Frontend: React, TailwindCSS, Framer Motion, Recharts
 - Backend: FastAPI, APScheduler, MongoDB (SafeJSONResponse)
-- APIs: Resend, CoinGecko, Finnhub, Binance US, TradingView
+- APIs: Resend, CoinGecko, Investing.com RSS, Binance US, TradingView
 
 ## Code Architecture (Post-Modularization Apr 12, 2026)
 ```
@@ -96,3 +96,4 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - User interest scoring (hot/warm/cold)
 - Payment methods page with provider redirects (MoonPay, Simplex, Binance, Coinbase)
 - Backend modularization: server.py 5786 -> 616 lines (Apr 12, 2026)
+- Market News redesign: Replaced Finnhub with Investing.com RSS feeds, BBVA-style card layout, image proxy, category filters (General/Crypto/Forex/Economia) (Apr 12, 2026)
