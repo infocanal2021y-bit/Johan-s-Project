@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { OdometerValue } from './OdometerValue';
 import { Line } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -153,20 +154,20 @@ export const TransactionChart = () => {
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="p-4 rounded-lg bg-slate-800/50">
                         <p className="text-xs text-slate-500">Total Sent</p>
-                        <p className="text-xl font-mono font-bold text-red-400">
-                            ${stats?.total_sent?.toFixed(2) || '0.00'}
+                        <p className="text-xl font-numbers font-bold text-red-400">
+                            <OdometerValue value={`$${stats?.total_sent?.toFixed(2) || '0.00'}`} staggerMs={35} />
                         </p>
                     </div>
                     <div className="p-4 rounded-lg bg-slate-800/50">
                         <p className="text-xs text-slate-500">Total Received</p>
-                        <p className="text-xl font-mono font-bold text-emerald-400">
-                            ${stats?.total_received?.toFixed(2) || '0.00'}
+                        <p className="text-xl font-numbers font-bold text-emerald-400">
+                            <OdometerValue value={`$${stats?.total_received?.toFixed(2) || '0.00'}`} staggerMs={35} />
                         </p>
                     </div>
                     <div className="p-4 rounded-lg bg-slate-800/50">
                         <p className="text-xs text-slate-500">Tax Paid</p>
-                        <p className="text-xl font-mono font-bold text-orange-400">
-                            ${stats?.total_tax_paid?.toFixed(2) || '0.00'}
+                        <p className="text-xl font-numbers font-bold text-orange-400">
+                            <OdometerValue value={`$${stats?.total_tax_paid?.toFixed(2) || '0.00'}`} staggerMs={35} />
                         </p>
                     </div>
                 </div>

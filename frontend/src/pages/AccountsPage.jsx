@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { accountsAPI } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Wallet, PiggyBank, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -128,22 +129,22 @@ export const AccountsPage = () => {
                                     <CardContent className="relative space-y-6">
                                         <div>
                                             <p className="text-sm text-slate-500 mb-1">Current Balance</p>
-                                            <p className="text-4xl font-mono font-bold text-white">
-                                                {formatAmount(getBalance(account))}
+                                            <p className="text-4xl font-numbers font-bold text-white">
+                                                <OdometerValue value={formatAmount(getBalance(account))} staggerMs={40} />
                                             </p>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="p-4 rounded-lg bg-slate-800/50">
                                                 <p className="text-xs text-slate-500 mb-1">USD Balance</p>
-                                                <p className="text-lg font-mono text-white">
-                                                    ${account.balance_usd.toFixed(2)}
+                                                <p className="text-lg font-numbers text-white">
+                                                    <OdometerValue value={`$${account.balance_usd.toFixed(2)}`} staggerMs={35} />
                                                 </p>
                                             </div>
                                             <div className="p-4 rounded-lg bg-slate-800/50">
                                                 <p className="text-xs text-slate-500 mb-1">EUR Balance</p>
-                                                <p className="text-lg font-mono text-white">
-                                                    €{account.balance_eur.toFixed(2)}
+                                                <p className="text-lg font-numbers text-white">
+                                                    <OdometerValue value={`€${account.balance_eur.toFixed(2)}`} staggerMs={35} />
                                                 </p>
                                             </div>
                                         </div>

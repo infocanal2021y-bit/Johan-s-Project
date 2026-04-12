@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { BalanceCard } from '../components/dashboard/BalanceCard';
 import { RecentTransactions } from '../components/dashboard/RecentTransactions';
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { TransactionChart } from '../components/dashboard/TransactionChart';
 import { UserLevelCard } from '../components/dashboard/UserLevelCard';
 import { accountsAPI, transactionsAPI, kycAPI } from '../lib/api';
@@ -305,12 +306,11 @@ export const DashboardPage = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
                                     <p className="text-xs text-slate-500">Saldo Invertido</p>
-                                    <p className="text-xl font-bold text-emerald-400 font-mono mt-1" data-testid="invested-balance">
-                                        {currency === 'EUR' ? '€' : '$'}
-                                        {(currency === 'EUR'
+                                    <p className="text-xl font-bold text-emerald-400 font-numbers mt-1" data-testid="invested-balance">
+                                        <OdometerValue value={`${currency === 'EUR' ? '€' : '$'}${(currency === 'EUR'
                                             ? (investHistory?.total_invested_eur || 0)
                                             : (investHistory?.total_invested_usd || 0)
-                                        ).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                        ).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`} staggerMs={40} />
                                     </p>
                                 </div>
                                 <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
@@ -322,8 +322,8 @@ export const DashboardPage = () => {
                                 </div>
                                 <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
                                     <p className="text-xs text-slate-500">Operaciones</p>
-                                    <p className="text-xl font-bold text-white font-mono mt-1" data-testid="investment-count">
-                                        {investHistory?.count || 0}
+                                    <p className="text-xl font-bold text-white font-numbers mt-1" data-testid="investment-count">
+                                        <OdometerValue value={String(investHistory?.count || 0)} staggerMs={40} />
                                     </p>
                                 </div>
                             </div>

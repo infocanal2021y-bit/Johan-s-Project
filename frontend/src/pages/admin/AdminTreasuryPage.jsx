@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { OdometerValue } from '../../components/dashboard/OdometerValue';
 import { Vault, DollarSign, Euro, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
@@ -99,8 +100,8 @@ export const AdminTreasuryPage = () => {
                                             </div>
                                             <span className="text-slate-400 font-medium">USD Balance</span>
                                         </div>
-                                        <p className="text-4xl font-mono font-bold text-white">
-                                            ${formatAmount(treasury?.balance_usd)}
+                                        <p className="text-4xl font-numbers font-bold text-white">
+                                            <OdometerValue value={`$${formatAmount(treasury?.balance_usd)}`} staggerMs={40} />
                                         </p>
                                         <p className="text-sm text-slate-500 mt-2">US Dollar</p>
                                     </div>
@@ -113,8 +114,8 @@ export const AdminTreasuryPage = () => {
                                             </div>
                                             <span className="text-slate-400 font-medium">EUR Balance</span>
                                         </div>
-                                        <p className="text-4xl font-mono font-bold text-white">
-                                            €{formatAmount(treasury?.balance_eur)}
+                                        <p className="text-4xl font-numbers font-bold text-white">
+                                            <OdometerValue value={`€${formatAmount(treasury?.balance_eur)}`} staggerMs={40} />
                                         </p>
                                         <p className="text-sm text-slate-500 mt-2">Euro</p>
                                     </div>

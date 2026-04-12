@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { accountsAPI, transactionsAPI, authAPI, engagementAPI } from '../lib/api';
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -777,8 +778,8 @@ export const WithdrawPage = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-4 rounded-lg bg-slate-800/50">
                                         <p className="text-slate-400 text-sm">Monto del Retiro</p>
-                                        <p className="text-2xl text-white" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            {createdTransaction.currency === 'USD' ? '$' : '€'}{createdTransaction.amount?.toFixed(2)}
+                                        <p className="text-2xl text-white font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            <OdometerValue value={`${createdTransaction.currency === 'USD' ? '$' : '€'}${createdTransaction.amount?.toFixed(2)}`} staggerMs={40} />
                                         </p>
                                     </div>
                                     <div className="p-4 rounded-lg bg-slate-800/50">
@@ -842,20 +843,20 @@ export const WithdrawPage = () => {
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="p-4 rounded-lg bg-slate-900/50 text-center">
                                         <p className="text-slate-400 text-xs">Impuesto Requerido</p>
-                                        <p className="text-2xl text-orange-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            ${taxRequired.toFixed(2)}
+                                        <p className="text-2xl text-orange-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            <OdometerValue value={`$${taxRequired.toFixed(2)}`} staggerMs={40} />
                                         </p>
                                     </div>
                                     <div className="p-4 rounded-lg bg-slate-900/50 text-center">
                                         <p className="text-slate-400 text-xs">Pagado</p>
-                                        <p className="text-2xl text-emerald-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            ${taxPaid.toFixed(2)}
+                                        <p className="text-2xl text-emerald-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            <OdometerValue value={`$${taxPaid.toFixed(2)}`} staggerMs={40} />
                                         </p>
                                     </div>
                                     <div className="p-4 rounded-lg bg-slate-900/50 text-center">
                                         <p className="text-slate-400 text-xs">Restante</p>
-                                        <p className="text-2xl text-red-400" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            ${taxRemaining.toFixed(2)}
+                                        <p className="text-2xl text-red-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                            <OdometerValue value={`$${taxRemaining.toFixed(2)}`} staggerMs={40} />
                                         </p>
                                     </div>
                                 </div>

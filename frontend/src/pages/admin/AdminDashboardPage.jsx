@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
 import { Card, CardContent } from '../../components/ui/card';
+import { OdometerValue } from '../../components/dashboard/OdometerValue';
 import { Users, FileText, Clock, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -80,8 +81,8 @@ export const AdminDashboardPage = () => {
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-sm text-slate-500">{stat.title}</p>
-                                            <p className="text-3xl font-heading font-bold text-white mt-2">
-                                                {loading ? '...' : stat.value}
+                                            <p className="text-3xl font-numbers font-bold text-white mt-2">
+                                                {loading ? '...' : <OdometerValue value={String(stat.value)} staggerMs={50} />}
                                             </p>
                                         </div>
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorClasses[stat.color]}`}>

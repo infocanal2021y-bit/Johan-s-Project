@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Button } from '../components/ui/button';
 import { TrendingUp, Calculator, DollarSign, Calendar, PiggyBank, BarChart3 } from 'lucide-react';
@@ -183,8 +184,8 @@ export const InvestmentSimulatorPage = () => {
                             <Card className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-500/30">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-emerald-400/70">Proyección a 1 Año</p>
-                                    <p className="text-3xl text-emerald-400 mt-2" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                        {formatCurrency(calculateGrowth(12))}
+                                    <p className="text-3xl text-emerald-400 mt-2 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                        <OdometerValue value={formatCurrency(calculateGrowth(12))} staggerMs={40} />
                                     </p>
                                     <p className="text-xs text-slate-500 mt-2">
                                         Ganancia: {formatCurrency(calculateGrowth(12) - calculateTotalContributed(12))}
@@ -195,8 +196,8 @@ export const InvestmentSimulatorPage = () => {
                             <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/30">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-blue-400/70">Proyección a 5 Años</p>
-                                    <p className="text-3xl text-blue-400 mt-2" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                        {formatCurrency(calculateGrowth(60))}
+                                    <p className="text-3xl text-blue-400 mt-2 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                        <OdometerValue value={formatCurrency(calculateGrowth(60))} staggerMs={40} />
                                     </p>
                                     <p className="text-xs text-slate-500 mt-2">
                                         Ganancia: {formatCurrency(calculateGrowth(60) - calculateTotalContributed(60))}
@@ -207,8 +208,8 @@ export const InvestmentSimulatorPage = () => {
                             <Card className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border-orange-500/30">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-orange-400/70">Proyección a 10 Años</p>
-                                    <p className="text-3xl text-orange-400 mt-2" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                        {formatCurrency(calculateGrowth(120))}
+                                    <p className="text-3xl text-orange-400 mt-2 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                        <OdometerValue value={formatCurrency(calculateGrowth(120))} staggerMs={40} />
                                     </p>
                                     <p className="text-xs text-slate-500 mt-2">
                                         Ganancia: {formatCurrency(calculateGrowth(120) - calculateTotalContributed(120))}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Card, CardContent } from '../components/ui/card';
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { marketAPI } from '../lib/api';
@@ -103,25 +104,25 @@ export const CryptoMarketPage = () => {
                     <Card className="bg-slate-900 border-slate-800">
                         <CardContent className="pt-4 pb-4">
                             <p className="text-xs text-slate-500 uppercase tracking-wider">Market Cap Global</p>
-                            <p className="text-lg font-bold font-mono text-white mt-1">{formatNumber(totalMcap)}</p>
+                            <p className="text-lg font-bold font-numbers text-white mt-1"><OdometerValue value={formatNumber(totalMcap)} staggerMs={35} /></p>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">
                         <CardContent className="pt-4 pb-4">
                             <p className="text-xs text-slate-500 uppercase tracking-wider">Volumen 24h</p>
-                            <p className="text-lg font-bold font-mono text-cyan-400 mt-1">{formatNumber(totalVol)}</p>
+                            <p className="text-lg font-bold font-numbers text-cyan-400 mt-1"><OdometerValue value={formatNumber(totalVol)} staggerMs={35} /></p>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">
                         <CardContent className="pt-4 pb-4">
                             <p className="text-xs text-slate-500 uppercase tracking-wider">Dominancia BTC</p>
-                            <p className="text-lg font-bold font-mono text-orange-400 mt-1">{btcDom.toFixed(1)}%</p>
+                            <p className="text-lg font-bold font-numbers text-orange-400 mt-1"><OdometerValue value={`${btcDom.toFixed(1)}%`} staggerMs={35} /></p>
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">
                         <CardContent className="pt-4 pb-4">
                             <p className="text-xs text-slate-500 uppercase tracking-wider">Criptomonedas Activas</p>
-                            <p className="text-lg font-bold font-mono text-violet-400 mt-1">{activeCryptos.toLocaleString()}</p>
+                            <p className="text-lg font-bold font-numbers text-violet-400 mt-1"><OdometerValue value={activeCryptos.toLocaleString()} staggerMs={35} /></p>
                         </CardContent>
                     </Card>
                 </div>

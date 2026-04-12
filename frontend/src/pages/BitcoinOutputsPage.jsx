@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/button';
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 import {
     Bitcoin, RefreshCw, ExternalLink, Copy, Check, Search,
     TrendingUp, Clock, Shield, Loader2, ChevronDown, ChevronUp,
@@ -189,15 +190,15 @@ export default function BitcoinOutputsPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
                             <p className="text-slate-500 text-[10px] uppercase tracking-wider">Precio BTC</p>
-                            <p className="text-orange-400 text-lg font-bold font-mono mt-1">{formatUSD(data.btc_price)}</p>
+                            <p className="text-orange-400 text-lg font-bold font-numbers mt-1"><OdometerValue value={formatUSD(data.btc_price)} staggerMs={35} /></p>
                         </div>
                         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
                             <p className="text-slate-500 text-[10px] uppercase tracking-wider">Ultimo Bloque</p>
-                            <p className="text-white text-lg font-bold font-mono mt-1">#{data.block_height?.toLocaleString()}</p>
+                            <p className="text-white text-lg font-bold font-numbers mt-1"><OdometerValue value={`#${data.block_height?.toLocaleString()}`} staggerMs={35} /></p>
                         </div>
                         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
                             <p className="text-slate-500 text-[10px] uppercase tracking-wider">Outputs Encontrados</p>
-                            <p className="text-emerald-400 text-lg font-bold font-mono mt-1">{data.total_found}</p>
+                            <p className="text-emerald-400 text-lg font-bold font-numbers mt-1"><OdometerValue value={String(data.total_found)} staggerMs={35} /></p>
                         </div>
                         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
                             <p className="text-slate-500 text-[10px] uppercase tracking-wider">Rango USD</p>

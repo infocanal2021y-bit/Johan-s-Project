@@ -4,8 +4,7 @@ import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { TrendingUp, TrendingDown, PieChart, Wallet, RefreshCw, Plus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/ui/button';
-
-// Simulated portfolio data
+import { OdometerValue } from '../components/dashboard/OdometerValue';
 const INITIAL_PORTFOLIO = [
     { id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', amount: 0.5, avgBuyPrice: 45000, currentPrice: 67234.50, icon: '₿', color: 'orange' },
     { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', amount: 5.2, avgBuyPrice: 2800, currentPrice: 3456.78, icon: 'Ξ', color: 'blue' },
@@ -139,8 +138,8 @@ export const PortfolioPage = () => {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-slate-500 text-sm">Costo Total</p>
-                                    <p className="text-white text-xl" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                        {formatCurrency(totalCost)}
+                                    <p className="text-white text-xl font-numbers" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                                        <OdometerValue value={formatCurrency(totalCost)} staggerMs={35} />
                                     </p>
                                     <p className="text-xs text-slate-500 mt-2">
                                         Última actualización: {lastUpdate.toLocaleTimeString()}
