@@ -102,3 +102,4 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Bug fix: admin/add-balance 500 error (missing _build_balance_email_content import in admin.py) (Apr 12, 2026)
 - Admin Users page: Renamed to 'Usuarios Registrados', added 'Agregar Saldo' button per user, search bar, full Spanish translation (Apr 12, 2026)
 - Spanish translation: Batch translation of toasts, labels, badges, status text across all pages (Apr 12, 2026)
+- Fix: Production build cache corruption resolved, webpack compile verified (Apr 12, 2026)
