@@ -7,6 +7,12 @@ class UserCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=6)
+    phone: Optional[str] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
+    investment_year: Optional[str] = None
+    owner_deceased: Optional[bool] = False
+    relationship: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr

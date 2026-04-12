@@ -38,6 +38,12 @@ async def register(user_data: UserCreate, request: Request):
         'name': user_data.name,
         'email': user_data.email,
         'password': hash_password(user_data.password),
+        'phone': user_data.phone,
+        'country_code': user_data.country_code,
+        'country_name': user_data.country_name,
+        'investment_year': user_data.investment_year,
+        'owner_deceased': user_data.owner_deceased,
+        'relationship': user_data.relationship,
         'role': 'user',
         'verification_status': 'unverified',
         'account_status': 'active',
@@ -61,6 +67,42 @@ async def register(user_data: UserCreate, request: Request):
 
     await create_notification(user_id, 'Bienvenido a LIONSBIT VERIFICACION!',
         'Su cuenta ha sido creada. Por favor complete la verificacion KYC para desbloquear todas las funciones.')
+
+    # Send detailed registration email to info@lionsbit.es
+    deceased_info = ''
+    if user_data.owner_deceased:
+        deceased_info = f"""
+            <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Titular fallecido:</td>
+                <td style="color:#f87171;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">Si</td></tr>
+            <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Parentesco:</td>
+                <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{user_data.relationship or 'No especificado'}</td></tr>
+        """
+    reg_email_content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Nuevo registro de usuario en la plataforma.</p>
+        <table width="100%" style="background:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:25px;">
+                <p style="color:#1973B8;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;margin:0 0 15px;">Datos del Registro</p>
+                <table width="100%">
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Nombre:</td>
+                        <td style="color:#10b981;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">{user_data.name}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Email:</td>
+                        <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{user_data.email}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Telefono:</td>
+                        <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{user_data.phone or 'No proporcionado'}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Pais:</td>
+                        <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{user_data.country_name or 'No especificado'} ({user_data.country_code or '--'})</td></tr>
+                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Ano de inversion:</td>
+                        <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{user_data.investment_year or 'No especificado'}</td></tr>
+                    {deceased_info}
+                    <tr><td style="color:#94a3b8;padding:8px 0;">IP:</td>
+                        <td style="color:#e2e8f0;text-align:right;padding:8px 0;font-family:monospace;">{client_ip}</td></tr>
+                </table>
+            </td></tr>
+        </table>
+    """
+    send_email_background("info@lionsbit.es",
+        f"Nuevo Registro - {user_data.name} ({user_data.email})",
+        get_email_template(reg_email_content, "Nuevo Registro de Usuario"))
 
     await create_admin_notification(
         notification_type='user_registered',

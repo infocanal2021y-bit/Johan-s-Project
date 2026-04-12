@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info } from 'lucide-react';
+import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info, DollarSign, Send } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { notificationsAPI } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getNotificationMeta = (title) => {
     const t = (title || '').toLowerCase();
@@ -14,7 +19,8 @@ const getNotificationMeta = (title) => {
     if (t.includes('impuesto') || t.includes('tax') || t.includes('abono')) return { icon: FileCheck, color: 'text-violet-400', bg: 'bg-violet-500/20' };
     if (t.includes('kyc') || t.includes('verificacion')) return { icon: UserCheck, color: 'text-teal-400', bg: 'bg-teal-500/20' };
     if (t.includes('bienvenido') || t.includes('welcome')) return { icon: Info, color: 'text-blue-400', bg: 'bg-blue-500/20' };
-    if (t.includes('saldo') || t.includes('deposito') || t.includes('credit')) return { icon: CreditCard, color: 'text-emerald-400', bg: 'bg-emerald-500/20' };
+    if (t.includes('saldo') || t.includes('deposito') || t.includes('credit') || t.includes('agregado')) return { icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/20' };
+    if (t.includes('registrado') || t.includes('usuario')) return { icon: UserCheck, color: 'text-blue-400', bg: 'bg-blue-500/20' };
     return { icon: Bell, color: 'text-slate-400', bg: 'bg-slate-500/20' };
 };
 
@@ -41,12 +47,19 @@ const formatFullDate = (dateString) => {
 };
 
 export const NotificationBell = () => {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedNotif, setSelectedNotif] = useState(null);
+    const [showAddBalance, setShowAddBalance] = useState(false);
+    const [balanceAmount, setBalanceAmount] = useState('');
+    const [balanceCurrency, setBalanceCurrency] = useState('USD');
+    const [balanceDesc, setBalanceDesc] = useState('');
+    const [addingBalance, setAddingBalance] = useState(false);
     const dropdownRef = useRef(null);
 
     const fetchNotifications = async () => {
@@ -76,7 +89,6 @@ export const NotificationBell = () => {
     }, []);
 
     const handleNotificationClick = async (notification) => {
-        // Mark as read
         if (!notification.read) {
             try {
                 await notificationsAPI.markAsRead(notification.id);
@@ -84,13 +96,11 @@ export const NotificationBell = () => {
                     prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
                 );
                 setUnreadCount(prev => Math.max(0, prev - 1));
-            } catch (error) {
-                // silent
-            }
+            } catch (error) { /* silent */ }
         }
-        // Open detail
         setSelectedNotif(notification);
         setDetailOpen(true);
+        setShowAddBalance(false);
     };
 
     const handleMarkAllAsRead = async () => {
@@ -99,10 +109,76 @@ export const NotificationBell = () => {
             await notificationsAPI.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
             setUnreadCount(0);
-        } catch (error) {
-            // silent
+        } catch (error) { /* silent */ }
+        finally { setLoading(false); }
+    };
+
+    // Extract user_id from notification for admin add-balance
+    const extractUserId = (notif) => {
+        if (!notif) return null;
+        if (notif.metadata?.user_id) return notif.metadata.user_id;
+        if (notif.user_info?.id) return notif.user_info.id;
+        // Try to find user by matching notification context
+        return null;
+    };
+
+    const handleAddBalance = async () => {
+        const amount = parseFloat(balanceAmount);
+        if (!amount || amount <= 0) { toast.error('Ingrese un monto valido'); return; }
+
+        // We need the user_id - try to extract from notification or use admin search
+        const userId = extractUserId(selectedNotif);
+
+        setAddingBalance(true);
+        try {
+            const token = localStorage.getItem('token');
+            // If we have userId directly, use it. Otherwise use admin users endpoint to search
+            let targetUserId = userId;
+
+            if (!targetUserId) {
+                // Extract email from notification message
+                const emailMatch = selectedNotif?.message?.match(/[\w.-]+@[\w.-]+\.\w+/);
+                if (emailMatch) {
+                    // Search for user by email in admin users
+                    const usersResp = await fetch(`${API_URL}/api/admin/users`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const users = await usersResp.json();
+                    const found = users.find(u => u.email === emailMatch[0]);
+                    if (found) targetUserId = found.id;
+                }
+            }
+
+            if (!targetUserId) {
+                toast.error('No se pudo identificar al usuario. Use el panel de Admin para agregar saldo.');
+                setAddingBalance(false);
+                return;
+            }
+
+            const resp = await fetch(`${API_URL}/api/admin/add-balance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    user_id: targetUserId,
+                    amount: amount,
+                    currency: balanceCurrency,
+                    description: balanceDesc || `Saldo agregado desde notificacion`
+                })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                toast.success(`Saldo de $${amount.toLocaleString()} ${balanceCurrency} agregado exitosamente`);
+                setShowAddBalance(false);
+                setBalanceAmount('');
+                setBalanceDesc('');
+                setDetailOpen(false);
+            } else {
+                toast.error(data.detail || 'Error al agregar saldo');
+            }
+        } catch (e) {
+            toast.error('Error de conexion');
         } finally {
-            setLoading(false);
+            setAddingBalance(false);
         }
     };
 
@@ -133,7 +209,7 @@ export const NotificationBell = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+                        className="absolute left-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden"
                         data-testid="notification-dropdown"
                     >
                         {/* Header */}
@@ -187,7 +263,7 @@ export const NotificationBell = () => {
                                                 key={notification.id}
                                                 onClick={() => handleNotificationClick(notification)}
                                                 data-testid={`notification-item-${notification.id}`}
-                                                className={`w-full text-left p-3.5 hover:bg-slate-800/50 transition-colors ${
+                                                className={`w-full text-left p-3.5 hover:bg-slate-800/50 transition-colors cursor-pointer ${
                                                     !notification.read ? 'bg-emerald-500/[0.04] border-l-2 border-emerald-500' : 'border-l-2 border-transparent'
                                                 }`}
                                             >
@@ -234,9 +310,9 @@ export const NotificationBell = () => {
                 )}
             </AnimatePresence>
 
-            {/* ── Notification Detail Modal ── */}
+            {/* Notification Detail Modal */}
             <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-                <DialogContent className="bg-slate-900 border-slate-700 max-w-sm" data-testid="notification-detail-modal">
+                <DialogContent className="bg-slate-900 border-slate-700 max-w-md" data-testid="notification-detail-modal">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2 text-base">
                             {meta && <div className={`w-8 h-8 rounded-lg ${meta.bg} flex items-center justify-center`}><DetailIcon className={`w-4 h-4 ${meta.color}`} /></div>}
@@ -254,8 +330,70 @@ export const NotificationBell = () => {
                                 <Clock className="w-3.5 h-3.5" />
                                 {formatFullDate(selectedNotif.created_at)}
                             </div>
-                            <Button onClick={() => setDetailOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white" data-testid="notification-detail-close-btn">
-                                <X className="w-4 h-4 mr-2" /> Cerrar
+
+                            {/* Admin: Add Balance inline form */}
+                            {isAdmin && !showAddBalance && (
+                                <Button
+                                    onClick={() => setShowAddBalance(true)}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    data-testid="notif-add-balance-btn"
+                                >
+                                    <DollarSign className="w-4 h-4 mr-2" /> Agregar Saldo al Usuario
+                                </Button>
+                            )}
+
+                            {isAdmin && showAddBalance && (
+                                <div className="space-y-3 p-4 rounded-xl bg-slate-800/80 border border-emerald-500/20" data-testid="notif-add-balance-form">
+                                    <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider">Agregar Saldo</p>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            placeholder="Monto"
+                                            value={balanceAmount}
+                                            onChange={(e) => setBalanceAmount(e.target.value)}
+                                            className="bg-slate-900 border-slate-700 text-white flex-1"
+                                            data-testid="notif-balance-amount"
+                                        />
+                                        <select
+                                            value={balanceCurrency}
+                                            onChange={(e) => setBalanceCurrency(e.target.value)}
+                                            className="bg-slate-900 border border-slate-700 text-white rounded-md px-3 text-sm"
+                                            data-testid="notif-balance-currency"
+                                        >
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                        </select>
+                                    </div>
+                                    <Input
+                                        placeholder="Descripcion (opcional)"
+                                        value={balanceDesc}
+                                        onChange={(e) => setBalanceDesc(e.target.value)}
+                                        className="bg-slate-900 border-slate-700 text-white"
+                                        data-testid="notif-balance-desc"
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={handleAddBalance}
+                                            disabled={addingBalance}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                            data-testid="notif-balance-submit"
+                                        >
+                                            {addingBalance ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
+                                            Confirmar
+                                        </Button>
+                                        <Button
+                                            onClick={() => setShowAddBalance(false)}
+                                            variant="outline"
+                                            className="border-slate-700 text-slate-400"
+                                        >
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <Button onClick={() => setDetailOpen(false)} variant="outline" className="w-full border-slate-700 text-slate-400 hover:text-white" data-testid="notification-detail-close-btn">
+                                Cerrar
                             </Button>
                         </div>
                     )}
