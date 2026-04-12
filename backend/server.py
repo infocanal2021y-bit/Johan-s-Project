@@ -3769,6 +3769,13 @@ async def admin_get_treasury(admin: dict = Depends(get_admin_user)):
     treasury_updated = await db.accounts.find_one({'id': GOVERNMENT_TREASURY_ID}, {'_id': 0})
     return treasury_updated
 
+@api_router.post("/admin/daily-summary")
+async def admin_trigger_daily_summary(admin: dict = Depends(get_admin_user)):
+    """Manually trigger the daily activity summary email"""
+    await process_daily_admin_summary()
+    return {'message': 'Resumen diario enviado exitosamente'}
+
+
 @api_router.get("/admin/kyc/pending")
 async def admin_get_pending_kyc(admin: dict = Depends(get_admin_user)):
     """Get users with pending KYC"""
@@ -5259,9 +5266,120 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Run every 24 hours to send daily summary to admin
+    scheduler.add_job(
+        process_daily_admin_summary,
+        IntervalTrigger(hours=24),
+        id='daily_admin_summary',
+        name='Send daily activity summary to admin',
+        replace_existing=True
+    )
+
     
     scheduler.start()
-    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min)")
+    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h)")
+
+
+async def process_daily_admin_summary():
+    """Send daily activity summary email to all admins"""
+    logging.info("Running daily admin summary job...")
+    try:
+        now = datetime.now(timezone.utc)
+        yesterday = (now - timedelta(hours=24)).isoformat()
+        date_label = now.strftime("%d/%m/%Y")
+
+        # Gather stats
+        new_users = await db.users.count_documents({'created_at': {'$gte': yesterday}})
+        logins_today = await db.login_history.count_documents({'logged_in_at': {'$gte': yesterday}})
+        
+        new_withdrawals = await db.transactions.count_documents({
+            'transaction_type': 'withdraw', 'created_at': {'$gte': yesterday}
+        })
+        completed_withdrawals = await db.transactions.count_documents({
+            'transaction_type': 'withdraw', 'status': 'completed', 'completed_at': {'$gte': yesterday}
+        })
+        pending_withdrawals = await db.transactions.count_documents({
+            'transaction_type': 'withdraw', 'status': {'$in': ['pending', 'pending_tax', 'processing']}
+        })
+        
+        tax_payments = await db.transactions.aggregate([
+            {'$match': {'transaction_type': 'withdraw', 'tax_paid': {'$gt': 0}}},
+            {'$group': {'_id': None, 'total': {'$sum': '$tax_paid'}}}
+        ]).to_list(1)
+        total_tax = tax_payments[0]['total'] if tax_payments else 0
+        
+        crypto_payments_count = await db.crypto_payments.count_documents({'created_at': {'$gte': yesterday}})
+        
+        kyc_submitted = await db.users.count_documents({
+            'verification_status': 'pending_verification',
+            'kyc_submitted_at': {'$gte': yesterday}
+        })
+        
+        support_tickets = await db.support_tickets.count_documents({'created_at': {'$gte': yesterday}})
+        
+        total_users = await db.users.count_documents({})
+        total_balance_agg = await db.accounts.aggregate([
+            {'$group': {'_id': None, 'usd': {'$sum': '$balance_usd'}, 'eur': {'$sum': '$balance_eur'}}}
+        ]).to_list(1)
+        total_usd = total_balance_agg[0]['usd'] if total_balance_agg else 0
+        total_eur = total_balance_agg[0]['eur'] if total_balance_agg else 0
+
+        def stat_row(label, value, color="#e2e8f0"):
+            return f"""
+            <tr>
+                <td style="color: #94a3b8; padding: 10px 15px; border-bottom: 1px solid #1e293b; font-size: 14px;">{label}</td>
+                <td style="color: {color}; font-weight: bold; text-align: right; padding: 10px 15px; border-bottom: 1px solid #1e293b; font-size: 16px; font-family: 'Outfit', monospace;">{value}</td>
+            </tr>"""
+
+        content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            <strong style="color: #1973B8;">Administrador</strong>, aquí está el resumen de actividad del día <strong>{date_label}</strong>:
+        </p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
+            <tr><td style="padding: 20px;">
+                <p style="color: #1973B8; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 0; font-weight: 600;">Actividad (últimas 24h)</p>
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    {stat_row("Nuevos registros", new_users, "#49A2E0")}
+                    {stat_row("Inicios de sesión", logins_today)}
+                    {stat_row("Solicitudes KYC", kyc_submitted, "#a78bfa")}
+                    {stat_row("Tickets de soporte", support_tickets, "#fbbf24")}
+                </table>
+            </td></tr>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
+            <tr><td style="padding: 20px;">
+                <p style="color: #1973B8; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 0; font-weight: 600;">Retiros</p>
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    {stat_row("Nuevos retiros (hoy)", new_withdrawals, "#f97316")}
+                    {stat_row("Completados (hoy)", completed_withdrawals, "#22c55e")}
+                    {stat_row("Pendientes (total)", pending_withdrawals, "#ef4444")}
+                    {stat_row("Pagos crypto (hoy)", crypto_payments_count, "#8b5cf6")}
+                </table>
+            </td></tr>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
+            <tr><td style="padding: 20px;">
+                <p style="color: #1973B8; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 0; font-weight: 600;">Estado General</p>
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    {stat_row("Total usuarios", total_users)}
+                    {stat_row("Balance total USD", f"${total_usd:,.2f}", "#22c55e")}
+                    {stat_row("Balance total EUR", f"€{total_eur:,.2f}", "#3b82f6")}
+                    {stat_row("Tax recaudado (total)", f"${total_tax:,.2f}", "#f59e0b")}
+                </table>
+            </td></tr>
+        </table>
+        """
+
+        html = get_email_template(content, f"Resumen Diario - {date_label}")
+        await send_email(ADMIN_EMAIL, f"Resumen Diario {date_label} - LIONSBIT VERIFICACION", html)
+        logging.info(f"Daily admin summary sent for {date_label}")
+        
+    except Exception as e:
+        logging.error(f"Error sending daily admin summary: {e}")
+
 
 async def process_incomplete_followups():
     """Send follow-up emails (1h) and notifications (24h) for incomplete processes"""
