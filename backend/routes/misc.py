@@ -212,59 +212,109 @@ async def get_market_trending():
         logging.error(f"CoinGecko trending error: {e}")
         return _market_cache['trending'] or {'coins': [], 'categories': []}
 
-# ==================== FINNHUB NEWS ====================
+# ==================== INVESTING.COM RSS NEWS ====================
 
-FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "")
-_news_cache = {'general': None, 'general_ts': 0, 'crypto': None, 'crypto_ts': 0}
+import feedparser
+from xml.etree import ElementTree
+
+RSS_FEEDS = {
+    'general': 'https://www.investing.com/rss/news_25.rss',
+    'crypto': 'https://www.investing.com/rss/news_301.rss',
+    'forex': 'https://www.investing.com/rss/news_1.rss',
+    'economy': 'https://www.investing.com/rss/news_14.rss',
+}
+
+_news_cache = {}
+
+def _parse_rss_date(date_str):
+    """Parse RSS date string to ISO format"""
+    try:
+        dt = datetime.strptime(date_str.strip(), "%Y-%m-%d %H:%M:%S")
+        return dt.replace(tzinfo=timezone.utc).isoformat()
+    except Exception:
+        return datetime.now(timezone.utc).isoformat()
 
 @router.get("/market/news")
 async def get_market_news(category: str = "general"):
-    """Get market news from Finnhub (cached 300s). category: general, crypto, forex, merger"""
-    if category not in ("general", "crypto", "forex", "merger"):
+    """Get market news from Investing.com RSS feeds (cached 300s)"""
+    if category not in RSS_FEEDS:
         category = "general"
-    
-    cache_key = category
+
     now = datetime.now(timezone.utc).timestamp()
-    
-    if cache_key not in _news_cache:
-        _news_cache[cache_key] = None
-        _news_cache[f'{cache_key}_ts'] = 0
-    
-    if _news_cache.get(cache_key) and (now - _news_cache.get(f'{cache_key}_ts', 0)) < 300:
+    cache_key = f"rss_{category}"
+
+    if cache_key in _news_cache and (now - _news_cache.get(f'{cache_key}_ts', 0)) < 300:
         return _news_cache[cache_key]
-    
+
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
-                "https://finnhub.io/api/v1/news",
-                params={'category': category, 'token': FINNHUB_API_KEY}
+                RSS_FEEDS[category],
+                headers={'User-Agent': 'Mozilla/5.0 (LIONSBIT/1.0)'}
             )
             if resp.status_code == 200:
-                articles = resp.json()
+                root = ElementTree.fromstring(resp.text)
+                items = root.findall('.//item')
                 result = []
-                for a in articles[:30]:
+                for item in items[:30]:
+                    title = item.findtext('title', '')
+                    link = item.findtext('link', '')
+                    pub_date = item.findtext('pubDate', '')
+                    author = item.findtext('author', 'Investing.com')
+                    image = ''
+                    enclosure = item.find('enclosure')
+                    if enclosure is not None:
+                        image = enclosure.get('url', '')
+
                     result.append({
-                        'id': a.get('id'),
-                        'headline': a.get('headline', ''),
-                        'summary': a.get('summary', ''),
-                        'source': a.get('source', ''),
-                        'url': a.get('url', ''),
-                        'image': a.get('image', ''),
-                        'category': a.get('category', category),
-                        'datetime': a.get('datetime', 0),
-                        'related': a.get('related', ''),
+                        'id': hash(link),
+                        'headline': title,
+                        'summary': '',
+                        'source': author,
+                        'url': link,
+                        'image': image,
+                        'category': category,
+                        'datetime_iso': _parse_rss_date(pub_date),
+                        'related': '',
                     })
+
                 _news_cache[cache_key] = result
                 _news_cache[f'{cache_key}_ts'] = now
                 return result
-            elif resp.status_code == 429:
-                logging.warning("Finnhub rate limited")
             else:
-                logging.warning(f"Finnhub news status {resp.status_code}")
-            return _news_cache.get(cache_key) or []
+                logging.warning(f"RSS feed status {resp.status_code} for {category}")
+                return _news_cache.get(cache_key) or []
     except Exception as e:
-        logging.error(f"Finnhub news error: {e}")
+        logging.error(f"RSS news error: {e}")
         return _news_cache.get(cache_key) or []
+
+
+@router.get("/market/news/image-proxy")
+async def proxy_news_image(url: str = Query(...)):
+    """Proxy external news images to avoid CORS/referrer blocking"""
+    if not url or not url.startswith('https://i-invdn-com.investing.com/'):
+        from fastapi import Response
+        return Response(status_code=400)
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Referer': 'https://www.investing.com/'
+            })
+            if resp.status_code == 200:
+                from fastapi.responses import Response as FastResponse
+                content_type = resp.headers.get('content-type', 'image/jpeg')
+                return FastResponse(
+                    content=resp.content,
+                    media_type=content_type,
+                    headers={'Cache-Control': 'public, max-age=86400'}
+                )
+    except Exception:
+        pass
+    from fastapi import Response
+    return Response(status_code=404)
+
+
 
 
 # ==================== BINANCE INTEGRATION ====================
