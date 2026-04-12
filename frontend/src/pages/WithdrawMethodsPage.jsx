@@ -191,8 +191,8 @@ const CRYPTO_PROVIDERS = [
 ];
 
 const BANK_PROVIDERS = [
-    { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account', disabled: true },
-    { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/', disabled: true },
+    { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account', disabled: true, brandColor: '#E94560' },
+    { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/', disabled: true, brandColor: '#EC0000' },
 ];
 
 const COUNTRY_BANKS = [
@@ -284,29 +284,39 @@ const SectionTitle = ({ icon: Icon, title, iconColor }) => (
 );
 
 /* ─── Provider Card (External Link) ─── */
-const ProviderCard = ({ name, desc, Logo, url, testId, disabled }) => {
+const ProviderCard = ({ name, desc, Logo, url, testId, disabled, brandColor }) => {
     const Wrapper = disabled ? 'div' : 'a';
     const wrapperProps = disabled ? {} : { href: url, target: '_blank', rel: 'noopener noreferrer' };
     return (
         <Wrapper
             {...wrapperProps}
             data-testid={testId}
-            className={`group flex flex-col items-center rounded-2xl border p-5 transition-all duration-300 focus:outline-none ${
+            className={`group flex flex-col items-center rounded-2xl border p-5 transition-all duration-300 focus:outline-none relative overflow-hidden ${
                 disabled
-                    ? 'bg-slate-800/30 border-slate-700/30 opacity-60 cursor-not-allowed'
+                    ? 'bg-slate-800/30 border-slate-700/30 cursor-default'
                     : 'bg-slate-800/60 border-slate-700/50 hover:border-slate-500/70 hover:bg-slate-800/90 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus:ring-2 focus:ring-cyan-500/40'
             }`}
+            style={disabled && brandColor ? { '--bar-color': brandColor } : undefined}
         >
-            <div className={`w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md transition-shadow ${disabled ? 'grayscale' : 'group-hover:shadow-lg'}`}>
+            <div className={`w-full aspect-[1.6] rounded-xl overflow-hidden mb-4 shadow-md transition-all duration-[3s] ${disabled ? 'saturate-[0.15] opacity-70' : 'group-hover:shadow-lg'}`}
+                style={disabled ? { animation: 'cardColorIn 8s ease-in-out infinite alternate' } : undefined}
+            >
                 <Logo />
             </div>
-            <span className="text-white text-sm font-semibold text-center leading-tight">{name}</span>
+            <span className={`text-sm font-semibold text-center leading-tight ${disabled ? 'text-slate-400' : 'text-white'}`}>{name}</span>
             <span className="text-slate-500 text-xs mt-1 text-center leading-snug">{desc}</span>
             {disabled ? (
-                <span className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-slate-700/30 border border-slate-600/30 text-slate-500 text-xs font-semibold">
-                    <Clock className="w-3.5 h-3.5" />
-                    Proximo a habilitar
-                </span>
+                <div className="mt-3 w-full">
+                    <div className="flex items-center justify-center gap-1.5 mb-2">
+                        <span className="text-slate-500 text-[11px] font-medium">Proximo a habilitar</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-slate-700/50 overflow-hidden">
+                        <div className="h-full rounded-full" style={{
+                            animation: 'loadingBar 3s ease-in-out infinite',
+                            background: 'linear-gradient(90deg, transparent, var(--bar-color, #1973B8), transparent)',
+                        }} />
+                    </div>
+                </div>
             ) : (
                 <span className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold group-hover:bg-emerald-500/20 transition-colors">
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -545,7 +555,7 @@ export default function WithdrawMethodsPage() {
                     <SectionTitle icon={Building2} title="Cuenta Bancaria / Alternativa" iconColor="bg-cyan-500/20 text-cyan-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="bank-providers-grid">
                         {BANK_PROVIDERS.map((p) => (
-                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} disabled={p.disabled} />
+                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} disabled={p.disabled} brandColor={p.brandColor} />
                         ))}
                     </div>
                 </section>

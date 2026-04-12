@@ -161,6 +161,21 @@ code {
     box-shadow: 0 0 20px rgba(25, 115, 184, 0.4);
 }
 
+/* Loading bar animation for disabled providers */
+@keyframes loadingBar {
+    0% { width: 0%; opacity: 0; }
+    10% { opacity: 1; }
+    50% { width: 70%; opacity: 1; }
+    90% { opacity: 1; }
+    100% { width: 100%; opacity: 0; }
+}
+
+@keyframes cardColorIn {
+    0% { filter: saturate(0.1) brightness(0.7); }
+    50% { filter: saturate(0.6) brightness(0.9); }
+    100% { filter: saturate(0.1) brightness(0.7); }
+}
+
 .glow-emerald-subtle {
     box-shadow: 0 0 40px rgba(25, 115, 184, 0.15);
 }
