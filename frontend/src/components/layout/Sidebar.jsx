@@ -45,12 +45,13 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
+import { ChevronDown } from 'lucide-react';
 
 export const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
     const navigate = useNavigate();
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [activeTx, setActiveTx] = useState(null); // 'paid' | 'received' | null
+    const [accountsOpen, setAccountsOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -70,7 +71,6 @@ export const Sidebar = () => {
     // User links - split for blockchain insertion after Accounts
     const userLinksTop = [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-        { to: '/accounts', icon: Wallet, label: 'Accounts' },
     ];
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
@@ -163,54 +163,58 @@ export const Sidebar = () => {
                 </p>
                 <NavLinks links={userLinksTop} />
 
-                {/* Blockchain Transaction Buttons - right after Accounts */}
-                <div className="mx-2 space-y-1" data-testid="sidebar-blockchain-tx">
+                {/* Accounts Collapsible with Tx Pagadas / Tx Recibidas */}
+                <div className="space-y-0.5" data-testid="sidebar-accounts-group">
                     <button
-                        onClick={() => setActiveTx(activeTx === 'paid' ? null : 'paid')}
-                        data-testid="sidebar-tx-paid-btn"
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors duration-200 ${
-                            activeTx === 'paid'
-                                ? 'bg-orange-500/10 text-orange-400'
-                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                        }`}
-                    >
-                        <ArrowUpRight className="w-5 h-5 flex-shrink-0" />
-                        <span style={{ fontWeight: 500 }}>Tx Pagadas</span>
-                    </button>
-                    {activeTx === 'paid' && (
-                        <a href="https://gz.blockchair.com/bitcoin/inputs/" target="_blank" rel="noopener noreferrer"
-                            data-testid="sidebar-tx-paid-link"
-                            className="flex items-center gap-2 mx-4 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium hover:bg-orange-500/15 transition-colors"
-                        >
-                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="truncate">blockchair.com/bitcoin/inputs</span>
-                        </a>
-                    )}
-                    <button
-                        onClick={() => setActiveTx(activeTx === 'received' ? null : 'received')}
-                        data-testid="sidebar-tx-received-btn"
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors duration-200 ${
-                            activeTx === 'received'
+                        onClick={() => setAccountsOpen(!accountsOpen)}
+                        data-testid="sidebar-accounts-toggle"
+                        className={`w-full flex items-center gap-3 px-4 py-4 lg:py-3 rounded-lg transition-colors duration-200 touch-manipulation ${
+                            accountsOpen
                                 ? 'bg-emerald-500/10 text-emerald-400'
-                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800'
                         }`}
                     >
-                        <ArrowDownLeft className="w-5 h-5 flex-shrink-0" />
-                        <span style={{ fontWeight: 500 }}>Tx Recibidas</span>
+                        <Wallet className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm lg:text-base flex-1 text-left" style={{ fontWeight: 500 }}>Accounts</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${accountsOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    {activeTx === 'received' && (
-                        <a href="https://gz.blockchair.com/bitcoin/outputs/" target="_blank" rel="noopener noreferrer"
-                            data-testid="sidebar-tx-received-link"
-                            className="flex items-center gap-2 mx-4 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 transition-colors"
-                        >
-                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="truncate">blockchair.com/bitcoin/outputs</span>
-                        </a>
-                    )}
-                    {activeTx && (
-                        <p className="px-4 pt-1 text-[10px] text-slate-600 leading-tight">
-                            Registros publicos de la red blockchain verificables externamente.
-                        </p>
+
+                    {accountsOpen && (
+                        <div className="ml-4 pl-4 border-l border-slate-800 space-y-0.5" data-testid="sidebar-accounts-submenu">
+                            <NavLink
+                                to="/accounts"
+                                onClick={() => setMobileOpen(false)}
+                                data-testid="sidebar-accounts-link"
+                                className={({ isActive }) =>
+                                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-200 ${
+                                        isActive
+                                            ? 'bg-emerald-500/10 text-emerald-400'
+                                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                    }`
+                                }
+                            >
+                                <Wallet className="w-4 h-4 flex-shrink-0" />
+                                <span style={{ fontWeight: 500 }}>Mis Cuentas</span>
+                            </NavLink>
+                            <button
+                                onClick={() => window.open('https://gz.blockchair.com/bitcoin/inputs/', '_blank')}
+                                data-testid="sidebar-tx-paid-btn"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-orange-500/10 hover:text-orange-400 transition-colors duration-200"
+                            >
+                                <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
+                                <span style={{ fontWeight: 500 }}>Tx Pagadas</span>
+                                <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+                            </button>
+                            <button
+                                onClick={() => window.open('https://gz.blockchair.com/bitcoin/outputs/', '_blank')}
+                                data-testid="sidebar-tx-received-btn"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors duration-200"
+                            >
+                                <ArrowDownLeft className="w-4 h-4 flex-shrink-0" />
+                                <span style={{ fontWeight: 500 }}>Tx Recibidas</span>
+                                <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+                            </button>
+                        </div>
                     )}
                 </div>
 
