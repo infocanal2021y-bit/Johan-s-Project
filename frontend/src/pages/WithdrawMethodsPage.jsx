@@ -59,8 +59,14 @@ const CryptoLogo = () => (
 const PayPalLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#003087" />
-        <text x="390" y="260" textAnchor="middle" dominantBaseline="central" fill="#009CDE" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="110">Pay</text>
-        <text x="390" y="260" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="110" dx="95">Pal</text>
+        <g transform="translate(180, 120) scale(2.8)">
+            <path d="M111.8 24.5H86.3c-1.7 0-3.2 1.2-3.4 2.9L73.7 91c-.2 1.2.7 2.3 2 2.3h13.1c1.2 0 2.2-.9 2.4-2l2.6-16.4c.2-1.7 1.7-2.9 3.4-2.9h7.9c16.5 0 26-8 28.5-23.7 1.1-6.9.04-12.3-3.2-16.1C126.7 27.6 120.3 24.5 111.8 24.5z M114.9 47.7c-1.4 8.9-8.2 8.9-14.8 8.9h-3.8l2.6-16.7c.2-1 1-1.8 2-1.8h1.7c4.5 0 8.7 0 10.9 2.6C114.8 42.2 115.4 44.5 114.9 47.7z" fill="#009CDE"/>
+            <path d="M163.1 47.3h-13.2c-1 0-1.8.7-2 1.8l-.6 3.7-.9-1.3c-2.8-4.1-9.1-5.5-15.4-5.5-14.4 0-26.7 10.9-29.1 26.2-1.3 7.6.5 14.9 4.9 20 4.1 4.7 9.9 6.6 16.8 6.6 11.9 0 18.5-7.6 18.5-7.6l-.6 3.7c-.2 1.2.7 2.3 2 2.3h11.9c1.7 0 3.2-1.2 3.4-2.9l7.1-45C165.3 48.4 164.4 47.3 163.1 47.3z M146.9 73.8c-1.3 7.5-7.3 12.5-14.9 12.5-3.8 0-6.9-1.2-8.8-3.6-1.9-2.3-2.6-5.6-2-9.2 1.2-7.4 7.4-12.6 14.8-12.6 3.7 0 6.8 1.3 8.8 3.6C146.8 67 147.5 70.3 146.9 73.8z" fill="#009CDE"/>
+        </g>
+        <g transform="translate(180, 120) scale(2.8)">
+            <path d="M111.8 24.5H86.3c-1.7 0-3.2 1.2-3.4 2.9L73.7 91c-.2 1.2.7 2.3 2 2.3h13.1c1.2 0 2.2-.9 2.4-2l2.6-16.4c.2-1.7 1.7-2.9 3.4-2.9h7.9c16.5 0 26-8 28.5-23.7 1.1-6.9.04-12.3-3.2-16.1C126.7 27.6 120.3 24.5 111.8 24.5z" fill="none"/>
+        </g>
+        <text x="390" y="380" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="50" opacity="0.8">PayPal</text>
     </svg>
 );
 
@@ -75,6 +81,26 @@ const SwiftLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#E31837" />
         <text x="390" y="270" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="130">SWIFT</text>
+    </svg>
+);
+
+const MoonPayLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#7B61FF" />
+        <circle cx="330" cy="250" r="90" fill="#A78BFA" opacity="0.6" />
+        <circle cx="370" cy="250" r="90" fill="white" />
+        <circle cx="340" cy="250" r="90" fill="#7B61FF" />
+        <text x="530" y="260" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="56">Moon</text>
+        <text x="530" y="315" textAnchor="middle" dominantBaseline="central" fill="#C4B5FD" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="56">Pay</text>
+    </svg>
+);
+
+const SimplexLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <rect width="780" height="500" rx="40" fill="#0D47A1" />
+        <polygon points="200,150 300,350 100,350" fill="#29B6F6" opacity="0.6" />
+        <polygon points="260,120 380,370 140,370" fill="#4FC3F7" opacity="0.4" />
+        <text x="490" y="260" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="80">Simplex</text>
     </svg>
 );
 
@@ -106,17 +132,19 @@ const ColombiaFlag = () => (
 
 /* ─── Data ─── */
 const PAYMENT_METHODS = [
+    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Agente autorizado', Logo: BankTransferLogo, special: true },
     { id: 'visa', name: 'Visa', desc: 'Tarjeta de credito / debito', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', desc: 'Tarjeta de credito / debito', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
-    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Agente autorizado', Logo: BankTransferLogo, special: true },
 ];
 
 const INTERNATIONAL_METHODS = [
     { id: 'crypto', name: 'Criptomonedas', desc: 'Bitcoin / USDT / ETH', Logo: CryptoLogo },
-    { id: 'paypal', name: 'PayPal', desc: 'Pago digital global', Logo: PayPalLogo },
     { id: 'wise', name: 'Wise', desc: 'Transferencia internacional', Logo: WiseLogo },
+    { id: 'paypal', name: 'PayPal', desc: 'Pago digital global', Logo: PayPalLogo },
     { id: 'swift', name: 'SWIFT', desc: 'Transferencia interbancaria', Logo: SwiftLogo },
+    { id: 'moonpay', name: 'MoonPay', desc: 'Comprar criptomonedas', Logo: MoonPayLogo },
+    { id: 'simplex', name: 'Simplex', desc: 'Comprar criptomonedas', Logo: SimplexLogo },
 ];
 
 const COUNTRY_BANKS = [
@@ -129,6 +157,13 @@ const COUNTRY_BANKS = [
             { name: 'Citibanamex', color: '#056DAE' },
             { name: 'HSBC Mexico', color: '#DB0011' },
         ],
+        altPayments: [
+            { name: 'OXXO', color: '#CC0000' },
+            { name: 'SPEI', color: '#004B93' },
+            { name: 'Mercado Pago', color: '#009EE3' },
+            { name: '7-Eleven', color: '#008558' },
+            { name: 'Coppel', color: '#FFD100' },
+        ],
     },
     {
         id: 'chile', name: 'Bancos de Chile', Flag: ChileFlag,
@@ -139,6 +174,13 @@ const COUNTRY_BANKS = [
             { name: 'Scotiabank Chile', color: '#EC111A' },
             { name: 'Itau Chile', color: '#003A70' },
         ],
+        altPayments: [
+            { name: 'Mercado Pago', color: '#009EE3' },
+            { name: 'MACH', color: '#6C63FF' },
+            { name: 'Khipu', color: '#8347AD' },
+            { name: 'Multicaja', color: '#E91E63' },
+            { name: 'Servipag', color: '#0055A5' },
+        ],
     },
     {
         id: 'colombia', name: 'Bancos de Colombia', Flag: ColombiaFlag,
@@ -148,6 +190,13 @@ const COUNTRY_BANKS = [
             { name: 'Davivienda', color: '#ED1C24' },
             { name: 'BBVA Colombia', color: '#004B93' },
             { name: 'Banco de Occidente', color: '#003F72' },
+        ],
+        altPayments: [
+            { name: 'Nequi', color: '#E91E63' },
+            { name: 'Daviplata', color: '#ED1C24' },
+            { name: 'PSE', color: '#003893' },
+            { name: 'Efecty', color: '#FFDD00' },
+            { name: 'Baloto', color: '#E74C3C' },
         ],
     },
 ];
@@ -467,6 +516,27 @@ export default function WithdrawMethodsPage() {
                                                         <span className="text-slate-600 text-[11px]">Seleccionar</span>
                                                     </button>
                                                 ))}
+                                                {country.altPayments && country.altPayments.length > 0 && (
+                                                    <>
+                                                        <div className="px-4 py-2 bg-slate-800/80 border-y border-slate-700/50">
+                                                            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Pagos alternativos</p>
+                                                        </div>
+                                                        {country.altPayments.map((alt, j) => (
+                                                            <button
+                                                                key={alt.name}
+                                                                onClick={() => handleBankClick(alt.name)}
+                                                                data-testid={`alt-item-${country.id}-${j}`}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors border-b border-slate-800/50 last:border-b-0"
+                                                            >
+                                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${alt.color}18` }}>
+                                                                    <Wallet className="w-3.5 h-3.5" style={{ color: alt.color }} />
+                                                                </div>
+                                                                <span className="text-slate-200 text-sm font-medium text-left flex-1">{alt.name}</span>
+                                                                <span className="text-slate-600 text-[11px]">Seleccionar</span>
+                                                            </button>
+                                                        ))}
+                                                    </>
+                                                )}
                                             </div>
                                         </motion.div>
                                     )}
