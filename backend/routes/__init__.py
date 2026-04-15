@@ -8,6 +8,7 @@ from routes.transactions import router as transactions_router
 from routes.notifications import router as notifications_router
 from routes.admin import router as admin_router
 from routes.misc import router as misc_router
+from routes.trading import router as trading_router
 
 
 def register_routes(api_router: APIRouter):
@@ -19,3 +20,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(notifications_router, tags=["notifications"])
     api_router.include_router(admin_router, tags=["admin"])
     api_router.include_router(misc_router, tags=["misc"])
+    api_router.include_router(trading_router, tags=["trading"])

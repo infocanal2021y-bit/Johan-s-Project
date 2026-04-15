@@ -41,7 +41,8 @@ import {
     ArrowUpRight,
     ArrowDownLeft,
     ExternalLink,
-    Hash
+    Hash,
+    LineChart
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -71,6 +72,7 @@ export const Sidebar = () => {
     // User links - split for blockchain insertion after Accounts
     const userLinksTop = [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
     ];
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
