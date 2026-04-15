@@ -103,3 +103,5 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Admin Users page: Renamed to 'Usuarios Registrados', added 'Agregar Saldo' button per user, search bar, full Spanish translation (Apr 12, 2026)
 - Spanish translation: Batch translation of toasts, labels, badges, status text across all pages (Apr 12, 2026)
 - Fix: Production build cache corruption resolved, webpack compile verified (Apr 12, 2026)
+- Fix: .gitignore was blocking .env files from deploy — cleaned and fixed (Apr 12, 2026)
+- Trading Demo module: Full simulated trading with 6 assets (EURUSD, GBPUSD, USDJPY, BTCUSD, ETHUSD, XAUUSD), $10K demo balance, BUY/SELL, live P/L, positions/history, currency converter, Pro Mode teaser (Apr 15, 2026)
