@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import api from '../lib/api';
+import { CandlestickChart } from '../components/trading/CandlestickChart';
 
 const SYMBOLS = [
     { id: 'EURUSD', label: 'EUR/USD', flag: 'EU', category: 'forex' },
@@ -185,38 +186,44 @@ export const TradingDemoPage = () => {
                         <ConverterCard />
                     </div>
 
-                    {/* Center: Price + Order */}
+                    {/* Center: Chart + Price + Order */}
                     <div className="lg:col-span-5 space-y-4">
-                        {/* Active Symbol Display */}
-                        <Card className="bg-slate-900/70 border-slate-800" data-testid="price-display">
-                            <CardContent className="p-5">
-                                <div className="flex items-center justify-between mb-4">
+                        {/* Candlestick Chart */}
+                        <Card className="bg-slate-900/70 border-slate-800" data-testid="chart-card">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-3">
                                     <div>
-                                        <h2 className="text-white text-xl font-bold">{selInfo?.label}</h2>
+                                        <h2 className="text-white text-lg font-bold">{selInfo?.label}</h2>
                                         <p className="text-slate-500 text-xs">{sel?.name}</p>
                                     </div>
-                                    {sel && (
-                                        <span className={`text-sm font-bold px-3 py-1 rounded-full ${sel.change_pct >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                            {sel.change_pct >= 0 ? '+' : ''}{sel.change_pct}%
-                                        </span>
-                                    )}
+                                    <div className="flex items-center gap-3">
+                                        {sel && (
+                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${sel.change_pct >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                {sel.change_pct >= 0 ? '+' : ''}{sel.change_pct}%
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+
+                                {/* Live Bid/Ask strip */}
                                 {sel && (
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 text-center">
-                                            <p className="text-emerald-400/70 text-[10px] uppercase tracking-wider mb-1">BID (Venta)</p>
-                                            <p className="text-emerald-400 text-2xl font-mono font-bold tabular-nums">{formatPrice(sel.bid, selectedSymbol)}</p>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="flex-1 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2 text-center">
+                                            <span className="text-emerald-400/60 text-[9px] uppercase">BID</span>
+                                            <p className="text-emerald-400 text-lg font-mono font-bold tabular-nums leading-tight">{formatPrice(sel.bid, selectedSymbol)}</p>
                                         </div>
-                                        <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-center">
-                                            <p className="text-red-400/70 text-[10px] uppercase tracking-wider mb-1">ASK (Compra)</p>
-                                            <p className="text-red-400 text-2xl font-mono font-bold tabular-nums">{formatPrice(sel.ask, selectedSymbol)}</p>
+                                        <div className="text-slate-600 text-[10px] text-center">
+                                            <p>Spread</p>
+                                            <p className="text-slate-400">{(sel.ask - sel.bid).toFixed(selectedSymbol === 'USDJPY' ? 3 : 5)}</p>
+                                        </div>
+                                        <div className="flex-1 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2 text-center">
+                                            <span className="text-red-400/60 text-[9px] uppercase">ASK</span>
+                                            <p className="text-red-400 text-lg font-mono font-bold tabular-nums leading-tight">{formatPrice(sel.ask, selectedSymbol)}</p>
                                         </div>
                                     </div>
                                 )}
-                                {/* Spread */}
-                                <div className="mt-3 text-center">
-                                    <span className="text-slate-600 text-[11px]">Spread: <span className="text-slate-400">{sel ? (sel.ask - sel.bid).toFixed(sel.symbol === 'USDJPY' ? 3 : 5) : '—'}</span></span>
-                                </div>
+
+                                <CandlestickChart symbol={selectedSymbol} />
                             </CardContent>
                         </Card>
 

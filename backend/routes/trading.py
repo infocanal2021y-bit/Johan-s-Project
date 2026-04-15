@@ -95,6 +95,59 @@ async def get_all_prices(current_user: dict = Depends(get_current_user)):
     return prices
 
 
+@router.get("/trading/candles")
+async def get_candles(symbol: str = "EURUSD", timeframe: str = "1h", current_user: dict = Depends(get_current_user)):
+    """Generate simulated OHLC candlestick data"""
+    if symbol not in BASE_PRICES:
+        raise HTTPException(400, 'Activo no disponible')
+
+    tf_minutes = {'1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440}.get(timeframe, 60)
+    num_candles = 200
+
+    base = BASE_PRICES[symbol]
+    now = datetime.now(timezone.utc)
+    candles = []
+    price = base * (1 + math.sin(hash(symbol + 'seed') % 100) * 0.01)
+
+    for i in range(num_candles):
+        t = now.timestamp() - (num_candles - i) * tf_minutes * 60
+
+        # Deterministic but varied movement
+        seed_val = t / (tf_minutes * 60)
+        trend = math.sin(seed_val * 0.05 + hash(symbol) % 37) * 0.003
+        vol = math.sin(seed_val * 0.2 + hash(symbol) % 19) * 0.002
+        micro = math.sin(seed_val * 1.3 + hash(symbol) % 7) * 0.001
+
+        change = trend + vol + micro
+        # Add controlled randomness seeded by time
+        r = ((int(t * 1000) + hash(symbol)) % 1000) / 1000.0
+        noise = (r - 0.5) * 0.003
+        change += noise
+
+        open_p = price
+        close_p = open_p * (1 + change)
+
+        # High/Low around open-close range
+        body = abs(close_p - open_p)
+        wick_up = body * (0.3 + (r * 0.7))
+        wick_down = body * (0.3 + ((1 - r) * 0.7))
+
+        high_p = max(open_p, close_p) + wick_up
+        low_p = min(open_p, close_p) - wick_down
+
+        if symbol == 'USDJPY':
+            candles.append({'time': int(t), 'open': round(open_p, 3), 'high': round(high_p, 3), 'low': round(low_p, 3), 'close': round(close_p, 3)})
+        elif symbol in ('BTCUSD', 'ETHUSD', 'XAUUSD'):
+            candles.append({'time': int(t), 'open': round(open_p, 2), 'high': round(high_p, 2), 'low': round(low_p, 2), 'close': round(close_p, 2)})
+        else:
+            candles.append({'time': int(t), 'open': round(open_p, 5), 'high': round(high_p, 5), 'low': round(low_p, 5), 'close': round(close_p, 5)})
+
+        price = close_p
+
+    return {'symbol': symbol, 'timeframe': timeframe, 'candles': candles}
+
+
+
 @router.get("/trading/account")
 async def get_trading_account(current_user: dict = Depends(get_current_user)):
     """Get or create demo trading account for user"""
