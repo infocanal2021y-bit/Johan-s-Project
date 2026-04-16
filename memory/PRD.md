@@ -105,3 +105,5 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Fix: Production build cache corruption resolved, webpack compile verified (Apr 12, 2026)
 - Fix: .gitignore was blocking .env files from deploy — cleaned and fixed (Apr 12, 2026)
 - Trading Demo module: Full simulated trading with 6 assets (EURUSD, GBPUSD, USDJPY, BTCUSD, ETHUSD, XAUUSD), $10K demo balance, BUY/SELL, live P/L, positions/history, currency converter, Pro Mode teaser (Apr 15, 2026)
+- Trading Demo: Added Japanese candlestick chart with lightweight-charts v5.1 (TradingView), 6 timeframes (1M-1D), OHLC endpoint (Apr 15, 2026)
+- Trading Demo: Binance-style visual redesign - dark theme (#0b0e11), gold accents (#F0B90B), exchange layout (chart center, order right, assets top, positions bottom), mobile responsive (Apr 16, 2026)
