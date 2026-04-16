@@ -73,6 +73,7 @@ export const Sidebar = () => {
     const userLinksTop = [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
+        { to: '/advisors', icon: Users, label: 'Asesores y Analistas' },
     ];
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
