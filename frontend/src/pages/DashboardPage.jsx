@@ -296,15 +296,18 @@ export const DashboardPage = () => {
                                                 <div>
                                                     <h2 className="text-white text-xl font-bold tracking-tight">Proximamente: LIONSBIT 2.0</h2>
                                                     <div className="flex items-center gap-2 mt-0.5">
-                                                        <span className="w-2 h-2 bg-[#14549C] rounded-full animate-pulse" />
-                                                        <span className="text-[#14549C] text-xs font-medium">En desarrollo</span>
+                                                        <span className="text-slate-400 text-xs">En colaboracion con</span>
+                                                        <a href="https://www.etoro.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#6cca98] text-xs font-bold hover:underline">
+                                                            eToro
+                                                            <ExternalLink className="w-3 h-3" />
+                                                        </a>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div className="space-y-3 text-slate-300 text-sm leading-relaxed">
                                                 <p>
-                                                    Estamos preparando la nueva version de la plataforma, <strong className="text-white">LIONSBIT 2.0</strong>, que incorporara herramientas avanzadas en metodos de inversion, analisis y gestion financiera.
+                                                    Estamos preparando la nueva version de la plataforma, <strong className="text-white">LIONSBIT 2.0</strong> en colaboracion con <a href="https://www.etoro.com" target="_blank" rel="noopener noreferrer" className="text-[#6cca98] font-bold hover:underline">eToro</a>, que incorporara herramientas avanzadas en metodos de inversion, analisis y gestion financiera.
                                                 </p>
                                                 <p>
                                                     El <strong className="text-emerald-400">metodo real de inversion</strong> sera habilitado proximamente, marcando el inicio de una nueva etapa dentro de la plataforma.
@@ -314,7 +317,7 @@ export const DashboardPage = () => {
                                                 </p>
                                             </div>
 
-                                            <p className="text-xs text-slate-500 italic">Preparate para una nueva generacion de inversion digital.</p>
+                                            <p className="text-xs text-slate-500 italic">Preparate para una nueva generacion de inversion digital con LIONSBIT y <a href="https://www.etoro.com" target="_blank" rel="noopener noreferrer" className="text-[#6cca98] hover:underline">eToro</a>.</p>
 
                                             <div className="flex flex-wrap gap-3 pt-1">
                                                 <Link to="/trading-demo">
@@ -322,6 +325,11 @@ export const DashboardPage = () => {
                                                         <LineChart className="w-4 h-4 mr-2" /> Probar Trading Demo
                                                     </Button>
                                                 </Link>
+                                                <a href="https://www.etoro.com" target="_blank" rel="noopener noreferrer">
+                                                    <Button variant="outline" className="border-[#6cca98]/30 text-[#6cca98] hover:bg-[#6cca98]/10" data-testid="welcome-etoro-btn">
+                                                        <ExternalLink className="w-4 h-4 mr-2" /> Visitar eToro
+                                                    </Button>
+                                                </a>
                                                 <Button
                                                     variant="outline"
                                                     onClick={() => { setShowWelcome(false); localStorage.setItem('lionsbit_2_dismissed', '1'); }}
