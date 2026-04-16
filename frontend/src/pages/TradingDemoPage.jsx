@@ -5,7 +5,8 @@ import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import {
     TrendingUp, BarChart3, X, ArrowUpCircle, ArrowDownCircle, RefreshCw,
-    History, AlertTriangle, Wallet, Loader2, Zap, ArrowRightLeft, Lock
+    History, AlertTriangle, Wallet, Loader2, Zap, ArrowRightLeft, Lock,
+    Trophy, GraduationCap, ShieldAlert, Rewind, Target, BookOpen, CheckCircle, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../lib/api';
@@ -42,6 +43,18 @@ export const TradingDemoPage = () => {
     const [tradeLoading, setTradeLoading] = useState(false);
     const [showTransfer, setShowTransfer] = useState(false);
     const [showPro, setShowPro] = useState(false);
+    const [stopLoss, setStopLoss] = useState('');
+    const [takeProfit, setTakeProfit] = useState('');
+    const [stats, setStats] = useState(null);
+    const [challenges, setChallenges] = useState([]);
+    const [learning, setLearning] = useState([]);
+    const [riskData, setRiskData] = useState(null);
+    const [selectedLesson, setSelectedLesson] = useState(null);
+    const [replayMode, setReplayMode] = useState(false);
+    const [replayCandles, setReplayCandles] = useState([]);
+    const [replayIdx, setReplayIdx] = useState(0);
+    const [replayPlaying, setReplayPlaying] = useState(false);
+    const replayRef = useRef(null);
     const intervalRef = useRef(null);
 
     const fetchData = useCallback(async () => {
@@ -63,20 +76,32 @@ export const TradingDemoPage = () => {
         try { const res = await api.get('/trading/history'); setHistory(res.data); } catch { /* silent */ }
     }, []);
 
+    const fetchExtra = useCallback(async () => {
+        try {
+            const [s, c, l] = await Promise.all([
+                api.get('/trading/stats'), api.get('/trading/challenges'), api.get('/trading/learning')
+            ]);
+            setStats(s.data); setChallenges(c.data); setLearning(l.data);
+        } catch { /* silent */ }
+    }, []);
+
     useEffect(() => {
-        fetchData(); fetchHistory();
+        fetchData(); fetchHistory(); fetchExtra();
         intervalRef.current = setInterval(fetchData, 3000);
         return () => clearInterval(intervalRef.current);
-    }, [fetchData, fetchHistory]);
+    }, [fetchData, fetchHistory, fetchExtra]);
 
     const openTrade = async (direction) => {
         const lot = parseFloat(lotSize);
         if (!lot || lot < 0.01 || lot > 10) { toast.error('Lote invalido (0.01 - 10.00)'); return; }
         setTradeLoading(true);
         try {
-            const res = await api.post('/trading/open', { symbol: selectedSymbol, direction, lot_size: lot });
+            const payload = { symbol: selectedSymbol, direction, lot_size: lot };
+            if (stopLoss) payload.stop_loss = parseFloat(stopLoss);
+            if (takeProfit) payload.take_profit = parseFloat(takeProfit);
+            const res = await api.post('/trading/open', payload);
             toast.success(res.data.message);
-            fetchData();
+            fetchData(); fetchExtra();
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al abrir operacion'); }
         finally { setTradeLoading(false); }
     };
@@ -86,14 +111,46 @@ export const TradingDemoPage = () => {
             const res = await api.post('/trading/close', { trade_id: tradeId });
             const pl = res.data.profit_loss;
             toast[pl >= 0 ? 'success' : 'error'](`Cerrada: ${pl >= 0 ? '+' : ''}$${pl.toFixed(2)}`);
-            fetchData(); fetchHistory();
+            fetchData(); fetchHistory(); fetchExtra();
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al cerrar'); }
     };
 
     const resetAccount = async () => {
-        try { await api.post('/trading/reset'); toast.success('Cuenta reiniciada a $10,000'); fetchData(); fetchHistory(); }
+        try { await api.post('/trading/reset'); toast.success('Cuenta reiniciada a $10,000'); fetchData(); fetchHistory(); fetchExtra(); }
         catch { toast.error('Error al reiniciar'); }
     };
+
+    const fetchRisk = async () => {
+        try {
+            const params = { symbol: selectedSymbol, direction: 'buy', lot_size: parseFloat(lotSize) || 0.1 };
+            if (stopLoss) params.stop_loss = parseFloat(stopLoss);
+            if (takeProfit) params.take_profit = parseFloat(takeProfit);
+            const res = await api.get('/trading/risk-simulate', { params });
+            setRiskData(res.data);
+        } catch { /* silent */ }
+    };
+
+    const completeLesson = async (moduleId) => {
+        try { await api.post(`/trading/learning/${moduleId}/complete`); fetchExtra(); toast.success('Leccion completada'); }
+        catch { /* silent */ }
+    };
+
+    const startReplay = async () => {
+        try {
+            const res = await api.get('/trading/replay', { params: { symbol: selectedSymbol } });
+            setReplayCandles(res.data.candles); setReplayIdx(30); setReplayMode(true); setReplayPlaying(false);
+        } catch { toast.error('Error al cargar replay'); }
+    };
+
+    const toggleReplayPlay = () => {
+        if (replayPlaying) { clearInterval(replayRef.current); setReplayPlaying(false); return; }
+        setReplayPlaying(true);
+        replayRef.current = setInterval(() => {
+            setReplayIdx(prev => { if (prev >= 199) { clearInterval(replayRef.current); setReplayPlaying(false); return prev; } return prev + 1; });
+        }, 500);
+    };
+
+    useEffect(() => { return () => { if (replayRef.current) clearInterval(replayRef.current); }; }, []);
 
     const sel = prices[selectedSymbol];
     const selInfo = SYMBOLS.find(s => s.id === selectedSymbol);
@@ -221,6 +278,35 @@ export const TradingDemoPage = () => {
                                     className="mt-2 bg-[#1e2329] border-[#2b3139] text-white text-center text-sm font-mono h-9 focus:border-[#F0B90B] focus:ring-[#F0B90B]/20" data-testid="lot-input" />
                             </div>
 
+                            {/* SL / TP */}
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <label className="text-[#f6465d]/70 text-[10px] uppercase flex items-center gap-1 mb-1"><ShieldAlert className="w-3 h-3" /> Stop Loss</label>
+                                    <Input value={stopLoss} onChange={e => setStopLoss(e.target.value)} placeholder="Precio SL"
+                                        className="bg-[#1e2329] border-[#2b3139] text-white text-xs font-mono h-8 focus:border-[#f6465d]" data-testid="sl-input" />
+                                </div>
+                                <div>
+                                    <label className="text-[#0ecb81]/70 text-[10px] uppercase flex items-center gap-1 mb-1"><Target className="w-3 h-3" /> Take Profit</label>
+                                    <Input value={takeProfit} onChange={e => setTakeProfit(e.target.value)} placeholder="Precio TP"
+                                        className="bg-[#1e2329] border-[#2b3139] text-white text-xs font-mono h-8 focus:border-[#0ecb81]" data-testid="tp-input" />
+                                </div>
+                            </div>
+
+                            {/* Risk preview */}
+                            {(stopLoss || takeProfit) && (
+                                <button onClick={fetchRisk} className="w-full text-[10px] text-[#F0B90B]/60 hover:text-[#F0B90B] mb-2 flex items-center justify-center gap-1" data-testid="risk-preview-btn">
+                                    <ShieldAlert className="w-3 h-3" /> Ver analisis de riesgo
+                                </button>
+                            )}
+                            {riskData && (stopLoss || takeProfit) && (
+                                <div className="bg-[#1e2329]/80 rounded-lg p-2 mb-3 text-[10px] space-y-1">
+                                    {riskData.sl_loss != null && <div className="flex justify-between"><span className="text-slate-500">Perdida SL:</span><span className="text-[#f6465d] font-mono">${riskData.sl_loss}</span></div>}
+                                    {riskData.tp_gain != null && <div className="flex justify-between"><span className="text-slate-500">Ganancia TP:</span><span className="text-[#0ecb81] font-mono">+${riskData.tp_gain}</span></div>}
+                                    {riskData.risk_pct != null && <div className="flex justify-between"><span className="text-slate-500">Riesgo:</span><span className={`font-mono ${riskData.risk_pct > 2 ? 'text-[#f6465d]' : 'text-[#0ecb81]'}`}>{riskData.risk_pct}%</span></div>}
+                                    {riskData.rr_ratio != null && <div className="flex justify-between"><span className="text-slate-500">R:R Ratio:</span><span className="text-[#F0B90B] font-mono">1:{riskData.rr_ratio}</span></div>}
+                                </div>
+                            )}
+
                             {/* Buy / Sell buttons */}
                             <div className="grid grid-cols-2 gap-2">
                                 <Button onClick={() => openTrade('buy')} disabled={tradeLoading} data-testid="buy-btn"
@@ -271,14 +357,30 @@ export const TradingDemoPage = () => {
                 {/* ═══ BOTTOM: Positions & History ═══ */}
                 <div className="border-t border-[#1e2329]">
                     {/* Tabs */}
-                    <div className="flex items-center border-b border-[#1e2329] bg-[#0b0e11]">
+                    <div className="flex items-center border-b border-[#1e2329] bg-[#0b0e11] overflow-x-auto scrollbar-hide">
                         <button onClick={() => setActiveTab('positions')} data-testid="tab-positions"
-                            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'positions' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'positions' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
                             Posiciones ({positions.length})
                         </button>
                         <button onClick={() => { setActiveTab('history'); fetchHistory(); }} data-testid="tab-history"
-                            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'history' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'history' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
                             Historial ({history.length})
+                        </button>
+                        <button onClick={() => { setActiveTab('stats'); fetchExtra(); }} data-testid="tab-stats"
+                            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'stats' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            Informe
+                        </button>
+                        <button onClick={() => { setActiveTab('challenges'); fetchExtra(); }} data-testid="tab-challenges"
+                            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'challenges' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            <Trophy className="w-3 h-3" /> Retos
+                        </button>
+                        <button onClick={() => { setActiveTab('learning'); fetchExtra(); }} data-testid="tab-learning"
+                            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'learning' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            <GraduationCap className="w-3 h-3" /> Aprende
+                        </button>
+                        <button onClick={() => { setActiveTab('replay'); startReplay(); }} data-testid="tab-replay"
+                            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'replay' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            <Rewind className="w-3 h-3" /> Replay
                         </button>
                         {positions.length > 0 && activeTab === 'positions' && (
                             <div className="ml-auto pr-4 flex items-center gap-3 text-[11px]">
@@ -291,13 +393,10 @@ export const TradingDemoPage = () => {
                     </div>
 
                     {/* Table content */}
-                    <div className="max-h-[280px] overflow-y-auto">
-                        {activeTab === 'positions' ? (
+                    <div className="max-h-[320px] overflow-y-auto">
+                        {activeTab === 'positions' && (
                             positions.length === 0 ? (
-                                <div className="py-10 text-center">
-                                    <BarChart3 className="w-8 h-8 text-[#2b3139] mx-auto mb-2" />
-                                    <p className="text-slate-600 text-xs">Sin posiciones abiertas</p>
-                                </div>
+                                <div className="py-10 text-center"><BarChart3 className="w-8 h-8 text-[#2b3139] mx-auto mb-2" /><p className="text-slate-600 text-xs">Sin posiciones abiertas</p></div>
                             ) : (
                                 <table className="w-full text-xs">
                                     <thead className="sticky top-0 bg-[#0b0e11]">
@@ -306,6 +405,7 @@ export const TradingDemoPage = () => {
                                             <th className="px-3 py-2 font-medium">Tipo</th>
                                             <th className="px-3 py-2 font-medium">Lote</th>
                                             <th className="px-3 py-2 font-medium">Entrada</th>
+                                            <th className="px-3 py-2 font-medium">SL / TP</th>
                                             <th className="px-3 py-2 font-medium">Actual</th>
                                             <th className="px-3 py-2 font-medium">P/L</th>
                                             <th className="px-3 py-2 font-medium"></th>
@@ -315,70 +415,157 @@ export const TradingDemoPage = () => {
                                         {positions.map(pos => (
                                             <tr key={pos.id} className="border-t border-[#1e2329]/60 hover:bg-[#1e2329]/40 transition-colors" data-testid={`position-${pos.id}`}>
                                                 <td className="px-4 py-2.5 text-white font-medium">{SYMBOLS.find(s => s.id === pos.symbol)?.label}</td>
-                                                <td className="px-3 py-2.5 text-center">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${pos.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>
-                                                        {pos.direction === 'buy' ? 'LONG' : 'SHORT'}
-                                                    </span>
-                                                </td>
+                                                <td className="px-3 py-2.5 text-center"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${pos.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>{pos.direction === 'buy' ? 'LONG' : 'SHORT'}</span></td>
                                                 <td className="px-3 py-2.5 text-center text-slate-400 font-mono">{pos.lot_size}</td>
                                                 <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(pos.entry_price, pos.symbol)}</td>
+                                                <td className="px-3 py-2.5 text-center text-[10px]">
+                                                    {pos.stop_loss ? <span className="text-[#f6465d]">SL:{formatPrice(pos.stop_loss, pos.symbol)}</span> : <span className="text-slate-700">—</span>}
+                                                    {' '}
+                                                    {pos.take_profit ? <span className="text-[#0ecb81]">TP:{formatPrice(pos.take_profit, pos.symbol)}</span> : ''}
+                                                </td>
                                                 <td className="px-3 py-2.5 text-center text-white font-mono">{formatPrice(pos.current_price, pos.symbol)}</td>
-                                                <td className={`px-3 py-2.5 text-center font-mono font-bold ${pos.profit_loss >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
-                                                    {pos.profit_loss >= 0 ? '+' : ''}${pos.profit_loss.toFixed(2)}
-                                                </td>
-                                                <td className="px-3 py-2.5 text-right">
-                                                    <button onClick={() => closeTrade(pos.id)} data-testid={`close-${pos.id}`}
-                                                        className="px-2.5 py-1 rounded bg-[#f6465d]/10 text-[#f6465d] text-[10px] font-bold hover:bg-[#f6465d]/20 transition-colors">
-                                                        Cerrar
-                                                    </button>
-                                                </td>
+                                                <td className={`px-3 py-2.5 text-center font-mono font-bold ${pos.profit_loss >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{pos.profit_loss >= 0 ? '+' : ''}${pos.profit_loss.toFixed(2)}</td>
+                                                <td className="px-3 py-2.5 text-right"><button onClick={() => closeTrade(pos.id)} data-testid={`close-${pos.id}`} className="px-2.5 py-1 rounded bg-[#f6465d]/10 text-[#f6465d] text-[10px] font-bold hover:bg-[#f6465d]/20">Cerrar</button></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             )
-                        ) : (
+                        )}
+
+                        {activeTab === 'history' && (
                             history.length === 0 ? (
-                                <div className="py-10 text-center">
-                                    <History className="w-8 h-8 text-[#2b3139] mx-auto mb-2" />
-                                    <p className="text-slate-600 text-xs">Sin historial</p>
-                                </div>
+                                <div className="py-10 text-center"><History className="w-8 h-8 text-[#2b3139] mx-auto mb-2" /><p className="text-slate-600 text-xs">Sin historial</p></div>
                             ) : (
                                 <table className="w-full text-xs">
                                     <thead className="sticky top-0 bg-[#0b0e11]">
                                         <tr className="text-slate-600 text-[10px] uppercase tracking-wider">
-                                            <th className="px-4 py-2 text-left font-medium">Par</th>
-                                            <th className="px-3 py-2 font-medium">Tipo</th>
-                                            <th className="px-3 py-2 font-medium">Lote</th>
-                                            <th className="px-3 py-2 font-medium">Entrada</th>
-                                            <th className="px-3 py-2 font-medium">Cierre</th>
-                                            <th className="px-3 py-2 font-medium">P/L</th>
-                                            <th className="px-3 py-2 font-medium">Fecha</th>
+                                            <th className="px-4 py-2 text-left font-medium">Par</th><th className="px-3 py-2 font-medium">Tipo</th><th className="px-3 py-2 font-medium">Lote</th>
+                                            <th className="px-3 py-2 font-medium">Entrada</th><th className="px-3 py-2 font-medium">Cierre</th><th className="px-3 py-2 font-medium">Razon</th>
+                                            <th className="px-3 py-2 font-medium">P/L</th><th className="px-3 py-2 font-medium">Fecha</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {history.map(h => (
                                             <tr key={h.id} className="border-t border-[#1e2329]/60 hover:bg-[#1e2329]/40">
                                                 <td className="px-4 py-2.5 text-white font-medium">{SYMBOLS.find(s => s.id === h.symbol)?.label}</td>
-                                                <td className="px-3 py-2.5 text-center">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${h.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>
-                                                        {h.direction === 'buy' ? 'LONG' : 'SHORT'}
-                                                    </span>
-                                                </td>
+                                                <td className="px-3 py-2.5 text-center"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${h.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>{h.direction === 'buy' ? 'LONG' : 'SHORT'}</span></td>
                                                 <td className="px-3 py-2.5 text-center text-slate-400 font-mono">{h.lot_size}</td>
                                                 <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(h.entry_price, h.symbol)}</td>
                                                 <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(h.close_price, h.symbol)}</td>
-                                                <td className={`px-3 py-2.5 text-center font-mono font-bold ${h.profit_loss >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
-                                                    {h.profit_loss >= 0 ? '+' : ''}${h.profit_loss?.toFixed(2)}
-                                                </td>
-                                                <td className="px-3 py-2.5 text-center text-slate-600 text-[10px]">
-                                                    {h.closed_at ? new Date(h.closed_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
-                                                </td>
+                                                <td className="px-3 py-2.5 text-center"><span className={`text-[9px] px-1.5 py-0.5 rounded ${h.close_reason === 'stop_loss' ? 'bg-[#f6465d]/10 text-[#f6465d]' : h.close_reason === 'take_profit' ? 'bg-[#0ecb81]/10 text-[#0ecb81]' : 'bg-slate-800 text-slate-500'}`}>{h.close_reason === 'stop_loss' ? 'SL' : h.close_reason === 'take_profit' ? 'TP' : 'Manual'}</span></td>
+                                                <td className={`px-3 py-2.5 text-center font-mono font-bold ${(h.profit_loss||0) >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{(h.profit_loss||0) >= 0 ? '+' : ''}${h.profit_loss?.toFixed(2)}</td>
+                                                <td className="px-3 py-2.5 text-center text-slate-600 text-[10px]">{h.closed_at ? new Date(h.closed_at).toLocaleDateString('es-ES', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             )
+                        )}
+
+                        {/* ═══ STATS / REPORT ═══ */}
+                        {activeTab === 'stats' && stats && (
+                            <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="stats-panel">
+                                <div className="bg-[#1e2329] rounded-lg p-3 text-center col-span-2 md:col-span-4">
+                                    <div className="flex items-center justify-center gap-4 flex-wrap">
+                                        <div><span className="text-slate-500 text-[10px] block">Perfil</span><span className="text-[#F0B90B] font-bold">{stats.profile}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] block">Riesgo</span><span className={`font-bold ${stats.risk_level === 'Alto' ? 'text-[#f6465d]' : stats.risk_level === 'Medio' ? 'text-[#F0B90B]' : 'text-[#0ecb81]'}`}>{stats.risk_level}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] block">Win Rate</span><span className="text-white font-bold">{stats.win_rate}%</span></div>
+                                        <div><span className="text-slate-500 text-[10px] block">Racha</span><span className="text-[#F0B90B] font-bold">{stats.win_streak}</span></div>
+                                        <div><span className="text-slate-500 text-[10px] block">Favorito</span><span className="text-white font-bold">{stats.favorite_asset || '—'}</span></div>
+                                    </div>
+                                </div>
+                                {[
+                                    ['Total Ops', stats.total_trades, 'text-white'],
+                                    ['Neto P/L', `$${fmtMoney(stats.net_pl)}`, stats.net_pl >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'],
+                                    ['Mejor', `+$${fmtMoney(stats.best_trade)}`, 'text-[#0ecb81]'],
+                                    ['Peor', `$${fmtMoney(stats.worst_trade)}`, 'text-[#f6465d]'],
+                                    ['Ganancias', `$${fmtMoney(stats.total_profit)}`, 'text-[#0ecb81]'],
+                                    ['Perdidas', `$${fmtMoney(stats.total_loss)}`, 'text-[#f6465d]'],
+                                    ['Sem. Ops', stats.weekly_trades, 'text-white'],
+                                    ['Sem. P/L', `$${fmtMoney(stats.weekly_pl)}`, stats.weekly_pl >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'],
+                                ].map(([label, value, color]) => (
+                                    <div key={label} className="bg-[#1e2329] rounded-lg p-3 text-center">
+                                        <p className="text-slate-600 text-[9px] uppercase">{label}</p>
+                                        <p className={`font-mono font-bold text-sm ${color}`}>{value}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* ═══ CHALLENGES ═══ */}
+                        {activeTab === 'challenges' && (
+                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3" data-testid="challenges-panel">
+                                {challenges.map(ch => (
+                                    <div key={ch.id} className={`rounded-lg p-3 border transition-colors ${ch.completed ? 'bg-[#0ecb81]/5 border-[#0ecb81]/30' : 'bg-[#1e2329] border-[#2b3139]'}`}>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            {ch.completed ? <CheckCircle className="w-4 h-4 text-[#0ecb81]" /> : <Trophy className="w-4 h-4 text-[#F0B90B]/40" />}
+                                            <span className={`text-xs font-bold ${ch.completed ? 'text-[#0ecb81]' : 'text-white'}`}>{ch.name}</span>
+                                        </div>
+                                        <p className="text-slate-500 text-[10px] mb-2">{ch.desc}</p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] bg-[#F0B90B]/10 text-[#F0B90B] px-2 py-0.5 rounded font-bold">+{ch.xp} XP</span>
+                                            {ch.completed ? <span className="flex items-center gap-1 text-[9px] text-[#0ecb81]"><Award className="w-3 h-3" />{ch.badge}</span> : <span className="text-slate-700 text-[9px]">Pendiente</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* ═══ LEARNING ═══ */}
+                        {activeTab === 'learning' && (
+                            <div className="p-4" data-testid="learning-panel">
+                                {selectedLesson ? (
+                                    <div>
+                                        <button onClick={() => setSelectedLesson(null)} className="text-[#F0B90B] text-xs mb-3 hover:underline flex items-center gap-1"><X className="w-3 h-3" /> Volver a modulos</button>
+                                        <h3 className="text-white font-bold mb-1">{selectedLesson.title}</h3>
+                                        <p className="text-slate-500 text-[10px] mb-4">{selectedLesson.duration} — Nivel: {selectedLesson.level}</p>
+                                        <div className="bg-[#1e2329] rounded-lg p-4 text-slate-300 text-sm leading-relaxed whitespace-pre-line">{selectedLesson.content}</div>
+                                        {!selectedLesson.completed && (
+                                            <Button onClick={() => { completeLesson(selectedLesson.id); setSelectedLesson({...selectedLesson, completed: true}); }}
+                                                className="mt-4 bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold" data-testid="complete-lesson-btn">
+                                                <CheckCircle className="w-4 h-4 mr-2" /> Marcar como completado
+                                            </Button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                        {learning.map(m => (
+                                            <button key={m.id} onClick={() => setSelectedLesson(m)}
+                                                className={`text-left rounded-lg p-3 border transition-colors hover:border-[#F0B90B]/40 ${m.completed ? 'bg-[#0ecb81]/5 border-[#0ecb81]/30' : 'bg-[#1e2329] border-[#2b3139]'}`} data-testid={`lesson-${m.id}`}>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {m.completed ? <CheckCircle className="w-4 h-4 text-[#0ecb81] flex-shrink-0" /> : <BookOpen className="w-4 h-4 text-[#F0B90B] flex-shrink-0" />}
+                                                    <span className="text-white text-xs font-bold truncate">{m.title}</span>
+                                                </div>
+                                                <p className="text-slate-500 text-[10px]">{m.duration} — {m.level}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ═══ REPLAY ═══ */}
+                        {activeTab === 'replay' && (
+                            <div className="p-4" data-testid="replay-panel">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <button onClick={toggleReplayPlay} data-testid="replay-play-btn"
+                                        className={`px-4 py-2 rounded-lg text-xs font-bold ${replayPlaying ? 'bg-[#f6465d] text-white' : 'bg-[#F0B90B] text-black'}`}>
+                                        {replayPlaying ? 'Pausar' : 'Reproducir'}
+                                    </button>
+                                    <input type="range" min={10} max={199} value={replayIdx}
+                                        onChange={e => { if (!replayPlaying) setReplayIdx(parseInt(e.target.value)); }}
+                                        className="flex-1 accent-[#F0B90B]" data-testid="replay-slider" />
+                                    <span className="text-slate-500 text-xs font-mono">{replayIdx}/200</span>
+                                    <button onClick={startReplay} className="text-slate-500 hover:text-[#F0B90B] text-xs"><RefreshCw className="w-3.5 h-3.5" /></button>
+                                </div>
+                                {replayCandles.length > 0 && (
+                                    <div className="bg-[#0b0e11] rounded-lg overflow-hidden border border-[#1e2329]" style={{height: 200}}>
+                                        <ReplayMiniChart candles={replayCandles.slice(0, replayIdx + 1)} />
+                                    </div>
+                                )}
+                                <p className="text-slate-600 text-[10px] mt-2 text-center">Practica leyendo el grafico. Puedes pausar, rebobinar y analizar patrones.</p>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -466,6 +653,49 @@ const ConverterMini = () => {
             </div>
         </div>
     );
+};
+
+// Replay Mini Chart using canvas
+const ReplayMiniChart = ({ candles }) => {
+    const canvasRef = useRef(null);
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !candles?.length) return;
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.parentElement.clientWidth;
+        const H = canvas.height = 200;
+        ctx.clearRect(0, 0, W, H);
+
+        const prices = candles.flatMap(c => [c.high, c.low]);
+        const minP = Math.min(...prices);
+        const maxP = Math.max(...prices);
+        const range = maxP - minP || 1;
+        const barW = Math.max(2, (W - 20) / candles.length);
+
+        ctx.fillStyle = '#0b0e11';
+        ctx.fillRect(0, 0, W, H);
+
+        candles.forEach((c, i) => {
+            const x = 10 + i * barW;
+            const yO = H - 10 - ((c.open - minP) / range) * (H - 20);
+            const yC = H - 10 - ((c.close - minP) / range) * (H - 20);
+            const yH = H - 10 - ((c.high - minP) / range) * (H - 20);
+            const yL = H - 10 - ((c.low - minP) / range) * (H - 20);
+            const up = c.close >= c.open;
+            ctx.strokeStyle = up ? '#0ecb81' : '#f6465d';
+            ctx.fillStyle = up ? '#0ecb81' : '#f6465d';
+            // Wick
+            ctx.beginPath();
+            ctx.moveTo(x + barW / 2, yH);
+            ctx.lineTo(x + barW / 2, yL);
+            ctx.stroke();
+            // Body
+            const bodyTop = Math.min(yO, yC);
+            const bodyH = Math.max(1, Math.abs(yO - yC));
+            ctx.fillRect(x + 1, bodyTop, Math.max(1, barW - 2), bodyH);
+        });
+    }, [candles]);
+    return <canvas ref={canvasRef} style={{ width: '100%', height: 200 }} />;
 };
 
 export default TradingDemoPage;
