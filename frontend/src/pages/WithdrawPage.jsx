@@ -734,6 +734,8 @@ export const WithdrawPage = () => {
         const taxRequired = createdTransaction.tax_required || 4850;
         const taxPaid = createdTransaction.tax_paid || 0;
         const taxRemaining = Math.max(0, taxRequired - taxPaid);
+        const SUGGESTED_EUR = 2668;
+        const MIN_EUR = 1000;
         
         return (
             <Layout>
@@ -743,9 +745,9 @@ export const WithdrawPage = () => {
                         animate={{ opacity: 1, y: 0 }}
                     >
                         <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                            Solicitud de Retiro Creada
+                            Apelar Retiro
                         </h1>
-                        <p className="text-slate-500 mt-1 font-light">Pendiente de aprobación - Pago de impuesto requerido</p>
+                        <p className="text-slate-500 mt-1 font-light">Realice el abono del impuesto para procesar su solicitud de retiro</p>
                     </motion.div>
 
                     {/* Status Badge */}
@@ -757,7 +759,7 @@ export const WithdrawPage = () => {
                     >
                         <AlertTriangle className="w-5 h-5 text-amber-400" />
                         <span className="text-amber-400 text-sm" style={{ fontWeight: 500 }}>
-                            Pendiente de Aprobación - Favor pagar impuesto para procesar su retiro
+                            Pendiente de Aprobacion — Pago de impuesto requerido para procesar su retiro
                         </span>
                     </motion.div>
 
@@ -823,7 +825,7 @@ export const WithdrawPage = () => {
                         </Card>
                     </motion.div>
 
-                    {/* Tax Payment Required */}
+                    {/* Tax Payment - Appeal Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -833,16 +835,17 @@ export const WithdrawPage = () => {
                             <CardHeader>
                                 <CardTitle className="text-orange-400 flex items-center gap-2" style={{ fontWeight: 700 }}>
                                     <AlertTriangle className="w-5 h-5" />
-                                    Pago de Impuesto Requerido
+                                    Pago de Impuesto — Apelar Retiro
                                 </CardTitle>
                                 <CardDescription className="text-orange-400/70">
-                                    Para procesar su solicitud de retiro, debe abonar el impuesto correspondiente
+                                    Ingrese el monto a abonar para procesar su solicitud de retiro
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="space-y-5">
+                                {/* Tax Summary */}
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="p-4 rounded-lg bg-slate-900/50 text-center">
-                                        <p className="text-slate-400 text-xs">Impuesto Requerido</p>
+                                        <p className="text-slate-400 text-xs">Impuesto Total</p>
                                         <p className="text-2xl text-orange-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                                             <OdometerValue value={`$${taxRequired.toFixed(2)}`} staggerMs={40} />
                                         </p>
@@ -861,17 +864,29 @@ export const WithdrawPage = () => {
                                     </div>
                                 </div>
 
+                                {/* Suggested Amount */}
+                                <div className="p-4 rounded-xl bg-[#14549C]/10 border border-[#14549C]/30">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[#14549C] text-xs font-bold uppercase tracking-wider">Monto Estandar Sugerido</span>
+                                        <span className="text-white text-xl font-bold font-mono">{SUGGESTED_EUR.toLocaleString()} EUR</span>
+                                    </div>
+                                    <p className="text-slate-400 text-xs leading-relaxed">
+                                        El monto estandar del impuesto es de <strong className="text-white">{SUGGESTED_EUR.toLocaleString()} EUR</strong>. Sin embargo, puede realizar un abono parcial a partir de <strong className="text-emerald-400">{MIN_EUR.toLocaleString()} EUR</strong> para apelar su retiro.
+                                    </p>
+                                </div>
+
+                                {/* Min Payment Info */}
                                 <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
                                     <p className="text-cyan-400 text-sm">
                                         <Clock className="w-4 h-4 inline mr-2" />
-                                        Abono mínimo: <strong>$200 USD</strong>. Puede realizar abonos parciales hasta completar el total.
+                                        Abono minimo: <strong>{MIN_EUR.toLocaleString()} EUR</strong>. Puede realizar abonos parciales hasta completar el total.
                                     </p>
                                 </div>
 
                                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                                     <p className="text-red-400 text-sm">
                                         <AlertTriangle className="w-4 h-4 inline mr-2" />
-                                        <strong>Importante:</strong> Si el impuesto no se paga dentro de 72 horas, el retiro será rechazado automáticamente.
+                                        <strong>Importante:</strong> Si el impuesto no se paga dentro de 72 horas, el retiro sera rechazado automaticamente.
                                     </p>
                                 </div>
                             </CardContent>
@@ -986,7 +1001,8 @@ export const WithdrawPage = () => {
                             </p>
                             <ul className="text-amber-300/80 text-sm space-y-1 list-disc list-inside">
                                 <li>Todos los retiros requieren el pago de un impuesto de <strong className="text-amber-400">$4,850 USD</strong></li>
-                                <li>Puede realizar abonos parciales con un mínimo de <strong className="text-amber-400">$200 USD</strong></li>
+                                <li>Monto estandar sugerido: <strong className="text-amber-400">2,668 EUR</strong></li>
+                                <li>Puede realizar abonos parciales con un minimo de <strong className="text-amber-400">1,000 EUR</strong></li>
                                 <li>El pago del impuesto se realiza mediante criptomonedas</li>
                                 <li>Dispone de 72 horas para completar el pago del impuesto</li>
                             </ul>

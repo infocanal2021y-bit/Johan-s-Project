@@ -145,8 +145,8 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
             toast.error('Ingrese un TXID válido (mínimo 10 caracteres)');
             return;
         }
-        if (!amountSent || parseFloat(amountSent) < 200) {
-            toast.error('El monto mínimo es $200 USD');
+        if (!amountSent || parseFloat(amountSent) < 1000) {
+            toast.error('El monto minimo permitido es de 1,000 EUR');
             return;
         }
 
@@ -453,20 +453,20 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
 
                     <div className="space-y-2">
                         <Label className="text-slate-300">
-                            Monto Enviado (USD) <span className="text-red-400">*</span>
+                            Monto Enviado (EUR) <span className="text-red-400">*</span>
                         </Label>
                         <Input
                             type="number"
-                            step="0.01"
-                            min="200"
+                            step="1"
+                            min="1000"
                             value={amountSent}
                             onChange={(e) => setAmountSent(e.target.value)}
-                            placeholder="Mínimo $200 USD"
+                            placeholder="Minimo 1,000 EUR"
                             className="bg-slate-950/50 border-slate-800 text-white font-mono"
                             data-testid="crypto-amount-input"
                         />
-                        {amountSent && parseFloat(amountSent) < 200 && (
-                            <p className="text-red-400 text-xs">Monto mínimo: $200 USD</p>
+                        {amountSent && parseFloat(amountSent) < 1000 && (
+                            <p className="text-red-400 text-xs">El monto minimo permitido es de 1,000 EUR</p>
                         )}
                     </div>
                 </div>
@@ -497,7 +497,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                         onClick={handleSubmit}
-                        disabled={submitting || !txid || txid.length < 10 || !amountSent || parseFloat(amountSent) < 200}
+                        disabled={submitting || !txid || txid.length < 10 || !amountSent || parseFloat(amountSent) < 1000}
                         className={`flex-1 bg-gradient-to-r ${currentCryptoConfig.color} hover:opacity-90 text-white py-5 text-base`}
                         data-testid="submit-crypto-payment-btn"
                     >

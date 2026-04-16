@@ -579,8 +579,8 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
 
 # ==================== TAX PAYMENT ROUTE ====================
 
-# Minimum tax payment amount
-MIN_TAX_PAYMENT = 200.0
+# Minimum tax payment amount (1000 EUR)
+MIN_TAX_PAYMENT = 1000.0
 
 @router.post("/transactions/{transaction_id}/pay-tax")
 async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user: dict = Depends(get_current_user)):
@@ -601,7 +601,7 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     
     # Minimum payment validation
     if tax_payment.amount < MIN_TAX_PAYMENT:
-        raise HTTPException(status_code=400, detail=f'Minimum tax payment is ${MIN_TAX_PAYMENT:.2f} USD')
+        raise HTTPException(status_code=400, detail=f'El monto minimo permitido es de {MIN_TAX_PAYMENT:.0f} EUR')
     
     account = await db.accounts.find_one(
         {'user_id': current_user['id'], 'account_type': 'checking'},
