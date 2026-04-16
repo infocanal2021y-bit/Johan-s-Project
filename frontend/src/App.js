@@ -36,6 +36,7 @@ import CompleteWithdrawalPage from "./pages/CompleteWithdrawalPage";
 import BitcoinOutputsPage from "./pages/BitcoinOutputsPage";
 import { TradingDemoPage } from "./pages/TradingDemoPage";
 import { AdvisorsPage } from "./pages/AdvisorsPage";
+import { InvestingProPage } from "./pages/InvestingProPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -132,6 +133,7 @@ function AppRoutes() {
             <Route path="/bitcoin-outputs" element={<ProtectedRoute><BitcoinOutputsPage /></ProtectedRoute>} />
             <Route path="/trading-demo" element={<ProtectedRoute><TradingDemoPage /></ProtectedRoute>} />
             <Route path="/advisors" element={<ProtectedRoute><AdvisorsPage /></ProtectedRoute>} />
+            <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
