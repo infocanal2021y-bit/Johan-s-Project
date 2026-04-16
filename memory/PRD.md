@@ -108,3 +108,4 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Trading Demo: Added Japanese candlestick chart with lightweight-charts v5.1 (TradingView), 6 timeframes (1M-1D), OHLC endpoint (Apr 15, 2026)
 - Trading Demo: Binance-style visual redesign - dark theme (#0b0e11), gold accents (#F0B90B), exchange layout (chart center, order right, assets top, positions bottom), mobile responsive (Apr 16, 2026)
 - Trading Demo: +6 features — SL/TP auto-close, Replay Mode, 8 Challenges (XP/badges), Stats/Profile (weekly report, trader classification), Risk Simulator (pre-trade scenarios, R:R ratio), Learning Center (5 modules: intro, SL/TP, risk, analysis, psychology) (Apr 16, 2026)
+- LIONSBIT 2.0 Welcome Card: Dashboard announcement card shown on login, dismissible with localStorage persistence. Links to Trading Demo. Contains message about upcoming real investment mode (Apr 16, 2026)

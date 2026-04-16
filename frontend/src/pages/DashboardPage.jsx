@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { BalanceCard } from '../components/dashboard/BalanceCard';
 import { RecentTransactions } from '../components/dashboard/RecentTransactions';
@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, TrendingUp, ArrowRight, ArrowUpRight, ArrowDownLeft, ExternalLink, Shield } from 'lucide-react';
+import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, TrendingUp, ArrowRight, ArrowUpRight, ArrowDownLeft, ExternalLink, Shield, Rocket, LineChart, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
@@ -98,6 +98,9 @@ export const DashboardPage = () => {
     const [currency, setCurrency] = useState('USD');
     const [kycStatus, setKycStatus] = useState(null);
     const [investHistory, setInvestHistory] = useState(null);
+    const [showWelcome, setShowWelcome] = useState(() => {
+        return !localStorage.getItem('lionsbit_2_dismissed');
+    });
 
     const fetchData = async () => {
         try {
@@ -263,6 +266,78 @@ export const DashboardPage = () => {
                 {/* Status Banners */}
                 {getAccountStatusBanner()}
                 {getKYCBanner()}
+
+                {/* LIONSBIT 2.0 Welcome Card */}
+                <AnimatePresence>
+                    {showWelcome && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            data-testid="welcome-card"
+                        >
+                            <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-[#14549C]/20 border-[#14549C]/30 overflow-hidden relative">
+                                <button
+                                    onClick={() => { setShowWelcome(false); localStorage.setItem('lionsbit_2_dismissed', '1'); }}
+                                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors z-10"
+                                    data-testid="welcome-close-btn"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-[#14549C]/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3" />
+                                <CardContent className="p-6 md:p-8 relative">
+                                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                                        <div className="flex-1 space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-11 h-11 rounded-xl bg-[#14549C]/20 flex items-center justify-center">
+                                                    <Rocket className="w-6 h-6 text-[#14549C]" />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-white text-xl font-bold tracking-tight">Proximamente: LIONSBIT 2.0</h2>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="w-2 h-2 bg-[#14549C] rounded-full animate-pulse" />
+                                                        <span className="text-[#14549C] text-xs font-medium">En desarrollo</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3 text-slate-300 text-sm leading-relaxed">
+                                                <p>
+                                                    Estamos preparando la nueva version de la plataforma, <strong className="text-white">LIONSBIT 2.0</strong>, que incorporara herramientas avanzadas en metodos de inversion, analisis y gestion financiera.
+                                                </p>
+                                                <p>
+                                                    El <strong className="text-emerald-400">metodo real de inversion</strong> sera habilitado proximamente, marcando el inicio de una nueva etapa dentro de la plataforma.
+                                                </p>
+                                                <p className="text-slate-400">
+                                                    Mientras tanto, ya puedes acceder al <strong className="text-[#F0B90B]">modo demo de trading</strong>, donde podras practicar, abrir operaciones y familiarizarte con el sistema en un entorno simulado.
+                                                </p>
+                                            </div>
+
+                                            <p className="text-xs text-slate-500 italic">Preparate para una nueva generacion de inversion digital.</p>
+
+                                            <div className="flex flex-wrap gap-3 pt-1">
+                                                <Link to="/trading-demo">
+                                                    <Button className="bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold shadow-lg shadow-[#F0B90B]/10" data-testid="welcome-trading-btn">
+                                                        <LineChart className="w-4 h-4 mr-2" /> Probar Trading Demo
+                                                    </Button>
+                                                </Link>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => { setShowWelcome(false); localStorage.setItem('lionsbit_2_dismissed', '1'); }}
+                                                    className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                                                    data-testid="welcome-dismiss-btn"
+                                                >
+                                                    Entendido
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Balance Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
