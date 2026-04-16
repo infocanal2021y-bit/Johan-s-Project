@@ -1,15 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout } from '../components/layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import {
-    TrendingUp, TrendingDown, DollarSign, BarChart3, Clock, X,
-    ArrowUpCircle, ArrowDownCircle, RefreshCw, History, AlertTriangle,
-    Wallet, ChevronDown, Loader2, Zap, ArrowRightLeft, Lock
+    TrendingUp, BarChart3, X, ArrowUpCircle, ArrowDownCircle, RefreshCw,
+    History, AlertTriangle, Wallet, Loader2, Zap, ArrowRightLeft, Lock
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import api from '../lib/api';
 import { CandlestickChart } from '../components/trading/CandlestickChart';
@@ -30,10 +27,7 @@ const formatPrice = (price, symbol) => {
     return price.toFixed(5);
 };
 
-const PriceCell = ({ price, prevPrice, symbol }) => {
-    const color = !prevPrice ? 'text-white' : price > prevPrice ? 'text-emerald-400' : price < prevPrice ? 'text-red-400' : 'text-white';
-    return <span className={`font-mono text-sm tabular-nums transition-colors duration-300 ${color}`}>{formatPrice(price, symbol)}</span>;
-};
+const fmtMoney = (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00';
 
 export const TradingDemoPage = () => {
     const [prices, setPrices] = useState({});
@@ -41,7 +35,7 @@ export const TradingDemoPage = () => {
     const [account, setAccount] = useState(null);
     const [positions, setPositions] = useState([]);
     const [history, setHistory] = useState([]);
-    const [selectedSymbol, setSelectedSymbol] = useState('EURUSD');
+    const [selectedSymbol, setSelectedSymbol] = useState('BTCUSD');
     const [lotSize, setLotSize] = useState('0.10');
     const [activeTab, setActiveTab] = useState('positions');
     const [loading, setLoading] = useState(true);
@@ -66,15 +60,11 @@ export const TradingDemoPage = () => {
     }, []);
 
     const fetchHistory = useCallback(async () => {
-        try {
-            const res = await api.get('/trading/history');
-            setHistory(res.data);
-        } catch { /* silent */ }
+        try { const res = await api.get('/trading/history'); setHistory(res.data); } catch { /* silent */ }
     }, []);
 
     useEffect(() => {
-        fetchData();
-        fetchHistory();
+        fetchData(); fetchHistory();
         intervalRef.current = setInterval(fetchData, 3000);
         return () => clearInterval(intervalRef.current);
     }, [fetchData, fetchHistory]);
@@ -96,405 +86,332 @@ export const TradingDemoPage = () => {
             const res = await api.post('/trading/close', { trade_id: tradeId });
             const pl = res.data.profit_loss;
             toast[pl >= 0 ? 'success' : 'error'](`Cerrada: ${pl >= 0 ? '+' : ''}$${pl.toFixed(2)}`);
-            fetchData();
-            fetchHistory();
+            fetchData(); fetchHistory();
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al cerrar'); }
     };
 
     const resetAccount = async () => {
-        try {
-            await api.post('/trading/reset');
-            toast.success('Cuenta demo reiniciada a $10,000');
-            fetchData();
-            fetchHistory();
-        } catch { toast.error('Error al reiniciar'); }
+        try { await api.post('/trading/reset'); toast.success('Cuenta reiniciada a $10,000'); fetchData(); fetchHistory(); }
+        catch { toast.error('Error al reiniciar'); }
     };
 
     const sel = prices[selectedSymbol];
     const selInfo = SYMBOLS.find(s => s.id === selectedSymbol);
+    const totalPL = positions.reduce((s, p) => s + (p.profit_loss || 0), 0);
 
     if (loading) return (
         <Layout>
-            <div className="flex items-center justify-center h-96">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+            <div className="flex items-center justify-center h-[80vh]">
+                <div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-[#F0B90B] mx-auto mb-3" /><p className="text-slate-500 text-sm">Cargando terminal...</p></div>
             </div>
         </Layout>
     );
 
     return (
         <Layout>
-            <div className="space-y-4 -m-1 md:-m-2" data-testid="trading-demo-page">
-                {/* Demo Banner */}
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 flex items-center gap-3" data-testid="demo-banner">
-                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                    <p className="text-amber-300 text-xs font-medium">Modo Demo — Simulacion con fondos virtuales. No es dinero real.</p>
-                    <button onClick={() => setShowPro(true)} className="ml-auto text-[10px] font-bold text-amber-400 border border-amber-500/40 rounded-full px-3 py-1 hover:bg-amber-500/10 transition-colors whitespace-nowrap" data-testid="pro-mode-btn">
-                        Modo Profesional
-                    </button>
+            <div className="space-y-0 -m-4 md:-m-6 lg:-m-8 bg-[#0b0e11] min-h-screen" data-testid="trading-demo-page">
+
+                {/* ═══ TOP BAR: Asset selector + Price + Account ═══ */}
+                <div className="border-b border-[#1e2329] bg-[#0b0e11] sticky top-0 z-20">
+                    {/* Demo strip */}
+                    <div className="bg-[#F0B90B]/8 border-b border-[#F0B90B]/20 px-4 py-1.5 flex items-center gap-2" data-testid="demo-banner">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#F0B90B]" />
+                        <span className="text-[#F0B90B] text-[11px] font-medium">Modo Demo — Fondos virtuales</span>
+                        <button onClick={() => setShowPro(true)} className="ml-auto text-[10px] font-bold text-[#F0B90B]/80 hover:text-[#F0B90B] transition-colors" data-testid="pro-mode-btn">
+                            PRO
+                        </button>
+                    </div>
+
+                    {/* Main header bar */}
+                    <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide">
+                        {/* Asset pills */}
+                        <div className="flex items-center border-r border-[#1e2329]">
+                            {SYMBOLS.map(sym => {
+                                const p = prices[sym.id];
+                                const active = selectedSymbol === sym.id;
+                                return (
+                                    <button key={sym.id} onClick={() => setSelectedSymbol(sym.id)} data-testid={`asset-${sym.id}`}
+                                        className={`px-4 py-3 text-left whitespace-nowrap transition-colors border-b-2 ${active ? 'bg-[#1e2329] border-[#F0B90B] text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-[#1e2329]/50'}`}>
+                                        <div className="text-xs font-bold">{sym.label}</div>
+                                        {p && <div className={`text-[10px] font-mono ${p.change_pct >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{formatPrice(p.bid, sym.id)}</div>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Selected pair info */}
+                        {sel && (
+                            <div className="flex items-center gap-6 px-5 flex-shrink-0">
+                                <div>
+                                    <span className="text-white text-xl font-bold font-mono tabular-nums">{formatPrice(sel.bid, selectedSymbol)}</span>
+                                    <span className={`ml-2 text-sm font-semibold ${sel.change_pct >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                                        {sel.change_pct >= 0 ? '+' : ''}{sel.change_pct}%
+                                    </span>
+                                </div>
+                                <div className="flex gap-5 text-[11px]">
+                                    <div><span className="text-slate-500">Bid</span><p className="text-[#0ecb81] font-mono">{formatPrice(sel.bid, selectedSymbol)}</p></div>
+                                    <div><span className="text-slate-500">Ask</span><p className="text-[#f6465d] font-mono">{formatPrice(sel.ask, selectedSymbol)}</p></div>
+                                    <div><span className="text-slate-500">Spread</span><p className="text-slate-300 font-mono">{(sel.ask - sel.bid).toFixed(selectedSymbol === 'USDJPY' ? 3 : 5)}</p></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Account mini */}
+                        {account && (
+                            <div className="ml-auto flex items-center gap-4 px-4 flex-shrink-0 border-l border-[#1e2329]">
+                                <div className="text-right">
+                                    <span className="text-slate-500 text-[10px] uppercase">Balance</span>
+                                    <p className="text-white text-sm font-mono font-bold">${fmtMoney(account.balance)}</p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-slate-500 text-[10px] uppercase">P/L</span>
+                                    <p className={`text-sm font-mono font-bold ${account.floating_pl >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                                        {account.floating_pl >= 0 ? '+' : ''}${fmtMoney(account.floating_pl)}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    {/* Left: Asset List + Order Panel */}
-                    <div className="lg:col-span-3 space-y-4">
-                        {/* Asset Selector */}
-                        <Card className="bg-slate-900/70 border-slate-800">
-                            <CardHeader className="py-3 px-4 border-b border-slate-800">
-                                <CardTitle className="text-white text-sm flex items-center gap-2">
-                                    <BarChart3 className="w-4 h-4 text-emerald-400" /> Activos
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <div className="divide-y divide-slate-800/50">
-                                    {SYMBOLS.map(sym => {
-                                        const p = prices[sym.id];
-                                        const pp = prevPrices[sym.id];
-                                        const isActive = selectedSymbol === sym.id;
-                                        return (
-                                            <button
-                                                key={sym.id}
-                                                onClick={() => setSelectedSymbol(sym.id)}
-                                                data-testid={`asset-${sym.id}`}
-                                                className={`w-full text-left px-4 py-3 transition-colors ${isActive ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <span className="text-white text-sm font-semibold">{sym.label}</span>
-                                                        <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${sym.category === 'forex' ? 'bg-blue-500/20 text-blue-400' : sym.category === 'crypto' ? 'bg-orange-500/20 text-orange-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                                                            {sym.category}
-                                                        </span>
-                                                    </div>
-                                                    {p && (
-                                                        <span className={`text-xs font-mono ${p.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                            {p.change_pct >= 0 ? '+' : ''}{p.change_pct}%
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {p && (
-                                                    <div className="flex gap-3 mt-1 text-xs text-slate-500">
-                                                        <span>B: <PriceCell price={p.bid} prevPrice={pp?.bid} symbol={sym.id} /></span>
-                                                        <span>A: <PriceCell price={p.ask} prevPrice={pp?.ask} symbol={sym.id} /></span>
-                                                    </div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Converter Card */}
-                        <ConverterCard />
+                {/* ═══ MAIN CONTENT: Chart + Order Panel ═══ */}
+                <div className="flex flex-col lg:flex-row">
+                    {/* Chart Area - takes most space */}
+                    <div className="flex-1 min-w-0 border-r border-[#1e2329]" data-testid="chart-card">
+                        <div className="p-3 md:p-4">
+                            <CandlestickChart symbol={selectedSymbol} />
+                        </div>
                     </div>
 
-                    {/* Center: Chart + Price + Order */}
-                    <div className="lg:col-span-5 space-y-4">
-                        {/* Candlestick Chart */}
-                        <Card className="bg-slate-900/70 border-slate-800" data-testid="chart-card">
-                            <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div>
-                                        <h2 className="text-white text-lg font-bold">{selInfo?.label}</h2>
-                                        <p className="text-slate-500 text-xs">{sel?.name}</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        {sel && (
-                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${sel.change_pct >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                {sel.change_pct >= 0 ? '+' : ''}{sel.change_pct}%
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
+                    {/* Right Panel: Order + Account */}
+                    <div className="w-full lg:w-[320px] xl:w-[340px] flex-shrink-0 border-t lg:border-t-0 border-[#1e2329]" data-testid="order-panel">
+                        {/* Order Form */}
+                        <div className="p-4 border-b border-[#1e2329]">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-white font-semibold text-sm">Orden</h3>
+                                <span className="text-[#F0B90B] text-xs font-mono">{selInfo?.label}</span>
+                            </div>
 
-                                {/* Live Bid/Ask strip */}
-                                {sel && (
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="flex-1 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2 text-center">
-                                            <span className="text-emerald-400/60 text-[9px] uppercase">BID</span>
-                                            <p className="text-emerald-400 text-lg font-mono font-bold tabular-nums leading-tight">{formatPrice(sel.bid, selectedSymbol)}</p>
-                                        </div>
-                                        <div className="text-slate-600 text-[10px] text-center">
-                                            <p>Spread</p>
-                                            <p className="text-slate-400">{(sel.ask - sel.bid).toFixed(selectedSymbol === 'USDJPY' ? 3 : 5)}</p>
-                                        </div>
-                                        <div className="flex-1 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2 text-center">
-                                            <span className="text-red-400/60 text-[9px] uppercase">ASK</span>
-                                            <p className="text-red-400 text-lg font-mono font-bold tabular-nums leading-tight">{formatPrice(sel.ask, selectedSymbol)}</p>
-                                        </div>
+                            {/* Bid/Ask compact */}
+                            {sel && (
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    <div className="bg-[#0ecb81]/8 border border-[#0ecb81]/20 rounded-lg py-2 text-center">
+                                        <span className="text-[#0ecb81]/60 text-[9px] uppercase block">Bid</span>
+                                        <span className="text-[#0ecb81] font-mono font-bold text-base">{formatPrice(sel.bid, selectedSymbol)}</span>
                                     </div>
-                                )}
-
-                                <CandlestickChart symbol={selectedSymbol} />
-                            </CardContent>
-                        </Card>
-
-                        {/* Order Panel */}
-                        <Card className="bg-slate-900/70 border-slate-800" data-testid="order-panel">
-                            <CardContent className="p-5 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-white font-semibold text-sm">Nueva Operacion</h3>
-                                    <span className="text-slate-500 text-xs">{selInfo?.label}</span>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-slate-400 text-xs">Tamano del Lote</label>
-                                    <div className="flex items-center gap-2">
-                                        {['0.01', '0.10', '0.50', '1.00'].map(v => (
-                                            <button key={v} onClick={() => setLotSize(v)}
-                                                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${lotSize === v ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600'}`}
-                                                data-testid={`lot-${v}`}>{v}</button>
-                                        ))}
-                                        <Input value={lotSize} onChange={e => setLotSize(e.target.value)}
-                                            className="w-20 bg-slate-800 border-slate-700 text-white text-center text-sm" data-testid="lot-input" />
+                                    <div className="bg-[#f6465d]/8 border border-[#f6465d]/20 rounded-lg py-2 text-center">
+                                        <span className="text-[#f6465d]/60 text-[9px] uppercase block">Ask</span>
+                                        <span className="text-[#f6465d] font-mono font-bold text-base">{formatPrice(sel.ask, selectedSymbol)}</span>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        onClick={() => openTrade('buy')}
-                                        disabled={tradeLoading}
-                                        className="h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-lg shadow-emerald-500/20"
-                                        data-testid="buy-btn"
-                                    >
-                                        {tradeLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowUpCircle className="w-5 h-5 mr-2" />COMPRAR</>}
-                                    </Button>
-                                    <Button
-                                        onClick={() => openTrade('sell')}
-                                        disabled={tradeLoading}
-                                        className="h-14 bg-red-600 hover:bg-red-700 text-white font-bold text-base shadow-lg shadow-red-500/20"
-                                        data-testid="sell-btn"
-                                    >
-                                        {tradeLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowDownCircle className="w-5 h-5 mr-2" />VENDER</>}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                            )}
 
-                    {/* Right: Account Info */}
-                    <div className="lg:col-span-4 space-y-4">
+                            {/* Lot size */}
+                            <div className="mb-3">
+                                <label className="text-slate-500 text-[11px] uppercase tracking-wider mb-1.5 block">Volumen (Lotes)</label>
+                                <div className="flex gap-1.5">
+                                    {['0.01', '0.10', '0.50', '1.00'].map(v => (
+                                        <button key={v} onClick={() => setLotSize(v)} data-testid={`lot-${v}`}
+                                            className={`flex-1 py-1.5 rounded text-[11px] font-semibold transition-all ${lotSize === v ? 'bg-[#F0B90B]/15 text-[#F0B90B] border border-[#F0B90B]/40' : 'bg-[#1e2329] text-slate-500 border border-[#2b3139] hover:border-slate-600'}`}>
+                                            {v}
+                                        </button>
+                                    ))}
+                                </div>
+                                <Input value={lotSize} onChange={e => setLotSize(e.target.value)}
+                                    className="mt-2 bg-[#1e2329] border-[#2b3139] text-white text-center text-sm font-mono h-9 focus:border-[#F0B90B] focus:ring-[#F0B90B]/20" data-testid="lot-input" />
+                            </div>
+
+                            {/* Buy / Sell buttons */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button onClick={() => openTrade('buy')} disabled={tradeLoading} data-testid="buy-btn"
+                                    className="h-12 bg-[#0ecb81] hover:bg-[#0ecb81]/90 text-white font-bold text-sm rounded-lg shadow-none">
+                                    {tradeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowUpCircle className="w-4 h-4 mr-1.5" />Comprar</>}
+                                </Button>
+                                <Button onClick={() => openTrade('sell')} disabled={tradeLoading} data-testid="sell-btn"
+                                    className="h-12 bg-[#f6465d] hover:bg-[#f6465d]/90 text-white font-bold text-sm rounded-lg shadow-none">
+                                    {tradeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowDownCircle className="w-4 h-4 mr-1.5" />Vender</>}
+                                </Button>
+                            </div>
+                        </div>
+
                         {/* Account Summary */}
-                        <Card className="bg-slate-900/70 border-slate-800" data-testid="account-summary">
-                            <CardHeader className="py-3 px-4 border-b border-slate-800">
-                                <CardTitle className="text-white text-sm flex items-center gap-2">
-                                    <Wallet className="w-4 h-4 text-emerald-400" /> Cuenta Demo
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 space-y-3">
-                                {account && (
-                                    <>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-slate-800/50 rounded-lg p-3">
-                                                <p className="text-slate-500 text-[10px] uppercase">Balance</p>
-                                                <p className="text-white font-mono font-bold text-lg">${account.balance.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
-                                            </div>
-                                            <div className="bg-slate-800/50 rounded-lg p-3">
-                                                <p className="text-slate-500 text-[10px] uppercase">Equity</p>
-                                                <p className={`font-mono font-bold text-lg ${account.equity >= account.balance ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    ${account.equity.toLocaleString('en-US', {minimumFractionDigits: 2})}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div className="bg-slate-800/30 rounded-lg p-2 text-center">
-                                                <p className="text-slate-600 text-[9px] uppercase">Margen</p>
-                                                <p className="text-slate-300 text-xs font-mono">${account.margin_used.toFixed(2)}</p>
-                                            </div>
-                                            <div className="bg-slate-800/30 rounded-lg p-2 text-center">
-                                                <p className="text-slate-600 text-[9px] uppercase">Libre</p>
-                                                <p className="text-slate-300 text-xs font-mono">${account.free_margin.toFixed(2)}</p>
-                                            </div>
-                                            <div className="bg-slate-800/30 rounded-lg p-2 text-center">
-                                                <p className="text-slate-600 text-[9px] uppercase">P/L Flotante</p>
-                                                <p className={`text-xs font-mono font-bold ${account.floating_pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    {account.floating_pl >= 0 ? '+' : ''}${account.floating_pl.toFixed(2)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button size="sm" variant="outline" onClick={() => setShowTransfer(true)}
-                                                className="flex-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs" data-testid="transfer-btn">
-                                                <Zap className="w-3 h-3 mr-1" /> Transferir Ganancias
-                                            </Button>
-                                            <Button size="sm" variant="outline" onClick={resetAccount}
-                                                className="border-slate-700 text-slate-400 text-xs" data-testid="reset-btn">
-                                                <RefreshCw className="w-3 h-3 mr-1" /> Reset
-                                            </Button>
-                                        </div>
-                                    </>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Open Positions Count */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 text-center">
-                                <p className="text-slate-500 text-[10px] uppercase">Operaciones Abiertas</p>
-                                <p className="text-white text-2xl font-bold">{positions.length}</p>
+                        <div className="p-4 border-b border-[#1e2329]" data-testid="account-summary">
+                            <h4 className="text-slate-500 text-[10px] uppercase tracking-wider mb-3 flex items-center gap-1.5"><Wallet className="w-3.5 h-3.5" /> Cuenta Demo</h4>
+                            <div className="space-y-2">
+                                {[
+                                    ['Balance', `$${fmtMoney(account?.balance)}`, 'text-white'],
+                                    ['Equity', `$${fmtMoney(account?.equity)}`, account?.equity >= account?.balance ? 'text-[#0ecb81]' : 'text-[#f6465d]'],
+                                    ['Margen Usado', `$${fmtMoney(account?.margin_used)}`, 'text-slate-300'],
+                                    ['Margen Libre', `$${fmtMoney(account?.free_margin)}`, 'text-slate-300'],
+                                    ['P/L Flotante', `${(account?.floating_pl || 0) >= 0 ? '+' : ''}$${fmtMoney(account?.floating_pl)}`, (account?.floating_pl || 0) >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'],
+                                ].map(([label, value, color]) => (
+                                    <div key={label} className="flex justify-between items-center">
+                                        <span className="text-slate-500 text-xs">{label}</span>
+                                        <span className={`font-mono text-xs font-semibold ${color}`}>{value}</span>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 text-center">
-                                <p className="text-slate-500 text-[10px] uppercase">Total Cerradas</p>
-                                <p className="text-white text-2xl font-bold">{history.length}</p>
+                            <div className="flex gap-2 mt-3">
+                                <Button size="sm" variant="outline" onClick={() => setShowTransfer(true)} data-testid="transfer-btn"
+                                    className="flex-1 border-[#F0B90B]/30 text-[#F0B90B] hover:bg-[#F0B90B]/10 text-[11px] h-8">
+                                    <Zap className="w-3 h-3 mr-1" /> Transferir
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={resetAccount} data-testid="reset-btn"
+                                    className="border-[#2b3139] text-slate-500 hover:text-slate-300 text-[11px] h-8">
+                                    <RefreshCw className="w-3 h-3 mr-1" /> Reset
+                                </Button>
                             </div>
                         </div>
+
+                        {/* Converter mini */}
+                        <ConverterMini />
                     </div>
                 </div>
 
-                {/* Positions & History Tabs */}
-                <Card className="bg-slate-900/70 border-slate-800">
-                    <CardHeader className="py-3 px-4 border-b border-slate-800">
-                        <div className="flex gap-4">
-                            <button onClick={() => setActiveTab('positions')}
-                                className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === 'positions' ? 'text-emerald-400 border-emerald-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
-                                data-testid="tab-positions">
-                                <TrendingUp className="w-4 h-4" /> Posiciones Abiertas ({positions.length})
-                            </button>
-                            <button onClick={() => { setActiveTab('history'); fetchHistory(); }}
-                                className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === 'history' ? 'text-emerald-400 border-emerald-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
-                                data-testid="tab-history">
-                                <History className="w-4 h-4" /> Historial ({history.length})
-                            </button>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
+                {/* ═══ BOTTOM: Positions & History ═══ */}
+                <div className="border-t border-[#1e2329]">
+                    {/* Tabs */}
+                    <div className="flex items-center border-b border-[#1e2329] bg-[#0b0e11]">
+                        <button onClick={() => setActiveTab('positions')} data-testid="tab-positions"
+                            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'positions' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            Posiciones ({positions.length})
+                        </button>
+                        <button onClick={() => { setActiveTab('history'); fetchHistory(); }} data-testid="tab-history"
+                            className={`px-5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'history' ? 'text-[#F0B90B] border-[#F0B90B]' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
+                            Historial ({history.length})
+                        </button>
+                        {positions.length > 0 && activeTab === 'positions' && (
+                            <div className="ml-auto pr-4 flex items-center gap-3 text-[11px]">
+                                <span className="text-slate-500">P/L Total:</span>
+                                <span className={`font-mono font-bold ${totalPL >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                                    {totalPL >= 0 ? '+' : ''}${totalPL.toFixed(2)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Table content */}
+                    <div className="max-h-[280px] overflow-y-auto">
                         {activeTab === 'positions' ? (
                             positions.length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <BarChart3 className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                                    <p className="text-slate-500 text-sm">Sin posiciones abiertas</p>
-                                    <p className="text-slate-600 text-xs mt-1">Seleccione un activo y pulse Comprar o Vender</p>
+                                <div className="py-10 text-center">
+                                    <BarChart3 className="w-8 h-8 text-[#2b3139] mx-auto mb-2" />
+                                    <p className="text-slate-600 text-xs">Sin posiciones abiertas</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="text-slate-500 text-[11px] uppercase border-b border-slate-800">
-                                                <th className="px-4 py-2.5 text-left">Activo</th>
-                                                <th className="px-3 py-2.5">Tipo</th>
-                                                <th className="px-3 py-2.5">Lote</th>
-                                                <th className="px-3 py-2.5">Entrada</th>
-                                                <th className="px-3 py-2.5">Actual</th>
-                                                <th className="px-3 py-2.5">P/L</th>
-                                                <th className="px-3 py-2.5"></th>
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 bg-[#0b0e11]">
+                                        <tr className="text-slate-600 text-[10px] uppercase tracking-wider">
+                                            <th className="px-4 py-2 text-left font-medium">Par</th>
+                                            <th className="px-3 py-2 font-medium">Tipo</th>
+                                            <th className="px-3 py-2 font-medium">Lote</th>
+                                            <th className="px-3 py-2 font-medium">Entrada</th>
+                                            <th className="px-3 py-2 font-medium">Actual</th>
+                                            <th className="px-3 py-2 font-medium">P/L</th>
+                                            <th className="px-3 py-2 font-medium"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {positions.map(pos => (
+                                            <tr key={pos.id} className="border-t border-[#1e2329]/60 hover:bg-[#1e2329]/40 transition-colors" data-testid={`position-${pos.id}`}>
+                                                <td className="px-4 py-2.5 text-white font-medium">{SYMBOLS.find(s => s.id === pos.symbol)?.label}</td>
+                                                <td className="px-3 py-2.5 text-center">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${pos.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>
+                                                        {pos.direction === 'buy' ? 'LONG' : 'SHORT'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center text-slate-400 font-mono">{pos.lot_size}</td>
+                                                <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(pos.entry_price, pos.symbol)}</td>
+                                                <td className="px-3 py-2.5 text-center text-white font-mono">{formatPrice(pos.current_price, pos.symbol)}</td>
+                                                <td className={`px-3 py-2.5 text-center font-mono font-bold ${pos.profit_loss >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                                                    {pos.profit_loss >= 0 ? '+' : ''}${pos.profit_loss.toFixed(2)}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right">
+                                                    <button onClick={() => closeTrade(pos.id)} data-testid={`close-${pos.id}`}
+                                                        className="px-2.5 py-1 rounded bg-[#f6465d]/10 text-[#f6465d] text-[10px] font-bold hover:bg-[#f6465d]/20 transition-colors">
+                                                        Cerrar
+                                                    </button>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-800/50">
-                                            {positions.map(pos => (
-                                                <tr key={pos.id} className="hover:bg-slate-800/30" data-testid={`position-${pos.id}`}>
-                                                    <td className="px-4 py-3 text-white font-medium">{SYMBOLS.find(s => s.id === pos.symbol)?.label}</td>
-                                                    <td className="px-3 py-3 text-center">
-                                                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${pos.direction === 'buy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                            {pos.direction === 'buy' ? 'COMPRA' : 'VENTA'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center text-slate-300 font-mono">{pos.lot_size}</td>
-                                                    <td className="px-3 py-3 text-center text-slate-400 font-mono text-xs">{formatPrice(pos.entry_price, pos.symbol)}</td>
-                                                    <td className="px-3 py-3 text-center text-white font-mono text-xs">{formatPrice(pos.current_price, pos.symbol)}</td>
-                                                    <td className={`px-3 py-3 text-center font-mono font-bold ${pos.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                        {pos.profit_loss >= 0 ? '+' : ''}${pos.profit_loss.toFixed(2)}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right">
-                                                        <Button size="sm" variant="outline"
-                                                            onClick={() => closeTrade(pos.id)}
-                                                            className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs h-7 px-2"
-                                                            data-testid={`close-${pos.id}`}>
-                                                            <X className="w-3 h-3 mr-1" /> Cerrar
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                        ))}
+                                    </tbody>
+                                </table>
                             )
                         ) : (
                             history.length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <History className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                                    <p className="text-slate-500 text-sm">Sin historial de operaciones</p>
+                                <div className="py-10 text-center">
+                                    <History className="w-8 h-8 text-[#2b3139] mx-auto mb-2" />
+                                    <p className="text-slate-600 text-xs">Sin historial</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="text-slate-500 text-[11px] uppercase border-b border-slate-800">
-                                                <th className="px-4 py-2.5 text-left">Activo</th>
-                                                <th className="px-3 py-2.5">Tipo</th>
-                                                <th className="px-3 py-2.5">Lote</th>
-                                                <th className="px-3 py-2.5">Entrada</th>
-                                                <th className="px-3 py-2.5">Cierre</th>
-                                                <th className="px-3 py-2.5">P/L</th>
-                                                <th className="px-3 py-2.5">Fecha</th>
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 bg-[#0b0e11]">
+                                        <tr className="text-slate-600 text-[10px] uppercase tracking-wider">
+                                            <th className="px-4 py-2 text-left font-medium">Par</th>
+                                            <th className="px-3 py-2 font-medium">Tipo</th>
+                                            <th className="px-3 py-2 font-medium">Lote</th>
+                                            <th className="px-3 py-2 font-medium">Entrada</th>
+                                            <th className="px-3 py-2 font-medium">Cierre</th>
+                                            <th className="px-3 py-2 font-medium">P/L</th>
+                                            <th className="px-3 py-2 font-medium">Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {history.map(h => (
+                                            <tr key={h.id} className="border-t border-[#1e2329]/60 hover:bg-[#1e2329]/40">
+                                                <td className="px-4 py-2.5 text-white font-medium">{SYMBOLS.find(s => s.id === h.symbol)?.label}</td>
+                                                <td className="px-3 py-2.5 text-center">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${h.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>
+                                                        {h.direction === 'buy' ? 'LONG' : 'SHORT'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center text-slate-400 font-mono">{h.lot_size}</td>
+                                                <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(h.entry_price, h.symbol)}</td>
+                                                <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(h.close_price, h.symbol)}</td>
+                                                <td className={`px-3 py-2.5 text-center font-mono font-bold ${h.profit_loss >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                                                    {h.profit_loss >= 0 ? '+' : ''}${h.profit_loss?.toFixed(2)}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center text-slate-600 text-[10px]">
+                                                    {h.closed_at ? new Date(h.closed_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-800/50">
-                                            {history.map(h => (
-                                                <tr key={h.id} className="hover:bg-slate-800/30">
-                                                    <td className="px-4 py-3 text-white font-medium">{SYMBOLS.find(s => s.id === h.symbol)?.label}</td>
-                                                    <td className="px-3 py-3 text-center">
-                                                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${h.direction === 'buy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                            {h.direction === 'buy' ? 'COMPRA' : 'VENTA'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center text-slate-300 font-mono">{h.lot_size}</td>
-                                                    <td className="px-3 py-3 text-center text-slate-400 font-mono text-xs">{formatPrice(h.entry_price, h.symbol)}</td>
-                                                    <td className="px-3 py-3 text-center text-slate-400 font-mono text-xs">{formatPrice(h.close_price, h.symbol)}</td>
-                                                    <td className={`px-3 py-3 text-center font-mono font-bold ${h.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                        {h.profit_loss >= 0 ? '+' : ''}${h.profit_loss?.toFixed(2)}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center text-slate-500 text-xs">
-                                                        {h.closed_at ? new Date(h.closed_at).toLocaleDateString('es-ES', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'}) : '—'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                        ))}
+                                    </tbody>
+                                </table>
                             )
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                {/* Transfer Dialog (visual only) */}
+                {/* ═══ DIALOGS ═══ */}
                 <Dialog open={showTransfer} onOpenChange={setShowTransfer}>
-                    <DialogContent className="bg-slate-900 border-slate-700 max-w-sm" data-testid="transfer-dialog">
-                        <DialogHeader>
-                            <DialogTitle className="text-white flex items-center gap-2">
-                                <Zap className="w-5 h-5 text-amber-400" /> Transferir Ganancias
-                            </DialogTitle>
-                        </DialogHeader>
+                    <DialogContent className="bg-[#1e2329] border-[#2b3139] max-w-sm" data-testid="transfer-dialog">
+                        <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><Zap className="w-5 h-5 text-[#F0B90B]" /> Transferir Ganancias</DialogTitle></DialogHeader>
                         <div className="space-y-4 pt-2">
-                            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                <p className="text-amber-300 text-sm leading-relaxed">
-                                    Las ganancias del modo demo son virtuales y no pueden transferirse al saldo principal. 
-                                    Esta funcion estara disponible en el <strong>Modo Profesional</strong>.
-                                </p>
+                            <div className="p-4 rounded-xl bg-[#F0B90B]/8 border border-[#F0B90B]/20">
+                                <p className="text-[#F0B90B]/80 text-sm leading-relaxed">Las ganancias demo son virtuales. Esta funcion estara disponible en el <strong>Modo Profesional</strong>.</p>
                             </div>
-                            <div className="p-4 rounded-xl bg-slate-800/50 text-center">
+                            <div className="p-4 rounded-xl bg-[#0b0e11] text-center">
                                 <p className="text-slate-500 text-xs mb-1">Ganancias Demo</p>
-                                <p className={`text-2xl font-mono font-bold ${(account?.balance || 0) - 10000 >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <p className={`text-2xl font-mono font-bold ${(account?.balance || 0) - 10000 >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
                                     {((account?.balance || 0) - 10000) >= 0 ? '+' : ''}${((account?.balance || 0) - 10000).toFixed(2)}
                                 </p>
                             </div>
-                            <Button onClick={() => setShowTransfer(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white">Entendido</Button>
+                            <Button onClick={() => setShowTransfer(false)} className="w-full bg-[#2b3139] hover:bg-[#363d47] text-white">Entendido</Button>
                         </div>
                     </DialogContent>
                 </Dialog>
 
-                {/* Pro Mode Dialog */}
                 <Dialog open={showPro} onOpenChange={setShowPro}>
-                    <DialogContent className="bg-slate-900 border-slate-700 max-w-sm" data-testid="pro-mode-dialog">
-                        <DialogHeader>
-                            <DialogTitle className="text-white flex items-center gap-2">
-                                <Lock className="w-5 h-5 text-cyan-400" /> Modo Profesional
-                            </DialogTitle>
-                        </DialogHeader>
+                    <DialogContent className="bg-[#1e2329] border-[#2b3139] max-w-sm" data-testid="pro-mode-dialog">
+                        <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><Lock className="w-5 h-5 text-[#F0B90B]" /> Modo Profesional</DialogTitle></DialogHeader>
                         <div className="space-y-4 pt-2">
-                            <div className="p-5 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 text-center">
-                                <Lock className="w-10 h-10 text-cyan-400 mx-auto mb-3" />
+                            <div className="p-5 rounded-xl bg-gradient-to-br from-[#F0B90B]/10 to-[#F0B90B]/5 border border-[#F0B90B]/20 text-center">
+                                <Lock className="w-10 h-10 text-[#F0B90B] mx-auto mb-3" />
                                 <h3 className="text-white font-bold text-lg mb-2">Proximamente</h3>
-                                <p className="text-slate-400 text-sm leading-relaxed">
-                                    Estamos trabajando en el <strong className="text-cyan-400">Modo Profesional</strong> y el <strong className="text-cyan-400">Modo Real</strong> para ofrecerle una experiencia mas avanzada y completa dentro de la plataforma.
-                                </p>
+                                <p className="text-slate-400 text-sm leading-relaxed">Estamos trabajando en el <strong className="text-[#F0B90B]">Modo Profesional</strong> y el <strong className="text-[#F0B90B]">Modo Real</strong> para una experiencia mas avanzada.</p>
                             </div>
-                            <Button onClick={() => setShowPro(false)} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">Entendido</Button>
+                            <Button onClick={() => setShowPro(false)} className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold">Entendido</Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -503,8 +420,8 @@ export const TradingDemoPage = () => {
     );
 };
 
-// Mini Converter Component
-const ConverterCard = () => {
+// Compact Converter
+const ConverterMini = () => {
     const [amount, setAmount] = useState('100');
     const [from, setFrom] = useState('USD');
     const [to, setTo] = useState('EUR');
@@ -513,48 +430,41 @@ const ConverterCard = () => {
 
     const convert = async () => {
         setLoading(true);
-        try {
-            const res = await api.get('/trading/convert', { params: { amount: parseFloat(amount) || 0, from_currency: from, to_currency: to } });
-            setResult(res.data);
-        } catch { toast.error('Error en conversion'); }
+        try { const res = await api.get('/trading/convert', { params: { amount: parseFloat(amount) || 0, from_currency: from, to_currency: to } }); setResult(res.data); }
+        catch { toast.error('Error'); }
         finally { setLoading(false); }
     };
 
     return (
-        <Card className="bg-slate-900/70 border-slate-800">
-            <CardHeader className="py-3 px-4 border-b border-slate-800">
-                <CardTitle className="text-white text-sm flex items-center gap-2">
-                    <ArrowRightLeft className="w-4 h-4 text-cyan-400" /> Conversor
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
+        <div className="p-4">
+            <h4 className="text-slate-500 text-[10px] uppercase tracking-wider mb-3 flex items-center gap-1.5"><ArrowRightLeft className="w-3.5 h-3.5" /> Conversor</h4>
+            <div className="space-y-2">
                 <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="Monto"
-                    className="bg-slate-800 border-slate-700 text-white" data-testid="converter-amount" />
-                <div className="flex gap-2">
-                    <select value={from} onChange={e => setFrom(e.target.value)}
-                        className="flex-1 bg-slate-800 border border-slate-700 text-white rounded-md px-2 text-sm h-10" data-testid="converter-from">
+                    className="bg-[#1e2329] border-[#2b3139] text-white text-sm h-9 focus:border-[#F0B90B]" data-testid="converter-amount" />
+                <div className="flex gap-1.5 items-center">
+                    <select value={from} onChange={e => setFrom(e.target.value)} data-testid="converter-from"
+                        className="flex-1 bg-[#1e2329] border border-[#2b3139] text-white rounded-md px-2 text-xs h-9">
                         {['USD', 'EUR', 'GBP', 'JPY'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <button onClick={() => { setFrom(to); setTo(from); setResult(null); }}
-                        className="w-10 h-10 flex items-center justify-center bg-slate-800 border border-slate-700 rounded-md text-slate-400 hover:text-white">
-                        <ArrowRightLeft className="w-4 h-4" />
+                    <button onClick={() => { setFrom(to); setTo(from); setResult(null); }} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-[#F0B90B]">
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
                     </button>
-                    <select value={to} onChange={e => setTo(e.target.value)}
-                        className="flex-1 bg-slate-800 border border-slate-700 text-white rounded-md px-2 text-sm h-10" data-testid="converter-to">
+                    <select value={to} onChange={e => setTo(e.target.value)} data-testid="converter-to"
+                        className="flex-1 bg-[#1e2329] border border-[#2b3139] text-white rounded-md px-2 text-xs h-9">
                         {['USD', 'EUR', 'GBP', 'JPY'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
-                <Button onClick={convert} disabled={loading} size="sm" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white" data-testid="convert-btn">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Convertir'}
+                <Button onClick={convert} disabled={loading} size="sm" className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold h-8 text-xs" data-testid="convert-btn">
+                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Convertir'}
                 </Button>
                 {result && (
-                    <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-                        <p className="text-white font-mono font-bold">{result.result.toLocaleString('en-US', {minimumFractionDigits: 2})} {result.to}</p>
-                        <p className="text-slate-500 text-[10px] mt-1">Tasa: 1 {result.from} = {result.rate} {result.to}</p>
+                    <div className="bg-[#1e2329] rounded-lg p-2.5 text-center">
+                        <p className="text-white font-mono font-bold text-sm">{result.result.toLocaleString('en-US', { minimumFractionDigits: 2 })} {result.to}</p>
+                        <p className="text-slate-600 text-[9px] mt-0.5">1 {result.from} = {result.rate} {result.to}</p>
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 };
 

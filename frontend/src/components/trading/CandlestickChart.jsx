@@ -24,39 +24,39 @@ export const CandlestickChart = ({ symbol }) => {
 
         const chart = createChart(chartRef.current, {
             width: chartRef.current.clientWidth,
-            height: 340,
+            height: 420,
             layout: {
-                background: { color: 'transparent' },
-                textColor: '#64748b',
+                background: { color: '#0b0e11' },
+                textColor: '#848e9c',
                 fontSize: 11,
             },
             grid: {
-                vertLines: { color: 'rgba(51, 65, 85, 0.3)' },
-                horzLines: { color: 'rgba(51, 65, 85, 0.3)' },
+                vertLines: { color: 'rgba(30, 35, 41, 0.8)' },
+                horzLines: { color: 'rgba(30, 35, 41, 0.8)' },
             },
             crosshair: {
                 mode: 0,
-                vertLine: { color: 'rgba(16, 185, 129, 0.4)', width: 1, style: 2 },
-                horzLine: { color: 'rgba(16, 185, 129, 0.4)', width: 1, style: 2 },
+                vertLine: { color: 'rgba(240, 185, 11, 0.3)', width: 1, style: 2, labelBackgroundColor: '#F0B90B' },
+                horzLine: { color: 'rgba(240, 185, 11, 0.3)', width: 1, style: 2, labelBackgroundColor: '#F0B90B' },
             },
             rightPriceScale: {
-                borderColor: 'rgba(51, 65, 85, 0.4)',
-                scaleMargins: { top: 0.1, bottom: 0.1 },
+                borderColor: '#1e2329',
+                scaleMargins: { top: 0.05, bottom: 0.05 },
             },
             timeScale: {
-                borderColor: 'rgba(51, 65, 85, 0.4)',
+                borderColor: '#1e2329',
                 timeVisible: true,
                 secondsVisible: false,
             },
         });
 
         const series = chart.addSeries(CandlestickSeries, {
-            upColor: '#10b981',
-            downColor: '#ef4444',
-            borderUpColor: '#10b981',
-            borderDownColor: '#ef4444',
-            wickUpColor: '#10b981',
-            wickDownColor: '#ef4444',
+            upColor: '#0ecb81',
+            downColor: '#f6465d',
+            borderUpColor: '#0ecb81',
+            borderDownColor: '#f6465d',
+            wickUpColor: '#0ecb81',
+            wickDownColor: '#f6465d',
         });
 
         chartInstance.current = chart;
@@ -115,7 +115,7 @@ export const CandlestickChart = ({ symbol }) => {
                         data-testid={`tf-${tf.key}`}
                         className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
                             timeframe === tf.key
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                ? 'bg-[#F0B90B]/15 text-[#F0B90B] border border-[#F0B90B]/40'
                                 : 'text-slate-500 hover:text-slate-300 border border-transparent'
                         }`}
                     >
@@ -131,7 +131,7 @@ export const CandlestickChart = ({ symbol }) => {
             </div>
 
             {/* Chart container */}
-            <div ref={chartRef} className="w-full rounded-lg overflow-hidden" style={{ minHeight: 340 }} />
+            <div ref={chartRef} className="w-full rounded-lg overflow-hidden" style={{ minHeight: 420 }} />
         </div>
     );
 };
