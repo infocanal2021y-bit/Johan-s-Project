@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, TrendingUp, ArrowRight, ArrowUpRight, ArrowDownLeft, ExternalLink, Shield, Rocket, LineChart, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/LiveWithdrawals';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -478,6 +479,11 @@ export const DashboardPage = () => {
                 {/* Recent Transactions */}
                 <RecentTransactions transactions={transactions} loading={loading} />
 
+                {/* Live Withdrawals Activity */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                    <LiveWithdrawalsPanel />
+                </motion.div>
+
                 {/* Legal Disclaimer */}
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -486,11 +492,14 @@ export const DashboardPage = () => {
                     className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30"
                 >
                     <p className="text-amber-400 text-xs text-center">
-                        <strong>⚠️ Aviso Legal:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son únicamente informativos. 
-                        No constituyen asesoramiento financiero ni representan una invitación a invertir. 
-                        La plataforma no está habilitada para realizar inversiones .
+                        <strong>Aviso Legal:</strong> Los datos mostrados en esta plataforma relacionados con mercados financieros y criptomonedas son unicamente informativos. 
+                        No constituyen asesoramiento financiero ni representan una invitacion a invertir. 
+                        La plataforma no esta habilitada para realizar inversiones .
                     </p>
                 </motion.div>
+
+                {/* Withdrawal Toast Notifications */}
+                <WithdrawalToast />
             </div>
         </Layout>
     );
