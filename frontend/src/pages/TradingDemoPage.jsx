@@ -6,12 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import {
     TrendingUp, BarChart3, X, ArrowUpCircle, ArrowDownCircle, RefreshCw,
     History, AlertTriangle, Wallet, Loader2, Zap, ArrowRightLeft, Lock,
-    Trophy, GraduationCap, ShieldAlert, Rewind, Target, BookOpen, CheckCircle, Award
+    Trophy, GraduationCap, ShieldAlert, Rewind, Target, BookOpen, CheckCircle, Award, Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../lib/api';
 import { CandlestickChart } from '../components/trading/CandlestickChart';
 import { OrderBook } from '../components/trading/OrderBook';
+import { PriceAlerts } from '../components/trading/PriceAlerts';
 
 const SYMBOLS = [
     { id: 'EURUSD', label: 'EUR/USD', flag: 'EU', category: 'forex' },
@@ -44,6 +45,7 @@ export const TradingDemoPage = () => {
     const [tradeLoading, setTradeLoading] = useState(false);
     const [showTransfer, setShowTransfer] = useState(false);
     const [showPro, setShowPro] = useState(false);
+    const [showAlerts, setShowAlerts] = useState(false);
     const [stopLoss, setStopLoss] = useState('');
     const [takeProfit, setTakeProfit] = useState('');
     const [stats, setStats] = useState(null);
@@ -175,7 +177,10 @@ export const TradingDemoPage = () => {
                     <div className="bg-[#F0B90B]/8 border-b border-[#F0B90B]/20 px-4 py-1.5 flex items-center gap-2" data-testid="demo-banner">
                         <AlertTriangle className="w-3.5 h-3.5 text-[#F0B90B]" />
                         <span className="text-[#F0B90B] text-[11px] font-medium">Modo Demo — Fondos virtuales</span>
-                        <button onClick={() => setShowPro(true)} className="ml-auto text-[10px] font-bold text-[#F0B90B]/80 hover:text-[#F0B90B] transition-colors" data-testid="pro-mode-btn">
+                        <button onClick={() => setShowAlerts(true)} className="ml-auto flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-[#F0B90B] transition-colors" data-testid="price-alerts-btn">
+                            <Bell className="w-3 h-3" /> Alertas
+                        </button>
+                        <button onClick={() => setShowPro(true)} className="ml-3 text-[10px] font-bold text-[#F0B90B]/80 hover:text-[#F0B90B] transition-colors" data-testid="pro-mode-btn">
                             PRO
                         </button>
                     </div>
@@ -614,6 +619,16 @@ export const TradingDemoPage = () => {
                         </div>
                     </DialogContent>
                 </Dialog>
+
+                {/* Price Alerts modal */}
+                <PriceAlerts
+                    open={showAlerts}
+                    onClose={setShowAlerts}
+                    symbol={selectedSymbol}
+                    currentPrice={sel ? (sel.bid + sel.ask) / 2 : null}
+                    prices={prices}
+                    formatPrice={formatPrice}
+                />
             </div>
         </Layout>
     );

@@ -20,11 +20,23 @@ function buildLadder(symbol, basePrice, side, tick, depth, tickNum) {
         const price = side === 'bid' ? basePrice - tick * i : basePrice + tick * i;
         const seed = hashSeed(`${symbol}-${side}-${i}-${tickNum}`);
         const seed2 = hashSeed(`${symbol}-${side}-${i}-size-${tickNum}`, 7);
-        // Larger sizes farther from mid, with random spikes
         const baseSize = 0.1 + seed * 2.8 + Math.pow(i / depth, 0.6) * 3;
         const spike = seed2 > 0.92 ? 8 + seed2 * 12 : 0;
         const size = baseSize + spike;
         rows.push({ price, size, isLarge: spike > 0 });
+    }
+
+    // Inject iceberg — huge order that appears briefly (every ~12 ticks) at a random depth
+    const icebergSeed = hashSeed(`${symbol}-${side}-iceberg-${Math.floor(tickNum / 4)}`, 13);
+    if (icebergSeed > 0.68) {
+        const idx = Math.min(depth - 1, Math.floor(icebergSeed * depth));
+        const icebergSize = 35 + hashSeed(`${symbol}-${side}-ice-size-${tickNum}`, 21) * 50;
+        rows[idx] = {
+            ...rows[idx],
+            size: icebergSize,
+            isLarge: true,
+            isIceberg: true,
+        };
     }
     return rows;
 }
@@ -98,14 +110,20 @@ export const OrderBook = ({ symbol, bid, ask, formatPrice, onPriceClick }) => {
                             key={`ask-${i}`}
                             onClick={() => onPriceClick && onPriceClick(row.price, 'sell')}
                             data-testid={`ask-row-${i}`}
-                            className="relative px-3 py-0.5 grid grid-cols-3 gap-1 items-center hover:bg-[#f6465d]/10 transition-colors cursor-pointer group"
+                            className={`relative px-3 py-0.5 grid grid-cols-3 gap-1 items-center hover:bg-[#f6465d]/10 transition-colors cursor-pointer group ${row.isIceberg ? 'animate-pulse-slow' : ''}`}
                         >
                             <div
                                 className="absolute inset-y-0 right-0 bg-[#f6465d]/10"
                                 style={{ width: `${pct}%` }}
                             />
-                            <span className="relative text-left text-[#f6465d]">{formatPrice ? formatPrice(row.price, symbol) : row.price.toFixed(5)}</span>
-                            <span className={`relative text-right ${row.isLarge ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>{row.size.toFixed(2)}</span>
+                            {row.isIceberg && (
+                                <div className="absolute inset-0 bg-amber-400/10 border-l-2 border-amber-400 pointer-events-none" />
+                            )}
+                            <span className="relative text-left text-[#f6465d] flex items-center gap-1">
+                                {row.isIceberg && <span className="inline-block w-1 h-1 rounded-full bg-amber-400 animate-ping" />}
+                                {formatPrice ? formatPrice(row.price, symbol) : row.price.toFixed(5)}
+                            </span>
+                            <span className={`relative text-right ${row.isIceberg ? 'text-amber-300 font-extrabold' : row.isLarge ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>{row.size.toFixed(2)}</span>
                             <span className="relative text-right text-slate-500">{total.toFixed(2)}</span>
                         </button>
                     );
@@ -135,14 +153,20 @@ export const OrderBook = ({ symbol, bid, ask, formatPrice, onPriceClick }) => {
                             key={`bid-${i}`}
                             onClick={() => onPriceClick && onPriceClick(row.price, 'buy')}
                             data-testid={`bid-row-${i}`}
-                            className="relative px-3 py-0.5 grid grid-cols-3 gap-1 items-center hover:bg-[#0ecb81]/10 transition-colors cursor-pointer group"
+                            className={`relative px-3 py-0.5 grid grid-cols-3 gap-1 items-center hover:bg-[#0ecb81]/10 transition-colors cursor-pointer group ${row.isIceberg ? 'animate-pulse-slow' : ''}`}
                         >
                             <div
                                 className="absolute inset-y-0 right-0 bg-[#0ecb81]/10"
                                 style={{ width: `${pct}%` }}
                             />
-                            <span className="relative text-left text-[#0ecb81]">{formatPrice ? formatPrice(row.price, symbol) : row.price.toFixed(5)}</span>
-                            <span className={`relative text-right ${row.isLarge ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>{row.size.toFixed(2)}</span>
+                            {row.isIceberg && (
+                                <div className="absolute inset-0 bg-amber-400/10 border-l-2 border-amber-400 pointer-events-none" />
+                            )}
+                            <span className="relative text-left text-[#0ecb81] flex items-center gap-1">
+                                {row.isIceberg && <span className="inline-block w-1 h-1 rounded-full bg-amber-400 animate-ping" />}
+                                {formatPrice ? formatPrice(row.price, symbol) : row.price.toFixed(5)}
+                            </span>
+                            <span className={`relative text-right ${row.isIceberg ? 'text-amber-300 font-extrabold' : row.isLarge ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>{row.size.toFixed(2)}</span>
                             <span className="relative text-right text-slate-500">{total.toFixed(2)}</span>
                         </button>
                     );
@@ -155,7 +179,12 @@ export const OrderBook = ({ symbol, bid, ask, formatPrice, onPriceClick }) => {
                     <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                     Simulado en tiempo real
                 </span>
-                <span>Click en precio para pre-cargar</span>
+                <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span className="text-amber-300/70">Iceberg</span>
+                    <span className="text-slate-700">·</span>
+                    <span>Click precio para pre-cargar</span>
+                </span>
             </div>
         </div>
     );

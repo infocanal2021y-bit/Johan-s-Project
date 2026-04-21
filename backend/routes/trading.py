@@ -143,11 +143,11 @@ async def get_candles(symbol: str = "EURUSD", timeframe: str = "1h", current_use
         high_p = max(open_p, close_p) + body * (0.3 + r * 0.7)
         low_p = min(open_p, close_p) - body * (0.3 + (1 - r) * 0.7)
         if symbol == 'USDJPY':
-            candles.append({'time': int(t), 'open': round(open_p, 3), 'high': round(high_p, 3), 'low': round(low_p, 3), 'close': round(close_p, 3)})
+            candles.append({'time': int(t), 'open': round(open_p, 3), 'high': round(high_p, 3), 'low': round(low_p, 3), 'close': round(close_p, 3), 'volume': round(abs(change) * 100000 + 500 + r * 1500, 2)})
         elif symbol in ('BTCUSD', 'ETHUSD', 'XAUUSD'):
-            candles.append({'time': int(t), 'open': round(open_p, 2), 'high': round(high_p, 2), 'low': round(low_p, 2), 'close': round(close_p, 2)})
+            candles.append({'time': int(t), 'open': round(open_p, 2), 'high': round(high_p, 2), 'low': round(low_p, 2), 'close': round(close_p, 2), 'volume': round(abs(change) * 50000 + 300 + r * 800, 2)})
         else:
-            candles.append({'time': int(t), 'open': round(open_p, 5), 'high': round(high_p, 5), 'low': round(low_p, 5), 'close': round(close_p, 5)})
+            candles.append({'time': int(t), 'open': round(open_p, 5), 'high': round(high_p, 5), 'low': round(low_p, 5), 'close': round(close_p, 5), 'volume': round(abs(change) * 200000 + 1000 + r * 3000, 2)})
         price = close_p
     return {'symbol': symbol, 'timeframe': timeframe, 'candles': candles}
 
