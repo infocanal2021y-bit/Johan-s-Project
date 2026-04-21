@@ -5,9 +5,40 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { ArrowUpRight, X, ChevronRight, Activity, CheckCircle, Clock } from 'lucide-react';
 
-const NAMES = [
-    'Juan Garcia','Maria Gonzalez','Carlos Rodriguez','Ana Martinez','Luis Fernandez',
-    'Jose Lopez','Carmen Sanchez','Miguel Perez','Laura Gomez','David Ruiz',
+const NAMES_ES = [
+    'Javier Garcia Lopez', 'Maria Martinez Sanchez', 'Antonio Rodriguez Fernandez', 'Carmen Lopez Ruiz',
+    'Jose Gonzalez Moreno', 'Isabel Perez Jimenez', 'Manuel Sanchez Navarro', 'Lucia Fernandez Alonso',
+    'Francisco Martin Torres', 'Pilar Diaz Vargas', 'David Hernandez Castro', 'Laura Munoz Serrano',
+    'Daniel Alvarez Ortega', 'Elena Ramirez Molina', 'Carlos Gil Aguilar', 'Marta Romero Cabrera',
+    'Alejandro Navarro Iglesias', 'Cristina Dominguez Castillo', 'Pablo Vazquez Moya', 'Raquel Soto Lozano',
+    'Ignacio Torres Campos', 'Beatriz Jimenez Medina', 'Adrian Gutierrez Parra', 'Silvia Ortega Leon',
+    'Sergio Blanco Herrera', 'Patricia Rubio Ramos', 'Angel Guerrero Pastor', 'Rocio Gallego Benitez',
+    'Rafael Suarez Salazar', 'Nuria Castro Delgado',
+];
+
+const NAMES_MX = [
+    'Juan Carlos Hernandez', 'Ana Gabriela Lopez', 'Luis Enrique Ramirez', 'Maria Fernanda Chavez',
+    'Jose Antonio Flores', 'Diana Laura Castillo', 'Miguel Angel Mendoza', 'Sofia Alejandra Vazquez',
+    'Eduardo Jose Pena', 'Alejandra Monserrat Silva', 'Roberto Carlos Aguirre', 'Paola Guadalupe Luna',
+    'Fernando Alberto Cruz', 'Guadalupe Isabel Delgado', 'Ricardo Andres Salinas', 'Brenda Jocelyn Reyes',
+    'Hugo Alejandro Zavala', 'Karla Yolanda Barrera', 'Cesar Octavio Nunez', 'Mariana Fernanda Quintero',
+    'Jorge Alberto Tapia', 'Daniela Alejandra Carrillo', 'Arturo Gerardo Villanueva', 'Andrea Michelle Ibarra',
+    'Emilio Ismael Rangel', 'Viridiana Yolanda Zamora', 'Gerardo Esteban Arroyo', 'Citlalli Paola Bautista',
+    'Omar Ivan Saucedo', 'Angelica Maria Figueroa',
+];
+
+const NAMES_CL = [
+    'Matias Sepulveda Araya', 'Catalina Munoz Rojas', 'Benjamin Soto Vergara', 'Javiera Fuenzalida Silva',
+    'Vicente Contreras Espinoza', 'Martina Pizarro Aravena', 'Sebastian Olivares Tapia', 'Florencia Riquelme Bravo',
+    'Diego Andres Saavedra', 'Isidora Valenzuela Carrasco', 'Joaquin Pereira Henriquez', 'Fernanda Alarcon Gaete',
+    'Agustin Cifuentes Salinas', 'Antonia Neira Palma', 'Ignacio Villarroel Fica', 'Valentina Arriagada Toro',
+    'Cristobal Miranda Zuniga', 'Josefa Caceres Vega', 'Maximiliano Leiva Canales', 'Emilia Urrutia Morales',
+    'Nicolas Guzman Cabrera', 'Rocio Zambrano Pino', 'Tomas Bustos Quezada', 'Amanda Acevedo Poblete',
+    'Clemente Astudillo Molina', 'Paz Maldonado Godoy', 'Felipe Ignacio Lagos', 'Constanza Cortes Bastias',
+    'Martin Alejandro Vargas', 'Sofia Isabel Oyarzun',
+];
+
+const NAMES_GENERIC = [
     'Andres Torres','Sofia Ramirez','Diego Herrera','Valentina Castro','Pablo Vargas',
     'Daniela Morales','Javier Mendoza','Camila Rojas','Sergio Silva','Andrea Navarro',
     'Manuel Ortega','Lucia Romero','Fernando Delgado','Paula Vega','Ricardo Molina',
@@ -16,34 +47,32 @@ const NAMES = [
     'Patricia Rivas','Eduardo Salazar','Karla Pena','Roberto Arias','Elena Bravo',
     'Francisco Aguilar','Adriana Luna','Jesus Campos','Veronica Solis','Antonio Nunez',
     'Silvia Moya','Jorge Lozano','Rosa Cordero','Esteban Gallardo','Claudia Escobar',
-    'Cesar Quintana','Yolanda Peralta','Ivan Zamora','Gloria Valdez','Tomas Figueroa',
-    'Alejandra Espinoza','Daniel Benitez','Monica Alvarado','Angel Carrillo','Sandra Ibarra',
-    'Oscar Santana','Teresa Montoya','Kevin Rosales','Beatriz Camacho','Luis Enrique Parra',
-    'Paola Castaneda','Diego Alejandro Suarez','Carolina Duarte','Jorge Luis Mendez','Diana Bustamante',
-    'Andres Felipe Villalobos','Andrea Jimenez','Jose Manuel Navarro','Gabriela Mendez','Luis Alberto Ponce',
-    'Natalia Chavez','Carlos Andres Padilla','Valeria Escalante','Pedro Antonio Rangel','Daniela Serrano',
-    'Mario Alberto Rivas','Camila Fernandez','Juan Pablo Morales','Paula Jimenez','Ricardo Andres Soto',
-    'Sofia Herrera','Fernando Jose Leon','Mariana Torres','Javier Andres Gomez','Laura Martinez',
-    'Jose Antonio Diaz','Valentina Perez','Daniel Alejandro Castro','Andrea Sanchez','Luis Fernando Romero',
-    'Gabriela Vargas','Miguel Angel Silva','Natalia Delgado','Andres Ramirez','Carla Mendoza',
 ];
 
-const COUNTRIES = [
-    { name: 'Espana', flag: '\uD83C\uDDEA\uD83C\uDDF8' },
-    { name: 'Mexico', flag: '\uD83C\uDDF2\uD83C\uDDFD' },
-    { name: 'Colombia', flag: '\uD83C\uDDE8\uD83C\uDDF4' },
-    { name: 'Argentina', flag: '\uD83C\uDDE6\uD83C\uDDF7' },
-    { name: 'Chile', flag: '\uD83C\uDDE8\uD83C\uDDF1' },
-    { name: 'Peru', flag: '\uD83C\uDDF5\uD83C\uDDEA' },
-    { name: 'Ecuador', flag: '\uD83C\uDDEA\uD83C\uDDE8' },
-    { name: 'Panama', flag: '\uD83C\uDDF5\uD83C\uDDE6' },
-    { name: 'Alemania', flag: '\uD83C\uDDE9\uD83C\uDDEA' },
-    { name: 'Francia', flag: '\uD83C\uDDEB\uD83C\uDDF7' },
-    { name: 'Italia', flag: '\uD83C\uDDEE\uD83C\uDDF9' },
-    { name: 'Portugal', flag: '\uD83C\uDDF5\uD83C\uDDF9' },
-    { name: 'Reino Unido', flag: '\uD83C\uDDEC\uD83C\uDDE7' },
-    { name: 'Estados Unidos', flag: '\uD83C\uDDFA\uD83C\uDDF8' },
+// Weighted country pool — Spain, Mexico, Chile appear ~3x more often
+const COUNTRY_POOL = [
+    // Spain (high weight)
+    { name: 'Espana', flag: '\uD83C\uDDEA\uD83C\uDDF8', names: NAMES_ES, weight: 4 },
+    // Mexico (high weight)
+    { name: 'Mexico', flag: '\uD83C\uDDF2\uD83C\uDDFD', names: NAMES_MX, weight: 4 },
+    // Chile (high weight)
+    { name: 'Chile', flag: '\uD83C\uDDE8\uD83C\uDDF1', names: NAMES_CL, weight: 3 },
+    // Others (baseline)
+    { name: 'Colombia', flag: '\uD83C\uDDE8\uD83C\uDDF4', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Argentina', flag: '\uD83C\uDDE6\uD83C\uDDF7', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Peru', flag: '\uD83C\uDDF5\uD83C\uDDEA', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Ecuador', flag: '\uD83C\uDDEA\uD83C\uDDE8', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Panama', flag: '\uD83C\uDDF5\uD83C\uDDE6', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Alemania', flag: '\uD83C\uDDE9\uD83C\uDDEA', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Francia', flag: '\uD83C\uDDEB\uD83C\uDDF7', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Italia', flag: '\uD83C\uDDEE\uD83C\uDDF9', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Portugal', flag: '\uD83C\uDDF5\uD83C\uDDF9', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Reino Unido', flag: '\uD83C\uDDEC\uD83C\uDDE7', names: NAMES_GENERIC, weight: 1 },
+    { name: 'Estados Unidos', flag: '\uD83C\uDDFA\uD83C\uDDF8', names: NAMES_GENERIC, weight: 1 },
 ];
+
+// Pre-expand the pool once for O(1) weighted pick
+const WEIGHTED_COUNTRIES = COUNTRY_POOL.flatMap(c => Array(c.weight).fill(c));
 
 const STATUSES = [
     { label: 'Completado', color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
@@ -59,15 +88,18 @@ function seededRandom(seed) {
 }
 
 function generateOne(index, timeBase) {
-    const seed = timeBase * 1000 + index * 137;
-    const r1 = seededRandom(seed);
-    const r2 = seededRandom(seed + 7919);
-    const r3 = seededRandom(seed + 104729);
-    const r4 = seededRandom(seed + 15485863);
-    const r5 = seededRandom(seed + 7727);
+    // Use prime multipliers to ensure good distribution across indexes
+    const seedBase = (timeBase * 31 + index * 2654435761) & 0x7fffffff;
+    const r1 = seededRandom(seedBase);
+    const r2 = seededRandom((seedBase * 2 + 7919) & 0x7fffffff);
+    const r3 = seededRandom((seedBase * 3 + 104729) & 0x7fffffff);
+    const r4 = seededRandom((seedBase * 5 + 15485863) & 0x7fffffff);
+    // eslint-disable-next-line no-unused-vars
+    const r5 = seededRandom((seedBase * 7 + 7727) & 0x7fffffff);
 
-    const nameIdx = Math.floor(r1 * NAMES.length);
-    const country = COUNTRIES[Math.floor(r2 * COUNTRIES.length)];
+    const nameIdx = Math.floor(r1 * 1000);
+    const country = WEIGHTED_COUNTRIES[Math.floor(r2 * WEIGHTED_COUNTRIES.length) % WEIGHTED_COUNTRIES.length];
+    const name = country.names[nameIdx % country.names.length];
     // Montos entre 45,366 y 68,355
     const amount = Math.floor(45366 + r3 * (68355 - 45366));
     const secsAgo = Math.floor(r4 * 14400); // up to 4 hours in seconds
@@ -75,7 +107,7 @@ function generateOne(index, timeBase) {
 
     return {
         id: `w-${timeBase}-${index}`,
-        name: NAMES[nameIdx],
+        name,
         country: country.name,
         flag: country.flag,
         amount,

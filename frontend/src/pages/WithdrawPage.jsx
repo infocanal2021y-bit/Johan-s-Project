@@ -962,50 +962,117 @@ export const WithdrawPage = () => {
 
     return (
         <Layout>
-            <div className="max-w-3xl mx-auto space-y-8" data-testid="withdraw-page">
+            <div className="max-w-4xl mx-auto space-y-6" data-testid="withdraw-page">
+                {/* Professional Hero Card */}
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
+                    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b2a4e] via-[#0e2d50] to-slate-900 border border-slate-800 shadow-2xl"
                 >
-                    <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                        Solicitar Retiro
-                    </h1>
-                    <p className="text-slate-500 mt-1 font-light">Retirar fondos a su cuenta bancaria</p>
+                    {/* Decorative bg pattern */}
+                    <div className="absolute inset-0 opacity-10" style={{
+                        backgroundImage: 'radial-gradient(circle at 20% 30%, #14549C 0%, transparent 35%), radial-gradient(circle at 80% 70%, #1e70c7 0%, transparent 35%)'
+                    }} />
+                    <div className="absolute right-0 top-0 w-96 h-96 opacity-20" style={{
+                        background: 'radial-gradient(circle, rgba(20,84,156,0.4) 0%, transparent 70%)'
+                    }} />
+
+                    <div className="relative p-6 md:p-8">
+                        <div className="flex items-start gap-4 flex-wrap">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#14549C] to-[#0b3f75] flex items-center justify-center shadow-lg shadow-[#14549C]/30 flex-shrink-0">
+                                <Upload className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] text-[#14549C] bg-[#14549C]/15 border border-[#14549C]/30 px-2 py-0.5 rounded-full uppercase tracking-widest font-bold">Transferencia bancaria</span>
+                                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                                        <BadgeCheck className="w-3 h-3" /> SEPA & SWIFT
+                                    </span>
+                                </div>
+                                <h1 className="text-2xl md:text-3xl text-white font-bold tracking-tight">Solicitar Retiro</h1>
+                                <p className="text-slate-400 mt-1 text-sm md:text-base">Retirar fondos a su cuenta bancaria · Proceso auditado y verificado</p>
+                            </div>
+                        </div>
+
+                        {/* Status strip */}
+                        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="bg-slate-900/60 backdrop-blur border border-emerald-500/30 rounded-lg p-3 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Estado cuenta</p>
+                                    <p className="text-emerald-400 text-xs font-semibold">Verificada</p>
+                                </div>
+                            </div>
+                            <div className="bg-slate-900/60 backdrop-blur border border-slate-700 rounded-lg p-3 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center flex-shrink-0">
+                                    <Clock className="w-4 h-4 text-cyan-400" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Tiempo</p>
+                                    <p className="text-white text-xs font-semibold">24-72h habiles</p>
+                                </div>
+                            </div>
+                            <div className="bg-slate-900/60 backdrop-blur border border-slate-700 rounded-lg p-3 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+                                    <Shield className="w-4 h-4 text-amber-400" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cifrado</p>
+                                    <p className="text-white text-xs font-semibold">256-bit SSL</p>
+                                </div>
+                            </div>
+                            <div className="bg-slate-900/60 backdrop-blur border border-slate-700 rounded-lg p-3 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0">
+                                    <BadgeCheck className="w-4 h-4 text-violet-400" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cumplimiento</p>
+                                    <p className="text-white text-xs font-semibold">KYC + AML</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </motion.div>
 
-                {/* Verification Badge */}
+                {/* Tax Info — Professional accordion-style panel */}
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30"
+                    transition={{ delay: 0.12 }}
+                    className="rounded-xl bg-gradient-to-r from-amber-500/8 via-amber-500/5 to-transparent border border-amber-500/25 p-5"
                 >
-                    <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <span className="text-emerald-400 text-sm" style={{ fontWeight: 500 }}>
-                        Cuenta verificada - Puede realizar retiros
-                    </span>
-                </motion.div>
-
-                {/* Tax Information Notice */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30"
-                >
-                    <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div className="space-y-2">
-                            <p className="text-amber-400 font-medium">
-                                Información Importante sobre Retiros
+                    <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                                <p className="text-amber-400 font-semibold text-sm">Informacion importante sobre el impuesto de retiro</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Impuesto total</p>
+                                    <p className="text-white font-bold text-lg">$4,850 <span className="text-xs text-slate-500 font-normal">USD</span></p>
+                                </div>
+                                <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Monto sugerido</p>
+                                    <p className="text-white font-bold text-lg">2,668 <span className="text-xs text-slate-500 font-normal">EUR</span></p>
+                                </div>
+                                <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Abono minimo parcial</p>
+                                    <p className="text-white font-bold text-lg">1,000 <span className="text-xs text-slate-500 font-normal">EUR</span></p>
+                                </div>
+                                <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Plazo de pago</p>
+                                    <p className="text-white font-bold text-lg">72 <span className="text-xs text-slate-500 font-normal">horas</span></p>
+                                </div>
+                            </div>
+                            <p className="text-slate-400 text-xs mt-3 flex items-center gap-1.5">
+                                <Bitcoin className="w-3.5 h-3.5 text-amber-400" />
+                                El pago se realiza mediante criptomonedas (BTC, USDT y ETH disponibles).
                             </p>
-                            <ul className="text-amber-300/80 text-sm space-y-1 list-disc list-inside">
-                                <li>Todos los retiros requieren el pago de un impuesto de <strong className="text-amber-400">$4,850 USD</strong></li>
-                                <li>Monto estandar sugerido: <strong className="text-amber-400">2,668 EUR</strong></li>
-                                <li>Puede realizar abonos parciales con un minimo de <strong className="text-amber-400">1,000 EUR</strong></li>
-                                <li>El pago del impuesto se realiza mediante criptomonedas</li>
-                                <li>Dispone de 72 horas para completar el pago del impuesto</li>
-                            </ul>
                         </div>
                     </div>
                 </motion.div>
