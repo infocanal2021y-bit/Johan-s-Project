@@ -17,6 +17,7 @@ import { InfoBadge } from '../components/trading/InfoBadge';
 import { GuidedTour, GuidedTourLauncher, useGuidedTour } from '../components/trading/GuidedTour';
 import { TradeConfirmDialog } from '../components/trading/TradeConfirmDialog';
 import { ChallengeUnlocked } from '../components/trading/ChallengeUnlocked';
+import { AssetSelector } from '../components/trading/AssetSelector';
 
 const SYMBOLS = [
     { id: 'EURUSD', label: 'EUR/USD', flag: 'EU', category: 'forex' },
@@ -27,11 +28,14 @@ const SYMBOLS = [
     { id: 'XAUUSD', label: 'XAU/USD', flag: 'AU', category: 'commodity' },
 ];
 
-const formatPrice = (price, symbol) => {
-    if (!price) return '—';
-    if (symbol === 'USDJPY') return price.toFixed(3);
-    if (['BTCUSD', 'ETHUSD', 'XAUUSD'].includes(symbol)) return price.toFixed(2);
-    return price.toFixed(5);
+const formatPrice = (price, symbol, pip) => {
+    if (price == null) return '—';
+    const p = typeof pip === 'number' ? pip : 0.0001;
+    if (p <= 1e-7) return price.toFixed(8);
+    if (p <= 1e-5) return price.toFixed(5);
+    if (p <= 0.001) return price.toFixed(3);
+    if (p <= 0.01) return price.toFixed(2);
+    return price.toFixed(1);
 };
 
 const fmtMoney = (v) => v?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00';
@@ -215,7 +219,8 @@ export const TradingDemoPage = () => {
     useEffect(() => { return () => { if (replayRef.current) clearInterval(replayRef.current); }; }, []);
 
     const sel = prices[selectedSymbol];
-    const selInfo = SYMBOLS.find(s => s.id === selectedSymbol);
+    const selInfo = sel ? { label: sel.label || selectedSymbol, name: sel.name } : SYMBOLS.find(s => s.id === selectedSymbol);
+    const getSymbolLabel = (sym) => prices[sym]?.label || SYMBOLS.find(s => s.id === sym)?.label || sym;
     const totalPL = positions.reduce((s, p) => s + (p.profit_loss || 0), 0);
 
     if (loading) return (
@@ -255,35 +260,27 @@ export const TradingDemoPage = () => {
                     </div>
 
                     {/* Main header bar */}
-                    <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide">
-                        {/* Asset pills */}
-                        <div className="flex items-center border-r border-[#1e2329]">
-                            {SYMBOLS.map(sym => {
-                                const p = prices[sym.id];
-                                const active = selectedSymbol === sym.id;
-                                return (
-                                    <button key={sym.id} onClick={() => setSelectedSymbol(sym.id)} data-testid={`asset-${sym.id}`}
-                                        className={`px-4 py-3 text-left whitespace-nowrap transition-colors border-b-2 ${active ? 'bg-[#1e2329] border-[#F0B90B] text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-[#1e2329]/50'}`}>
-                                        <div className="text-xs font-bold">{sym.label}</div>
-                                        {p && <div className={`text-[10px] font-mono ${p.change_pct >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{formatPrice(p.bid, sym.id)}</div>}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-3 py-2">
+                        {/* Asset selector with search + categories */}
+                        <AssetSelector
+                            selectedSymbol={selectedSymbol}
+                            onSelect={setSelectedSymbol}
+                            prices={prices}
+                        />
 
                         {/* Selected pair info */}
                         {sel && (
-                            <div className="flex items-center gap-6 px-5 flex-shrink-0">
+                            <div className="flex items-center gap-6 px-3 flex-shrink-0 border-l border-[#1e2329]">
                                 <div>
-                                    <span className="text-white text-xl font-bold font-mono tabular-nums">{formatPrice(sel.bid, selectedSymbol)}</span>
+                                    <span className="text-white text-xl font-bold font-mono tabular-nums">{formatPrice(sel.bid, selectedSymbol, sel.pip)}</span>
                                     <span className={`ml-2 text-sm font-semibold ${sel.change_pct >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
                                         {sel.change_pct >= 0 ? '+' : ''}{sel.change_pct}%
                                     </span>
                                 </div>
                                 <div className="flex gap-5 text-[11px]">
-                                    <div><span className="text-slate-500">Bid</span><p className="text-[#0ecb81] font-mono">{formatPrice(sel.bid, selectedSymbol)}</p></div>
-                                    <div><span className="text-slate-500">Ask</span><p className="text-[#f6465d] font-mono">{formatPrice(sel.ask, selectedSymbol)}</p></div>
-                                    <div><span className="text-slate-500">Spread</span><p className="text-slate-300 font-mono">{(sel.ask - sel.bid).toFixed(selectedSymbol === 'USDJPY' ? 3 : 5)}</p></div>
+                                    <div><span className="text-slate-500">Bid</span><p className="text-[#0ecb81] font-mono">{formatPrice(sel.bid, selectedSymbol, sel.pip)}</p></div>
+                                    <div><span className="text-slate-500">Ask</span><p className="text-[#f6465d] font-mono">{formatPrice(sel.ask, selectedSymbol, sel.pip)}</p></div>
+                                    <div><span className="text-slate-500">Spread</span><p className="text-slate-300 font-mono">{formatPrice(sel.ask - sel.bid, selectedSymbol, sel.pip)}</p></div>
                                 </div>
                             </div>
                         )}
@@ -538,7 +535,7 @@ export const TradingDemoPage = () => {
                                     <tbody>
                                         {positions.map(pos => (
                                             <tr key={pos.id} className="border-t border-[#1e2329]/60 hover:bg-[#1e2329]/40 transition-colors" data-testid={`position-${pos.id}`}>
-                                                <td className="px-4 py-2.5 text-white font-medium">{SYMBOLS.find(s => s.id === pos.symbol)?.label}</td>
+                                                <td className="px-4 py-2.5 text-white font-medium">{getSymbolLabel(pos.symbol)}</td>
                                                 <td className="px-3 py-2.5 text-center"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${pos.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>{pos.direction === 'buy' ? 'LONG' : 'SHORT'}</span></td>
                                                 <td className="px-3 py-2.5 text-center text-slate-400 font-mono">{pos.lot_size}</td>
                                                 <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(pos.entry_price, pos.symbol)}</td>
@@ -572,7 +569,7 @@ export const TradingDemoPage = () => {
                                     <tbody>
                                         {history.map(h => (
                                             <tr key={h.id} className="border-t border-[#1e2329]/60 hover:bg-[#1e2329]/40">
-                                                <td className="px-4 py-2.5 text-white font-medium">{SYMBOLS.find(s => s.id === h.symbol)?.label}</td>
+                                                <td className="px-4 py-2.5 text-white font-medium">{getSymbolLabel(h.symbol)}</td>
                                                 <td className="px-3 py-2.5 text-center"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${h.direction === 'buy' ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>{h.direction === 'buy' ? 'LONG' : 'SHORT'}</span></td>
                                                 <td className="px-3 py-2.5 text-center text-slate-400 font-mono">{h.lot_size}</td>
                                                 <td className="px-3 py-2.5 text-center text-slate-500 font-mono">{formatPrice(h.entry_price, h.symbol)}</td>

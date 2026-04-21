@@ -12,19 +12,10 @@ from services.auth import get_current_user
 
 router = APIRouter()
 
-BASE_PRICES = {
-    'EURUSD': 1.0862, 'GBPUSD': 1.2714, 'USDJPY': 154.32,
-    'BTCUSD': 67420.0, 'ETHUSD': 3215.0, 'XAUUSD': 2345.50,
-}
+from data.trading_assets import ALL_BASE_PRICES, ALL_ASSET_INFO, CATEGORIES
 
-ASSET_INFO = {
-    'EURUSD': {'name': 'Euro / US Dollar', 'pip': 0.0001, 'spread': 0.00012, 'category': 'forex'},
-    'GBPUSD': {'name': 'British Pound / US Dollar', 'pip': 0.0001, 'spread': 0.00015, 'category': 'forex'},
-    'USDJPY': {'name': 'US Dollar / Japanese Yen', 'pip': 0.01, 'spread': 0.015, 'category': 'forex'},
-    'BTCUSD': {'name': 'Bitcoin / US Dollar', 'pip': 0.01, 'spread': 35.0, 'category': 'crypto'},
-    'ETHUSD': {'name': 'Ethereum / US Dollar', 'pip': 0.01, 'spread': 2.5, 'category': 'crypto'},
-    'XAUUSD': {'name': 'Gold / US Dollar', 'pip': 0.01, 'spread': 0.35, 'category': 'commodity'},
-}
+BASE_PRICES = ALL_BASE_PRICES
+ASSET_INFO = ALL_ASSET_INFO
 
 CHALLENGES = [
     # ── Retos tutoriales / misiones educativas ──
@@ -72,34 +63,56 @@ def _simulate_price(symbol: str):
     bid = base * (1 + change_pct)
     spread = info.get('spread', 0.0001)
     ask = bid + spread
-    if symbol == 'USDJPY':
+    # Round based on pip precision
+    pip = info.get('pip', 0.0001)
+    if pip <= 1e-7:
+        bid, ask = round(bid, 8), round(ask, 8)
+    elif pip <= 1e-5:
+        bid, ask = round(bid, 5), round(ask, 5)
+    elif pip <= 0.001:
         bid, ask = round(bid, 3), round(ask, 3)
-    elif symbol in ('BTCUSD', 'ETHUSD', 'XAUUSD'):
+    elif pip <= 0.01:
         bid, ask = round(bid, 2), round(ask, 2)
     else:
-        bid, ask = round(bid, 5), round(ask, 5)
+        bid, ask = round(bid, 1), round(ask, 1)
     return {'bid': bid, 'ask': ask, 'change_pct': round(change_pct * 100, 3)}
 
 
 def _calc_pl(trade, current_price):
     entry = trade['entry_price']
+def _calc_pl(trade, current_price):
+    entry = trade['entry_price']
     lots = trade['lot_size']
     symbol = trade['symbol']
-    if symbol == 'USDJPY':
-        pip_value = (0.01 / current_price) * (lots * 100000)
-        pips = (current_price - entry) / 0.01
-    elif symbol in ('BTCUSD', 'ETHUSD'):
-        pip_value = lots
-        pips = current_price - entry
-    elif symbol == 'XAUUSD':
-        pip_value = lots * 100
-        pips = current_price - entry
+    info = ASSET_INFO.get(symbol, {})
+    category = info.get('category', 'forex')
+
+    if category == 'forex':
+        is_jpy = symbol.endswith('JPY')
+        pip = 0.01 if is_jpy else 0.0001
+        pip_value = (pip / current_price) * (lots * 100000) if is_jpy else lots * 100000 * pip
+        pips = (current_price - entry) / pip
+        if trade['direction'] == 'sell':
+            pips = -pips
+        return round(pips * pip_value, 2)
+
+    # For indices/commodities/crypto/stocks: simple contract-based P/L
+    # 1 lot = N contracts depending on category
+    if category == 'crypto':
+        contracts = lots
+    elif category == 'commodity' and symbol == 'XAUUSD':
+        contracts = lots * 100
+    elif category == 'index':
+        contracts = lots * 10
+    elif category in ('stock_us', 'stock_eu', 'stock_latam'):
+        contracts = lots * 100
     else:
-        pip_value = lots * 100000 * 0.0001
-        pips = (current_price - entry) / 0.0001
+        contracts = lots * 10
+
+    diff = current_price - entry
     if trade['direction'] == 'sell':
-        pips = -pips
-    return round(pips * pip_value if symbol in ('USDJPY',) else pips * pip_value if symbol not in ('BTCUSD', 'ETHUSD', 'XAUUSD') else pips * lots, 2)
+        diff = -diff
+    return round(diff * contracts, 2)
 
 
 class OpenTradeRequest(BaseModel):
@@ -115,6 +128,21 @@ class CloseTradeRequest(BaseModel):
 
 
 # ══════════════════ PRICES & CANDLES ══════════════════
+
+@router.get("/trading/assets")
+async def get_assets_catalog(current_user: dict = Depends(get_current_user)):
+    """Full catalog of available trading assets grouped by category."""
+    assets = []
+    for symbol in BASE_PRICES:
+        info = ASSET_INFO.get(symbol, {})
+        assets.append({
+            'symbol': symbol,
+            'label': info.get('label', symbol),
+            'name': info.get('name', symbol),
+            'category': info.get('category', 'other'),
+        })
+    return {'categories': CATEGORIES, 'assets': assets, 'total': len(assets)}
+
 
 @router.get("/trading/prices")
 async def get_all_prices(current_user: dict = Depends(get_current_user)):
@@ -219,12 +247,22 @@ async def open_trade(data: OpenTradeRequest, current_user: dict = Depends(get_cu
     price = _simulate_price(data.symbol)
     entry_price = price['ask'] if data.direction == 'buy' else price['bid']
 
-    if data.symbol in ('BTCUSD', 'ETHUSD'):
-        margin = entry_price * data.lot_size / account.get('leverage', 100)
-    elif data.symbol == 'XAUUSD':
-        margin = entry_price * data.lot_size * 100 / account.get('leverage', 100)
-    else:
-        margin = 100000 * data.lot_size / account.get('leverage', 100)
+    # Calculate margin based on category
+    info = ASSET_INFO.get(data.symbol, {})
+    category = info.get('category', 'forex')
+    leverage = account.get('leverage', 100)
+    if category == 'crypto':
+        margin = entry_price * data.lot_size / leverage
+    elif category == 'commodity' and data.symbol == 'XAUUSD':
+        margin = entry_price * data.lot_size * 100 / leverage
+    elif category == 'commodity':
+        margin = entry_price * data.lot_size * 100 / leverage
+    elif category == 'index':
+        margin = entry_price * data.lot_size * 10 / leverage
+    elif category in ('stock_us', 'stock_eu', 'stock_latam'):
+        margin = entry_price * data.lot_size * 100 / leverage
+    else:  # forex
+        margin = 100000 * data.lot_size / leverage
 
     if margin > account['balance']:
         raise HTTPException(400, 'Margen insuficiente')
