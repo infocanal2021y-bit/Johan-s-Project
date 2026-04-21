@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import api from '../lib/api';
 import { CandlestickChart } from '../components/trading/CandlestickChart';
+import { OrderBook } from '../components/trading/OrderBook';
 
 const SYMBOLS = [
     { id: 'EURUSD', label: 'EUR/USD', flag: 'EU', category: 'forex' },
@@ -319,6 +320,17 @@ export const TradingDemoPage = () => {
                                 </Button>
                             </div>
                         </div>
+
+                        {/* Order Book */}
+                        <div className="border-b border-[#1e2329]" data-testid="orderbook-section">
+                            <OrderBook
+                                symbol={selectedSymbol}
+                                bid={sel?.bid}
+                                ask={sel?.ask}
+                                formatPrice={formatPrice}
+                            />
+                        </div>
+
 
                         {/* Account Summary */}
                         <div className="p-4 border-b border-[#1e2329]" data-testid="account-summary">

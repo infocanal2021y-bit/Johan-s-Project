@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { paymentsAPI } from '../lib/api';
@@ -175,6 +175,24 @@ const ColombiaFlag = () => (
     </svg>
 );
 
+const BizumLogo = () => (
+    <svg viewBox="0 0 780 500" className="w-full h-full">
+        <defs>
+            <linearGradient id="bizumBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#00B2B5" />
+                <stop offset="100%" stopColor="#038889" />
+            </linearGradient>
+        </defs>
+        <rect width="780" height="500" rx="40" fill="url(#bizumBg)" />
+        <g transform="translate(110, 130)">
+            <circle cx="70" cy="100" r="70" fill="white" />
+            <text x="70" y="128" textAnchor="middle" fill="#038889" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="92">B</text>
+        </g>
+        <text x="470" y="250" textAnchor="middle" dominantBaseline="central" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="120" letterSpacing="2">bizum</text>
+        <text x="470" y="360" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontSize="38" opacity="0.9">Pagos al instante</text>
+    </svg>
+);
+
 /* ─── Data ─── */
 const PAYMENT_METHODS = [
     { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Agente autorizado', Logo: BankTransferLogo, special: true },
@@ -193,6 +211,10 @@ const CRYPTO_PROVIDERS = [
 const BANK_PROVIDERS = [
     { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account', disabled: true, brandColor: '#E94560' },
     { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/', disabled: true, brandColor: '#EC0000' },
+];
+
+const INSTANT_PAYMENTS = [
+    { id: 'bizum', name: 'Bizum', desc: 'Pagos moviles al instante', Logo: BizumLogo, url: 'https://bizum.es/', disabled: true, brandColor: '#00B2B5', comingSoon: true },
 ];
 
 const COUNTRY_BANKS = [
@@ -556,6 +578,16 @@ export default function WithdrawMethodsPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="crypto-providers-grid">
                         {CRYPTO_PROVIDERS.map((p) => (
                             <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* Section 3.5: Pagos Instantaneos Europa (Bizum) */}
+                <section>
+                    <SectionTitle icon={Zap} title="Pagos Instantaneos Europa" iconColor="bg-teal-500/20 text-teal-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="instant-payments-grid">
+                        {INSTANT_PAYMENTS.map((p) => (
+                            <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} disabled={p.disabled} brandColor={p.brandColor} />
                         ))}
                     </div>
                 </section>
