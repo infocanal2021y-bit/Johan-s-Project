@@ -7,7 +7,9 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { authAPI } from '../lib/api';
 import { toast } from 'sonner';
-import { Lock, ArrowLeft, Loader2, CheckCircle, Shield, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Lock, ArrowLeft, Loader2, CheckCircle, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { AuthBackground } from '../components/auth/AuthBackground';
+import { AuthLogo } from '../components/auth/AuthLogo';
 
 export const ResetPasswordPage = () => {
     const [searchParams] = useSearchParams();
@@ -24,7 +26,7 @@ export const ResetPasswordPage = () => {
 
     useEffect(() => {
         if (!token) {
-            setError('Invalid reset link. Please request a new password reset.');
+            setError('Enlace de restablecimiento inválido. Por favor solicita uno nuevo.');
         }
     }, [token]);
 
@@ -32,12 +34,12 @@ export const ResetPasswordPage = () => {
         e.preventDefault();
         
         if (!newPassword || newPassword.length < 6) {
-            toast.error('La contrasena debe tener al menos 6 caracteres');
+            toast.error('La contraseña debe tener al menos 6 caracteres');
             return;
         }
         
         if (newPassword !== confirmPassword) {
-            toast.error('Las contrasenas no coinciden');
+            toast.error('Las contraseñas no coinciden');
             return;
         }
         
@@ -47,9 +49,9 @@ export const ResetPasswordPage = () => {
         try {
             await authAPI.resetPassword({ token, new_password: newPassword });
             setSuccess(true);
-            toast.success('Password reset successfully!');
+            toast.success('¡Contraseña restablecida correctamente!');
         } catch (err) {
-            const message = err.response?.data?.detail || 'Failed to reset password. The link may have expired.';
+            const message = err.response?.data?.detail || 'No se pudo restablecer la contraseña. El enlace puede haber expirado.';
             setError(message);
             toast.error(message);
         } finally {
@@ -58,31 +60,29 @@ export const ResetPasswordPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-            {/* Background effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-            </div>
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#040914]">
+            <AuthBackground />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-md relative z-10"
+                className="w-full max-w-md relative"
+                style={{ zIndex: 10 }}
             >
-                <Card className="bg-slate-900/80 backdrop-blur-xl border-slate-800 shadow-2xl">
+                <div className="mb-6">
+                    <AuthLogo subtitle="Seguridad y protección de tu cuenta" />
+                </div>
+
+                <Card className="bg-slate-900/70 backdrop-blur-2xl border-slate-800/80 shadow-2xl shadow-black/40 ring-1 ring-white/5">
                     <CardHeader className="text-center pb-2">
-                        <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                            <Shield className="w-8 h-8 text-white" />
-                        </div>
                         <CardTitle className="text-2xl font-bold text-white">
-                            {success ? 'Password Reset!' : 'Create New Password'}
+                            {success ? '¡Contraseña actualizada!' : 'Nueva contraseña'}
                         </CardTitle>
                         <CardDescription className="text-slate-400">
                             {success 
-                                ? 'Your password has been updated successfully'
-                                : 'Enter your new password below'
+                                ? 'Tu contraseña ha sido actualizada correctamente'
+                                : 'Ingresa tu nueva contraseña a continuación'
                             }
                         </CardDescription>
                     </CardHeader>
@@ -100,13 +100,13 @@ export const ResetPasswordPage = () => {
                                 
                                 <div className="space-y-2">
                                     <p className="text-slate-300">
-                                        Your password has been reset successfully. You can now log in with your new password.
+                                        Tu contraseña ha sido restablecida correctamente. Ya puedes iniciar sesión con tu nueva contraseña.
                                     </p>
                                 </div>
 
                                 <Link to="/login" className="block">
                                     <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white">
-                                        Go to Login
+                                        Ir a Iniciar Sesión
                                     </Button>
                                 </Link>
                             </motion.div>
@@ -121,15 +121,15 @@ export const ResetPasswordPage = () => {
                                 </div>
                                 
                                 <div className="space-y-2">
-                                    <p className="text-red-400 font-medium">Invalid Reset Link</p>
+                                    <p className="text-red-400 font-medium">Enlace no válido</p>
                                     <p className="text-slate-400 text-sm">
-                                        This password reset link is invalid or has expired. Please request a new one.
+                                        Este enlace de restablecimiento es inválido o ha expirado. Por favor solicita uno nuevo.
                                     </p>
                                 </div>
 
                                 <Link to="/forgot-password" className="block">
                                     <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white">
-                                        Request New Link
+                                        Solicitar nuevo enlace
                                     </Button>
                                 </Link>
                             </motion.div>
@@ -142,13 +142,13 @@ export const ResetPasswordPage = () => {
                                 )}
                                 
                                 <div className="space-y-2">
-                                    <Label htmlFor="newPassword" className="text-slate-300">New Password</Label>
+                                    <Label htmlFor="newPassword" className="text-slate-300">Nueva contraseña</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                                         <Input
                                             id="newPassword"
                                             type={showPassword ? "text" : "password"}
-                                            placeholder="Enter new password"
+                                            placeholder="Ingresa tu nueva contraseña"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
                                             className="pl-10 pr-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-emerald-500"
@@ -165,13 +165,13 @@ export const ResetPasswordPage = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="confirmPassword" className="text-slate-300">Confirm Password</Label>
+                                    <Label htmlFor="confirmPassword" className="text-slate-300">Confirmar contraseña</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                                         <Input
                                             id="confirmPassword"
                                             type={showConfirmPassword ? "text" : "password"}
-                                            placeholder="Confirm new password"
+                                            placeholder="Confirma tu nueva contraseña"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
                                             className="pl-10 pr-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-emerald-500"
@@ -196,10 +196,10 @@ export const ResetPasswordPage = () => {
                                     {loading ? (
                                         <>
                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Resetting...
+                                            Restableciendo...
                                         </>
                                     ) : (
-                                        'Reset Password'
+                                        'Restablecer contraseña'
                                     )}
                                 </Button>
 
@@ -209,7 +209,7 @@ export const ResetPasswordPage = () => {
                                         className="text-sm text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-2"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
-                                        Back to Login
+                                        Volver a Iniciar Sesión
                                     </Link>
                                 </div>
                             </form>
@@ -217,8 +217,8 @@ export const ResetPasswordPage = () => {
                     </CardContent>
                 </Card>
 
-                <p className="text-center text-slate-600 text-sm mt-6">
-                    LIONSBIT VERIFICACION - Secure Banking
+                <p className="text-center text-slate-500 text-sm mt-6" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>
+                    LIONSBIT VERIFICACIÓN — Banca segura
                 </p>
             </motion.div>
         </div>

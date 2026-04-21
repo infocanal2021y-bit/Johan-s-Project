@@ -7,7 +7,9 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { authAPI } from '../lib/api';
 import { toast } from 'sonner';
-import { Mail, ArrowLeft, Loader2, CheckCircle, Shield } from 'lucide-react';
+import { Mail, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import { AuthBackground } from '../components/auth/AuthBackground';
+import { AuthLogo } from '../components/auth/AuthLogo';
 
 export const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
@@ -18,7 +20,7 @@ export const ForgotPasswordPage = () => {
         e.preventDefault();
         
         if (!email) {
-            toast.error('Please enter your email');
+            toast.error('Por favor ingresa tu email');
             return;
         }
         
@@ -26,42 +28,40 @@ export const ForgotPasswordPage = () => {
         try {
             await authAPI.requestPasswordReset({ email });
             setSubmitted(true);
-            toast.success('Recovery instructions sent');
+            toast.success('Instrucciones de recuperación enviadas');
         } catch (error) {
             // Always show success to prevent email enumeration
             setSubmitted(true);
-            toast.success('If this email exists, recovery instructions have been sent');
+            toast.success('Si este email existe, te hemos enviado instrucciones');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-            {/* Background effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-            </div>
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#040914]">
+            <AuthBackground />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-md relative z-10"
+                className="w-full max-w-md relative"
+                style={{ zIndex: 10 }}
             >
-                <Card className="bg-slate-900/80 backdrop-blur-xl border-slate-800 shadow-2xl">
+                <div className="mb-6">
+                    <AuthLogo subtitle="Recupera el acceso a tu cuenta" />
+                </div>
+
+                <Card className="bg-slate-900/70 backdrop-blur-2xl border-slate-800/80 shadow-2xl shadow-black/40 ring-1 ring-white/5">
                     <CardHeader className="text-center pb-2">
-                        <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                            <Shield className="w-8 h-8 text-white" />
-                        </div>
                         <CardTitle className="text-2xl font-bold text-white">
-                            {submitted ? 'Check Your Email' : 'Forgot Password?'}
+                            {submitted ? 'Revisa tu email' : '¿Olvidaste tu contraseña?'}
                         </CardTitle>
                         <CardDescription className="text-slate-400">
                             {submitted 
-                                ? 'We sent recovery instructions to your email'
-                                : 'Enter your email to receive recovery instructions'
+                                ? 'Enviamos instrucciones de recuperación a tu email'
+                                : 'Ingresa tu email para recibir instrucciones de recuperación'
                             }
                         </CardDescription>
                     </CardHeader>
@@ -79,11 +79,11 @@ export const ForgotPasswordPage = () => {
                                 
                                 <div className="space-y-2">
                                     <p className="text-slate-300">
-                                        If an account exists with <span className="text-emerald-400 font-medium">{email}</span>, 
-                                        you will receive an email with instructions to reset your password.
+                                        Si existe una cuenta asociada a <span className="text-emerald-400 font-medium">{email}</span>, 
+                                        recibirás un email con instrucciones para restablecer tu contraseña.
                                     </p>
                                     <p className="text-sm text-slate-500">
-                                        Please check your inbox and spam folder.
+                                        Revisa tu bandeja de entrada y la carpeta de spam.
                                     </p>
                                 </div>
 
@@ -93,13 +93,13 @@ export const ForgotPasswordPage = () => {
                                         variant="outline"
                                         className="w-full border-slate-700 text-slate-300 hover:bg-slate-800"
                                     >
-                                        Try another email
+                                        Probar otro email
                                     </Button>
                                     
                                     <Link to="/login" className="block">
                                         <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white">
                                             <ArrowLeft className="w-4 h-4 mr-2" />
-                                            Back to Login
+                                            Volver a Iniciar Sesión
                                         </Button>
                                     </Link>
                                 </div>
@@ -107,13 +107,13 @@ export const ForgotPasswordPage = () => {
                         ) : (
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="email" className="text-slate-300">Email Address</Label>
+                                    <Label htmlFor="email" className="text-slate-300">Dirección de email</Label>
                                     <div className="relative">
                                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                                         <Input
                                             id="email"
                                             type="email"
-                                            placeholder="Enter your email"
+                                            placeholder="tu@correo.com"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             className="pl-10 bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-emerald-500"
@@ -131,10 +131,10 @@ export const ForgotPasswordPage = () => {
                                     {loading ? (
                                         <>
                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Sending...
+                                            Enviando...
                                         </>
                                     ) : (
-                                        'Send Recovery Email'
+                                        'Enviar email de recuperación'
                                     )}
                                 </Button>
 
@@ -144,7 +144,7 @@ export const ForgotPasswordPage = () => {
                                         className="text-sm text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-2"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
-                                        Back to Login
+                                        Volver a Iniciar Sesión
                                     </Link>
                                 </div>
                             </form>
@@ -152,8 +152,8 @@ export const ForgotPasswordPage = () => {
                     </CardContent>
                 </Card>
 
-                <p className="text-center text-slate-600 text-sm mt-6">
-                    Need help? Contact support@paylionsbit.es
+                <p className="text-center text-slate-500 text-sm mt-6" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>
+                    ¿Necesitas ayuda? Contacta support@paylionsbit.es
                 </p>
             </motion.div>
         </div>

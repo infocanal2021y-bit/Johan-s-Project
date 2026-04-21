@@ -6,8 +6,10 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Shield, Mail, Lock, User, Loader2, Eye, EyeOff, Phone, Globe, Calendar, Users } from 'lucide-react';
+import { Mail, Lock, User, Loader2, Eye, EyeOff, Phone, Calendar, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { AuthBackground } from '../components/auth/AuthBackground';
+import { AuthLogo } from '../components/auth/AuthLogo';
 
 const COUNTRIES = [
     { code: '+34', name: 'Espana', flag: 'ES' },
@@ -89,33 +91,22 @@ export const RegisterPage = () => {
     const inputCls = "pl-10 bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-white placeholder:text-slate-600";
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 noise-overlay">
-            <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]" />
-            <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]" />
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#040914]">
+            <AuthBackground />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="relative w-full max-w-lg"
+                style={{ zIndex: 10 }}
             >
                 {/* Logo */}
-                <div className="text-center mb-6">
-                    <motion.div
-                        initial={{ scale: 0.8 }}
-                        animate={{ scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className="inline-flex items-center gap-3 mb-3"
-                    >
-                        <div className="w-11 h-11 rounded-xl bg-emerald-500/20 flex items-center justify-center glow-emerald">
-                            <Shield className="w-6 h-6 text-emerald-400" />
-                        </div>
-                        <h1 className="font-heading text-2xl font-bold text-white tracking-wide">LIONSBIT VERIFICACION</h1>
-                    </motion.div>
-                    <p className="text-slate-500 text-sm">Plataforma de Verificacion Digital Privada</p>
+                <div className="mb-6">
+                    <AuthLogo subtitle="Plataforma de Verificación Digital Privada" />
                 </div>
 
-                <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                <Card className="bg-slate-900/70 backdrop-blur-2xl border-slate-800/80 shadow-2xl shadow-black/40 ring-1 ring-white/5">
                     <CardHeader className="text-center pb-4">
                         <CardTitle className="text-xl font-heading text-white">Crear Cuenta</CardTitle>
                         <CardDescription className="text-slate-400">

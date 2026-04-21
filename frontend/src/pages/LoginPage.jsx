@@ -6,9 +6,10 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Shield, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthBackground } from '../components/auth/AuthBackground';
+import { AuthLogo } from '../components/auth/AuthLogo';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -46,19 +47,8 @@ export const LoginPage = () => {
                 style={{ zIndex: 10 }}
             >
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <motion.div
-                        initial={{ scale: 0.8 }}
-                        animate={{ scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className="inline-flex items-center gap-3 mb-4"
-                    >
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#14549C] to-[#0b3f75] flex items-center justify-center shadow-lg shadow-[#14549C]/40 ring-1 ring-white/10">
-                            <Shield className="w-7 h-7 text-white" />
-                        </div>
-                        <h1 className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT VERIFICACION</h1>
-                    </motion.div>
-                    <p className="text-slate-400 font-light">Plataforma de Verificacion Digital</p>
+                <div className="mb-8">
+                    <AuthLogo />
                 </div>
 
                 <Card className="bg-slate-900/60 backdrop-blur-2xl border-slate-800/80 shadow-2xl shadow-black/40 ring-1 ring-white/5">
