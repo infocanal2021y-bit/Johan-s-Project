@@ -14,11 +14,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { InfoBadge } from '../components/trading/InfoBadge';
+import { AssetSelector } from '../components/trading/AssetSelector';
 
 const SYMBOL_LABELS = {
     EURUSD: 'EUR/USD', GBPUSD: 'GBP/USD', USDJPY: 'USD/JPY',
     BTCUSD: 'BTC/USD', ETHUSD: 'ETH/USD', XAUUSD: 'XAU/USD',
 };
+const getLabel = (sym, prices) => prices?.[sym]?.label || SYMBOL_LABELS[sym] || sym;
 
 const ACTION_META = {
     buy: { label: 'COMPRA', icon: ArrowUp, color: '#0ecb81', bg: 'bg-[#0ecb81]/10', border: 'border-[#0ecb81]/30' },
@@ -55,7 +57,7 @@ const MetricCard = ({ label, value, icon: Icon, color = '#F0B90B', sub, testId }
     </div>
 );
 
-const DecisionItem = ({ d }) => {
+const DecisionItem = ({ d, prices }) => {
     const meta = ACTION_META[d.action] || ACTION_META.hold;
     const Icon = meta.icon;
     return (
@@ -72,7 +74,7 @@ const DecisionItem = ({ d }) => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] font-bold" style={{ color: meta.color }}>{meta.label}</span>
                     <span className="text-slate-400 text-[11px]">·</span>
-                    <span className="text-slate-400 text-[11px] font-mono">{SYMBOL_LABELS[d.symbol] || d.symbol}</span>
+                    <span className="text-slate-400 text-[11px] font-mono">{getLabel(d.symbol, prices)}</span>
                     <span className="text-slate-600 text-[10px] ml-auto font-mono">{formatTime(d.timestamp)}</span>
                 </div>
                 <p className="text-slate-200 text-[12px] leading-snug mt-1">{d.reason}</p>
@@ -111,20 +113,23 @@ export const TradingBotPage = () => {
     const [ticking, setTicking] = useState(false);
     const [resetConfirm, setResetConfirm] = useState(false);
     const [showEduModal, setShowEduModal] = useState(false);
+    const [prices, setPrices] = useState({});
     const prevDecisionCount = useRef(0);
 
     const fetchAll = useCallback(async () => {
         try {
-            const [c, s, d, p] = await Promise.all([
+            const [c, s, d, p, pr] = await Promise.all([
                 api.get('/trading/bot/config'),
                 api.get('/trading/bot/status'),
                 api.get('/trading/bot/decisions?limit=50'),
                 api.get('/trading/bot/performance'),
+                api.get('/trading/prices'),
             ]);
             setCfg(c.data);
             setStatus(s.data);
             setDecisions(d.data);
             setPerf(p.data);
+            setPrices(pr.data || {});
         } catch (e) { /* silent */ }
         finally { setLoading(false); }
     }, []);
@@ -145,7 +150,7 @@ export const TradingBotPage = () => {
         if (decisions.length > prevDecisionCount.current) {
             const latest = decisions[0];
             if (latest.executed) {
-                toast.success(`Bot ejecuto ${latest.action.toUpperCase()} en ${SYMBOL_LABELS[latest.symbol] || latest.symbol}`, {
+                toast.success(`Bot ejecuto ${latest.action.toUpperCase()} en ${getLabel(latest.symbol, prices)}`, {
                     description: latest.reason,
                     duration: 6000,
                 });
@@ -285,19 +290,24 @@ export const TradingBotPage = () => {
                                     />
                                 </div>
 
-                                {/* Symbol */}
+                                {/* Symbol — full catalog with search + categories */}
                                 <div>
-                                    <label className="text-slate-500 text-[11px] uppercase tracking-wider mb-1.5 block">Par a operar</label>
-                                    <Select value={cfg.symbol} onValueChange={(v) => updateConfig({ symbol: v })} disabled={saving}>
-                                        <SelectTrigger className="bg-[#1e2329] border-[#2b3139] text-white" data-testid="bot-symbol-select">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-[#14181d] border-[#2b3139]">
-                                            {cfg.available_symbols?.map(s => (
-                                                <SelectItem key={s} value={s} className="text-white">{SYMBOL_LABELS[s] || s}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <label className="text-slate-500 text-[11px] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                        Activo a operar
+                                        <InfoBadge
+                                            title="Activo del Bot"
+                                            what="El par, indice, materia prima, cripto o accion sobre el que el bot ejecutara operaciones."
+                                            how="Pulsa para buscar entre los 170+ activos disponibles. Puedes filtrar por categoria (Forex, Indices, Crypto, Acciones...)."
+                                            tip="Elige activos que conozcas y con suficiente liquidez. Evita activos extremadamente volatiles con riesgo 'alto'."
+                                            testId="info-bot-symbol"
+                                        />
+                                        <span className="ml-auto text-[10px] text-slate-600 normal-case">Ctrl+K</span>
+                                    </label>
+                                    <AssetSelector
+                                        selectedSymbol={cfg.symbol}
+                                        onSelect={(v) => updateConfig({ symbol: v })}
+                                        prices={prices}
+                                    />
                                 </div>
 
                                 {/* Strategy */}
@@ -501,7 +511,7 @@ export const TradingBotPage = () => {
                                             <span className={`font-bold ${t.direction === 'buy' ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
                                                 {t.direction === 'buy' ? '↑ COMPRA' : '↓ VENTA'}
                                             </span>
-                                            <span className="text-white">{SYMBOL_LABELS[t.symbol] || t.symbol}</span>
+                                            <span className="text-white">{getLabel(t.symbol, prices)}</span>
                                             <span className="ml-auto text-slate-600 font-mono">{t.lot_size} lot</span>
                                         </div>
                                         <p className="text-slate-500 font-mono">Entry: <span className="text-white">{formatPrice(t.entry_price)}</span></p>
@@ -540,7 +550,7 @@ export const TradingBotPage = () => {
                                         {perf.recent_closed.map(t => (
                                             <tr key={t.id} className="border-b border-[#1e2329]/50 font-mono">
                                                 <td className="py-2 text-slate-500">{formatTime(t.closed_at)}</td>
-                                                <td className="py-2 text-white">{SYMBOL_LABELS[t.symbol] || t.symbol}</td>
+                                                <td className="py-2 text-white">{getLabel(t.symbol, prices)}</td>
                                                 <td className="py-2" style={{ color: t.direction === 'buy' ? '#0ecb81' : '#f6465d' }}>{t.direction === 'buy' ? '↑' : '↓'}</td>
                                                 <td className="py-2 text-right text-slate-400">{formatPrice(t.entry_price)}</td>
                                                 <td className="py-2 text-right text-slate-400">{formatPrice(t.close_price)}</td>

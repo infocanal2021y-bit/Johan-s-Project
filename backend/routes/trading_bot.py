@@ -34,7 +34,7 @@ router = APIRouter()
 
 RISK_PRESETS = {
     'bajo': {
-        'lot_size': {'forex': 0.05, 'commodity': 0.05, 'crypto': 0.01},
+        'lot_size': {'forex': 0.05, 'commodity': 0.05, 'crypto': 0.01, 'index': 0.05, 'stock_us': 0.05, 'stock_eu': 0.05, 'stock_latam': 0.05},
         'sl_pct': 0.004,  # 0.4%
         'tp_pct': 0.008,  # 0.8%  (1:2 R/R)
         'max_concurrent': 1,
@@ -42,7 +42,7 @@ RISK_PRESETS = {
         'description': 'Lotes pequenos, SL ajustado. Ideal para principiantes.',
     },
     'medio': {
-        'lot_size': {'forex': 0.10, 'commodity': 0.10, 'crypto': 0.02},
+        'lot_size': {'forex': 0.10, 'commodity': 0.10, 'crypto': 0.02, 'index': 0.10, 'stock_us': 0.10, 'stock_eu': 0.10, 'stock_latam': 0.10},
         'sl_pct': 0.008,  # 0.8%
         'tp_pct': 0.016,  # 1.6%  (1:2)
         'max_concurrent': 2,
@@ -50,7 +50,7 @@ RISK_PRESETS = {
         'description': 'Lotes moderados, SL equilibrado. Perfil balanceado.',
     },
     'alto': {
-        'lot_size': {'forex': 0.25, 'commodity': 0.20, 'crypto': 0.04},
+        'lot_size': {'forex': 0.25, 'commodity': 0.20, 'crypto': 0.04, 'index': 0.20, 'stock_us': 0.20, 'stock_eu': 0.20, 'stock_latam': 0.20},
         'sl_pct': 0.015,  # 1.5%
         'tp_pct': 0.030,  # 3.0%  (1:2)
         'max_concurrent': 3,
