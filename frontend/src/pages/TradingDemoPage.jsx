@@ -13,6 +13,9 @@ import api from '../lib/api';
 import { CandlestickChart } from '../components/trading/CandlestickChart';
 import { OrderBook } from '../components/trading/OrderBook';
 import { PriceAlerts } from '../components/trading/PriceAlerts';
+import { InfoBadge } from '../components/trading/InfoBadge';
+import { GuidedTour, GuidedTourLauncher, useGuidedTour } from '../components/trading/GuidedTour';
+import { TradeConfirmDialog } from '../components/trading/TradeConfirmDialog';
 
 const SYMBOLS = [
     { id: 'EURUSD', label: 'EUR/USD', flag: 'EU', category: 'forex' },
@@ -46,6 +49,17 @@ export const TradingDemoPage = () => {
     const [showTransfer, setShowTransfer] = useState(false);
     const [showPro, setShowPro] = useState(false);
     const [showAlerts, setShowAlerts] = useState(false);
+    const [pendingTrade, setPendingTrade] = useState(null); // { direction }
+    const tour = useGuidedTour();
+
+    // Auto-launch tour once for new users after 1.5s
+    useEffect(() => {
+        if (!tour.completed) {
+            const t = setTimeout(() => tour.start(), 1800);
+            return () => clearTimeout(t);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [stopLoss, setStopLoss] = useState('');
     const [takeProfit, setTakeProfit] = useState('');
     const [stats, setStats] = useState(null);
@@ -103,17 +117,43 @@ export const TradingDemoPage = () => {
             if (stopLoss) payload.stop_loss = parseFloat(stopLoss);
             if (takeProfit) payload.take_profit = parseFloat(takeProfit);
             const res = await api.post('/trading/open', payload);
-            toast.success(res.data.message);
+            // Educational success toast
+            const sideLabel = direction === 'buy' ? 'compra (long)' : 'venta (short)';
+            const direction_msg = direction === 'buy' ? 'Ganaras si el precio sube' : 'Ganaras si el precio baja';
+            const protection = (stopLoss || takeProfit)
+                ? 'Tu SL/TP protegen tu capital automaticamente.'
+                : 'Considera anadir un Stop Loss para limitar perdidas.';
+            toast.success(`Posicion de ${sideLabel} abierta en ${selectedSymbol}`, {
+                description: `${direction_msg}. ${protection}`,
+                duration: 6000,
+            });
             fetchData(); fetchExtra();
+            setPendingTrade(null);
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al abrir operacion'); }
         finally { setTradeLoading(false); }
+    };
+
+    const requestOpenTrade = (direction) => {
+        const lot = parseFloat(lotSize);
+        if (!lot || lot < 0.01 || lot > 10) { toast.error('Lote invalido (0.01 - 10.00)'); return; }
+        setPendingTrade({ direction });
     };
 
     const closeTrade = async (tradeId) => {
         try {
             const res = await api.post('/trading/close', { trade_id: tradeId });
             const pl = res.data.profit_loss;
-            toast[pl >= 0 ? 'success' : 'error'](`Cerrada: ${pl >= 0 ? '+' : ''}$${pl.toFixed(2)}`);
+            if (pl >= 0) {
+                toast.success(`Operacion cerrada con ganancia: +$${pl.toFixed(2)}`, {
+                    description: 'Aseguraste los beneficios. Aprende de esta operacion y sigue practicando.',
+                    duration: 5000,
+                });
+            } else {
+                toast.error(`Operacion cerrada con perdida: $${pl.toFixed(2)}`, {
+                    description: 'Las perdidas son parte del trading. Revisa que fallo y ajusta tu estrategia.',
+                    duration: 5000,
+                });
+            }
             fetchData(); fetchHistory(); fetchExtra();
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al cerrar'); }
     };
@@ -177,12 +217,22 @@ export const TradingDemoPage = () => {
                     <div className="bg-[#F0B90B]/8 border-b border-[#F0B90B]/20 px-4 py-1.5 flex items-center gap-2" data-testid="demo-banner">
                         <AlertTriangle className="w-3.5 h-3.5 text-[#F0B90B]" />
                         <span className="text-[#F0B90B] text-[11px] font-medium">Modo Demo — Fondos virtuales</span>
-                        <button onClick={() => setShowAlerts(true)} className="ml-auto flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-[#F0B90B] transition-colors" data-testid="price-alerts-btn">
-                            <Bell className="w-3 h-3" /> Alertas
-                        </button>
-                        <button onClick={() => setShowPro(true)} className="ml-3 text-[10px] font-bold text-[#F0B90B]/80 hover:text-[#F0B90B] transition-colors" data-testid="pro-mode-btn">
-                            PRO
-                        </button>
+                        <InfoBadge
+                            title="Modo Demo"
+                            what="Entorno 100% simulado. No se usa ni se gana dinero real."
+                            how="Practica todas las funciones con $10,000 virtuales. Puedes reiniciar el balance cuando quieras."
+                            tip="Usalo para probar estrategias antes de operar con dinero real en plataformas reguladas."
+                            testId="info-demo"
+                        />
+                        <div className="ml-auto flex items-center gap-2">
+                            <GuidedTourLauncher onStart={tour.start} completed={tour.completed} />
+                            <button onClick={() => setShowAlerts(true)} className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-[#F0B90B] transition-colors" data-testid="price-alerts-btn">
+                                <Bell className="w-3 h-3" /> Alertas
+                            </button>
+                            <button onClick={() => setShowPro(true)} className="text-[10px] font-bold text-[#F0B90B]/80 hover:text-[#F0B90B] transition-colors" data-testid="pro-mode-btn">
+                                PRO
+                            </button>
+                        </div>
                     </div>
 
                     {/* Main header bar */}
@@ -251,7 +301,16 @@ export const TradingDemoPage = () => {
                         {/* Order Form */}
                         <div className="p-4 border-b border-[#1e2329]">
                             <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-white font-semibold text-sm">Orden</h3>
+                                <h3 className="text-white font-semibold text-sm flex items-center gap-1.5">
+                                    Orden
+                                    <InfoBadge
+                                        title="Panel de Orden"
+                                        what="Desde aqui configuras y envias tus operaciones de compra o venta."
+                                        how="1) Elige el volumen en lotes. 2) (Opcional) define Stop Loss y Take Profit. 3) Pulsa Comprar o Vender."
+                                        tip="Siempre revisa el resumen antes de confirmar."
+                                        testId="info-order-panel"
+                                    />
+                                </h3>
                                 <span className="text-[#F0B90B] text-xs font-mono">{selInfo?.label}</span>
                             </div>
 
@@ -271,7 +330,16 @@ export const TradingDemoPage = () => {
 
                             {/* Lot size */}
                             <div className="mb-3">
-                                <label className="text-slate-500 text-[11px] uppercase tracking-wider mb-1.5 block">Volumen (Lotes)</label>
+                                <label className="text-slate-500 text-[11px] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                    Volumen (Lotes)
+                                    <InfoBadge
+                                        title="Volumen (Lotes)"
+                                        what="Cuanta cantidad del activo vas a operar. 1.00 lote estandar = 100,000 unidades. 0.10 = mini lote. 0.01 = micro lote."
+                                        how="Empieza con 0.01-0.10 mientras aprendes. Un lote mayor amplifica tanto ganancias como perdidas."
+                                        tip="Regla de oro: no arriesgues mas del 1-2% de tu balance en una sola operacion."
+                                        testId="info-lot"
+                                    />
+                                </label>
                                 <div className="flex gap-1.5">
                                     {['0.01', '0.10', '0.50', '1.00'].map(v => (
                                         <button key={v} onClick={() => setLotSize(v)} data-testid={`lot-${v}`}
@@ -287,12 +355,32 @@ export const TradingDemoPage = () => {
                             {/* SL / TP */}
                             <div className="grid grid-cols-2 gap-2 mb-3">
                                 <div>
-                                    <label className="text-[#f6465d]/70 text-[10px] uppercase flex items-center gap-1 mb-1"><ShieldAlert className="w-3 h-3" /> Stop Loss</label>
+                                    <label className="text-[#f6465d]/70 text-[10px] uppercase flex items-center gap-1 mb-1">
+                                        <ShieldAlert className="w-3 h-3" /> Stop Loss
+                                        <InfoBadge
+                                            title="Stop Loss (SL)"
+                                            what="Orden de proteccion: precio al que la operacion se cierra automaticamente si va en tu contra."
+                                            how="Introduce un precio debajo del actual si compras, o encima si vendes. Asi limitas tu perdida maxima."
+                                            tip="Sin Stop Loss no hay control de riesgo. Siempre usalo, sin excepciones."
+                                            iconColor="text-[#f6465d]/60"
+                                            testId="info-sl"
+                                        />
+                                    </label>
                                     <Input value={stopLoss} onChange={e => setStopLoss(e.target.value)} placeholder="Precio SL"
                                         className="bg-[#1e2329] border-[#2b3139] text-white text-xs font-mono h-8 focus:border-[#f6465d]" data-testid="sl-input" />
                                 </div>
                                 <div>
-                                    <label className="text-[#0ecb81]/70 text-[10px] uppercase flex items-center gap-1 mb-1"><Target className="w-3 h-3" /> Take Profit</label>
+                                    <label className="text-[#0ecb81]/70 text-[10px] uppercase flex items-center gap-1 mb-1">
+                                        <Target className="w-3 h-3" /> Take Profit
+                                        <InfoBadge
+                                            title="Take Profit (TP)"
+                                            what="Orden de objetivo: precio al que la operacion se cierra automaticamente cuando alcanza tu ganancia objetivo."
+                                            how="Introduce un precio arriba del actual si compras, o debajo si vendes. Asegura los beneficios sin estar pendiente."
+                                            tip="Una buena practica es poner el TP al doble de distancia que el SL (ratio riesgo/recompensa 1:2)."
+                                            iconColor="text-[#0ecb81]/60"
+                                            testId="info-tp"
+                                        />
+                                    </label>
                                     <Input value={takeProfit} onChange={e => setTakeProfit(e.target.value)} placeholder="Precio TP"
                                         className="bg-[#1e2329] border-[#2b3139] text-white text-xs font-mono h-8 focus:border-[#0ecb81]" data-testid="tp-input" />
                                 </div>
@@ -315,11 +403,11 @@ export const TradingDemoPage = () => {
 
                             {/* Buy / Sell buttons */}
                             <div className="grid grid-cols-2 gap-2">
-                                <Button onClick={() => openTrade('buy')} disabled={tradeLoading} data-testid="buy-btn"
+                                <Button onClick={() => requestOpenTrade('buy')} disabled={tradeLoading} data-testid="buy-btn"
                                     className="h-12 bg-[#0ecb81] hover:bg-[#0ecb81]/90 text-white font-bold text-sm rounded-lg shadow-none">
                                     {tradeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowUpCircle className="w-4 h-4 mr-1.5" />Comprar</>}
                                 </Button>
-                                <Button onClick={() => openTrade('sell')} disabled={tradeLoading} data-testid="sell-btn"
+                                <Button onClick={() => requestOpenTrade('sell')} disabled={tradeLoading} data-testid="sell-btn"
                                     className="h-12 bg-[#f6465d] hover:bg-[#f6465d]/90 text-white font-bold text-sm rounded-lg shadow-none">
                                     {tradeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowDownCircle className="w-4 h-4 mr-1.5" />Vender</>}
                                 </Button>
@@ -629,6 +717,26 @@ export const TradingDemoPage = () => {
                     prices={prices}
                     formatPrice={formatPrice}
                 />
+
+                {/* Trade Confirmation modal */}
+                <TradeConfirmDialog
+                    open={!!pendingTrade}
+                    onClose={() => setPendingTrade(null)}
+                    onConfirm={() => pendingTrade && openTrade(pendingTrade.direction)}
+                    tradeType={pendingTrade?.direction}
+                    symbol={selectedSymbol}
+                    symbolLabel={selInfo?.label}
+                    lotSize={lotSize}
+                    currentPrice={pendingTrade?.direction === 'buy' ? sel?.ask : sel?.bid}
+                    stopLoss={stopLoss}
+                    takeProfit={takeProfit}
+                    accountBalance={account?.balance}
+                    loading={tradeLoading}
+                    formatPrice={formatPrice}
+                />
+
+                {/* Guided Tour overlay */}
+                <GuidedTour open={tour.open} onClose={tour.close} />
             </div>
         </Layout>
     );
