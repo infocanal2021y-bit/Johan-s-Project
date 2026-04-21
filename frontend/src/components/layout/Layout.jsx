@@ -1,4 +1,5 @@
 import { Sidebar } from './Sidebar';
+import { AppBackground } from './AppBackground';
 import { ChatBot } from '../ChatBot';
 import { InactivityPrompt } from '../InactivityPrompt';
 import { useInactivityDetector } from '../../hooks/useInactivityDetector';
@@ -11,15 +12,18 @@ export const Layout = ({ children }) => {
     useActivityTracker(!!user);
 
     return (
-        <div className="min-h-screen bg-slate-950 noise-overlay">
-            <Sidebar />
-            <main className="lg:ml-64 min-h-screen">
-                <div className="px-4 py-6 pt-20 lg:pt-8 lg:p-8 max-w-full overflow-x-hidden">
-                    {children}
-                </div>
-            </main>
-            <ChatBot />
-            {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
+        <div className="relative min-h-screen bg-[#040914]">
+            <AppBackground />
+            <div className="relative" style={{ zIndex: 10 }}>
+                <Sidebar />
+                <main className="lg:ml-64 min-h-screen">
+                    <div className="px-4 py-6 pt-20 lg:pt-8 lg:p-8 max-w-full overflow-x-hidden">
+                        {children}
+                    </div>
+                </main>
+                <ChatBot />
+                {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
+            </div>
         </div>
     );
 };
