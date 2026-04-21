@@ -42,7 +42,8 @@ import {
     ArrowDownLeft,
     ExternalLink,
     Hash,
-    LineChart
+    LineChart,
+    Megaphone
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -118,6 +119,7 @@ export const Sidebar = () => {
         { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },
         { to: '/admin/treasury', icon: Vault, label: 'Tesorería' },
         { to: '/admin/support', icon: MessageSquare, label: 'Tickets Soporte' },
+        { to: '/admin/broadcast', icon: Megaphone, label: 'Difusion a Usuarios' },
     ];
 
     const NavLinks = ({ links }) => (

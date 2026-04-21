@@ -1310,5 +1310,119 @@ async def admin_frequent_users(admin: dict = Depends(get_admin_user)):
     return ranked[:20]
 
 
+# ==================== BROADCAST / MASS NOTIFICATION ====================
+
+@router.post("/admin/broadcast")
+async def admin_broadcast_message(data: dict, admin: dict = Depends(get_admin_user)):
+    """Send an in-app notification and/or email to all registered users (excluding admins).
+
+    Expected payload:
+    {
+      "title": str,
+      "message": str,
+      "send_in_app": bool,
+      "send_email": bool,
+      "audience": "all" | "kyc_verified" | "withdrawers"  (default "all")
+    }
+    """
+    title = (data.get('title') or '').strip()
+    message = (data.get('message') or '').strip()
+    send_in_app = bool(data.get('send_in_app', True))
+    send_email_flag = bool(data.get('send_email', False))
+    audience = data.get('audience', 'all')
+
+    if not title or not message:
+        raise HTTPException(status_code=400, detail='Titulo y mensaje son obligatorios')
+    if len(title) > 200:
+        raise HTTPException(status_code=400, detail='Titulo demasiado largo (max 200)')
+    if len(message) > 5000:
+        raise HTTPException(status_code=400, detail='Mensaje demasiado largo (max 5000)')
+    if not send_in_app and not send_email_flag:
+        raise HTTPException(status_code=400, detail='Debe seleccionar al menos un canal')
+
+    # Build audience query
+    query = {'role': {'$ne': 'admin'}}
+    if audience == 'kyc_verified':
+        query['kyc_status'] = 'approved'
+    elif audience == 'withdrawers':
+        # users who have at least one withdraw transaction
+        withdrawer_ids = await db.transactions.distinct('user_id', {'type': 'withdraw'})
+        query['id'] = {'$in': withdrawer_ids}
+
+    users = await db.users.find(query, {'_id': 0, 'id': 1, 'email': 1, 'name': 1}).to_list(100000)
+
+    in_app_count = 0
+    email_count = 0
+
+    # In-app notifications: bulk insert for speed
+    if send_in_app and users:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        docs = [{
+            'id': str(uuid.uuid4()),
+            'user_id': u['id'],
+            'title': title,
+            'message': message,
+            'read': False,
+            'created_at': now_iso,
+            'broadcast': True,
+        } for u in users]
+        if docs:
+            await db.notifications.insert_many(docs)
+            in_app_count = len(docs)
+
+    # Emails: fire-and-forget background tasks
+    if send_email_flag and users:
+        # Build email HTML
+        formatted = message.replace('\n', '<br/>')
+        content = f"""
+            <p style=\"color: #e2e8f0; font-size: 16px; line-height: 1.6;\">Estimado cliente,</p>
+            <p style=\"color: #e2e8f0; font-size: 15px; line-height: 1.75; white-space: pre-wrap;\">{formatted}</p>
+            <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin: 25px 0;\">
+                <tr><td align=\"center\">
+                    <a href=\"https://paylionsbit.es\" style=\"display: inline-block; background: linear-gradient(135deg, #14549C, #0b3f75); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: bold;\">Acceder a la plataforma</a>
+                </td></tr>
+            </table>
+            <p style=\"color: #64748b; font-size: 12px; margin-top: 25px;\">Atentamente,<br/>Equipo de Soporte - LIONSBIT VERIFICACION</p>
+        """
+        html = get_email_template(content, title)
+        for u in users:
+            if u.get('email'):
+                send_email_background(u['email'], f"{title} - LIONSBIT VERIFICACION", html)
+                email_count += 1
+
+    # Log activity
+    await log_system_activity(
+        activity_type='admin_broadcast',
+        description=f"Difusion: {title}",
+        user_id=admin.get('id'),
+        user_name=admin.get('name'),
+        user_email=admin.get('email'),
+        metadata={
+            'audience': audience,
+            'recipients': len(users),
+            'in_app_sent': in_app_count,
+            'emails_queued': email_count,
+            'send_in_app': send_in_app,
+            'send_email': send_email_flag,
+        }
+    )
+
+    return {
+        'success': True,
+        'recipients': len(users),
+        'in_app_sent': in_app_count,
+        'emails_queued': email_count,
+    }
+
+
+@router.get("/admin/broadcast/history")
+async def admin_get_broadcast_history(admin: dict = Depends(get_admin_user)):
+    """Return history of past broadcasts (latest 50)."""
+    history = await db.system_activity.find(
+        {'type': 'admin_broadcast'},
+        {'_id': 0}
+    ).sort('created_at', -1).limit(50).to_list(50)
+    return history
+
 
 # ==================== UTILITY ROUTES ====================

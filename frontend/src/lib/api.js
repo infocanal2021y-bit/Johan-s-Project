@@ -149,6 +149,9 @@ export const adminAPI = {
     getCryptoPaymentProof: (paymentId) => api.get(`/admin/crypto-payments/${paymentId}/proof`),
     getCryptoPaymentsHistory: () => api.get('/admin/crypto-payments/history'),
     getCryptoPaymentsStats: () => api.get('/admin/crypto-payments/stats'),
+    // Broadcast
+    broadcast: (data) => api.post('/admin/broadcast', data),
+    getBroadcastHistory: () => api.get('/admin/broadcast/history'),
     // Support tickets
     getAllTickets: () => api.get('/admin/support/tickets'),
     replyToTicket: (id, data) => api.post(`/admin/support/tickets/${id}/reply`, data),

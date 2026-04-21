@@ -52,6 +52,7 @@ import { AdminSupportPage } from "./pages/admin/AdminSupportPage";
 import { AdminActivityPage } from "./pages/admin/AdminActivityPage";
 import { AdminLoginHistoryPage } from "./pages/admin/AdminLoginHistoryPage";
 import { AdminOnlineUsersPage } from "./pages/admin/AdminOnlineUsersPage";
+import { AdminBroadcastPage } from "./pages/admin/AdminBroadcastPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -149,6 +150,7 @@ function AppRoutes() {
             <Route path="/admin/activity" element={<ProtectedRoute adminOnly><AdminActivityPage /></ProtectedRoute>} />
             <Route path="/admin/login-history" element={<ProtectedRoute adminOnly><AdminLoginHistoryPage /></ProtectedRoute>} />
             <Route path="/admin/online-users" element={<ProtectedRoute adminOnly><AdminOnlineUsersPage /></ProtectedRoute>} />
+            <Route path="/admin/broadcast" element={<ProtectedRoute adminOnly><AdminBroadcastPage /></ProtectedRoute>} />
 
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
