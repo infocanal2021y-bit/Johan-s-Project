@@ -27,14 +27,22 @@ ASSET_INFO = {
 }
 
 CHALLENGES = [
-    {'id': 'streak_3', 'name': '3 Ganadoras', 'desc': 'Gana 3 operaciones consecutivas', 'target': 3, 'type': 'win_streak', 'xp': 50, 'badge': 'Racha'},
-    {'id': 'streak_5', 'name': '5 Ganadoras', 'desc': 'Gana 5 operaciones consecutivas', 'target': 5, 'type': 'win_streak', 'xp': 150, 'badge': 'En Fuego'},
-    {'id': 'profit_500', 'name': 'Ganancia $500', 'desc': 'Acumula $500 en ganancias', 'target': 500, 'type': 'total_profit', 'xp': 100, 'badge': 'Rentable'},
-    {'id': 'profit_2000', 'name': 'Ganancia $2,000', 'desc': 'Acumula $2,000 en ganancias', 'target': 2000, 'type': 'total_profit', 'xp': 300, 'badge': 'Experto'},
-    {'id': 'trades_10', 'name': '10 Operaciones', 'desc': 'Completa 10 operaciones', 'target': 10, 'type': 'total_trades', 'xp': 30, 'badge': 'Activo'},
-    {'id': 'trades_50', 'name': '50 Operaciones', 'desc': 'Completa 50 operaciones', 'target': 50, 'type': 'total_trades', 'xp': 200, 'badge': 'Veterano'},
-    {'id': 'drawdown_10', 'name': 'Control de Riesgo', 'desc': 'No pierdas mas del 10% del balance en una semana', 'target': 10, 'type': 'max_drawdown', 'xp': 200, 'badge': 'Disciplinado'},
-    {'id': 'multi_asset', 'name': 'Diversificado', 'desc': 'Opera en 4 activos diferentes', 'target': 4, 'type': 'unique_assets', 'xp': 80, 'badge': 'Diverso'},
+    # ── Retos tutoriales / misiones educativas ──
+    {'id': 'first_trade', 'name': 'Primer Paso', 'desc': 'Abre tu primera operacion', 'target': 1, 'type': 'trades_opened', 'xp': 20, 'badge': 'Novato', 'category': 'tutorial', 'order': 1},
+    {'id': 'trade_with_sl', 'name': 'Protege tu Capital', 'desc': 'Abre una operacion con Stop Loss configurado', 'target': 1, 'type': 'trade_with_sl', 'xp': 40, 'badge': 'Prudente', 'category': 'tutorial', 'order': 2},
+    {'id': 'trade_with_sltp', 'name': 'Plan Completo', 'desc': 'Abre una operacion con Stop Loss y Take Profit', 'target': 1, 'type': 'trade_with_sltp', 'xp': 60, 'badge': 'Estratega', 'category': 'tutorial', 'order': 3},
+    {'id': 'first_win', 'name': 'Primera Victoria', 'desc': 'Cierra tu primera operacion con ganancia', 'target': 1, 'type': 'first_win', 'xp': 100, 'badge': 'Ganador', 'category': 'tutorial', 'order': 4},
+    {'id': 'close_by_tp', 'name': 'Disciplina Ejecutada', 'desc': 'Deja que un Take Profit se active automaticamente', 'target': 1, 'type': 'tp_triggered', 'xp': 80, 'badge': 'Paciente', 'category': 'tutorial', 'order': 5},
+    {'id': 'close_by_sl', 'name': 'Leccion Aprendida', 'desc': 'Un Stop Loss protegio tu capital (aceptar una perdida pequena es parte del oficio)', 'target': 1, 'type': 'sl_triggered', 'xp': 60, 'badge': 'Resiliente', 'category': 'tutorial', 'order': 6},
+    # ── Retos de progresion ──
+    {'id': 'streak_3', 'name': '3 Ganadoras', 'desc': 'Gana 3 operaciones consecutivas', 'target': 3, 'type': 'win_streak', 'xp': 50, 'badge': 'Racha', 'category': 'progress'},
+    {'id': 'streak_5', 'name': '5 Ganadoras', 'desc': 'Gana 5 operaciones consecutivas', 'target': 5, 'type': 'win_streak', 'xp': 150, 'badge': 'En Fuego', 'category': 'progress'},
+    {'id': 'profit_500', 'name': 'Ganancia $500', 'desc': 'Acumula $500 en ganancias', 'target': 500, 'type': 'total_profit', 'xp': 100, 'badge': 'Rentable', 'category': 'progress'},
+    {'id': 'profit_2000', 'name': 'Ganancia $2,000', 'desc': 'Acumula $2,000 en ganancias', 'target': 2000, 'type': 'total_profit', 'xp': 300, 'badge': 'Experto', 'category': 'progress'},
+    {'id': 'trades_10', 'name': '10 Operaciones', 'desc': 'Completa 10 operaciones', 'target': 10, 'type': 'total_trades', 'xp': 30, 'badge': 'Activo', 'category': 'progress'},
+    {'id': 'trades_50', 'name': '50 Operaciones', 'desc': 'Completa 50 operaciones', 'target': 50, 'type': 'total_trades', 'xp': 200, 'badge': 'Veterano', 'category': 'progress'},
+    {'id': 'drawdown_10', 'name': 'Control de Riesgo', 'desc': 'No pierdas mas del 10% del balance en una semana', 'target': 10, 'type': 'max_drawdown', 'xp': 200, 'badge': 'Disciplinado', 'category': 'progress'},
+    {'id': 'multi_asset', 'name': 'Diversificado', 'desc': 'Opera en 4 activos diferentes', 'target': 4, 'type': 'unique_assets', 'xp': 80, 'badge': 'Diverso', 'category': 'progress'},
 ]
 
 LEARNING_MODULES = [
@@ -232,7 +240,13 @@ async def open_trade(data: OpenTradeRequest, current_user: dict = Depends(get_cu
         'closed_at': None, 'close_price': None, 'profit_loss': None,
     }
     await db.demo_trades.insert_one(trade)
-    return {'message': f'Operacion {data.direction.upper()} abierta', 'trade': {k: v for k, v in trade.items() if k != '_id'}}
+    # Check tutorial challenges on open (first_trade, trade_with_sl, trade_with_sltp)
+    newly_unlocked = await _check_challenges(user_id)
+    return {
+        'message': f'Operacion {data.direction.upper()} abierta',
+        'trade': {k: v for k, v in trade.items() if k != '_id'},
+        'newly_unlocked': newly_unlocked,
+    }
 
 
 @router.post("/trading/close")
@@ -254,9 +268,9 @@ async def close_trade(data: CloseTradeRequest, current_user: dict = Depends(get_
     await db.demo_accounts.update_one({'user_id': user_id}, {'$inc': {'balance': pl}})
 
     # Check challenges after close
-    await _check_challenges(user_id)
+    newly_unlocked = await _check_challenges(user_id)
 
-    return {'message': 'Operacion cerrada', 'profit_loss': pl, 'close_price': close_price}
+    return {'message': 'Operacion cerrada', 'profit_loss': pl, 'close_price': close_price, 'newly_unlocked': newly_unlocked}
 
 
 @router.get("/trading/positions")
@@ -414,17 +428,40 @@ async def get_trading_stats(current_user: dict = Depends(get_current_user)):
 # ══════════════════ CHALLENGES ══════════════════
 
 async def _check_challenges(user_id: str):
-    """Check and unlock trading challenges"""
-    all_closed = await db.demo_trades.find({'user_id': user_id, 'status': 'closed'}, {'_id': 0}).sort('closed_at', -1).to_list(500)
+    """Check and unlock trading challenges. Returns list of newly unlocked challenges."""
+    all_trades = await db.demo_trades.find({'user_id': user_id}, {'_id': 0}).to_list(1000)
+    all_closed = [t for t in all_trades if t.get('status') == 'closed']
     existing = await db.trading_challenges.find({'user_id': user_id}, {'_id': 0}).to_list(100)
     unlocked_ids = {c['challenge_id'] for c in existing}
+    newly_unlocked = []
 
     for ch in CHALLENGES:
         if ch['id'] in unlocked_ids:
             continue
 
         completed = False
-        if ch['type'] == 'win_streak':
+
+        # ── Tutorial mission types ──
+        if ch['type'] == 'trades_opened':
+            completed = len(all_trades) >= ch['target']
+
+        elif ch['type'] == 'trade_with_sl':
+            completed = any(t.get('stop_loss') for t in all_trades)
+
+        elif ch['type'] == 'trade_with_sltp':
+            completed = any(t.get('stop_loss') and t.get('take_profit') for t in all_trades)
+
+        elif ch['type'] == 'first_win':
+            completed = any((t.get('profit_loss') or 0) > 0 for t in all_closed)
+
+        elif ch['type'] == 'tp_triggered':
+            completed = any(t.get('close_reason') == 'take_profit' for t in all_closed)
+
+        elif ch['type'] == 'sl_triggered':
+            completed = any(t.get('close_reason') == 'stop_loss' for t in all_closed)
+
+        # ── Progress types ──
+        elif ch['type'] == 'win_streak':
             streak = 0
             for t in reversed(all_closed):
                 if (t.get('profit_loss') or 0) > 0:
@@ -456,6 +493,9 @@ async def _check_challenges(user_id: str):
                 'id': str(uuid.uuid4()), 'user_id': user_id,
                 'challenge_id': ch['id'], 'completed_at': datetime.now(timezone.utc).isoformat(),
             })
+            newly_unlocked.append(ch)
+
+    return newly_unlocked
 
 
 @router.get("/trading/challenges")

@@ -16,6 +16,7 @@ import { PriceAlerts } from '../components/trading/PriceAlerts';
 import { InfoBadge } from '../components/trading/InfoBadge';
 import { GuidedTour, GuidedTourLauncher, useGuidedTour } from '../components/trading/GuidedTour';
 import { TradeConfirmDialog } from '../components/trading/TradeConfirmDialog';
+import { ChallengeUnlocked } from '../components/trading/ChallengeUnlocked';
 
 const SYMBOLS = [
     { id: 'EURUSD', label: 'EUR/USD', flag: 'EU', category: 'forex' },
@@ -50,6 +51,7 @@ export const TradingDemoPage = () => {
     const [showPro, setShowPro] = useState(false);
     const [showAlerts, setShowAlerts] = useState(false);
     const [pendingTrade, setPendingTrade] = useState(null); // { direction }
+    const [unlockedQueue, setUnlockedQueue] = useState([]);
     const tour = useGuidedTour();
 
     // Auto-launch tour once for new users after 1.5s
@@ -98,8 +100,18 @@ export const TradingDemoPage = () => {
             const [s, c, l] = await Promise.all([
                 api.get('/trading/stats'), api.get('/trading/challenges'), api.get('/trading/learning')
             ]);
-            setStats(s.data); setChallenges(c.data); setLearning(l.data);
+            setStats(s.data); setLearning(l.data);
+            // Detect challenges unlocked since last fetch (e.g. SL/TP auto-triggered)
+            setChallenges(prev => {
+                const prevDone = new Set(prev.filter(x => x.completed).map(x => x.id));
+                const newlyDone = c.data.filter(x => x.completed && !prevDone.has(x.id));
+                if (newlyDone.length && prev.length) {
+                    setUnlockedQueue(q => [...q, ...newlyDone]);
+                }
+                return c.data;
+            });
         } catch { /* silent */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -127,6 +139,10 @@ export const TradingDemoPage = () => {
                 description: `${direction_msg}. ${protection}`,
                 duration: 6000,
             });
+            // Show newly unlocked challenges
+            if (res.data?.newly_unlocked?.length) {
+                setUnlockedQueue(q => [...q, ...res.data.newly_unlocked]);
+            }
             fetchData(); fetchExtra();
             setPendingTrade(null);
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al abrir operacion'); }
@@ -153,6 +169,9 @@ export const TradingDemoPage = () => {
                     description: 'Las perdidas son parte del trading. Revisa que fallo y ajusta tu estrategia.',
                     duration: 5000,
                 });
+            }
+            if (res.data?.newly_unlocked?.length) {
+                setUnlockedQueue(q => [...q, ...res.data.newly_unlocked]);
             }
             fetchData(); fetchHistory(); fetchExtra();
         } catch (e) { toast.error(e.response?.data?.detail || 'Error al cerrar'); }
@@ -599,23 +618,129 @@ export const TradingDemoPage = () => {
                         )}
 
                         {/* ═══ CHALLENGES ═══ */}
-                        {activeTab === 'challenges' && (
-                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3" data-testid="challenges-panel">
-                                {challenges.map(ch => (
-                                    <div key={ch.id} className={`rounded-lg p-3 border transition-colors ${ch.completed ? 'bg-[#0ecb81]/5 border-[#0ecb81]/30' : 'bg-[#1e2329] border-[#2b3139]'}`}>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            {ch.completed ? <CheckCircle className="w-4 h-4 text-[#0ecb81]" /> : <Trophy className="w-4 h-4 text-[#F0B90B]/40" />}
-                                            <span className={`text-xs font-bold ${ch.completed ? 'text-[#0ecb81]' : 'text-white'}`}>{ch.name}</span>
+                        {activeTab === 'challenges' && (() => {
+                            const tutorial = challenges.filter(c => c.category === 'tutorial').sort((a, b) => (a.order || 0) - (b.order || 0));
+                            const progress = challenges.filter(c => c.category !== 'tutorial');
+                            const tutorialDone = tutorial.filter(c => c.completed).length;
+                            const totalXP = challenges.filter(c => c.completed).reduce((s, c) => s + (c.xp || 0), 0);
+                            return (
+                                <div className="p-4 space-y-6" data-testid="challenges-panel">
+                                    {/* Summary */}
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="bg-gradient-to-br from-[#F0B90B]/10 to-transparent border border-[#F0B90B]/30 rounded-lg p-3">
+                                            <p className="text-[10px] text-[#F0B90B]/70 uppercase tracking-wider">Total XP</p>
+                                            <p className="text-2xl font-bold text-[#F0B90B] font-mono">{totalXP}</p>
                                         </div>
-                                        <p className="text-slate-500 text-[10px] mb-2">{ch.desc}</p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[9px] bg-[#F0B90B]/10 text-[#F0B90B] px-2 py-0.5 rounded font-bold">+{ch.xp} XP</span>
-                                            {ch.completed ? <span className="flex items-center gap-1 text-[9px] text-[#0ecb81]"><Award className="w-3 h-3" />{ch.badge}</span> : <span className="text-slate-700 text-[9px]">Pendiente</span>}
+                                        <div className="bg-[#1e2329] border border-[#2b3139] rounded-lg p-3">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Tutorial</p>
+                                            <p className="text-2xl font-bold text-white font-mono">{tutorialDone}/{tutorial.length}</p>
+                                        </div>
+                                        <div className="bg-[#1e2329] border border-[#2b3139] rounded-lg p-3">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Retos ganados</p>
+                                            <p className="text-2xl font-bold text-[#0ecb81] font-mono">{challenges.filter(c => c.completed).length}/{challenges.length}</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+
+                                    {/* Tutorial missions - step by step */}
+                                    {tutorial.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <GraduationCap className="w-4 h-4 text-[#22d3ee]" />
+                                                <h3 className="text-white font-bold text-sm">Misiones Tutorial</h3>
+                                                <InfoBadge
+                                                    title="Misiones Tutorial"
+                                                    what="Secuencia paso a paso para aprender lo esencial del trading operando en el Demo."
+                                                    how="Completa cada mision en orden. Al terminar cada paso, ganas XP y un badge."
+                                                    tip="Sigue el orden: abrir → proteger → ganar → dejar que SL/TP hagan su trabajo."
+                                                    testId="info-tutorial-missions"
+                                                />
+                                                <span className="ml-auto text-[10px] text-slate-500 font-mono">{tutorialDone}/{tutorial.length} completadas</span>
+                                            </div>
+                                            {/* Progress bar */}
+                                            <div className="h-1.5 bg-[#1e2329] rounded-full overflow-hidden mb-4">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-[#22d3ee] to-[#F0B90B] transition-all duration-500"
+                                                    style={{ width: `${(tutorialDone / Math.max(tutorial.length, 1)) * 100}%` }}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                {tutorial.map((ch, idx) => {
+                                                    const prevDone = idx === 0 || tutorial[idx - 1].completed;
+                                                    const locked = !ch.completed && !prevDone;
+                                                    return (
+                                                        <div
+                                                            key={ch.id}
+                                                            className={`flex items-center gap-3 rounded-lg p-3 border transition-all ${
+                                                                ch.completed
+                                                                    ? 'bg-[#0ecb81]/5 border-[#0ecb81]/30'
+                                                                    : locked
+                                                                        ? 'bg-[#1e2329]/40 border-[#2b3139]/40 opacity-60'
+                                                                        : 'bg-[#1e2329] border-[#22d3ee]/30'
+                                                            }`}
+                                                            data-testid={`tutorial-mission-${ch.id}`}
+                                                        >
+                                                            {/* Step number / check */}
+                                                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm ${
+                                                                ch.completed
+                                                                    ? 'bg-[#0ecb81]/20 text-[#0ecb81]'
+                                                                    : locked
+                                                                        ? 'bg-[#2b3139] text-slate-600'
+                                                                        : 'bg-[#22d3ee]/15 text-[#22d3ee] ring-2 ring-[#22d3ee]/30'
+                                                            }`}>
+                                                                {ch.completed ? <CheckCircle className="w-5 h-5" /> : (idx + 1)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className={`font-semibold text-sm ${ch.completed ? 'text-[#0ecb81]' : locked ? 'text-slate-600' : 'text-white'}`}>
+                                                                        {ch.name}
+                                                                    </p>
+                                                                    {!ch.completed && !locked && (
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse" />
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-slate-400 text-[11px] leading-snug">{ch.desc}</p>
+                                                            </div>
+                                                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                                                <span className="text-[10px] bg-[#F0B90B]/10 text-[#F0B90B] px-2 py-0.5 rounded font-bold">+{ch.xp} XP</span>
+                                                                {ch.completed && ch.badge && (
+                                                                    <span className="text-[9px] flex items-center gap-1 text-cyan-300"><Award className="w-3 h-3" />{ch.badge}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Progress challenges grid */}
+                                    {progress.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Trophy className="w-4 h-4 text-[#F0B90B]" />
+                                                <h3 className="text-white font-bold text-sm">Retos de Progresion</h3>
+                                                <span className="ml-auto text-[10px] text-slate-500 font-mono">{progress.filter(c => c.completed).length}/{progress.length}</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                                {progress.map(ch => (
+                                                    <div key={ch.id} className={`rounded-lg p-3 border transition-colors ${ch.completed ? 'bg-[#0ecb81]/5 border-[#0ecb81]/30' : 'bg-[#1e2329] border-[#2b3139]'}`}>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            {ch.completed ? <CheckCircle className="w-4 h-4 text-[#0ecb81]" /> : <Trophy className="w-4 h-4 text-[#F0B90B]/40" />}
+                                                            <span className={`text-xs font-bold ${ch.completed ? 'text-[#0ecb81]' : 'text-white'}`}>{ch.name}</span>
+                                                        </div>
+                                                        <p className="text-slate-500 text-[10px] mb-2">{ch.desc}</p>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[9px] bg-[#F0B90B]/10 text-[#F0B90B] px-2 py-0.5 rounded font-bold">+{ch.xp} XP</span>
+                                                            {ch.completed ? <span className="flex items-center gap-1 text-[9px] text-[#0ecb81]"><Award className="w-3 h-3" />{ch.badge}</span> : <span className="text-slate-700 text-[9px]">Pendiente</span>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         {/* ═══ LEARNING ═══ */}
                         {activeTab === 'learning' && (
@@ -737,6 +862,12 @@ export const TradingDemoPage = () => {
 
                 {/* Guided Tour overlay */}
                 <GuidedTour open={tour.open} onClose={tour.close} />
+
+                {/* Challenge unlocked celebration */}
+                <ChallengeUnlocked
+                    queue={unlockedQueue}
+                    onDismiss={(id) => setUnlockedQueue(q => q.filter(c => c.id !== id))}
+                />
             </div>
         </Layout>
     );
