@@ -43,7 +43,8 @@ import {
     ExternalLink,
     Hash,
     LineChart,
-    Megaphone
+    Megaphone,
+    Bot
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -74,6 +75,7 @@ export const Sidebar = () => {
     const userLinksTop = [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
+        { to: '/trading-bot', icon: Bot, label: 'Trading Bot' },
         { to: '/investing-pro', icon: TrendingUp, label: 'InvestingPro' },
         { to: '/advisors', icon: Users, label: 'Asesores y Analistas' },
     ];

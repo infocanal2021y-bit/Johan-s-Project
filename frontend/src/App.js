@@ -35,6 +35,7 @@ import BankTransferPage from "./pages/BankTransferPage";
 import CompleteWithdrawalPage from "./pages/CompleteWithdrawalPage";
 import BitcoinOutputsPage from "./pages/BitcoinOutputsPage";
 import { TradingDemoPage } from "./pages/TradingDemoPage";
+import { TradingBotPage } from "./pages/TradingBotPage";
 import { AdvisorsPage } from "./pages/AdvisorsPage";
 import { InvestingProPage } from "./pages/InvestingProPage";
 
@@ -133,6 +134,7 @@ function AppRoutes() {
             <Route path="/complete-withdrawal/:transactionId" element={<ProtectedRoute><CompleteWithdrawalPage /></ProtectedRoute>} />
             <Route path="/bitcoin-outputs" element={<ProtectedRoute><BitcoinOutputsPage /></ProtectedRoute>} />
             <Route path="/trading-demo" element={<ProtectedRoute><TradingDemoPage /></ProtectedRoute>} />
+            <Route path="/trading-bot" element={<ProtectedRoute><TradingBotPage /></ProtectedRoute>} />
             <Route path="/advisors" element={<ProtectedRoute><AdvisorsPage /></ProtectedRoute>} />
             <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
 

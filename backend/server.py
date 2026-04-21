@@ -21,6 +21,7 @@ from services.email import (
     send_tax_reminder_email, send_withdrawal_rejected_email
 )
 from services.helpers import ensure_government_treasury
+from routes.trading_bot import run_bot_tick
 from routes import register_routes
 
 # ==================== APP SETUP ====================
@@ -120,9 +121,18 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Run every 60s to tick the Trading Bot (Demo) for all enabled users
+    scheduler.add_job(
+        run_bot_tick,
+        IntervalTrigger(seconds=60),
+        id='trading_bot_tick',
+        name='Run trading bot decision tick (60s)',
+        replace_existing=True
+    )
+
     
     scheduler.start()
-    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h)")
+    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s)")
 
 
 async def process_daily_admin_summary():
