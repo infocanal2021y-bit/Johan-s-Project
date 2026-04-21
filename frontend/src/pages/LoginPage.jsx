@@ -8,6 +8,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Shield, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { AuthBackground } from '../components/auth/AuthBackground';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -34,16 +35,15 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 noise-overlay">
-            {/* Background glow */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]" />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]" />
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#040914]">
+            <AuthBackground />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="relative w-full max-w-md"
+                style={{ zIndex: 10 }}
             >
                 {/* Logo */}
                 <div className="text-center mb-8">
@@ -53,15 +53,15 @@ export const LoginPage = () => {
                         transition={{ duration: 0.5, delay: 0.1 }}
                         className="inline-flex items-center gap-3 mb-4"
                     >
-                        <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center glow-emerald">
-                            <Shield className="w-7 h-7 text-emerald-400" />
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#14549C] to-[#0b3f75] flex items-center justify-center shadow-lg shadow-[#14549C]/40 ring-1 ring-white/10">
+                            <Shield className="w-7 h-7 text-white" />
                         </div>
                         <h1 className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT VERIFICACION</h1>
                     </motion.div>
-                    <p className="text-slate-500 font-light">Plataforma de Verificación Digital</p>
+                    <p className="text-slate-400 font-light">Plataforma de Verificacion Digital</p>
                 </div>
 
-                <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                <Card className="bg-slate-900/60 backdrop-blur-2xl border-slate-800/80 shadow-2xl shadow-black/40 ring-1 ring-white/5">
                     <CardHeader className="text-center">
                         <CardTitle className="text-2xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>Bienvenido</CardTitle>
                         <CardDescription className="text-slate-400 font-light">
