@@ -11,10 +11,28 @@ resend.api_key = RESEND_API_KEY
 
 async def send_email(to_email: str, subject: str, html_content: str):
     """Send email using Resend API"""
+    # Persist a lightweight log entry for the Health panel (bounded in the reader side)
+    from datetime import datetime, timezone
+    import uuid
+    log_entry = {
+        'id': str(uuid.uuid4()),
+        'to_email': to_email,
+        'subject': subject,
+        'status': 'pending',
+        'error': None,
+        'created_at': datetime.now(timezone.utc).isoformat(),
+    }
+
     if not RESEND_API_KEY:
         logging.warning("RESEND_API_KEY not configured, email not sent")
+        log_entry['status'] = 'skipped'
+        log_entry['error'] = 'RESEND_API_KEY not configured'
+        try:
+            await db.email_logs.insert_one(log_entry)
+        except Exception:
+            pass
         return None
-    
+
     try:
         params = {
             "from": f"LIONSBIT VERIFICACION <{SENDER_EMAIL}>",
@@ -22,13 +40,24 @@ async def send_email(to_email: str, subject: str, html_content: str):
             "subject": subject,
             "html": html_content
         }
-        
+
         # Run sync SDK in thread to keep FastAPI non-blocking
         result = await asyncio.to_thread(resend.Emails.send, params)
         logging.info(f"Email sent to {to_email}: {subject}")
+        log_entry['status'] = 'sent'
+        try:
+            await db.email_logs.insert_one(log_entry)
+        except Exception:
+            pass
         return result
     except Exception as e:
         logging.error(f"Failed to send email to {to_email}: {str(e)}")
+        log_entry['status'] = 'failed'
+        log_entry['error'] = str(e)[:400]
+        try:
+            await db.email_logs.insert_one(log_entry)
+        except Exception:
+            pass
         return None
 
 def send_email_background(to_email: str, subject: str, html_content: str):

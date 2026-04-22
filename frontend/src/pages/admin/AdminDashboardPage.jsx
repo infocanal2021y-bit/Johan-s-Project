@@ -9,7 +9,7 @@ import { OdometerValue } from '../../components/dashboard/OdometerValue';
 import {
     Users, FileText, Clock, DollarSign, ShieldCheck, Wifi, Bitcoin, HeadphonesIcon,
     Megaphone, Activity, History, CreditCard, ArrowUpRight, ArrowRight,
-    Landmark, CheckCircle2, XCircle, AlertTriangle, TrendingUp,
+    Landmark, CheckCircle2, XCircle, AlertTriangle, TrendingUp, HeartPulse,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -403,6 +403,7 @@ export const AdminDashboardPage = () => {
                         <QuickAccessTile icon={Activity}       label="Actividad del sistema"  to="/admin/activity"        color="cyan" />
                         <QuickAccessTile icon={Wifi}           label="Usuarios en línea"      to="/admin/online-users"    color="blue" />
                         <QuickAccessTile icon={History}        label="Historial de accesos"   to="/admin/login-history"   color="slate" />
+                        <QuickAccessTile icon={HeartPulse}     label="Salud de integraciones" to="/admin/health"          color="rose" />
                     </div>
                 </div>
             </div>

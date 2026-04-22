@@ -1425,4 +1425,120 @@ async def admin_get_broadcast_history(admin: dict = Depends(get_admin_user)):
     return history
 
 
+
+# ==================== HEALTH / INTEGRATIONS DASHBOARD ====================
+
+@router.get("/admin/health")
+async def admin_health(admin: dict = Depends(get_admin_user)):
+    """Aggregate health status of all integrations: MongoDB, Resend, Scheduler.
+
+    Used by the admin Health dashboard to surface silent failures in real time.
+    """
+    from config import RESEND_API_KEY
+    import time
+
+    # ---- MongoDB ping & basic stats
+    mongo_info: dict = {'status': 'down', 'latency_ms': None, 'error': None,
+                        'collections': {}}
+    try:
+        t0 = time.perf_counter()
+        await db.command('ping')
+        mongo_info['latency_ms'] = round((time.perf_counter() - t0) * 1000, 1)
+        mongo_info['status'] = 'up'
+        # Lightweight counts for key collections
+        for coll in ('users', 'transactions', 'demo_accounts', 'notifications',
+                     'email_logs', 'system_activity'):
+            try:
+                mongo_info['collections'][coll] = await db[coll].estimated_document_count()
+            except Exception:
+                mongo_info['collections'][coll] = None
+    except Exception as e:
+        mongo_info['error'] = str(e)[:300]
+
+    # ---- Resend: key + last emails
+    resend_info: dict = {
+        'status': 'disabled',
+        'key_configured': bool(RESEND_API_KEY),
+        'stats_24h': {'sent': 0, 'failed': 0, 'skipped': 0},
+        'recent': [],
+        'last_failure': None,
+    }
+    if RESEND_API_KEY:
+        resend_info['status'] = 'configured'
+
+    try:
+        since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        cursor = db.email_logs.find(
+            {'created_at': {'$gte': since}},
+            {'_id': 0}
+        )
+        logs_24h = await cursor.to_list(length=2000)
+        for log in logs_24h:
+            s = log.get('status', 'unknown')
+            if s in resend_info['stats_24h']:
+                resend_info['stats_24h'][s] += 1
+        # Last 20 overall
+        resend_info['recent'] = await db.email_logs.find(
+            {}, {'_id': 0}
+        ).sort('created_at', -1).limit(20).to_list(20)
+        # Latest failure for spotlight
+        last_fail = await db.email_logs.find_one(
+            {'status': 'failed'}, {'_id': 0}, sort=[('created_at', -1)]
+        )
+        resend_info['last_failure'] = last_fail
+        # If we've had any success in the last 24h, mark as healthy
+        if resend_info['stats_24h']['sent'] > 0 and RESEND_API_KEY:
+            resend_info['status'] = 'healthy'
+        elif resend_info['stats_24h']['failed'] > 0 and resend_info['stats_24h']['sent'] == 0:
+            resend_info['status'] = 'degraded'
+    except Exception as e:
+        resend_info['error'] = str(e)[:300]
+
+    # ---- Scheduler (APScheduler)
+    scheduler_info: dict = {'status': 'unknown', 'jobs': [], 'error': None}
+    try:
+        import server as server_mod  # import lazy to avoid circular at startup
+        sched = getattr(server_mod, 'scheduler', None)
+        if sched is None:
+            scheduler_info['status'] = 'not_found'
+        else:
+            scheduler_info['status'] = 'running' if sched.running else 'stopped'
+            jobs_list = []
+            for j in sched.get_jobs():
+                nxt = j.next_run_time.isoformat() if j.next_run_time else None
+                jobs_list.append({
+                    'id': j.id,
+                    'name': j.name or j.id,
+                    'next_run_at': nxt,
+                    'trigger': str(j.trigger),
+                })
+            scheduler_info['jobs'] = jobs_list
+    except Exception as e:
+        scheduler_info['error'] = str(e)[:300]
+
+    # ---- Trading Bot global status (quick snapshot)
+    bot_info: dict = {'users_with_bot': 0, 'active_bots': 0, 'error': None}
+    try:
+        bot_info['users_with_bot'] = await db.bot_configs.estimated_document_count()
+        bot_info['active_bots'] = await db.bot_configs.count_documents({'enabled': True})
+    except Exception as e:
+        bot_info['error'] = str(e)[:300]
+
+    # ---- Overall verdict
+    overall = 'healthy'
+    if mongo_info['status'] != 'up':
+        overall = 'down'
+    elif resend_info['status'] == 'degraded' or scheduler_info['status'] not in ('running', 'unknown'):
+        overall = 'degraded'
+
+    return {
+        'overall': overall,
+        'checked_at': datetime.now(timezone.utc).isoformat(),
+        'mongo': mongo_info,
+        'resend': resend_info,
+        'scheduler': scheduler_info,
+        'trading_bot': bot_info,
+    }
+
+
 # ==================== UTILITY ROUTES ====================
