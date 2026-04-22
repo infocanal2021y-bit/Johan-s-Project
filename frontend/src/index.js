@@ -34,8 +34,34 @@ console.error = (...args) => {
   if (msg.includes('removeChild') || msg.includes('insertBefore') || msg.includes('NotFoundError')) {
     return;
   }
+  if (msg.includes('ResizeObserver loop')) {
+    return;
+  }
   originalError.apply(console, args);
 };
+
+// Silence the benign "ResizeObserver loop completed with undelivered notifications" warning
+// that CRA's error overlay incorrectly surfaces. Radix UI, charts and sidebars are the usual
+// culprits. See: https://github.com/WICG/resize-observer/issues/38
+if (typeof window !== 'undefined') {
+  const RESIZE_MSGS = [
+    'ResizeObserver loop limit exceeded',
+    'ResizeObserver loop completed with undelivered notifications.',
+  ];
+  window.addEventListener('error', (e) => {
+    if (e && RESIZE_MSGS.includes(e.message)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const msg = e?.reason?.message || '';
+    if (RESIZE_MSGS.includes(msg)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  });
+}
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
