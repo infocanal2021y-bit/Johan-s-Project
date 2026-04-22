@@ -113,3 +113,35 @@ html, body, #root {
         @apply fixed inset-0 z-50 bg-slate-950;
     }
 }
+
+
+/* ============================================================
+   Premium Button Interaction — hover lift + click ripple
+   Applied globally via <Button /> component.
+   ============================================================ */
+.ripple-span {
+    position: absolute;
+    border-radius: 9999px;
+    transform: scale(0);
+    animation: lb-ripple 600ms cubic-bezier(0.4, 0, 0.2, 1);
+    background: radial-gradient(
+        circle,
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.25) 40%,
+        rgba(255, 255, 255, 0) 70%
+    );
+    pointer-events: none;
+    mix-blend-mode: screen;
+}
+
+@keyframes lb-ripple {
+    to {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+/* Subtle elevated glow on hover for primary-like buttons */
+.btn-lift-hover:hover {
+    filter: brightness(1.08);
+}
