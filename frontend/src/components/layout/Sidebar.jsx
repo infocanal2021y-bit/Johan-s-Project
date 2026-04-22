@@ -132,14 +132,19 @@ export const Sidebar = () => {
                     to={link.to}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-4 lg:py-3 rounded-lg transition-colors duration-200 touch-manipulation ${
+                        `group relative flex items-center gap-3 px-4 py-4 lg:py-3 rounded-lg transition-all duration-200 ease-out touch-manipulation overflow-hidden ${
                             isActive
-                                ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-500'
-                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-500 shadow-inner shadow-emerald-500/5'
+                                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100 hover:translate-x-1 hover:shadow-md hover:shadow-[#14549C]/20 active:bg-slate-800 active:translate-x-0'
                         }`
                     }
                 >
-                    <link.icon className="w-5 h-5 flex-shrink-0" />
+                    {/* Subtle accent bar that grows on hover (inactive only) */}
+                    <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-[#14549C] opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-[.active]:hidden"
+                    />
+                    <link.icon className="w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
                     <span className="text-sm lg:text-base" style={{ fontWeight: 500 }}>{link.label}</span>
                 </NavLink>
             ))}
