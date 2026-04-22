@@ -1524,6 +1524,15 @@ async def admin_health(admin: dict = Depends(get_admin_user)):
     except Exception as e:
         bot_info['error'] = str(e)[:300]
 
+    # ---- Telegram alerts status (read-only visibility for admins)
+    telegram_info: dict = {'configured': False, 'alert_level': None}
+    try:
+        from services.alerts import is_configured as telegram_is_configured, TELEGRAM_ALERT_LEVEL
+        telegram_info['configured'] = telegram_is_configured()
+        telegram_info['alert_level'] = TELEGRAM_ALERT_LEVEL
+    except Exception:
+        pass
+
     # ---- Overall verdict
     overall = 'healthy'
     if mongo_info['status'] != 'up':
@@ -1538,6 +1547,7 @@ async def admin_health(admin: dict = Depends(get_admin_user)):
         'resend': resend_info,
         'scheduler': scheduler_info,
         'trading_bot': bot_info,
+        'telegram': telegram_info,
     }
 
 

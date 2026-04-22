@@ -130,9 +130,18 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Run every 60s to check platform health and fire Telegram alerts if degraded/down persists
+    scheduler.add_job(
+        process_health_watchdog,
+        IntervalTrigger(seconds=60),
+        id='health_watchdog',
+        name='Platform health watchdog (Telegram alerts)',
+        replace_existing=True
+    )
+
     
     scheduler.start()
-    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s)")
+    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s)")
 
 
 async def process_daily_admin_summary():
@@ -527,6 +536,103 @@ async def process_auto_rejections():
     
     except Exception as e:
         logging.error(f"❌ Error in auto-rejection job: {str(e)}")
+
+# ==================== HEALTH WATCHDOG ====================
+
+# Module-level state (survives between scheduler ticks in the same process)
+_health_state = {
+    'consecutive_bad': 0,      # consecutive ticks with overall in alert range
+    'last_alert_status': None, # last 'overall' value we alerted about
+    'currently_alerting': False,
+}
+
+
+async def process_health_watchdog():
+    """Run a health check; if overall is degraded/down for 2+ consecutive ticks
+    (~60-120 s depending on schedule), send a Telegram alert. Also send a
+    recovery alert once everything is healthy again.
+
+    Inactive without TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env (it still
+    runs but send_telegram_alert is a no-op)."""
+    try:
+        from services.alerts import is_configured, send_telegram_alert, should_alert_for
+        from datetime import datetime, timezone
+        import time as _time
+
+        # If Telegram is not configured we skip entirely — no wasted work.
+        if not is_configured():
+            return
+
+        # Inline health computation (same logic the admin endpoint uses but
+        # trimmed to the overall verdict so it stays fast).
+        mongo_up = False
+        mongo_lat = None
+        try:
+            t0 = _time.perf_counter()
+            await db.command('ping')
+            mongo_lat = round((_time.perf_counter() - t0) * 1000, 1)
+            mongo_up = True
+        except Exception:
+            pass
+
+        scheduler_running = bool(scheduler and scheduler.running)
+
+        # Resend is degraded if last 24h has failures and zero success
+        sent_24h = 0
+        failed_24h = 0
+        try:
+            since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+            sent_24h = await db.email_logs.count_documents({'created_at': {'$gte': since}, 'status': 'sent'})
+            failed_24h = await db.email_logs.count_documents({'created_at': {'$gte': since}, 'status': 'failed'})
+        except Exception:
+            pass
+
+        if not mongo_up:
+            overall = 'down'
+        elif not scheduler_running or (failed_24h > 0 and sent_24h == 0):
+            overall = 'degraded'
+        else:
+            overall = 'healthy'
+
+        bad = should_alert_for(overall)
+        if bad:
+            _health_state['consecutive_bad'] += 1
+        else:
+            _health_state['consecutive_bad'] = 0
+
+        # Fire alert when we hit 2 consecutive bad ticks and we aren't already alerting
+        if _health_state['consecutive_bad'] >= 2 and not _health_state['currently_alerting']:
+            text = (
+                f"<b>🚨 LIONSBIT — Alerta de salud</b>\n"
+                f"Estado: <b>{overall.upper()}</b>\n"
+                f"MongoDB: {'✅' if mongo_up else '❌'}"
+                f"{f' ({mongo_lat} ms)' if mongo_lat is not None else ''}\n"
+                f"Scheduler: {'✅ running' if scheduler_running else '❌ stopped'}\n"
+                f"Emails 24h: ✅ {sent_24h} · ❌ {failed_24h}\n"
+                f"<i>Detectado a las {datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}</i>"
+            )
+            ok = await send_telegram_alert(text)
+            if ok:
+                _health_state['currently_alerting'] = True
+                _health_state['last_alert_status'] = overall
+                logging.warning(f"Health watchdog sent alert: {overall}")
+
+        # Recovery
+        if not bad and _health_state['currently_alerting']:
+            text = (
+                f"<b>✅ LIONSBIT — Sistema recuperado</b>\n"
+                f"Todos los servicios están operativos de nuevo.\n"
+                f"<i>{datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}</i>"
+            )
+            await send_telegram_alert(text)
+            _health_state['currently_alerting'] = False
+            _health_state['last_alert_status'] = None
+            logging.info("Health watchdog sent recovery alert")
+
+    except Exception as e:
+        logging.error(f"Health watchdog error: {e}")
+
+
 
 async def ensure_admin_users():
     """Ensure admin users exist on startup with verified status"""

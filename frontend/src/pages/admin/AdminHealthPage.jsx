@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button';
 import api from '../../lib/api';
 import {
     Activity, Database, Mail, Clock, Bot, CheckCircle2, AlertTriangle,
-    XCircle, RefreshCw, ArrowLeft, Zap, HeartPulse,
+    XCircle, RefreshCw, ArrowLeft, Zap, HeartPulse, Send,
 } from 'lucide-react';
 
 const STATUS_TONE = {
@@ -154,6 +154,36 @@ export const AdminHealthPage = () => {
                     Última comprobación: <span className="text-slate-300 font-mono">{fmtLocalTime(data?.checked_at)}</span>
                     <span className="ml-2">· Se actualiza automáticamente cada 10 s.</span>
                 </p>
+
+                {/* Telegram alerts status */}
+                <div className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-800/80 bg-slate-900/40">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ring-1 ${
+                        data?.telegram?.configured
+                            ? 'bg-cyan-500/15 text-cyan-300 ring-cyan-500/30'
+                            : 'bg-slate-700/40 text-slate-400 ring-slate-600/40'
+                    }`}>
+                        <Send className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-white text-sm font-semibold">Alertas Telegram</p>
+                            {data?.telegram?.configured ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold tracking-wider ring-1 ring-emerald-500/30">
+                                    ACTIVAS · nivel: {data?.telegram?.alert_level || 'down'}
+                                </span>
+                            ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 text-[10px] font-bold tracking-wider ring-1 ring-slate-600/40">
+                                    SIN CONFIGURAR
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-slate-400 text-[11px] leading-relaxed mt-1">
+                            {data?.telegram?.configured
+                                ? 'Recibirás un mensaje automático si la plataforma se degrada o cae durante +60 s. También al recuperarse.'
+                                : 'Añade TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en backend/.env y reinicia backend para activar alertas automáticas.'}
+                        </p>
+                    </div>
+                </div>
 
                 {/* ── Grid: Mongo · Resend · Scheduler · Bot ── */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
