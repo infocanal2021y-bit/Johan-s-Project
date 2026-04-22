@@ -154,15 +154,47 @@ export const Sidebar = () => {
     const SidebarContent = () => (
         <div className="flex flex-col h-full">
             {/* Logo */}
-            <div className="p-6 border-b border-slate-800">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                            <Shield className="w-6 h-6 text-emerald-400" />
+            <div className="p-5 border-b border-slate-800">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative flex-shrink-0">
+                            {/* Golden halo */}
+                            <div
+                                aria-hidden="true"
+                                className="absolute inset-0 rounded-xl blur-md opacity-70"
+                                style={{
+                                    background:
+                                        'radial-gradient(circle, rgba(240,185,11,0.5) 0%, rgba(240,185,11,0.12) 55%, transparent 75%)',
+                                }}
+                            />
+                            <div
+                                className="relative w-11 h-11 rounded-xl overflow-hidden ring-1 ring-amber-400/40 shadow-[0_8px_28px_-8px_rgba(240,185,11,0.55)]"
+                                style={{
+                                    background: 'linear-gradient(135deg, #0b1b34 0%, #142b52 100%)',
+                                }}
+                            >
+                                <img
+                                    src="/lionsbit-logo.jpg"
+                                    alt="Lionsbit Verificación"
+                                    className="w-full h-full object-cover"
+                                    draggable="false"
+                                />
+                                <div className="absolute inset-0 ring-1 ring-white/10 rounded-xl pointer-events-none" />
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-lg text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>LIONSBIT VERIFICACION</h1>
-                            <p className="text-xs text-slate-500 font-light">Plataforma de Verificación Digital</p>
+                        <div className="leading-tight min-w-0">
+                            <h1
+                                className="text-white truncate"
+                                style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.01em' }}
+                            >
+                                LIONSBIT
+                            </h1>
+                            <p
+                                className="text-amber-400/90 tracking-[0.22em] uppercase truncate"
+                                style={{ fontSize: '0.58rem', fontWeight: 600 }}
+                            >
+                                Verificación
+                            </p>
                         </div>
                     </div>
                     <NotificationBell />
