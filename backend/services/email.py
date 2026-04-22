@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import resend
 import httpx
 
-from config import RESEND_API_KEY, SENDER_EMAIL, db
+from config import RESEND_API_KEY, SENDER_EMAIL, APP_BASE_URL, db
 
 resend.api_key = RESEND_API_KEY
 
