@@ -119,6 +119,49 @@ html, body, #root {
    Premium Button Interaction — hover lift + click ripple
    Applied globally via <Button /> component.
    ============================================================ */
+
+/* Universal hover effect for ALL native <button> elements across the app.
+   Uses element + pseudo-class selector to win over Tailwind class utilities
+   like `transition-colors` (higher specificity: 0,1,1 > 0,1,0).
+   Opt-out: add `data-no-hover` attribute to the button. */
+button:not(:disabled):not([data-no-hover]) {
+    transition: transform 0.22s ease-out,
+                box-shadow 0.22s ease-out,
+                filter 0.22s ease-out,
+                background-color 0.22s ease-out,
+                border-color 0.22s ease-out,
+                color 0.22s ease-out;
+    transform-origin: center;
+    will-change: transform;
+}
+
+button:not(:disabled):not([data-no-hover]):hover {
+    transform: scale(1.04);
+    filter: brightness(1.1);
+}
+
+button:not(:disabled):not([data-no-hover]):active {
+    transform: scale(0.97);
+    filter: brightness(1.05);
+    transition-duration: 90ms;
+}
+
+/* Anchor tags styled as buttons — common in the app for Link wrappers */
+a[role="button"]:not([data-no-hover]),
+.btn-like:not([data-no-hover]) {
+    transition: transform 0.22s ease-out, box-shadow 0.22s ease-out, filter 0.22s ease-out;
+    will-change: transform;
+}
+a[role="button"]:not([data-no-hover]):hover,
+.btn-like:not([data-no-hover]):hover {
+    transform: scale(1.04);
+    filter: brightness(1.1);
+}
+a[role="button"]:not([data-no-hover]):active,
+.btn-like:not([data-no-hover]):active {
+    transform: scale(0.97);
+}
+
 .ripple-span {
     position: absolute;
     border-radius: 9999px;
