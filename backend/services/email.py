@@ -42,6 +42,22 @@ async def _send_email_safe(to_email: str, subject: str, html_content: str):
     except Exception as e:
         logging.error(f"Background email failed for {to_email}: {str(e)}")
 
+
+def safe_email(func):
+    """Decorator: any exception in an email function is logged but never raised.
+    Keeps business endpoints (withdrawals, transfers, auth...) resilient to email issues."""
+    import functools
+
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            logging.error(f"safe_email: {func.__name__} failed: {e}", exc_info=True)
+            return None
+
+    return wrapper
+
 # ==================== IP GEOLOCATION ====================
 _geo_cache = {}
 
@@ -118,6 +134,7 @@ def get_email_template(content: str, title: str = "LIONSBIT VERIFICACION"):
     </html>
     """
 
+@safe_email
 async def send_balance_added_email(user_email: str, user_name: str, amount: float, currency: str, new_balance: float):
     """Send email notification when balance is added"""
     content = await _build_balance_email_content(user_name, amount, currency, new_balance)
@@ -164,6 +181,7 @@ async def _build_balance_email_content(user_name: str, amount: float, currency: 
         </p>
     """
 
+@safe_email
 async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
     """Send email notification for withdrawal status changes"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
@@ -215,6 +233,7 @@ async def send_withdrawal_status_email(user_email: str, user_name: str, amount: 
     html = get_email_template(content, config['title'])
     await send_email(user_email, f"📤 {config['title']} - LIONSBIT VERIFICACION", html)
 
+@safe_email
 async def send_password_changed_email(user_email: str, user_name: str):
     """Send email notification when password is changed"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
@@ -244,6 +263,7 @@ async def send_password_changed_email(user_email: str, user_name: str):
     html = get_email_template(content, "Contraseña Actualizada")
     await send_email(user_email, "🔐 Contraseña cambiada - LIONSBIT VERIFICACION", html)
 
+@safe_email
 async def send_new_login_email(user_email: str, user_name: str, ip_address: str, browser: str, location: str):
     """Send email notification for new login from unknown IP"""
     content = await _build_new_login_email_content(user_name, ip_address, browser, location)
@@ -292,6 +312,7 @@ async def _build_new_login_email_content(user_name: str, ip_address: str, browse
         </p>
     """
 
+@safe_email
 async def send_transfer_completed_email(user_email: str, user_name: str, amount: float, currency: str, recipient: str):
     """Send email notification when transfer is completed"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
@@ -331,6 +352,7 @@ async def send_transfer_completed_email(user_email: str, user_name: str, amount:
     html = get_email_template(content, "Transferencia Completada")
     await send_email(user_email, "✅ Transferencia completada - LIONSBIT VERIFICACION", html)
 
+@safe_email
 async def send_withdrawal_tax_pending_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, tax_required: float, tax_paid: float):
     """Send email when withdrawal is pending tax payment"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
@@ -412,6 +434,7 @@ async def send_withdrawal_tax_pending_email(user_email: str, user_name: str, wit
     html = get_email_template(content, "Retiro Pendiente - Impuesto Requerido")
     await send_email(user_email, "⏳ Retiro pendiente - Pague su impuesto - LIONSBIT VERIFICACION", html)
 
+@safe_email
 async def send_tax_payment_received_email(user_email: str, user_name: str, payment_amount: float, tax_required: float, tax_paid: float, withdrawal_amount: float, currency: str):
     """Send email when tax payment is received"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
@@ -479,6 +502,7 @@ async def send_tax_payment_received_email(user_email: str, user_name: str, payme
     html = get_email_template(content, "Abono al Impuesto Recibido")
     await send_email(user_email, f"💰 Abono recibido - {'Impuesto completado' if remaining <= 0 else 'Progreso actualizado'} - LIONSBIT VERIFICACION", html)
 
+@safe_email
 async def send_tax_reminder_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, tax_required: float, tax_paid: float, hours_remaining: float):
     """Send reminder email for pending tax payment"""
     currency_symbol = "$" if currency == "USD" else "€"
@@ -546,6 +570,7 @@ async def send_tax_reminder_email(user_email: str, user_name: str, withdrawal_am
     html = get_email_template(content, "Recordatorio - Impuesto Pendiente")
     await send_email(user_email, f"⚠️ RECORDATORIO: Impuesto pendiente - {hours_remaining:.0f}h restantes - LIONSBIT VERIFICACION", html)
 
+@safe_email
 async def send_withdrawal_rejected_email(user_email: str, user_name: str, withdrawal_amount: float, currency: str, reason: str):
     """Send email when withdrawal is automatically rejected"""
     currency_symbol = "$" if currency == "USD" else "€"
