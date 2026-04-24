@@ -4,7 +4,7 @@ import api from '../../lib/api';
 import { Button } from '../ui/button';
 import {
     Activity, ArrowUpRight, ArrowDownRight, X, Loader2,
-    Shield, Target, Radio, Move,
+    Shield, Target, Radio, Move, Scale, AlertTriangle,
 } from 'lucide-react';
 
 const TIMEFRAMES = [
@@ -56,12 +56,25 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
     const [tpPrice, setTpPrice] = useState(null);
     const [isDragging, setIsDragging] = useState(null); // 'sl' | 'tp' | null
     const [flash, setFlash] = useState(null); // 'up' | 'down' | null
+    const [lot, setLot] = useState(0.10);
+    const [calc, setCalc] = useState(null); // { pip_value_usd, margin_required_usd, current_price }
 
     // Reset SL/TP when the symbol changes (different instrument)
     useEffect(() => {
         setSlPrice(null);
         setTpPrice(null);
+        setCalc(null);
     }, [symbol?.symbol]);
+
+    // Fetch calculator data (pip_value, margin) for current symbol × lot
+    useEffect(() => {
+        if (!symbol?.symbol) return;
+        let cancelled = false;
+        api.post('/mt5/calculator', { symbol: symbol.symbol, lot })
+            .then(r => { if (!cancelled) setCalc(r.data); })
+            .catch(() => { if (!cancelled) setCalc(null); });
+        return () => { cancelled = true; };
+    }, [symbol?.symbol, lot]);
 
     // Keep refs in sync
     useEffect(() => { slPriceRef.current = slPrice; }, [slPrice]);
@@ -374,16 +387,6 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
         setTpPrice(Number(price.toFixed(5)));
     }, [currentPrice]);
 
-    // Submit trade with SL/TP prefilled
-    const submitTrade = (dir) => {
-        if (onOpenTrade) {
-            onOpenTrade(symbol, dir, {
-                sl: slPrice != null ? slPrice : undefined,
-                tp: tpPrice != null ? tpPrice : undefined,
-            });
-        }
-    };
-
     // Derived stats
     const latest = liveBar || (candles.length ? candles[candles.length - 1] : null);
     const first = candles.length ? candles[0] : null;
@@ -394,10 +397,52 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
 
     const isModal = variant === 'modal';
 
-    // Risk preview (USD loss/gain if SL/TP hit) — simplified display only
+    // Risk preview (USD loss/gain if SL/TP hit) — uses backend calculator for pip_value
     const pricePrecision = (quote.pip && quote.pip < 0.01) ? 5 : 2;
-    const slDelta = slPrice != null && latest ? latest.close - slPrice : null;
-    const tpDelta = tpPrice != null && latest ? tpPrice - latest.close : null;
+    const entry = latest?.close ?? null;
+    const pipSize = symbol?.pip ?? quote.pip ?? null;
+    const pipValueUsd = calc?.pip_value_usd ?? null;
+
+    // Detect direction from SL/TP placement relative to entry (MT5-like behavior).
+    //   SL below entry & TP above → BUY setup
+    //   SL above entry & TP below → SELL setup
+    let inferredDir = null;
+    if (entry != null) {
+        const slBelow = slPrice != null && slPrice < entry;
+        const slAbove = slPrice != null && slPrice > entry;
+        const tpAbove = tpPrice != null && tpPrice > entry;
+        const tpBelow = tpPrice != null && tpPrice < entry;
+        if ((slBelow && (tpAbove || tpPrice == null)) || (tpAbove && slPrice == null)) inferredDir = 'buy';
+        else if ((slAbove && (tpBelow || tpPrice == null)) || (tpBelow && slPrice == null)) inferredDir = 'sell';
+    }
+
+    const toUsd = (priceDiff) => {
+        if (priceDiff == null || !pipSize || !pipValueUsd) return null;
+        const pipsAway = Math.abs(priceDiff) / pipSize;
+        return Math.round(pipsAway * pipValueUsd * 100) / 100;
+    };
+
+    const slDistPrice = slPrice != null && entry != null ? Math.abs(entry - slPrice) : null;
+    const tpDistPrice = tpPrice != null && entry != null ? Math.abs(tpPrice - entry) : null;
+    const riskUsd = toUsd(slDistPrice);
+    const rewardUsd = toUsd(tpDistPrice);
+    const rrRatio = (riskUsd && rewardUsd) ? (rewardUsd / riskUsd) : null;
+
+    // Invalid layout detection (e.g. BUY with SL above entry, or TP below)
+    const invalidLayout = entry != null && (
+        (slPrice != null && tpPrice != null && ((slPrice > entry && tpPrice > entry) || (slPrice < entry && tpPrice < entry)))
+    );
+
+    // Submit trade with SL/TP prefilled — use inferred direction if available
+    const submitTrade = (dirFromBtn) => {
+        if (onOpenTrade) {
+            const finalDir = (inferredDir && (slPrice != null || tpPrice != null)) ? inferredDir : dirFromBtn;
+            onOpenTrade(symbol, finalDir, {
+                sl: slPrice != null ? slPrice : undefined,
+                tp: tpPrice != null ? tpPrice : undefined,
+            });
+        }
+    };
 
     return (
         <div
@@ -540,21 +585,98 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
                 data-testid="mt5-chart-canvas"
             />
 
-            {/* Risk preview */}
+            {/* Risk / Reward preview — live as you drag SL/TP */}
             {(slPrice != null || tpPrice != null) && latest && (
-                <div className="relative mt-2 grid grid-cols-2 gap-2 text-[10px]">
-                    <div className="px-2 py-1.5 rounded-md bg-rose-500/10 ring-1 ring-rose-500/25">
-                        <p className="text-rose-300/70 font-semibold uppercase tracking-wider">Distancia SL</p>
-                        <p className="text-rose-200 font-mono tabular-nums font-bold">
-                            {slDelta == null ? '—' : `${slDelta >= 0 ? '+' : ''}${Math.abs(slDelta).toFixed(pricePrecision)}`}
-                        </p>
+                <div className="relative mt-2.5 rounded-lg bg-slate-950/60 ring-1 ring-slate-800 p-2.5" data-testid="mt5-chart-rr-panel">
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                            <Scale className="w-3 h-3 text-cyan-400" /> Gestión de riesgo · en vivo
+                        </span>
+                        <div className="inline-flex items-center gap-1.5">
+                            {inferredDir && !invalidLayout && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    inferredDir === 'buy'
+                                        ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40'
+                                        : 'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40'
+                                }`}>Setup {inferredDir === 'buy' ? 'LONG' : 'SHORT'}</span>
+                            )}
+                            <label className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                                <span className="uppercase tracking-wider">Lots</span>
+                                <input
+                                    type="number"
+                                    step="0.01" min="0.01" max="50"
+                                    value={lot}
+                                    onChange={(e) => setLot(Math.max(0.01, Math.min(50, parseFloat(e.target.value) || 0.01)))}
+                                    data-testid="mt5-chart-rr-lot"
+                                    className="w-14 h-6 px-1.5 rounded bg-slate-900 ring-1 ring-slate-700 text-white font-mono tabular-nums text-[11px] text-right focus:outline-none focus:ring-cyan-500/50"
+                                />
+                            </label>
+                        </div>
                     </div>
-                    <div className="px-2 py-1.5 rounded-md bg-emerald-500/10 ring-1 ring-emerald-500/25">
-                        <p className="text-emerald-300/70 font-semibold uppercase tracking-wider">Distancia TP</p>
-                        <p className="text-emerald-200 font-mono tabular-nums font-bold">
-                            {tpDelta == null ? '—' : `${tpDelta >= 0 ? '+' : ''}${Math.abs(tpDelta).toFixed(pricePrecision)}`}
-                        </p>
+
+                    {invalidLayout && (
+                        <div className="mb-2 flex items-center gap-1.5 px-2 py-1.5 rounded bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-200 text-[10px]">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                            <span>Configuración inválida: SL y TP deben estar en lados opuestos del precio.</span>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2">
+                        {/* Risk */}
+                        <div className="px-2 py-1.5 rounded-md bg-rose-500/10 ring-1 ring-rose-500/25">
+                            <p className="text-rose-300/70 font-semibold uppercase tracking-wider text-[9px]">Riesgo</p>
+                            <p className="text-rose-200 font-mono tabular-nums font-bold text-[13px] leading-tight">
+                                {riskUsd != null ? `−$${riskUsd.toFixed(2)}` : '—'}
+                            </p>
+                            <p className="text-rose-300/50 text-[9px] font-mono tabular-nums">
+                                {slDistPrice != null ? `${slDistPrice.toFixed(pricePrecision)} px` : ''}
+                            </p>
+                        </div>
+                        {/* Reward */}
+                        <div className="px-2 py-1.5 rounded-md bg-emerald-500/10 ring-1 ring-emerald-500/25">
+                            <p className="text-emerald-300/70 font-semibold uppercase tracking-wider text-[9px]">Ganancia</p>
+                            <p className="text-emerald-200 font-mono tabular-nums font-bold text-[13px] leading-tight">
+                                {rewardUsd != null ? `+$${rewardUsd.toFixed(2)}` : '—'}
+                            </p>
+                            <p className="text-emerald-300/50 text-[9px] font-mono tabular-nums">
+                                {tpDistPrice != null ? `${tpDistPrice.toFixed(pricePrecision)} px` : ''}
+                            </p>
+                        </div>
+                        {/* R:R Ratio */}
+                        <div
+                            className={`px-2 py-1.5 rounded-md ring-1 ${
+                                rrRatio == null ? 'bg-slate-900/50 ring-slate-800'
+                                    : rrRatio >= 2 ? 'bg-cyan-500/15 ring-cyan-500/40'
+                                    : rrRatio >= 1 ? 'bg-amber-500/10 ring-amber-500/30'
+                                    : 'bg-rose-500/10 ring-rose-500/30'
+                            }`}
+                            data-testid="mt5-chart-rr-ratio"
+                        >
+                            <p className="text-slate-400 font-semibold uppercase tracking-wider text-[9px]">Ratio R:R</p>
+                            <p className={`font-mono tabular-nums font-bold text-[13px] leading-tight ${
+                                rrRatio == null ? 'text-slate-500'
+                                    : rrRatio >= 2 ? 'text-cyan-200'
+                                    : rrRatio >= 1 ? 'text-amber-200'
+                                    : 'text-rose-200'
+                            }`}>
+                                {rrRatio != null ? `1 : ${rrRatio.toFixed(2)}` : '—'}
+                            </p>
+                            <p className="text-slate-500 text-[9px]">
+                                {rrRatio == null ? 'define SL y TP'
+                                    : rrRatio >= 2 ? 'excelente'
+                                    : rrRatio >= 1 ? 'aceptable'
+                                    : 'desfavorable'}
+                            </p>
+                        </div>
                     </div>
+
+                    {pipValueUsd != null && (
+                        <p className="mt-1.5 text-[9.5px] text-slate-600">
+                            Cálculo basado en <span className="text-slate-400 font-mono">{lot.toFixed(2)}</span> lots ·
+                            pip value <span className="text-slate-400 font-mono">${Number(pipValueUsd).toFixed(2)}</span> ·
+                            margen req. <span className="text-slate-400 font-mono">${calc?.margin_required_usd}</span>
+                        </p>
+                    )}
                 </div>
             )}
 
