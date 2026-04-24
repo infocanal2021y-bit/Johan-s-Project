@@ -341,6 +341,11 @@ async def admin_confirm(dep_id: str, payload: Optional[dict] = None, user: dict 
                 'initial_balance': usd_amount,
             }},
         )
+    # Also credit the user's checking USD wallet (single source of truth for balance)
+    await db.accounts.update_one(
+        {'user_id': dep['user_id'], 'account_type': 'checking'},
+        {'$inc': {'balance_usd': usd_amount, 'balance_eur': dep['amount_eur']}},
+    )
     # Journal entry
     await db.mt5_journal.insert_one({
         'id': str(uuid.uuid4()),

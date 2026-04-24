@@ -233,18 +233,24 @@ async def _seed_operations(user_id: str, login: int):
         await db.mt5_operations.insert_many(ops)
 
 
+async def _get_wallet(user_id: str) -> Optional[dict]:
+    """Fetch the user's primary checking USD wallet (the source of truth for balance)."""
+    return await db.accounts.find_one(
+        {'user_id': user_id, 'account_type': 'checking'},
+        {'_id': 0},
+    )
+
+
 async def _recompute_account(user_id: str) -> dict:
     """Recompute live equity, margin_used, margin_level and free_margin.
-    Called on read endpoints to give users fresh numbers without storing drift."""
+
+    Source of truth for `balance` is now the user's checking USD wallet
+    (`accounts.balance_usd`). This way, when an admin adds funds to the user
+    via the admin panel, the MT5 dashboard reflects it immediately.
+    """
     acc = await db.mt5_accounts.find_one({'user_id': user_id}, {'_id': 0})
     if not acc:
         return {}
-
-    closed_cursor = db.mt5_operations.find(
-        {'user_id': user_id, 'status': 'closed'}, {'_id': 0}
-    )
-    closed_ops = await closed_cursor.to_list(length=500)
-    net_closed = sum((op.get('profit', 0) + op.get('swap', 0) + op.get('commission', 0)) for op in closed_ops)
 
     open_cursor = db.mt5_operations.find(
         {'user_id': user_id, 'status': 'open'}, {'_id': 0}
@@ -274,7 +280,14 @@ async def _recompute_account(user_id: str) -> dict:
         margin = contract_size * op['lot'] * asset['base_price'] / max(acc.get('leverage', 500), 1)
         total_margin_used += margin
 
-    balance = round(acc.get('initial_balance', 10_000.0) + net_closed, 2)
+    # ── Balance comes from the user's wallet (source of truth) ──
+    wallet = await _get_wallet(user_id)
+    if wallet is not None:
+        balance = round(float(wallet.get('balance_usd', 0) or 0), 2)
+    else:
+        # Fallback for legacy accounts without a wallet record
+        balance = round(acc.get('initial_balance', 10_000.0), 2)
+
     equity = round(balance + floating, 2)
     margin_level = round((equity / total_margin_used * 100), 2) if total_margin_used > 0 else 0.0
     free_margin = round(equity - total_margin_used, 2)
@@ -675,6 +688,13 @@ async def mt5_close_position(op_id: str, payload: Optional[dict] = None, user: d
         }
         await db.mt5_operations.insert_one(closed_child)
         await db.mt5_operations.update_one({'id': op_id}, {'$set': {'lot': remaining}})
+        # Sync realized PnL into the user's checking USD wallet (single source of truth)
+        partial_profit = closed_child.get('profit', 0)
+        if partial_profit:
+            await db.accounts.update_one(
+                {'user_id': user['id'], 'account_type': 'checking'},
+                {'$inc': {'balance_usd': partial_profit}},
+            )
         await _journal(user['id'], 'close', f"Cierre parcial {partial_lot} de #{op['ticket']} ({op['symbol']}) @ {close_price}")
         acc = await _recompute_account(user['id'])
         return {'ok': True, 'partial': True, 'account': acc}
@@ -690,6 +710,12 @@ async def mt5_close_position(op_id: str, payload: Optional[dict] = None, user: d
             'close_reason': 'manual',
         }},
     )
+    # Sync realized PnL into the user's checking USD wallet (single source of truth)
+    if profit:
+        await db.accounts.update_one(
+            {'user_id': user['id'], 'account_type': 'checking'},
+            {'$inc': {'balance_usd': profit}},
+        )
     await _journal(user['id'], 'close', f"Cierre #{op['ticket']} ({op['symbol']}) @ {close_price} · PnL ${profit}")
     acc = await _recompute_account(user['id'])
     return {'ok': True, 'closed_at': close_price, 'profit': profit, 'account': acc}
