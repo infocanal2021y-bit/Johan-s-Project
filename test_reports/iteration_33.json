@@ -1,0 +1,44 @@
+{
+  "summary": "P2 regression sweep of MT5 module (candlestick chart + live ticks + draggable SL/TP + 2% rule panel + order prefill) plus smoke of Trading Bot / Admin Broadcast / Withdrawal. Backend pytest 13/13 green. Frontend E2E: all 15 checklist items verified on https://compliance-dash-32.preview.emergentagent.com as admi@paylionsbit.es.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MT5 Market Watch", "issues": ["Hydration console warnings: visual-editor instrumentation injects <span data-ve-dynamic style='display:contents'> as direct child of <tbody> and inside <tr>, which is invalid HTML and triggers React hydration warnings. Harmless in production build but noisy in DevTools. Only visible because of x-excluded tooling wrappers."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mt5_chart.py",
+    "/app/test_reports/pytest/mt5_chart_results.xml"
+  ],
+  "action_items": [
+    "(Optional / testability) Add data-testid to Stop Loss, Take Profit and Comentario inputs inside TradingPanel order modal (currently identifiable only via placeholder='(opcional)' / 'Nota opcional'). This would help future Playwright tests without relying on input index.",
+    "(Optional / dev UX) The visual-editor x-dynamic instrumentation wraps <tr> rows inside a <span style='display:contents'>, which violates HTML table nesting rules and emits hydration console errors on /mt5. App works fine but the warnings are noisy — consider disabling the instrumentation on <tbody>/<tr> boundaries or switching the wrapper to React.Fragment in MarketWatchAndTrading.jsx."
+  ],
+  "critical_code_review_comments": [
+    "routes/mt5.py — /mt5/candles and /mt5/tick use symbol+timeframe+day deterministic seeds for the historical series plus a per-second RNG on the current bar. This gives a realistic 'live' feel with stable history. Validation (400 on invalid symbol/timeframe) is correct.",
+    "MT5Chart pipeline verified end-to-end: initial GET /mt5/candles renders 200 bars, then 1s polling of /mt5/tick drives the last bar + bid/ask. Observed 3 distinct 'last' values across 3.6s (1.08868 → 1.08933 → 1.08726) confirming live drift works.",
+    "SL/TP drag + Risk/Reward panel is wired correctly: toggling SL produced 'SL 1.07069' and TP produced 'TP 1.09759'; RR panel shows Riesgo/Balance=1.51% with 'regla 2% ✓' at lot 0.10, and at lot 0.5 the mt5-chart-2pct-warning correctly appears.",
+    "Order modal prefill: clicking mt5-chart-buy-btn opens TradingPanel with SL=1.07857 and TP=1.11126 auto-filled from the chart — prefillSl/prefillTp threading through MT5Page → MarketWatch → TradingPanel works.",
+    "Symbol swap works when row is in viewport (BTCUSD click → chart symbol=BTCUSD, last=67,665.72282). Be aware that rows below the fold need scroll-into-view before click — this is a test harness concern, not a product bug.",
+    "All 6 Terminal MT5 tabs (positions / pending / history / funds / report / journal) render without any React error boundary.",
+    "MongoDB _id exclusion verified recursively on /mt5/account, /mt5/symbols, /mt5/candles, /mt5/tick, /mt5/operations, /mt5/calculator — none leak _id."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mt5_chart.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 pytest tests passing)",
+    "frontend": "100% (15/15 checklist items verified, 0 JS pageerrors)"
+  },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. The MT5 account auto-seeds 8 closed + 2 open demo ops on first /mt5/account call — already existed in DB for this admin.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MT5 module is fully green after this session's lightweight-charts v5 + tick-polling + draggable SL/TP rewrite. If future changes touch MT5Chart.jsx / MarketWatchAndTrading.jsx / routes/mt5.py — rerun `pytest /app/backend/tests/test_mt5_chart.py` plus the /mt5 UI flow (login admin → /mt5 → observe 3 price samples ~1.2s apart distinct → toggle SL/TP → check RR panel + 2% warning at lot 0.5 → click mt5-row-BTCUSD after scroll-into-view → click mt5-chart-buy-btn and assert modal opens with SL/TP prefilled). Known cosmetic issue: visual-editor instrumentation injects spans inside <tbody>/<tr> causing harmless hydration warnings. Trading Bot / Admin Broadcast / Withdraw / Bank Transfer smoke-tested, no regressions.",
+  "rca of the issue": "N/A — no bugs found. Two initial Playwright negatives (BTCUSD click not swapping chart, order modal SL/TP not found) turned out to be test-harness issues (row below fold; SL/TP inputs lacked data-testid). Re-ran with scroll_into_view_if_needed() and input-by-position inspection → both features work correctly."
+}

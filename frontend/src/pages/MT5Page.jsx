@@ -398,7 +398,7 @@ const MT5TradingSuite = ({ account, onAccountChange }) => {
                 </div>
 
                 <div className="p-4 sm:p-5">
-                    {tab === 'market'    && <MarketWatch onOpenTrade={openTrade} />}
+                    {tab === 'market'    && <MarketWatch onOpenTrade={openTrade} accountBalance={account?.balance} />}
                     {tab === 'positions' && <OpenPositions onChange={onAccountChange} />}
                     {tab === 'pending'   && <PendingOrders />}
                     {tab === 'history'   && <HistoryTable />}

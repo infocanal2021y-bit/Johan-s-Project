@@ -8,7 +8,7 @@ import { MT5Chart } from './MT5Chart';
 
 const fmtPrice = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 });
 
-export const MarketWatch = ({ onOpenTrade }) => {
+export const MarketWatch = ({ onOpenTrade, accountBalance }) => {
     const [symbols, setSymbols] = useState([]);
     const [filter, setFilter] = useState('');
     const [cat, setCat] = useState('all');
@@ -63,6 +63,7 @@ export const MarketWatch = ({ onOpenTrade }) => {
             {selected && (
                 <MT5Chart
                     symbol={selected}
+                    accountBalance={accountBalance}
                     onClose={() => setSelected(null)}
                     onOpenTrade={onOpenTrade}
                 />

@@ -32,7 +32,7 @@ function calcEMA(candles, period) {
     return out;
 }
 
-export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) => {
+export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline', accountBalance = null }) => {
     const containerRef = useRef(null);
     const chartRef = useRef(null);
     const candleSeriesRef = useRef(null);
@@ -428,6 +428,24 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
     const rewardUsd = toUsd(tpDistPrice);
     const rrRatio = (riskUsd && rewardUsd) ? (rewardUsd / riskUsd) : null;
 
+    // Risk as % of account balance — pro capital management (2% rule)
+    const riskPctBalance = (riskUsd != null && accountBalance && accountBalance > 0)
+        ? (riskUsd / accountBalance) * 100
+        : null;
+    const riskTone = riskPctBalance == null ? 'slate'
+        : riskPctBalance <= 1 ? 'emerald'
+        : riskPctBalance <= 2 ? 'cyan'
+        : riskPctBalance <= 5 ? 'amber'
+        : 'rose';
+    const riskToneMap = {
+        slate:   { bg: 'bg-slate-900/50',   ring: 'ring-slate-800',        text: 'text-slate-400', label: '—' },
+        emerald: { bg: 'bg-emerald-500/15', ring: 'ring-emerald-500/40',   text: 'text-emerald-200', label: 'conservador' },
+        cyan:    { bg: 'bg-cyan-500/15',    ring: 'ring-cyan-500/40',      text: 'text-cyan-200',    label: 'regla 2% ✓' },
+        amber:   { bg: 'bg-amber-500/10',   ring: 'ring-amber-500/30',     text: 'text-amber-200',   label: 'elevado' },
+        rose:    { bg: 'bg-rose-500/10',    ring: 'ring-rose-500/40',      text: 'text-rose-200',    label: 'exceso' },
+    };
+    const exceedsRule = riskPctBalance != null && riskPctBalance > 2;
+
     // Invalid layout detection (e.g. BUY with SL above entry, or TP below)
     const invalidLayout = entry != null && (
         (slPrice != null && tpPrice != null && ((slPrice > entry && tpPrice > entry) || (slPrice < entry && tpPrice < entry)))
@@ -670,6 +688,51 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
                         </div>
                     </div>
 
+                    {/* % Balance at risk — 2% rule */}
+                    {riskPctBalance != null && accountBalance && (
+                        <div
+                            className={`mt-2 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md ring-1 ${riskToneMap[riskTone].bg} ${riskToneMap[riskTone].ring}`}
+                            data-testid="mt5-chart-risk-pct"
+                        >
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Shield className={`w-3.5 h-3.5 ${riskToneMap[riskTone].text}`} />
+                                <div className="min-w-0">
+                                    <p className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold leading-none">Riesgo sobre el balance</p>
+                                    <p className={`text-[12px] font-mono tabular-nums font-bold ${riskToneMap[riskTone].text}`}>
+                                        {riskPctBalance.toFixed(2)}%
+                                        <span className="ml-1.5 text-slate-500 font-sans font-normal text-[10px]">de ${Number(accountBalance).toLocaleString('en-US', {maximumFractionDigits: 0})}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end flex-shrink-0">
+                                {/* Bar */}
+                                <div className="w-24 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all ${
+                                            riskTone === 'emerald' ? 'bg-emerald-400'
+                                            : riskTone === 'cyan' ? 'bg-cyan-400'
+                                            : riskTone === 'amber' ? 'bg-amber-400'
+                                            : 'bg-rose-400'
+                                        }`}
+                                        style={{ width: `${Math.min(100, riskPctBalance * 20)}%` }}
+                                    />
+                                </div>
+                                <span className={`text-[9px] mt-0.5 font-semibold uppercase tracking-wider ${riskToneMap[riskTone].text}`}>
+                                    {riskToneMap[riskTone].label}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {exceedsRule && (
+                        <div className="mt-1.5 flex items-start gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-200 text-[10px]" data-testid="mt5-chart-2pct-warning">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span>
+                                La regla institucional <span className="font-bold">2% por operación</span> se está excediendo. Reduce el volumen (lots) o acerca el SL al precio de entrada para respetar tu plan de riesgo.
+                            </span>
+                        </div>
+                    )}
+
                     {pipValueUsd != null && (
                         <p className="mt-1.5 text-[9.5px] text-slate-600">
                             Cálculo basado en <span className="text-slate-400 font-mono">{lot.toFixed(2)}</span> lots ·
@@ -701,16 +764,32 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline' }) =
                         <Button
                             onClick={() => submitTrade('sell')}
                             data-testid="mt5-chart-sell-btn"
-                            className="h-10 bg-rose-600/90 hover:bg-rose-600 text-white font-bold tracking-wider"
+                            className={`h-10 text-white font-bold tracking-wider ${
+                                exceedsRule
+                                    ? 'bg-amber-600/80 hover:bg-amber-600 ring-1 ring-amber-400/60'
+                                    : 'bg-rose-600/90 hover:bg-rose-600'
+                            }`}
+                            title={exceedsRule ? 'Riesgo supera el 2% del balance' : undefined}
                         >
-                            <ArrowDownRight className="w-4 h-4 mr-1.5" /> SELL · {fmtPrice(quote.bid || latest?.close)}
+                            {exceedsRule
+                                ? <AlertTriangle className="w-4 h-4 mr-1.5" />
+                                : <ArrowDownRight className="w-4 h-4 mr-1.5" />}
+                            SELL · {fmtPrice(quote.bid || latest?.close)}
                         </Button>
                         <Button
                             onClick={() => submitTrade('buy')}
                             data-testid="mt5-chart-buy-btn"
-                            className="h-10 bg-emerald-600/90 hover:bg-emerald-600 text-white font-bold tracking-wider"
+                            className={`h-10 text-white font-bold tracking-wider ${
+                                exceedsRule
+                                    ? 'bg-amber-600/80 hover:bg-amber-600 ring-1 ring-amber-400/60'
+                                    : 'bg-emerald-600/90 hover:bg-emerald-600'
+                            }`}
+                            title={exceedsRule ? 'Riesgo supera el 2% del balance' : undefined}
                         >
-                            <ArrowUpRight className="w-4 h-4 mr-1.5" /> BUY · {fmtPrice(quote.ask || latest?.close)}
+                            {exceedsRule
+                                ? <AlertTriangle className="w-4 h-4 mr-1.5" />
+                                : <ArrowUpRight className="w-4 h-4 mr-1.5" />}
+                            BUY · {fmtPrice(quote.ask || latest?.close)}
                         </Button>
                     </div>
                 </div>
