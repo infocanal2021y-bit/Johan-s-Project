@@ -44,7 +44,8 @@ import {
     Hash,
     LineChart,
     Megaphone,
-    Bot
+    Bot,
+    Landmark
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -76,6 +77,7 @@ export const Sidebar = () => {
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
         { to: '/trading-bot', icon: Bot, label: 'Trading Bot' },
+        { to: '/mt5', icon: Landmark, label: 'MT5 Profesional' },
         { to: '/investing-pro', icon: TrendingUp, label: 'InvestingPro' },
         { to: '/advisors', icon: Users, label: 'Asesores y Analistas' },
     ];

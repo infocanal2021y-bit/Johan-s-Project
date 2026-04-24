@@ -10,6 +10,7 @@ from routes.admin import router as admin_router
 from routes.misc import router as misc_router
 from routes.trading import router as trading_router
 from routes.trading_bot import router as trading_bot_router
+from routes.mt5 import router as mt5_router
 
 
 def register_routes(api_router: APIRouter):
@@ -23,3 +24,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(misc_router, tags=["misc"])
     api_router.include_router(trading_router, tags=["trading"])
     api_router.include_router(trading_bot_router, tags=["trading_bot"])
+    api_router.include_router(mt5_router, tags=["mt5"])
