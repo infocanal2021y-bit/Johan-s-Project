@@ -9,8 +9,11 @@ import {
     Landmark, ShieldCheck, RefreshCw, ExternalLink, CheckCircle2,
     ArrowUpRight, ArrowDownRight, TrendingUp, Activity, Wallet, Gauge,
     Banknote, FileCheck, Star, Server, Layers, Clock, Copy, Check, Info,
+    LineChart, BarChart3, List, Book, ArrowLeftRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { MarketWatch, TradingPanel } from '../components/mt5/MarketWatchAndTrading';
+import { OpenPositions, PendingOrders, FundsPanel, JournalPanel, StatementPanel } from '../components/mt5/MT5Sections';
 
 const fmtMoney = (n, cur = 'USD') => {
     const symbol = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '';
@@ -315,21 +318,8 @@ export const MT5Page = () => {
                     </Card>
                 </div>
 
-                {/* ── Section 3: Operations ─────────────────── */}
-                <div>
-                    <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1 h-5 rounded-full bg-amber-500" />
-                            <h2 className="text-[13px] font-semibold text-slate-200 tracking-wide uppercase">Operaciones</h2>
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 font-bold">{counts.open} abiertas</span>
-                            <span className="px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 ring-1 ring-slate-600/40 font-bold">{counts.closed} cerradas</span>
-                        </div>
-                    </div>
-
-                    <OperationsTabs />
-                </div>
+                {/* ── Section 3: Full trading suite with tabs ─────── */}
+                <MT5TradingSuite account={acc} onAccountChange={() => fetchSummary(true)} />
 
                 {/* ── Linked withdrawals / footer ─── */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -355,124 +345,153 @@ export const MT5Page = () => {
 };
 
 // ─────────────────── Operations tabs component ───────────────────
-const OperationsTabs = () => {
-    const [tab, setTab] = useState('open');
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+const MT5TradingSuite = ({ account, onAccountChange }) => {
+    const [tab, setTab] = useState('market');
+    const [tradingSymbol, setTradingSymbol] = useState(null);
+    const [tradingDir, setTradingDir] = useState('buy');
+    const [tradingOpen, setTradingOpen] = useState(false);
 
-    const load = useCallback(async () => {
-        try {
-            setLoading(true);
-            const res = await api.get('/mt5/operations?limit=100');
-            setData(res.data);
-        } catch (e) { /* silent */ }
-        finally { setLoading(false); }
-    }, []);
+    const openTrade = (sym, dir) => {
+        setTradingSymbol(sym);
+        setTradingDir(dir);
+        setTradingOpen(true);
+    };
 
-    useEffect(() => {
-        load();
-        const id = setInterval(load, 12000);
-        return () => clearInterval(id);
-    }, [load]);
-
-    const open = data?.open || [];
-    const closed = data?.closed || [];
-    const totalClosed = data?.total_closed_profit || 0;
+    const TABS = [
+        { id: 'market',    label: 'Market Watch',    icon: BarChart3 },
+        { id: 'positions', label: 'Posiciones',      icon: Activity },
+        { id: 'pending',   label: 'Pendientes',      icon: List },
+        { id: 'history',   label: 'Historial',       icon: Clock },
+        { id: 'funds',     label: 'Fondos',          icon: ArrowLeftRight },
+        { id: 'report',    label: 'Reporte',         icon: LineChart },
+        { id: 'journal',   label: 'Journal',         icon: Book },
+    ];
 
     return (
-        <Card className="bg-slate-900/70 border-slate-800/80 overflow-hidden" data-testid="mt5-operations-card">
+        <div data-testid="mt5-trading-suite">
+            <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-5 rounded-full bg-amber-500" />
+                <h2 className="text-[13px] font-semibold text-slate-200 tracking-wide uppercase">Terminal MT5</h2>
+            </div>
+
             {/* Tabs */}
-            <div className="flex items-center justify-between gap-3 px-4 sm:px-5 pt-4 pb-3 border-b border-slate-800/80 flex-wrap">
-                <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => setTab('open')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${tab === 'open' ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30' : 'text-slate-500 hover:text-slate-200'}`} data-testid="mt5-tab-open">
-                        Abiertas <span className="opacity-60 ml-1">({open.length})</span>
-                    </button>
-                    <button type="button" onClick={() => setTab('closed')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${tab === 'closed' ? 'bg-slate-800 text-white ring-1 ring-slate-700' : 'text-slate-500 hover:text-slate-200'}`} data-testid="mt5-tab-closed">
-                        Historial <span className="opacity-60 ml-1">({closed.length})</span>
-                    </button>
+            <div className="rounded-xl border border-slate-800/80 bg-slate-900/70 overflow-hidden">
+                <div className="flex items-center gap-1 px-2 py-2 border-b border-slate-800/80 overflow-x-auto scrollbar-hide">
+                    {TABS.map(t => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setTab(t.id)}
+                            data-testid={`mt5-suite-tab-${t.id}`}
+                            data-no-hover
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                                tab === t.id
+                                    ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30'
+                                    : 'text-slate-500 hover:text-slate-200'
+                            }`}
+                        >
+                            <t.icon className="w-3.5 h-3.5" /> {t.label}
+                        </button>
+                    ))}
                 </div>
-                <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">PnL histórico</p>
-                    <p className={`text-sm font-mono tabular-nums font-bold mt-0.5 ${totalClosed >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                        {totalClosed >= 0 ? '+' : ''}{fmtMoney(totalClosed)}
+
+                <div className="p-4 sm:p-5">
+                    {tab === 'market'    && <MarketWatch onOpenTrade={openTrade} />}
+                    {tab === 'positions' && <OpenPositions onChange={onAccountChange} />}
+                    {tab === 'pending'   && <PendingOrders />}
+                    {tab === 'history'   && <HistoryTable />}
+                    {tab === 'funds'     && <FundsPanel account={account} onDone={onAccountChange} />}
+                    {tab === 'report'    && <StatementPanel />}
+                    {tab === 'journal'   && <JournalPanel />}
+                </div>
+            </div>
+
+            <TradingPanel
+                open={tradingOpen}
+                symbol={tradingSymbol}
+                direction={tradingDir}
+                onClose={() => setTradingOpen(false)}
+                onDone={onAccountChange}
+            />
+        </div>
+    );
+};
+
+// History sub-component (closed trades with filter)
+const HistoryTable = () => {
+    const [ops, setOps] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [q, setQ] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+        api.get('/mt5/operations?status=closed&limit=200').then(r => {
+            if (!cancelled) { setOps(r.data.closed || []); setLoading(false); }
+        }).catch(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, []);
+
+    const filtered = ops.filter(o => !q || (o.symbol || '').toLowerCase().includes(q.toLowerCase()) || String(o.ticket).includes(q));
+    const totalPL = filtered.reduce((s, o) => s + (o.profit || 0) + (o.swap || 0) + (o.commission || 0), 0);
+
+    const fmtPrice = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+    const fmtDT = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+    return (
+        <div>
+            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <input
+                    type="text"
+                    placeholder="Filtrar por símbolo o ticket"
+                    value={q}
+                    onChange={e => setQ(e.target.value)}
+                    className="flex-1 h-9 px-3 rounded-lg bg-slate-950/60 border border-slate-800 text-white text-sm focus:outline-none focus:border-cyan-500/40"
+                />
+                <div className="text-right text-[11px]">
+                    <p className="text-slate-500">PnL filtrado</p>
+                    <p className={`font-mono tabular-nums font-bold ${totalPL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {totalPL >= 0 ? '+' : ''}${Math.abs(totalPL).toFixed(2)}
                     </p>
                 </div>
             </div>
-
-            {/* Content */}
-            <div className="p-3 sm:p-4">
-                {loading && <p className="text-slate-500 text-sm py-10 text-center">Sincronizando operaciones MT5...</p>}
-                {!loading && tab === 'open' && open.length === 0 && (
-                    <p className="text-slate-500 text-sm py-10 text-center">No hay operaciones abiertas actualmente.</p>
-                )}
-                {!loading && tab === 'closed' && closed.length === 0 && (
-                    <p className="text-slate-500 text-sm py-10 text-center">Sin operaciones cerradas en el historial.</p>
-                )}
-
-                {/* Desktop table */}
-                {!loading && (tab === 'open' ? open : closed).length > 0 && (
-                    <>
-                        <div className="hidden sm:block overflow-x-auto">
-                            <table className="w-full text-[12px]">
-                                <thead>
-                                    <tr className="text-slate-600 text-left border-b border-slate-800/80">
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider">Ticket</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider">Símbolo</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider">Dir</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider text-right">Lot</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider text-right">Entry</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider text-right">{tab === 'open' ? 'Abierta' : 'Cierre'}</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider text-right">Swap</th>
-                                        <th className="py-2 px-2 font-semibold uppercase tracking-wider text-right">Profit</th>
+            {loading && <p className="text-slate-500 text-sm py-8 text-center">Cargando historial…</p>}
+            {!loading && filtered.length === 0 && <p className="text-slate-500 text-sm py-10 text-center">Sin operaciones cerradas.</p>}
+            {!loading && filtered.length > 0 && (
+                <div className="rounded-xl border border-slate-800/80 bg-slate-950/40 overflow-hidden max-h-96 overflow-y-auto">
+                    <table className="w-full text-[11.5px]">
+                        <thead className="sticky top-0 bg-slate-950/95">
+                            <tr className="text-slate-600 text-left border-b border-slate-800/80">
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider">Ticket</th>
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider">Símbolo</th>
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider">Dir</th>
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider text-right">Lot</th>
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider text-right">E/C</th>
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider text-right">Cierre</th>
+                                <th className="py-2 px-3 font-semibold uppercase tracking-wider text-right">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map(op => {
+                                const p = Number(op.profit || 0);
+                                return (
+                                    <tr key={op.id} className="border-b border-slate-800/40">
+                                        <td className="py-2 px-3 text-slate-400 font-mono">#{op.ticket}</td>
+                                        <td className="py-2 px-3 text-white font-mono">{op.symbol_name || op.symbol}</td>
+                                        <td className={`py-2 px-3 font-bold ${op.direction === 'buy' ? 'text-emerald-300' : 'text-rose-300'}`}>{op.direction === 'buy' ? 'BUY' : 'SELL'}</td>
+                                        <td className="py-2 px-3 text-right text-white font-mono tabular-nums">{op.lot}</td>
+                                        <td className="py-2 px-3 text-right text-slate-400 font-mono tabular-nums text-[10px]">{fmtPrice(op.open_price)} → {fmtPrice(op.close_price)}</td>
+                                        <td className="py-2 px-3 text-right text-slate-500 font-mono text-[10px]">{fmtDT(op.close_time)}</td>
+                                        <td className={`py-2 px-3 text-right font-mono tabular-nums font-bold ${p >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{p >= 0 ? '+' : ''}${Math.abs(p).toFixed(2)}</td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <AnimatePresence initial={false}>
-                                        {(tab === 'open' ? open : closed).map((op) => (
-                                            <motion.tr key={op.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
-                                                <td className="py-2.5 px-2 text-slate-400 font-mono">#{op.ticket}</td>
-                                                <td className="py-2.5 px-2 text-white font-mono">{op.symbol_name || op.symbol}</td>
-                                                <td className="py-2.5 px-2"><DirectionChip direction={op.direction} /></td>
-                                                <td className="py-2.5 px-2 text-right text-white font-mono tabular-nums">{op.lot}</td>
-                                                <td className="py-2.5 px-2 text-right text-slate-300 font-mono tabular-nums">{fmtPrice(op.open_price)}</td>
-                                                <td className="py-2.5 px-2 text-right text-slate-500 font-mono text-[11px]">{tab === 'open' ? fmtDateTime(op.open_time) : fmtDateTime(op.close_time)}</td>
-                                                <td className="py-2.5 px-2 text-right text-slate-500 font-mono">{fmtNum(op.swap)}</td>
-                                                <td className="py-2.5 px-2 text-right"><ProfitCell value={op.profit} /></td>
-                                            </motion.tr>
-                                        ))}
-                                    </AnimatePresence>
-                                </tbody>
-                            </table>
-                        </div>
-                        {/* Mobile cards */}
-                        <div className="sm:hidden space-y-2">
-                            {(tab === 'open' ? open : closed).map((op) => (
-                                <div key={op.id} className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-2.5 text-[11px]">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <DirectionChip direction={op.direction} />
-                                            <span className="text-white font-mono truncate">{op.symbol_name || op.symbol}</span>
-                                        </div>
-                                        <ProfitCell value={op.profit} />
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2 mt-1.5 text-slate-500 font-mono text-[10px]">
-                                        <span>#{op.ticket}</span>
-                                        <span>{op.lot} lot</span>
-                                        <span>{tab === 'open' ? fmtDateTime(op.open_time) : fmtDateTime(op.close_time)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2 mt-1 text-slate-600 font-mono text-[10px]">
-                                        <span>E: <span className="text-slate-300">{fmtPrice(op.open_price)}</span></span>
-                                        {op.close_price && <span>C: <span className="text-slate-300">{fmtPrice(op.close_price)}</span></span>}
-                                        <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{op.status}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-        </Card>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
     );
 };
+
 
 export default MT5Page;

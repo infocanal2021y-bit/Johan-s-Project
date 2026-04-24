@@ -404,3 +404,457 @@ async def get_summary(user: dict = Depends(get_current_user)):
         'counts': {'open': open_count, 'closed': closed_count},
         'recent_operations': recent,
     }
+
+
+
+# ======================================================================
+#                        TRADING ENGINE (complete)
+# ======================================================================
+
+def _asset(symbol: str) -> Optional[dict]:
+    return next((a for a in MT5_ASSETS if a['symbol'] == symbol), None)
+
+
+def _current_price(asset: dict) -> float:
+    """Simulated current price near base_price with daily drift."""
+    today_seed = datetime.now(timezone.utc).strftime('%Y%m%d%H')
+    rand = random.Random(asset['symbol'] + today_seed)
+    return round(asset['base_price'] * rand.uniform(0.997, 1.003), 5)
+
+
+def _bid_ask(asset: dict) -> dict:
+    mid = _current_price(asset)
+    # Realistic spreads (in pips)
+    spread_pips = {
+        'EURUSD': 0.8, 'GBPUSD': 1.2, 'USDJPY': 1.0,
+        'XAUUSD': 15, 'XAGUSD': 2.5, 'BTCUSD': 18, 'ETHUSD': 8,
+        'USOIL': 3, 'US500': 0.5, 'NAS100': 1.2,
+    }.get(asset['symbol'], 1.5)
+    half = spread_pips * asset['pip'] / 2
+    return {
+        'bid': round(mid - half, 5),
+        'ask': round(mid + half, 5),
+        'mid': mid,
+        'spread_pips': spread_pips,
+    }
+
+
+def _usd_value_per_lot(symbol: str, asset: dict) -> float:
+    if symbol in ('EURUSD', 'GBPUSD'):
+        return 100_000
+    return 10_000
+
+
+def _calc_profit(op: dict, current: float) -> float:
+    asset = _asset(op['symbol'])
+    if not asset:
+        return 0.0
+    diff = (current - op['open_price']) if op['direction'] == 'buy' else (op['open_price'] - current)
+    value = _usd_value_per_lot(op['symbol'], asset)
+    divisor = (asset['base_price'] if 'USD' in op['symbol'][3:] else 1)
+    return round(diff * op['lot'] * value / max(divisor, 1), 2)
+
+
+async def _journal(user_id: str, kind: str, text: str, meta: Optional[dict] = None):
+    await db.mt5_journal.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': user_id,
+        'kind': kind,
+        'text': text,
+        'meta': meta or {},
+        'created_at': _iso(_now()),
+    })
+
+
+# ── Market Watch ─────────────────────────────────────────────────────
+
+@router.get("/mt5/symbols")
+async def mt5_symbols(user: dict = Depends(get_current_user)):
+    items = []
+    for a in MT5_ASSETS:
+        q = _bid_ask(a)
+        # Daily change % using a stable per-day seed
+        rand = random.Random(a['symbol'] + datetime.now(timezone.utc).strftime('%Y%m%d'))
+        change_pct = round(rand.uniform(-1.5, 1.8), 2)
+        items.append({
+            'symbol': a['symbol'],
+            'name': a['name'],
+            'pip': a['pip'],
+            'bid': q['bid'],
+            'ask': q['ask'],
+            'spread_pips': q['spread_pips'],
+            'change_pct_24h': change_pct,
+            'category': (
+                'forex' if a['symbol'] in ('EURUSD', 'GBPUSD', 'USDJPY')
+                else 'metals' if a['symbol'] in ('XAUUSD', 'XAGUSD')
+                else 'crypto' if a['symbol'] in ('BTCUSD', 'ETHUSD')
+                else 'energy' if a['symbol'] == 'USOIL'
+                else 'indices'
+            ),
+        })
+    return {'symbols': items, 'updated_at': _iso(_now())}
+
+
+# ── Margin Calculator ────────────────────────────────────────────────
+
+@router.post("/mt5/calculator")
+async def mt5_calc(payload: dict, user: dict = Depends(get_current_user)):
+    symbol = payload.get('symbol', 'EURUSD')
+    lot = float(payload.get('lot', 0.1))
+    asset = _asset(symbol)
+    if not asset:
+        raise HTTPException(400, 'Símbolo no válido')
+    acc = await _ensure_account(user['id'], user.get('email', ''))
+    leverage = acc.get('leverage', 500)
+    contract_size = 100_000 if symbol in ('EURUSD', 'GBPUSD') else 100
+    price = _current_price(asset)
+    margin_required = round(contract_size * lot * price / max(leverage, 1), 2)
+    pip_value = round(asset['pip'] * lot * _usd_value_per_lot(symbol, asset) / max(price, 1), 2)
+    return {
+        'symbol': symbol,
+        'lot': lot,
+        'contract_size': contract_size,
+        'leverage': leverage,
+        'current_price': price,
+        'margin_required_usd': margin_required,
+        'pip_value_usd': pip_value,
+        'free_margin_after_usd': round((acc.get('free_margin', 0) - margin_required), 2),
+    }
+
+
+# ── Place Orders (market + pending) ──────────────────────────────────
+
+@router.post("/mt5/order")
+async def mt5_place_order(payload: dict, user: dict = Depends(get_current_user)):
+    """Market order. Body: { symbol, direction (buy|sell), lot, sl?, tp?, comment? }"""
+    symbol = (payload.get('symbol') or '').upper()
+    direction = (payload.get('direction') or '').lower()
+    lot = float(payload.get('lot', 0))
+    sl = payload.get('sl')
+    tp = payload.get('tp')
+    comment = (payload.get('comment') or '').strip()[:80]
+
+    asset = _asset(symbol)
+    if not asset:
+        raise HTTPException(400, 'Símbolo no válido')
+    if direction not in ('buy', 'sell'):
+        raise HTTPException(400, 'Dirección inválida')
+    if lot <= 0 or lot > 50:
+        raise HTTPException(400, 'Volumen fuera de rango (0.01 – 50 lots)')
+
+    acc = await _ensure_account(user['id'], user.get('email', ''))
+    acc = await _recompute_account(user['id'])
+    if not acc.get('trading_allowed', True):
+        raise HTTPException(403, 'Trading no permitido en esta cuenta')
+
+    q = _bid_ask(asset)
+    entry = q['ask'] if direction == 'buy' else q['bid']
+
+    # Margin check
+    leverage = acc.get('leverage', 500)
+    contract_size = 100_000 if symbol in ('EURUSD', 'GBPUSD') else 100
+    margin_required = contract_size * lot * entry / max(leverage, 1)
+    if margin_required > acc.get('free_margin', 0) + 0.01:
+        raise HTTPException(400, 'Margen insuficiente para abrir la operación')
+
+    ticket = int(_now().timestamp() * 1000) % 9_000_000 + 10_000_000
+    op = {
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'ticket': ticket,
+        'symbol': symbol,
+        'symbol_name': asset['name'],
+        'direction': direction,
+        'lot': round(lot, 2),
+        'open_price': round(entry, 5),
+        'close_price': None,
+        'open_time': _iso(_now()),
+        'close_time': None,
+        'profit': 0.0,
+        'swap': 0.0,
+        'commission': round(-lot * 7.0, 2),
+        'stop_loss': float(sl) if sl else None,
+        'take_profit': float(tp) if tp else None,
+        'status': 'open',
+        'comment': comment or 'LIONSBIT MT5 Bridge',
+    }
+    await db.mt5_operations.insert_one(op)
+    await _journal(user['id'], 'order', f"Market {direction.upper()} {lot} {symbol} @ {entry}", {'ticket': ticket})
+
+    acc = await _recompute_account(user['id'])
+    op.pop('_id', None)
+    return {'ok': True, 'operation': op, 'account': acc}
+
+
+@router.post("/mt5/order/pending")
+async def mt5_place_pending(payload: dict, user: dict = Depends(get_current_user)):
+    """Pending order. Body: { symbol, type (buy_limit|sell_limit|buy_stop|sell_stop), lot, price, sl?, tp?, comment? }"""
+    symbol = (payload.get('symbol') or '').upper()
+    order_type = (payload.get('type') or '').lower()
+    lot = float(payload.get('lot', 0))
+    price = float(payload.get('price', 0))
+
+    if order_type not in ('buy_limit', 'sell_limit', 'buy_stop', 'sell_stop'):
+        raise HTTPException(400, 'Tipo de orden pendiente inválido')
+    asset = _asset(symbol)
+    if not asset:
+        raise HTTPException(400, 'Símbolo no válido')
+    if lot <= 0 or lot > 50 or price <= 0:
+        raise HTTPException(400, 'Volumen o precio fuera de rango')
+
+    pending = {
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'ticket': int(_now().timestamp() * 1000) % 9_000_000 + 20_000_000,
+        'symbol': symbol,
+        'symbol_name': asset['name'],
+        'type': order_type,
+        'lot': round(lot, 2),
+        'price': round(price, 5),
+        'stop_loss': float(payload.get('sl')) if payload.get('sl') else None,
+        'take_profit': float(payload.get('tp')) if payload.get('tp') else None,
+        'comment': (payload.get('comment') or '').strip()[:80] or 'LIONSBIT MT5 Bridge',
+        'status': 'pending',
+        'created_at': _iso(_now()),
+    }
+    await db.mt5_pending_orders.insert_one(pending)
+    await _journal(user['id'], 'pending', f"Pending {order_type.upper()} {lot} {symbol} @ {price}", {'ticket': pending['ticket']})
+    pending.pop('_id', None)
+    return {'ok': True, 'pending': pending}
+
+
+@router.get("/mt5/pending")
+async def mt5_list_pending(user: dict = Depends(get_current_user)):
+    cur = db.mt5_pending_orders.find({'user_id': user['id'], 'status': 'pending'}, {'_id': 0})
+    items = await cur.to_list(length=100)
+    return {'pending': sorted(items, key=lambda x: x.get('created_at', ''), reverse=True)}
+
+
+@router.delete("/mt5/pending/{pid}")
+async def mt5_cancel_pending(pid: str, user: dict = Depends(get_current_user)):
+    res = await db.mt5_pending_orders.update_one(
+        {'id': pid, 'user_id': user['id'], 'status': 'pending'},
+        {'$set': {'status': 'cancelled', 'cancelled_at': _iso(_now())}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, 'Orden pendiente no encontrada')
+    await _journal(user['id'], 'pending', f"Orden pendiente {pid[:8]} cancelada")
+    return {'ok': True}
+
+
+# ── Position management ──────────────────────────────────────────────
+
+@router.post("/mt5/position/{op_id}/close")
+async def mt5_close_position(op_id: str, payload: Optional[dict] = None, user: dict = Depends(get_current_user)):
+    """Close full position at current market price. Optional body { partial_lot }."""
+    op = await db.mt5_operations.find_one({'id': op_id, 'user_id': user['id'], 'status': 'open'}, {'_id': 0})
+    if not op:
+        raise HTTPException(404, 'Posición no encontrada o ya cerrada')
+
+    asset = _asset(op['symbol'])
+    if not asset:
+        raise HTTPException(400, 'Símbolo no soportado')
+    q = _bid_ask(asset)
+    close_price = q['bid'] if op['direction'] == 'buy' else q['ask']
+
+    partial_lot = float((payload or {}).get('partial_lot', 0)) if payload else 0
+    is_partial = partial_lot and 0 < partial_lot < op['lot']
+
+    if is_partial:
+        # Reduce the open op and create a closed child op
+        remaining = round(op['lot'] - partial_lot, 2)
+        closed_child = {
+            **op,
+            'id': str(uuid.uuid4()),
+            'lot': round(partial_lot, 2),
+            'close_price': round(close_price, 5),
+            'close_time': _iso(_now()),
+            'profit': _calc_profit({**op, 'lot': partial_lot}, close_price),
+            'status': 'closed',
+            'close_reason': 'partial',
+        }
+        await db.mt5_operations.insert_one(closed_child)
+        await db.mt5_operations.update_one({'id': op_id}, {'$set': {'lot': remaining}})
+        await _journal(user['id'], 'close', f"Cierre parcial {partial_lot} de #{op['ticket']} ({op['symbol']}) @ {close_price}")
+        acc = await _recompute_account(user['id'])
+        return {'ok': True, 'partial': True, 'account': acc}
+
+    profit = _calc_profit(op, close_price)
+    await db.mt5_operations.update_one(
+        {'id': op_id},
+        {'$set': {
+            'close_price': round(close_price, 5),
+            'close_time': _iso(_now()),
+            'profit': profit,
+            'status': 'closed',
+            'close_reason': 'manual',
+        }},
+    )
+    await _journal(user['id'], 'close', f"Cierre #{op['ticket']} ({op['symbol']}) @ {close_price} · PnL ${profit}")
+    acc = await _recompute_account(user['id'])
+    return {'ok': True, 'closed_at': close_price, 'profit': profit, 'account': acc}
+
+
+@router.post("/mt5/position/{op_id}/modify")
+async def mt5_modify_position(op_id: str, payload: dict, user: dict = Depends(get_current_user)):
+    op = await db.mt5_operations.find_one({'id': op_id, 'user_id': user['id'], 'status': 'open'}, {'_id': 0})
+    if not op:
+        raise HTTPException(404, 'Posición no encontrada')
+    update = {}
+    if 'sl' in payload:
+        update['stop_loss'] = float(payload['sl']) if payload['sl'] else None
+    if 'tp' in payload:
+        update['take_profit'] = float(payload['tp']) if payload['tp'] else None
+    if not update:
+        raise HTTPException(400, 'Nada que modificar')
+    await db.mt5_operations.update_one({'id': op_id}, {'$set': update})
+    await _journal(user['id'], 'modify', f"Modificar #{op['ticket']}: SL={update.get('stop_loss', '—')} TP={update.get('take_profit', '—')}")
+    return {'ok': True, 'updated': update}
+
+
+# ── Funds (Wallet ↔ MT5) ─────────────────────────────────────────────
+
+@router.post("/mt5/deposit")
+async def mt5_deposit(payload: dict, user: dict = Depends(get_current_user)):
+    """Deposit USD into MT5 account from the Lionsbit wallet (primary USD account)."""
+    amount = float(payload.get('amount', 0))
+    if amount < 10 or amount > 100_000:
+        raise HTTPException(400, 'Importe fuera de rango (10 – 100,000 USD)')
+
+    # Use user primary USD Lionsbit account
+    wallet = await db.accounts.find_one({'user_id': user['id'], 'currency': 'USD'}, {'_id': 0})
+    if not wallet:
+        raise HTTPException(400, 'No tienes una cuenta USD en tu wallet Lionsbit')
+    if wallet.get('balance', 0) < amount:
+        raise HTTPException(400, 'Saldo insuficiente en tu wallet')
+
+    await _ensure_account(user['id'], user.get('email', ''))
+    # Move funds
+    await db.accounts.update_one({'id': wallet['id']}, {'$inc': {'balance': -amount}})
+    await db.mt5_accounts.update_one(
+        {'user_id': user['id']},
+        {'$inc': {'balance': amount, 'equity': amount, 'free_margin': amount, 'initial_balance': amount}},
+    )
+    await db.mt5_transfers.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'direction': 'deposit',
+        'amount': amount,
+        'currency': 'USD',
+        'status': 'completed',
+        'created_at': _iso(_now()),
+    })
+    await _journal(user['id'], 'funds', f"Depósito a MT5: ${amount:.2f}")
+    acc = await _recompute_account(user['id'])
+    return {'ok': True, 'account': acc}
+
+
+@router.post("/mt5/withdraw")
+async def mt5_withdraw(payload: dict, user: dict = Depends(get_current_user)):
+    """Withdraw USD from MT5 account back to the Lionsbit wallet."""
+    amount = float(payload.get('amount', 0))
+    if amount < 10:
+        raise HTTPException(400, 'Importe mínimo $10')
+
+    acc = await _ensure_account(user['id'], user.get('email', ''))
+    acc = await _recompute_account(user['id'])
+    if amount > acc.get('free_margin', 0):
+        raise HTTPException(400, 'Margen libre insuficiente para retirar')
+
+    wallet = await db.accounts.find_one({'user_id': user['id'], 'currency': 'USD'}, {'_id': 0})
+    if not wallet:
+        raise HTTPException(400, 'No tienes una cuenta USD en tu wallet Lionsbit')
+
+    await db.mt5_accounts.update_one(
+        {'user_id': user['id']},
+        {'$inc': {'balance': -amount, 'equity': -amount, 'free_margin': -amount, 'initial_balance': -amount}},
+    )
+    await db.accounts.update_one({'id': wallet['id']}, {'$inc': {'balance': amount}})
+    await db.mt5_transfers.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'direction': 'withdraw',
+        'amount': amount,
+        'currency': 'USD',
+        'status': 'completed',
+        'created_at': _iso(_now()),
+    })
+    await _journal(user['id'], 'funds', f"Retiro desde MT5: ${amount:.2f}")
+    acc = await _recompute_account(user['id'])
+    return {'ok': True, 'account': acc}
+
+
+@router.get("/mt5/transfers")
+async def mt5_transfers(user: dict = Depends(get_current_user)):
+    cur = db.mt5_transfers.find({'user_id': user['id']}, {'_id': 0}).sort('created_at', -1).limit(50)
+    items = await cur.to_list(length=50)
+    return {'transfers': items}
+
+
+# ── Journal ──────────────────────────────────────────────────────────
+
+@router.get("/mt5/journal")
+async def mt5_journal_list(limit: int = 80, user: dict = Depends(get_current_user)):
+    cur = db.mt5_journal.find({'user_id': user['id']}, {'_id': 0}).sort('created_at', -1).limit(min(limit, 300))
+    items = await cur.to_list(length=min(limit, 300))
+    return {'events': items}
+
+
+# ── Statement / Reports ──────────────────────────────────────────────
+
+@router.get("/mt5/statement")
+async def mt5_statement(user: dict = Depends(get_current_user)):
+    """Daily PnL + equity curve (last 30 days)."""
+    acc = await _ensure_account(user['id'], user.get('email', ''))
+    cur = db.mt5_operations.find(
+        {'user_id': user['id'], 'status': 'closed'}, {'_id': 0}
+    ).sort('close_time', 1)
+    closed = await cur.to_list(length=2000)
+
+    # Group by day
+    from collections import defaultdict
+    daily: dict[str, float] = defaultdict(float)
+    for op in closed:
+        day = (op.get('close_time') or '')[:10]
+        if not day:
+            continue
+        daily[day] += (op.get('profit', 0) + op.get('swap', 0) + op.get('commission', 0))
+
+    # Last 30 days
+    today = _now().date()
+    series = []
+    running = acc.get('initial_balance', 10_000.0)
+    for i in range(30, -1, -1):
+        d = (today - timedelta(days=i)).isoformat()
+        p = round(daily.get(d, 0.0), 2)
+        running = round(running + p, 2)
+        series.append({'date': d, 'pnl': p, 'equity': running})
+
+    wins = [o for o in closed if (o.get('profit', 0) or 0) > 0]
+    losses = [o for o in closed if (o.get('profit', 0) or 0) < 0]
+    total_pl = round(sum((o.get('profit', 0) + o.get('swap', 0) + o.get('commission', 0)) for o in closed), 2)
+    win_rate = round(len(wins) / max(len(closed), 1) * 100, 2) if closed else 0.0
+
+    avg_win = round(sum(o.get('profit', 0) for o in wins) / max(len(wins), 1), 2) if wins else 0.0
+    avg_loss = round(sum(o.get('profit', 0) for o in losses) / max(len(losses), 1), 2) if losses else 0.0
+    best = max((o.get('profit', 0) for o in closed), default=0.0)
+    worst = min((o.get('profit', 0) for o in closed), default=0.0)
+
+    return {
+        'series': series,
+        'totals': {
+            'total_trades': len(closed),
+            'wins': len(wins),
+            'losses': len(losses),
+            'win_rate': win_rate,
+            'total_pnl': total_pl,
+            'avg_win': avg_win,
+            'avg_loss': avg_loss,
+            'best_trade': round(best, 2),
+            'worst_trade': round(worst, 2),
+            'profit_factor': round(
+                sum(o.get('profit', 0) for o in wins) / max(abs(sum(o.get('profit', 0) for o in losses)), 1),
+                2
+            ) if losses else 0.0,
+        },
+    }
