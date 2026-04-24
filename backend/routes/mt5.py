@@ -889,6 +889,69 @@ async def mt5_candles(
     }
 
 
+@router.get("/mt5/tick")
+async def mt5_tick(
+    symbol: str,
+    timeframe: str = 'H1',
+    user: dict = Depends(get_current_user),
+):
+    """Ultra-lightweight price tick for live chart updates.
+    Returns the current bid/ask + the latest candle OHLC aligned to the
+    requested timeframe, refreshed every second. Used by the frontend to
+    simulate real-time MT5 tick streaming without WebSockets."""
+    symbol = (symbol or '').upper()
+    tf = (timeframe or 'H1').upper()
+    asset = _asset(symbol)
+    if not asset:
+        raise HTTPException(400, 'Símbolo no válido')
+    spec = _TF_SPEC.get(tf)
+    if not spec:
+        raise HTTPException(400, 'Timeframe inválido')
+
+    now = _now()
+    sec = spec['seconds']
+    vol = spec['vol']
+    anchor_ts = int(now.timestamp()) // sec * sec
+
+    # Seed for this bar (stable within the bar window, drifts per second)
+    bar_seed = f"{symbol}:{tf}:{anchor_ts}"
+    tick_seed = f"{symbol}:{tf}:{int(now.timestamp())}"
+    bar_rng = random.Random(bar_seed)
+    tick_rng = random.Random(tick_seed)
+
+    base = asset['base_price']
+    # Open of current bar — stable (seeded from bar start)
+    open_ = round(base * bar_rng.uniform(0.998, 1.002), 6)
+    # Simulate intra-bar walk — more volatile ticks for "live" feel
+    drift = tick_rng.uniform(-vol * 0.6, vol * 0.6)
+    close_ = round(open_ * (1 + drift), 6)
+    # Bar high/low expand with each tick (seeded so they grow consistently)
+    high_ = round(max(open_, close_) * (1 + abs(tick_rng.uniform(0, vol * 0.7))), 6)
+    low_ = round(min(open_, close_) * (1 - abs(tick_rng.uniform(0, vol * 0.7))), 6)
+
+    q = _bid_ask(asset)
+    # Override mid with our simulated close so BID/ASK track the tick
+    half = q['spread_pips'] * asset['pip'] / 2
+    tick_bid = round(close_ - half, 6)
+    tick_ask = round(close_ + half, 6)
+
+    return {
+        'symbol': symbol,
+        'timeframe': tf,
+        'bid': tick_bid,
+        'ask': tick_ask,
+        'last': close_,
+        'bar': {
+            'time': anchor_ts,
+            'open': open_,
+            'high': high_,
+            'low': low_,
+            'close': close_,
+        },
+        'server_time': _iso(now),
+    }
+
+
 # ── Statement / Reports ──────────────────────────────────────────────
 
 @router.get("/mt5/statement")

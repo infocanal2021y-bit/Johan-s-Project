@@ -350,10 +350,12 @@ const MT5TradingSuite = ({ account, onAccountChange }) => {
     const [tradingSymbol, setTradingSymbol] = useState(null);
     const [tradingDir, setTradingDir] = useState('buy');
     const [tradingOpen, setTradingOpen] = useState(false);
+    const [tradingPrefill, setTradingPrefill] = useState({ sl: undefined, tp: undefined });
 
-    const openTrade = (sym, dir) => {
+    const openTrade = (sym, dir, prefill = {}) => {
         setTradingSymbol(sym);
         setTradingDir(dir);
+        setTradingPrefill({ sl: prefill.sl, tp: prefill.tp });
         setTradingOpen(true);
     };
 
@@ -410,6 +412,8 @@ const MT5TradingSuite = ({ account, onAccountChange }) => {
                 open={tradingOpen}
                 symbol={tradingSymbol}
                 direction={tradingDir}
+                prefillSl={tradingPrefill.sl}
+                prefillTp={tradingPrefill.tp}
                 onClose={() => setTradingOpen(false)}
                 onDone={onAccountChange}
             />

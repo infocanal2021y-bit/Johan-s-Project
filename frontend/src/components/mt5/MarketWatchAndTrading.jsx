@@ -158,7 +158,7 @@ export const MarketWatch = ({ onOpenTrade }) => {
 };
 
 // ────────── Trading Panel (modal) ──────────
-export const TradingPanel = ({ open, symbol, direction, onClose, onDone }) => {
+export const TradingPanel = ({ open, symbol, direction, onClose, onDone, prefillSl, prefillTp }) => {
     const [mode, setMode] = useState('market');
     const [lot, setLot] = useState('0.10');
     const [price, setPrice] = useState('');
@@ -175,10 +175,13 @@ export const TradingPanel = ({ open, symbol, direction, onClose, onDone }) => {
 
     useEffect(() => {
         if (!open || !symbol) return;
-        setLot('0.10'); setSl(''); setTp(''); setComment(''); setPrice('');
+        setLot('0.10');
+        setSl(prefillSl != null ? String(prefillSl) : '');
+        setTp(prefillTp != null ? String(prefillTp) : '');
+        setComment(''); setPrice('');
         setMode('market');
         setPendingType(pendingTypeOptions[0].id);
-    }, [open, symbol, direction]); // eslint-disable-line
+    }, [open, symbol, direction, prefillSl, prefillTp]); // eslint-disable-line
 
     // Margin calculator preview
     useEffect(() => {
