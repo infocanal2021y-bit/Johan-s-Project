@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { MarketWatch, TradingPanel } from '../components/mt5/MarketWatchAndTrading';
 import { OpenPositions, PendingOrders, FundsPanel, JournalPanel, StatementPanel } from '../components/mt5/MT5Sections';
+import { MT5InvestSection } from '../components/mt5/MT5InvestSection';
 
 const fmtMoney = (n, cur = 'USD') => {
     const symbol = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '';
@@ -318,7 +319,10 @@ export const MT5Page = () => {
                     </Card>
                 </div>
 
-                {/* ── Section 3: Full trading suite with tabs ─────── */}
+                {/* ── Section 3: Professional crypto investment ─── */}
+                <MT5InvestSection />
+
+                {/* ── Section 4: Full trading suite with tabs ─────── */}
                 <MT5TradingSuite account={acc} onAccountChange={() => fetchSummary(true)} />
 
                 {/* ── Linked withdrawals / footer ─── */}
