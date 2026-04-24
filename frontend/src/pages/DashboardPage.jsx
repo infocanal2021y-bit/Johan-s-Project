@@ -6,6 +6,7 @@ import { RecentTransactions } from '../components/dashboard/RecentTransactions';
 import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { TransactionChart } from '../components/dashboard/TransactionChart';
 import { UserLevelCard } from '../components/dashboard/UserLevelCard';
+import { MT5SummaryWidget } from '../components/dashboard/MT5SummaryWidget';
 import { accountsAPI, transactionsAPI, kycAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -472,6 +473,9 @@ export const DashboardPage = () => {
 
                 {/* User Level Card */}
                 <UserLevelCard />
+
+                {/* MT5 Account Summary */}
+                <MT5SummaryWidget />
 
                 {/* Transaction Chart */}
                 <TransactionChart />
