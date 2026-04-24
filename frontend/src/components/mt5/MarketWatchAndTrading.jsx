@@ -301,25 +301,25 @@ export const TradingPanel = ({ open, symbol, direction, onClose, onDone, prefill
                     {mode === 'pending' && (
                         <label className="block">
                             <span className="text-[10px] uppercase tracking-wider text-slate-500">Precio de activación</span>
-                            <input type="number" step="0.00001" value={price} onChange={(e) => setPrice(e.target.value)}
+                            <input type="number" step="0.00001" value={price} onChange={(e) => setPrice(e.target.value)} data-testid="mt5-order-price"
                                 className="w-full h-10 mt-1 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono tabular-nums focus:outline-none focus:border-cyan-500/50" />
                         </label>
                     )}
                     <div className="grid grid-cols-2 gap-2">
                         <label className="block">
                             <span className="text-[10px] uppercase tracking-wider text-rose-400">Stop Loss</span>
-                            <input type="number" step="0.00001" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="(opcional)"
+                            <input type="number" step="0.00001" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="(opcional)" data-testid="mt5-order-sl"
                                 className="w-full h-10 mt-1 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono tabular-nums focus:outline-none focus:border-rose-500/40" />
                         </label>
                         <label className="block">
                             <span className="text-[10px] uppercase tracking-wider text-emerald-400">Take Profit</span>
-                            <input type="number" step="0.00001" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="(opcional)"
+                            <input type="number" step="0.00001" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="(opcional)" data-testid="mt5-order-tp"
                                 className="w-full h-10 mt-1 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono tabular-nums focus:outline-none focus:border-emerald-500/40" />
                         </label>
                     </div>
                     <label className="block">
                         <span className="text-[10px] uppercase tracking-wider text-slate-500">Comentario</span>
-                        <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={80} placeholder="Nota opcional"
+                        <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={80} placeholder="Nota opcional" data-testid="mt5-order-comment"
                             className="w-full h-10 mt-1 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-slate-600" />
                     </label>
                 </div>
