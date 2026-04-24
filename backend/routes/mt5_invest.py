@@ -17,6 +17,11 @@ import httpx
 
 from config import db
 from services.auth import get_current_user, get_admin_user
+from services.notifications import create_notification
+from services.email import (
+    send_mt5_invest_confirmed_email,
+    send_mt5_invest_rejected_email,
+)
 
 
 router = APIRouter()
@@ -346,14 +351,42 @@ async def admin_confirm(dep_id: str, payload: Optional[dict] = None, user: dict 
         'created_at': _iso(_now()),
     })
 
+    # In-app notification
+    await create_notification(
+        user_id=dep['user_id'],
+        title='Depósito acreditado',
+        message=f"Su depósito de €{dep['amount_eur']:.2f} ({dep['crypto_symbol']}) ha sido verificado. Los fondos ya están disponibles en su cuenta MT5.",
+    )
+
+    # Institutional email via Resend
+    mt5_login = existing.get('login', 0) if existing else 0
+    user_doc = await db.users.find_one({'id': dep['user_id']}, {'_id': 0, 'password': 0})
+    user_name = (user_doc or {}).get('name') or (user_doc or {}).get('full_name') or dep.get('user_email', '').split('@')[0] or 'cliente'
+    await send_mt5_invest_confirmed_email(
+        user_email=dep.get('user_email', ''),
+        user_name=user_name,
+        amount_eur=dep['amount_eur'],
+        crypto_symbol=dep['crypto_symbol'],
+        amount_crypto=dep['amount_crypto'],
+        network=dep['network'],
+        mt5_login=mt5_login,
+        tx_hash=dep.get('tx_hash'),
+    )
+
     return {'ok': True, 'deposit_id': dep_id, 'credited_usd': usd_amount}
 
 
 @router.post("/mt5-invest/admin/{dep_id}/reject")
 async def admin_reject(dep_id: str, payload: Optional[dict] = None, user: dict = Depends(get_admin_user)):
     note = ((payload or {}).get('admin_note') or 'Rechazado por administración').strip()[:200]
-    res = await db.mt5_invest_deposits.update_one(
-        {'id': dep_id, 'status': {'$ne': 'confirmed'}},
+    dep = await db.mt5_invest_deposits.find_one({'id': dep_id}, {'_id': 0})
+    if not dep:
+        raise HTTPException(404, 'Depósito no encontrado')
+    if dep.get('status') == 'confirmed':
+        raise HTTPException(400, 'Depósito ya confirmado · no se puede rechazar')
+
+    await db.mt5_invest_deposits.update_one(
+        {'id': dep_id},
         {'$set': {
             'status': 'rejected',
             'status_label': 'Rechazado',
@@ -361,8 +394,26 @@ async def admin_reject(dep_id: str, payload: Optional[dict] = None, user: dict =
             'rejected_at': _iso(_now()),
         }},
     )
-    if res.matched_count == 0:
-        raise HTTPException(404, 'Depósito no encontrado o ya confirmado')
+
+    # In-app notification
+    await create_notification(
+        user_id=dep['user_id'],
+        title='Depósito no validado',
+        message=f"Su depósito de €{dep['amount_eur']:.2f} ({dep['crypto_symbol']}) no pudo ser validado. Motivo: {note}",
+    )
+
+    # Institutional email via Resend
+    user_doc = await db.users.find_one({'id': dep['user_id']}, {'_id': 0, 'password': 0})
+    user_name = (user_doc or {}).get('name') or (user_doc or {}).get('full_name') or dep.get('user_email', '').split('@')[0] or 'cliente'
+    await send_mt5_invest_rejected_email(
+        user_email=dep.get('user_email', ''),
+        user_name=user_name,
+        amount_eur=dep['amount_eur'],
+        crypto_symbol=dep['crypto_symbol'],
+        network=dep['network'],
+        admin_note=note,
+    )
+
     return {'ok': True}
 
 

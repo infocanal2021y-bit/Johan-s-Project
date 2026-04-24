@@ -649,3 +649,144 @@ async def send_withdrawal_rejected_email(user_email: str, user_name: str, withdr
     
     html = get_email_template(content, "Retiro Rechazado")
     await send_email(user_email, "❌ Su retiro ha sido rechazado - LIONSBIT VERIFICACION", html)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#                    MT5 INVEST — DEPOSIT LIFECYCLE EMAILS
+# ══════════════════════════════════════════════════════════════════════
+
+@safe_email
+async def send_mt5_invest_confirmed_email(
+    user_email: str,
+    user_name: str,
+    amount_eur: float,
+    crypto_symbol: str,
+    amount_crypto: float,
+    network: str,
+    mt5_login: int,
+    tx_hash: str = None,
+):
+    """Sent when admin confirms a crypto deposit and funds are credited to MT5."""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    tx_row = ""
+    if tx_hash:
+        tx_row = f"""
+            <tr>
+                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">TX Hash:</td>
+                <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: 'Courier New', monospace; font-size: 11px; word-break: break-all;">{tx_hash[:16]}…{tx_hash[-8:]}</td>
+            </tr>
+        """
+
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Hemos <strong style="color: #10b981;">verificado y acreditado</strong> su depósito de criptoactivos a su cuenta MetaTrader 5. Los fondos ya están disponibles para operar bajo infraestructura de brokers regulados internacionalmente.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #10b981; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold;">✓ Depósito acreditado</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto acreditado:</td>
+                            <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">€{amount_eur:,.2f}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Criptoactivo:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{amount_crypto} {crypto_symbol} <span style="color: #64748b;">({network})</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Cuenta MT5:</td>
+                            <td style="color: #06b6d4; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: 'Courier New', monospace;">#{mt5_login}</td>
+                        </tr>
+                        {tx_row}
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+            <tr>
+                <td align="center">
+                    <a href="{APP_BASE_URL}/mt5" style="background: linear-gradient(135deg, #06b6d4, #0891b2); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; letter-spacing: 0.5px;">
+                        Abrir MetaTrader 5 →
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; background-color: rgba(148, 163, 184, 0.08); padding: 15px; border-radius: 8px; border-left: 3px solid #06b6d4;">
+            Su inversión es procesada bajo infraestructura MetaTrader 5 (MT5) con brokers regulados (ASIC · CySEC · FCA), garantizando trazabilidad y ejecución profesional de operaciones financieras.
+        </p>
+    """
+
+    html = get_email_template(content, "Depósito acreditado · Cuenta MT5")
+    await send_email(user_email, "✅ Su depósito ha sido acreditado - LIONSBIT VERIFICACION", html)
+
+
+@safe_email
+async def send_mt5_invest_rejected_email(
+    user_email: str,
+    user_name: str,
+    amount_eur: float,
+    crypto_symbol: str,
+    network: str,
+    admin_note: str = None,
+):
+    """Sent when admin rejects a crypto deposit."""
+    date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+    note_block = ""
+    if admin_note:
+        note_block = f"""
+            <p style="color: #fbbf24; font-size: 14px; line-height: 1.6; background-color: rgba(251, 191, 36, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #fbbf24; margin: 20px 0;">
+                <strong>Motivo:</strong> {admin_note}
+            </p>
+        """
+
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #f87171;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Lamentamos informarle que su depósito de inversión MT5 no ha podido ser validado y ha sido <strong style="color: #f87171;">rechazado</strong>. No se ha realizado ninguna acreditación en su cuenta MT5.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #f87171; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold;">✗ Depósito rechazado</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto solicitado:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">€{amount_eur:,.2f}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Método:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{crypto_symbol} · {network}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        {note_block}
+
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+            Si considera que es un error, por favor póngase en contacto con nuestro equipo de soporte adjuntando su TX hash y una captura de la transacción. Estaremos encantados de revisar su caso.
+        </p>
+    """
+
+    html = get_email_template(content, "Depósito Rechazado")
+    await send_email(user_email, "❌ Su depósito MT5 no ha sido validado - LIONSBIT VERIFICACION", html)
+
