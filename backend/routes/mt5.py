@@ -800,6 +800,95 @@ async def mt5_journal_list(limit: int = 80, user: dict = Depends(get_current_use
     return {'events': items}
 
 
+# ── OHLC Candles (mini-chart for Market Watch) ───────────────────────
+
+# Timeframe spec: seconds per bar, number of bars to return, realistic volatility per bar
+_TF_SPEC = {
+    'M1':  {'seconds':    60, 'bars': 240, 'vol': 0.0008},  # ~4 hours of 1-min
+    'M15': {'seconds':   900, 'bars': 200, 'vol': 0.0022},  # ~2 days of 15-min
+    'H1':  {'seconds':  3600, 'bars': 200, 'vol': 0.0055},  # ~8 days of 1-hour
+    'D1':  {'seconds': 86400, 'bars': 120, 'vol': 0.0180},  # ~4 months of 1-day
+}
+
+
+@router.get("/mt5/candles")
+async def mt5_candles(
+    symbol: str,
+    timeframe: str = 'H1',
+    user: dict = Depends(get_current_user),
+):
+    """Returns OHLCV candles for the requested symbol & timeframe.
+    Deterministic seed per (symbol, timeframe, day) — so candles look stable
+    between refreshes while the latest bar drifts slightly with real-time tick."""
+    symbol = (symbol or '').upper()
+    tf = (timeframe or 'H1').upper()
+    asset = _asset(symbol)
+    if not asset:
+        raise HTTPException(400, 'Símbolo no válido')
+    spec = _TF_SPEC.get(tf)
+    if not spec:
+        raise HTTPException(400, 'Timeframe inválido (usa M1, M15, H1, D1)')
+
+    now = _now()
+    sec = spec['seconds']
+    bars = spec['bars']
+    vol = spec['vol']
+
+    # Align current bar to timeframe boundary
+    anchor_ts = int(now.timestamp()) // sec * sec
+
+    # Stable random walk seed based on symbol + timeframe + day
+    seed_key = f"{symbol}:{tf}:{now.strftime('%Y%m%d')}"
+    rng = random.Random(seed_key)
+
+    base = asset['base_price']
+    # Start from ~2% off base, random walk back toward recent price
+    price = base * rng.uniform(0.98, 1.02)
+    candles = []
+    for i in range(bars, 0, -1):
+        ts = anchor_ts - (i - 1) * sec
+        # Per-bar drift: random walk with mean-reversion to base
+        drift = rng.uniform(-vol, vol) - (price - base) / base * 0.02
+        open_ = price
+        close_ = round(price * (1 + drift), 6)
+        hi_low_spread = abs(drift) + rng.uniform(vol * 0.3, vol * 0.9)
+        high_ = round(max(open_, close_) * (1 + rng.uniform(0, hi_low_spread)), 6)
+        low_ = round(min(open_, close_) * (1 - rng.uniform(0, hi_low_spread)), 6)
+        # Volume: loosely correlated with range
+        volume_ = round(abs(close_ - open_) / max(base, 1) * 1_000_000 * rng.uniform(0.6, 1.8), 2)
+        candles.append({
+            'time': ts,
+            'open': round(open_, 6),
+            'high': high_,
+            'low': low_,
+            'close': close_,
+            'volume': volume_,
+        })
+        price = close_
+
+    # Apply a tiny per-second tick to the latest bar so it *feels* live
+    if candles:
+        tick_rng = random.Random(seed_key + str(int(now.timestamp()) // 5))
+        last = candles[-1]
+        tick = last['close'] * tick_rng.uniform(-vol * 0.25, vol * 0.25)
+        new_close = round(last['close'] + tick, 6)
+        last['close'] = new_close
+        last['high'] = max(last['high'], new_close)
+        last['low'] = min(last['low'], new_close)
+
+    q = _bid_ask(asset)
+    return {
+        'symbol': symbol,
+        'name': asset['name'],
+        'timeframe': tf,
+        'bid': q['bid'],
+        'ask': q['ask'],
+        'pip': asset['pip'],
+        'candles': candles,
+        'server_time': _iso(now),
+    }
+
+
 # ── Statement / Reports ──────────────────────────────────────────────
 
 @router.get("/mt5/statement")

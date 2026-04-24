@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import api from '../../lib/api';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
-import { ArrowUpRight, ArrowDownRight, Zap, Search, Layers } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Zap, Search, Layers, LineChart as LineChartIcon } from 'lucide-react';
+import { MT5Chart } from './MT5Chart';
 
 const fmtPrice = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 });
 
@@ -12,6 +13,7 @@ export const MarketWatch = ({ onOpenTrade }) => {
     const [filter, setFilter] = useState('');
     const [cat, setCat] = useState('all');
     const [loading, setLoading] = useState(true);
+    const [selected, setSelected] = useState(null);
 
     const load = useCallback(async () => {
         try {
@@ -27,6 +29,15 @@ export const MarketWatch = ({ onOpenTrade }) => {
         return () => clearInterval(id);
     }, [load]);
 
+    // Keep `selected` in sync with latest bid/ask from the polling
+    useEffect(() => {
+        if (!selected) return;
+        const fresh = symbols.find(s => s.symbol === selected.symbol);
+        if (fresh && (fresh.bid !== selected.bid || fresh.ask !== selected.ask)) {
+            setSelected(fresh);
+        }
+    }, [symbols, selected]);
+
     const cats = [
         { id: 'all',     label: 'Todos' },
         { id: 'forex',   label: 'Forex' },
@@ -41,8 +52,22 @@ export const MarketWatch = ({ onOpenTrade }) => {
         && (!filter || s.symbol.toLowerCase().includes(filter.toLowerCase()) || s.name.toLowerCase().includes(filter.toLowerCase()))
     );
 
+    // Auto-select the first visible symbol so the chart is never empty
+    useEffect(() => {
+        if (!selected && filtered.length > 0) setSelected(filtered[0]);
+    }, [filtered, selected]);
+
     return (
         <div data-testid="mt5-market-watch" className="space-y-3">
+            {/* Live chart — mini candlestick for the currently selected asset */}
+            {selected && (
+                <MT5Chart
+                    symbol={selected}
+                    onClose={() => setSelected(null)}
+                    onOpenTrade={onOpenTrade}
+                />
+            )}
+
             {/* Filter bar */}
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <div className="relative flex-1">
@@ -89,10 +114,24 @@ export const MarketWatch = ({ onOpenTrade }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map(s => (
-                                <tr key={s.symbol} className="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
+                            {filtered.map(s => {
+                                const isSel = selected?.symbol === s.symbol;
+                                return (
+                                <tr
+                                    key={s.symbol}
+                                    onClick={() => setSelected(s)}
+                                    data-testid={`mt5-row-${s.symbol}`}
+                                    className={`border-b border-slate-800/40 transition-colors cursor-pointer ${
+                                        isSel
+                                            ? 'bg-cyan-500/10 ring-1 ring-inset ring-cyan-500/30'
+                                            : 'hover:bg-slate-800/30'
+                                    }`}
+                                >
                                     <td className="py-2 px-3">
-                                        <p className="text-white font-mono">{s.symbol}</p>
+                                        <div className="flex items-center gap-1.5">
+                                            {isSel && <LineChartIcon className="w-3 h-3 text-cyan-400" />}
+                                            <p className="text-white font-mono">{s.symbol}</p>
+                                        </div>
                                         <p className="text-slate-500 text-[10px]">{s.name}</p>
                                     </td>
                                     <td className="py-2 px-3 text-right text-rose-300 font-mono tabular-nums">{fmtPrice(s.bid)}</td>
@@ -102,18 +141,18 @@ export const MarketWatch = ({ onOpenTrade }) => {
                                         {s.change_pct_24h >= 0 ? '+' : ''}{s.change_pct_24h}%
                                     </td>
                                     <td className="py-2 px-3 text-right">
-                                        <div className="inline-flex gap-1">
+                                        <div className="inline-flex gap-1" onClick={(e) => e.stopPropagation()}>
                                             <Button size="sm" onClick={() => onOpenTrade && onOpenTrade(s, 'sell')} className="h-7 px-2 text-[11px] bg-rose-600/80 hover:bg-rose-600 text-white">Sell</Button>
                                             <Button size="sm" onClick={() => onOpenTrade && onOpenTrade(s, 'buy')} className="h-7 px-2 text-[11px] bg-emerald-600/80 hover:bg-emerald-600 text-white">Buy</Button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            );})}
                         </tbody>
                     </table>
                 )}
             </div>
-            <p className="text-[10px] text-slate-600 text-right">Precios indicativos · actualiza cada 8 s</p>
+            <p className="text-[10px] text-slate-600 text-right">Precios indicativos · actualiza cada 8 s · velas cada 5 s</p>
         </div>
     );
 };
