@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { MarketWatch, TradingPanel } from '../components/mt5/MarketWatchAndTrading';
 import { OpenPositions, PendingOrders, FundsPanel, JournalPanel, StatementPanel } from '../components/mt5/MT5Sections';
 import { MT5InvestSection } from '../components/mt5/MT5InvestSection';
+import { MT5CoachWidget } from '../components/mt5/MT5CoachWidget';
 
 const fmtMoney = (n, cur = 'USD') => {
     const symbol = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '';
@@ -324,6 +325,9 @@ export const MT5Page = () => {
 
                 {/* ── Section 4: Full trading suite with tabs ─────── */}
                 <MT5TradingSuite account={acc} onAccountChange={() => fetchSummary(true)} />
+
+                {/* AI Coach floating widget */}
+                <MT5CoachWidget />
 
                 {/* ── Linked withdrawals / footer ─── */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
