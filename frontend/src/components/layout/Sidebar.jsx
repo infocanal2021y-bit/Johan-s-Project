@@ -124,6 +124,7 @@ export const Sidebar = () => {
         { to: '/admin/treasury', icon: Vault, label: 'Tesorería' },
         { to: '/admin/support', icon: MessageSquare, label: 'Tickets Soporte' },
         { to: '/admin/broadcast', icon: Megaphone, label: 'Difusion a Usuarios' },
+        { to: '/admin/mt5-invest', icon: Bitcoin, label: 'Depositos MT5 Invest' },
     ];
 
     const NavLinks = ({ links }) => (
