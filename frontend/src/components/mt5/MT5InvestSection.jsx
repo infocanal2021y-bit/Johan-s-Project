@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../lib/api';
 import { Card } from '../ui/card';
@@ -8,6 +8,7 @@ import {
     Bitcoin, Copy, Check, Upload, Clock, CheckCircle2, XCircle,
     ShieldCheck, Sparkles, AlertTriangle, Info, Wallet,
     TrendingUp, Activity, Banknote, ExternalLink, Zap,
+    ChevronDown, ChevronUp, FileCheck, Search, CircleDashed,
 } from 'lucide-react';
 
 const fmtEUR = (n) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -74,6 +75,153 @@ const CopyButton = ({ value, className = '', testId }) => {
     );
 };
 
+// ────────────── Deposit Timeline (vertical stepper) ──────────────
+const TX_EXPLORER_TPL = {
+    btc:        (h) => `https://mempool.space/tx/${h}`,
+    eth:        (h) => `https://etherscan.io/tx/${h}`,
+    usdt_trc20: (h) => `https://tronscan.org/#/transaction/${h}`,
+};
+
+const DepositTimeline = ({ deposit }) => {
+    const isRejected = deposit.status === 'rejected';
+    const isConfirmed = deposit.status === 'confirmed';
+    const hasProof = !!deposit.tx_hash || !!deposit.proof_url;
+
+    // Build the steps array with state for each
+    const steps = [
+        {
+            id: 'created',
+            title: 'Orden creada',
+            sub: `Solicitud iniciada · €${fmtEUR(deposit.amount_eur)} en ${deposit.crypto_symbol}`,
+            ts: deposit.created_at,
+            state: 'done',
+            icon: FileCheck,
+            tone: 'cyan',
+        },
+        {
+            id: 'paid',
+            title: 'Comprobante enviado',
+            sub: hasProof
+                ? `TX hash recibido · ${(deposit.tx_hash || '').slice(0, 14)}…`
+                : 'A la espera del envío del TX hash',
+            ts: deposit.submitted_at,
+            state: hasProof ? 'done' : 'pending',
+            icon: Upload,
+            tone: 'amber',
+        },
+        {
+            id: 'review',
+            title: 'Verificación en blockchain',
+            sub: isConfirmed
+                ? 'Transacción confirmada en el explorador'
+                : isRejected
+                    ? 'Verificación fallida'
+                    : hasProof
+                        ? 'Validando confirmaciones de red en tiempo real'
+                        : 'Pendiente de verificación',
+            ts: hasProof ? deposit.submitted_at : null,
+            state: isConfirmed ? 'done' : isRejected ? 'fail' : hasProof ? 'active' : 'pending',
+            icon: Search,
+            tone: 'amber',
+        },
+        {
+            id: 'final',
+            title: isRejected ? 'Depósito rechazado' : 'Acreditado en cuenta MT5',
+            sub: isRejected
+                ? (deposit.admin_note || 'Motivo no especificado')
+                : isConfirmed
+                    ? `Fondos disponibles para operar · €${fmtEUR(deposit.amount_eur)}`
+                    : 'Pendiente de aprobación',
+            ts: isRejected ? deposit.rejected_at : deposit.confirmed_at,
+            state: isConfirmed ? 'done' : isRejected ? 'fail' : 'pending',
+            icon: isRejected ? XCircle : CheckCircle2,
+            tone: isRejected ? 'rose' : 'emerald',
+        },
+    ];
+
+    const explorer = deposit.tx_hash && TX_EXPLORER_TPL[deposit.method] ? TX_EXPLORER_TPL[deposit.method](deposit.tx_hash) : null;
+
+    const STATE_VISUALS = {
+        done:    { ring: 'ring-emerald-400/60', bg: 'bg-emerald-500/20', text: 'text-emerald-200', dot: 'bg-emerald-400',   line: 'bg-emerald-500/40' },
+        active:  { ring: 'ring-amber-400/70',   bg: 'bg-amber-500/20',   text: 'text-amber-200',   dot: 'bg-amber-400 animate-pulse', line: 'bg-amber-500/30' },
+        fail:    { ring: 'ring-rose-400/60',    bg: 'bg-rose-500/20',    text: 'text-rose-200',    dot: 'bg-rose-400',      line: 'bg-rose-500/30' },
+        pending: { ring: 'ring-slate-700',      bg: 'bg-slate-800/60',   text: 'text-slate-500',   dot: 'bg-slate-700',     line: 'bg-slate-800/60' },
+    };
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                    Trazabilidad de la operación · #{deposit.id.slice(0, 8)}
+                </p>
+                {explorer && (
+                    <a
+                        href={explorer}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-no-hover
+                        className="inline-flex items-center gap-1 text-[10.5px] text-cyan-300 hover:text-cyan-200 font-semibold"
+                    >
+                        Ver en explorer <ExternalLink className="w-3 h-3" />
+                    </a>
+                )}
+            </div>
+
+            <div className="relative pl-1">
+                {steps.map((s, idx) => {
+                    const v = STATE_VISUALS[s.state];
+                    const Icon = s.state === 'pending' ? CircleDashed : s.icon;
+                    const isLast = idx === steps.length - 1;
+                    return (
+                        <div key={s.id} className="relative flex gap-3 pb-3 last:pb-0" data-testid={`mt5-invest-step-${s.id}`}>
+                            {/* Connector line */}
+                            {!isLast && (
+                                <div className={`absolute left-[14px] top-7 w-px h-full ${v.line}`} aria-hidden="true" />
+                            )}
+                            {/* Dot/Icon */}
+                            <div className={`relative z-10 w-7 h-7 rounded-full ring-1 ${v.ring} ${v.bg} flex items-center justify-center flex-shrink-0`}>
+                                <Icon className={`w-3.5 h-3.5 ${v.text}`} />
+                            </div>
+                            {/* Content */}
+                            <div className="min-w-0 flex-1 pt-0.5">
+                                <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                                    <p className={`text-[12px] font-semibold ${v.text}`}>{s.title}</p>
+                                    <p className="text-[10px] text-slate-500 font-mono">
+                                        {s.ts ? fmtDateTime(s.ts) : (s.state === 'active' ? 'En curso…' : '—')}
+                                    </p>
+                                </div>
+                                <p className="text-[11px] text-slate-400 leading-snug mt-0.5">{s.sub}</p>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Footer with key meta */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 pt-3 border-t border-slate-800/60">
+                <div>
+                    <p className="text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Dirección destino</p>
+                    <p className="text-slate-300 font-mono text-[10px] truncate" title={deposit.wallet_address}>{deposit.wallet_address}</p>
+                </div>
+                <div>
+                    <p className="text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Confirmaciones req.</p>
+                    <p className="text-slate-300 text-[11px] font-mono">{deposit.confirmations_required || '—'}</p>
+                </div>
+                <div>
+                    <p className="text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Tasa al momento</p>
+                    <p className="text-slate-300 text-[11px] font-mono tabular-nums">€{fmtEUR(deposit.rate_eur)}</p>
+                </div>
+                <div>
+                    <p className="text-[9px] uppercase tracking-wider text-slate-600 font-semibold">Estado</p>
+                    <p className={`text-[11px] font-bold ${
+                        isConfirmed ? 'text-emerald-300' : isRejected ? 'text-rose-300' : 'text-amber-300'
+                    }`}>{deposit.status_label}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ────────────── Main component ──────────────
 export const MT5InvestSection = () => {
     const [methods, setMethods] = useState([]);
@@ -89,6 +237,7 @@ export const MT5InvestSection = () => {
     // Proof submission inputs
     const [proofHash, setProofHash] = useState('');
     const [submittingProof, setSubmittingProof] = useState(false);
+    const [expandedId, setExpandedId] = useState(null);
 
     const loadAll = useCallback(async () => {
         try {
@@ -458,11 +607,22 @@ export const MT5InvestSection = () => {
                                     {deposits.map(d => {
                                         const st = STATUS_STYLE[d.status] || STATUS_STYLE.pending_payment;
                                         const StatusIcon = st.icon;
+                                        const isOpen = expandedId === d.id;
                                         return (
-                                            <tr key={d.id} className="border-b border-slate-800/40 hover:bg-slate-800/20">
+                                            <Fragment key={d.id}>
+                                            <tr
+                                                onClick={() => setExpandedId(isOpen ? null : d.id)}
+                                                data-testid={`mt5-invest-row-${d.id.slice(0, 8)}`}
+                                                className={`border-b border-slate-800/40 transition-colors cursor-pointer ${
+                                                    isOpen ? 'bg-cyan-500/5 ring-1 ring-inset ring-cyan-500/20' : 'hover:bg-slate-800/20'
+                                                }`}
+                                            >
                                                 <td className="py-2 px-3 text-slate-400">
-                                                    <p>{fmtDateTime(d.created_at)}</p>
-                                                    {d.confirmed_at && <p className="text-[9.5px] text-emerald-300/70">Conf. {fmtDateTime(d.confirmed_at)}</p>}
+                                                    <div className="flex items-center gap-1">
+                                                        {isOpen ? <ChevronUp className="w-3 h-3 text-cyan-400" /> : <ChevronDown className="w-3 h-3 text-slate-600" />}
+                                                        <p>{fmtDateTime(d.created_at)}</p>
+                                                    </div>
+                                                    {d.confirmed_at && <p className="text-[9.5px] text-emerald-300/70 ml-4">Conf. {fmtDateTime(d.confirmed_at)}</p>}
                                                 </td>
                                                 <td className="py-2 px-3 text-slate-300">
                                                     <span className="font-mono font-semibold">{d.crypto_symbol}</span>
@@ -476,6 +636,14 @@ export const MT5InvestSection = () => {
                                                     </span>
                                                 </td>
                                             </tr>
+                                            {isOpen && (
+                                                <tr className="bg-slate-950/60" data-testid={`mt5-invest-timeline-${d.id.slice(0, 8)}`}>
+                                                    <td colSpan={5} className="px-4 py-4">
+                                                        <DepositTimeline deposit={d} />
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            </Fragment>
                                         );
                                     })}
                                 </tbody>
