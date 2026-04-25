@@ -103,6 +103,7 @@ export const MarketWatch = ({ onOpenTrade, accountBalance }) => {
                 {loading && <p className="text-slate-500 text-sm py-10 text-center">Cargando Market Watch…</p>}
                 {!loading && filtered.length === 0 && <p className="text-slate-500 text-sm py-10 text-center">Sin resultados</p>}
                 {!loading && filtered.length > 0 && (
+                    <div className="overflow-x-auto -mx-px">
                     <table className="w-full text-[12px]">
                         <thead>
                             <tr className="text-slate-600 text-left border-b border-slate-800/80">
@@ -151,6 +152,7 @@ export const MarketWatch = ({ onOpenTrade, accountBalance }) => {
                             );})}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
             <p className="text-[10px] text-slate-600 text-right">Precios indicativos · actualiza cada 8 s · velas cada 5 s</p>

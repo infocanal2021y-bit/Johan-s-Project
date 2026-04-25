@@ -40,6 +40,10 @@
 
 html {
     scroll-behavior: smooth;
+    /* Mobile: prevent horizontal overflow caused by absolute-positioned glows / wide tables */
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
@@ -51,23 +55,34 @@ body {
     color: hsl(var(--foreground));
     min-height: 100vh;
     font-weight: 400;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
 }
 
 #root {
     min-height: 100vh;
     background-color: hsl(var(--background));
+    overflow-x: hidden;
+    max-width: 100vw;
 }
 
-/* Typography Hierarchy - BBVA Style */
+/* Typography Hierarchy - BBVA Style (responsive) */
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Source Sans 3', sans-serif;
     letter-spacing: -0.01em;
     font-weight: 700;
 }
 
-h1 { font-size: 2.25rem; }
-h2 { font-size: 1.875rem; }
-h3 { font-size: 1.5rem; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.2rem; }
+
+@media (min-width: 640px) {
+    h1 { font-size: 2.25rem; }
+    h2 { font-size: 1.875rem; }
+    h3 { font-size: 1.5rem; }
+}
 h4 { font-size: 1.25rem; }
 
 /* Financial Numbers - Outfit for premium banking feel */
