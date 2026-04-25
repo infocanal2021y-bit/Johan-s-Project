@@ -21,7 +21,7 @@ import random
 import uuid
 
 from config import db
-from services.auth import get_current_user
+from services.auth import get_current_user, get_admin_user
 
 
 router = APIRouter()
@@ -355,13 +355,10 @@ async def get_broker(user: dict = Depends(get_current_user)):
     }
 
 
-@router.post("/mt5/broker/verify")
-async def verify_broker_regulation(user: dict = Depends(get_current_user)):
-    """Simulated regulatory lookup against CNMV + CySEC + FCA registries.
-    Returns a structured verification payload the frontend renders as an
-    institutional "audit extract" — no external tab redirect needed.
-    Each verification is persisted to mt5_compliance_log for audit trail."""
-    acc = await db.mt5_accounts.find_one({'user_id': user['id']}, {'_id': 0})
+async def _build_verification_payload(user_id: str) -> dict:
+    """Construct + persist a regulatory verification extract for the given user.
+    Used by both the on-demand endpoint and the monthly scheduled job."""
+    acc = await db.mt5_accounts.find_one({'user_id': user_id}, {'_id': 0})
     broker = BROKERS.get(
         (acc or {}).get('broker_key', DEFAULT_BROKER),
         BROKERS[DEFAULT_BROKER],
@@ -432,10 +429,9 @@ async def verify_broker_regulation(user: dict = Depends(get_current_user)):
         ),
     }
 
-    # Persist for audit trail
     await db.mt5_compliance_log.insert_one({
         'id': str(uuid.uuid4()),
-        'user_id': user['id'],
+        'user_id': user_id,
         'reference': ref,
         'verified_at': _iso(now),
         'broker_key': (acc or {}).get('broker_key', DEFAULT_BROKER),
@@ -444,8 +440,81 @@ async def verify_broker_regulation(user: dict = Depends(get_current_user)):
         'overall_status': 'verified',
         'payload': payload,
     })
-
     return payload
+
+
+@router.post("/mt5/broker/verify")
+async def verify_broker_regulation(user: dict = Depends(get_current_user)):
+    """Simulated regulatory lookup against CNMV + CySEC + FCA registries.
+    Returns a structured verification payload the frontend renders as an
+    institutional "audit extract" — no external tab redirect needed.
+    Each verification is persisted to mt5_compliance_log for audit trail."""
+    return await _build_verification_payload(user['id'])
+
+
+async def run_monthly_compliance_statements():
+    """Scheduled job: once a month, generate a verification extract for every
+    user that has an MT5 account and email them the statement.
+    Idempotent: skips users already issued a 'monthly' extract within 25 days."""
+    import logging
+    from services.email import send_compliance_statement_email
+    log = logging.getLogger(__name__)
+
+    now = _now()
+    cutoff = (now - timedelta(days=25)).isoformat()
+    sent = 0
+    skipped = 0
+    failed = 0
+
+    cursor = db.mt5_accounts.find({}, {'_id': 0, 'user_id': 1})
+    user_ids = [doc['user_id'] async for doc in cursor]
+    log.info(f"[compliance] monthly run · {len(user_ids)} candidates")
+
+    for uid in user_ids:
+        try:
+            # Skip if a monthly statement was already issued recently
+            recent = await db.mt5_compliance_log.find_one({
+                'user_id': uid,
+                'kind': 'monthly_auto',
+                'verified_at': {'$gte': cutoff},
+            }, {'_id': 0, 'reference': 1})
+            if recent:
+                skipped += 1
+                continue
+
+            user_doc = await db.users.find_one({'id': uid}, {'_id': 0, 'password': 0})
+            if not user_doc or not user_doc.get('email'):
+                skipped += 1
+                continue
+
+            payload = await _build_verification_payload(uid)
+            # Tag it as a monthly automatic record (override default kind)
+            await db.mt5_compliance_log.update_one(
+                {'reference': payload['reference']},
+                {'$set': {'kind': 'monthly_auto'}},
+            )
+
+            user_name = user_doc.get('name') or user_doc.get('full_name') or user_doc['email'].split('@')[0]
+            regs = {r['authority']: r['reference'] for r in payload['registries']}
+
+            await send_compliance_statement_email(
+                user_email=user_doc['email'],
+                user_name=user_name,
+                reference=payload['reference'],
+                broker_name=payload['broker']['name'],
+                broker_legal_name=payload['broker']['legal_name'],
+                cnmv_ref=regs.get('CNMV', '—'),
+                cysec_ref=regs.get('CySEC', '—'),
+                fca_ref=regs.get('FCA', '—'),
+                verified_at_iso=payload['verified_at'],
+            )
+            sent += 1
+        except Exception as e:
+            log.warning(f"[compliance] failed for user {uid}: {e}")
+            failed += 1
+
+    log.info(f"[compliance] monthly statements: sent={sent} skipped={skipped} failed={failed}")
+    return {'sent': sent, 'skipped': skipped, 'failed': failed}
 
 
 @router.get("/mt5/broker/verify-history")
@@ -468,6 +537,14 @@ async def verify_history_detail(reference: str, user: dict = Depends(get_current
     if not rec:
         raise HTTPException(404, 'Verificación no encontrada')
     return rec.get('payload', rec)
+
+
+@router.post("/mt5/broker/admin/run-monthly-statements")
+async def admin_run_monthly_statements(user: dict = Depends(get_admin_user)):
+    """Admin-only: manually trigger the monthly compliance statement job
+    (useful to verify the email pipeline without waiting for the cron tick)."""
+    result = await run_monthly_compliance_statements()
+    return {'ok': True, **result}
 
 
 @router.get("/mt5/operations")

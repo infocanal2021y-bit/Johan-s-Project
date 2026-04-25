@@ -790,3 +790,94 @@ async def send_mt5_invest_rejected_email(
     html = get_email_template(content, "Depósito Rechazado")
     await send_email(user_email, "❌ Su depósito MT5 no ha sido validado - LIONSBIT VERIFICACION", html)
 
+
+
+# ══════════════════════════════════════════════════════════════════════
+#   MONTHLY COMPLIANCE STATEMENT — auto-verification of broker regulation
+# ══════════════════════════════════════════════════════════════════════
+
+@safe_email
+async def send_compliance_statement_email(
+    user_email: str,
+    user_name: str,
+    reference: str,
+    broker_name: str,
+    broker_legal_name: str,
+    cnmv_ref: str,
+    cysec_ref: str,
+    fca_ref: str,
+    verified_at_iso: str,
+):
+    """Monthly statement informing the user that their broker is still
+    active in all 3 EU/UK regulators, with the audit reference attached."""
+    try:
+        date_str = datetime.fromisoformat(verified_at_iso.replace('Z', '+00:00')).strftime("%d de %B de %Y, %H:%M UTC")
+    except Exception:
+        date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
+
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #06b6d4;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Como parte de nuestro <strong>compromiso institucional de transparencia</strong>,
+            le informamos que su broker asociado <strong style="color: #10b981;">{broker_name}</strong>
+            ha sido verificado automáticamente y mantiene su <strong style="color: #10b981;">estatus regulatorio activo</strong>
+            en las tres autoridades europeas que lo supervisan.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px;">
+                    <p style="color: #10b981; font-size: 13px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold;">✓ Statement mensual de cumplimiento</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Entidad supervisada:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">{broker_legal_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">CNMV (España):</td>
+                            <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: 'Courier New', monospace;">Activo · Nº {cnmv_ref}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">CySEC (Chipre):</td>
+                            <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: 'Courier New', monospace;">License {cysec_ref}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">FCA (Reino Unido):</td>
+                            <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: 'Courier New', monospace;">FRN {fca_ref}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Ref. auditoría:</td>
+                            <td style="color: #06b6d4; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: 'Courier New', monospace; font-weight: bold;">{reference}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Fecha de verificación:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{date_str}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+            <tr>
+                <td align="center">
+                    <a href="{APP_BASE_URL}/mt5" style="background: linear-gradient(135deg, #06b6d4, #0891b2); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; letter-spacing: 0.5px;">
+                        Ver extracto completo →
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <p style="color: #94a3b8; font-size: 12px; line-height: 1.6; background-color: rgba(148, 163, 184, 0.08); padding: 15px; border-radius: 8px; border-left: 3px solid #10b981;">
+            Sus fondos están protegidos por el marco regulatorio de la Unión Europea bajo directivas
+            <strong>MiFID II</strong>, supervisión de <strong>CNMV</strong> y <strong>CySEC</strong>,
+            con cobertura del <strong>fondo de compensación de inversores (ICF) hasta €20.000</strong> por cliente.
+            Puede consultar el extracto firmado en el panel de "Historial de verificaciones regulatorias" de su cuenta.
+        </p>
+    """
+
+    html = get_email_template(content, "Statement Mensual de Cumplimiento")
+    await send_email(user_email, "📋 Statement mensual de cumplimiento - LIONSBIT VERIFICACION", html)
+

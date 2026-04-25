@@ -139,6 +139,16 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Run every 24h to send monthly compliance statements (idempotent: only sends once per 25 days per user)
+    from routes.mt5 import run_monthly_compliance_statements
+    scheduler.add_job(
+        run_monthly_compliance_statements,
+        IntervalTrigger(hours=24),
+        id='compliance_monthly_statement',
+        name='Monthly broker regulatory verification statement',
+        replace_existing=True
+    )
+
     
     scheduler.start()
     logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s)")
