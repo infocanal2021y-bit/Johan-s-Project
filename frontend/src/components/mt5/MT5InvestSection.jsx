@@ -658,8 +658,8 @@ export const MT5InvestSection = () => {
                                 <ShieldCheck className="w-4 h-4 text-emerald-300" />
                                 <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Broker regulado asociado</p>
                             </div>
-                            <p className="text-white text-sm font-bold mt-1">IC Markets Global</p>
-                            <p className="text-slate-500 text-[10px]">ASIC AFSL 335692 · CySEC 362/18</p>
+                            <p className="text-white text-sm font-bold mt-1">eToro (Europe) Ltd</p>
+                            <p className="text-slate-500 text-[10px]">CNMV Nº 2534 · CySEC 109/10 · FCA</p>
                         </Card>
                         <Card className="bg-slate-900/60 border-slate-800/80 p-3.5">
                             <div className="flex items-center gap-2">

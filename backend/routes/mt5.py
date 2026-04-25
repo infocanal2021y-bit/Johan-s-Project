@@ -32,6 +32,26 @@ router = APIRouter()
 # ======================================================================
 
 BROKERS = {
+    'etoro': {
+        'key': 'etoro',
+        'name': 'eToro',
+        'legal_name': 'eToro (Europe) Ltd',
+        'regulator': 'CNMV (España) · CySEC (Chipre) · FCA (Reino Unido)',
+        'license_number': 'CySEC 109/10 · CNMV Nº 2534',
+        'cnmv_registry_number': '2534',
+        'cnmv_registry_date': '13/04/2010',
+        'cysec_license': '109/10',
+        'country': 'Chipre / España',
+        'jurisdiction': 'Unión Europea',
+        'year_founded': 2007,
+        'website': 'https://www.etoro.com/es/regulation/',
+        'license_url': 'https://www.cnmv.es/portal/Consultas/EntidadesRegistro.aspx?nif=&nrgs=2534',
+        'cysec_url': 'https://www.cysec.gov.cy/en-GB/entities/investment-firms/cypriot/37947/',
+        'server': 'eToro-MT5-Demo',
+        'rating': 9.7,
+        'description': 'Broker líder europeo regulado por CNMV (España), CySEC (Chipre) y FCA (Reino Unido). Operaciones supervisadas bajo normativa MiFID II y protección de inversores hasta €20.000 por el ICF.',
+        'compliance_seal': 'EU · MiFID II · ICF Protected',
+    },
     'icmarkets': {
         'key': 'icmarkets',
         'name': 'IC Markets Global',
@@ -76,7 +96,7 @@ BROKERS = {
     },
 }
 
-DEFAULT_BROKER = 'icmarkets'
+DEFAULT_BROKER = 'etoro'
 
 
 # ======================================================================
@@ -396,8 +416,19 @@ async def get_summary(user: dict = Depends(get_current_user)):
     acc = await _recompute_account(user['id'])
     acc.pop('_id', None)
 
-    broker_key = acc.get('broker_key', DEFAULT_BROKER)
-    broker = BROKERS.get(broker_key, BROKERS[DEFAULT_BROKER])
+    # Always use the platform's default (eToro). If a legacy account has an
+    # outdated broker_key, migrate it on read so the dashboard stays consistent.
+    if acc.get('broker_key') != DEFAULT_BROKER:
+        await db.mt5_accounts.update_one(
+            {'user_id': user['id']},
+            {'$set': {
+                'broker_key': DEFAULT_BROKER,
+                'server': BROKERS[DEFAULT_BROKER]['server'],
+            }},
+        )
+        acc['broker_key'] = DEFAULT_BROKER
+        acc['server'] = BROKERS[DEFAULT_BROKER]['server']
+    broker = BROKERS[DEFAULT_BROKER]
 
     # Last 6 ops quick
     recent_cursor = db.mt5_operations.find(

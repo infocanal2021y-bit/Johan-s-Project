@@ -247,23 +247,45 @@ export const MT5Page = () => {
                         <div className="w-1 h-5 rounded-full bg-emerald-500" />
                         <h2 className="text-[13px] font-semibold text-slate-200 tracking-wide uppercase">Broker asociado</h2>
                     </div>
-                    <Card className="bg-slate-900/70 border-slate-800/80 p-5 sm:p-6" data-testid="mt5-broker-card">
-                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900/80 via-[#0c1f3d]/40 to-slate-900/70 border-emerald-500/20 p-5 sm:p-6" data-testid="mt5-broker-card">
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -top-16 -right-16 w-72 h-72 rounded-full opacity-20 blur-3xl"
+                            style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.45), transparent 70%)' }}
+                        />
+                        <div className="relative flex items-start justify-between gap-4 flex-wrap">
                             <div className="flex items-start gap-4 min-w-0 flex-1">
                                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 ring-1 ring-emerald-500/40 flex items-center justify-center flex-shrink-0">
-                                    <ShieldCheck className="w-7 h-7 text-emerald-300" />
+                                    <span className="text-emerald-300 text-2xl font-black tracking-tighter" style={{ fontFamily: '"Inter", sans-serif' }}>e</span>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <h3 className="text-white text-lg sm:text-xl font-bold" style={{ letterSpacing: '-0.01em' }}>
-                                            {broker.name}
-                                        </h3>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30 text-emerald-300 text-[10px] font-bold tracking-wider uppercase">
+                                        <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-300 font-bold">Broker principal · Verificado</p>
+                                    </div>
+                                    <h3 className="text-white text-lg sm:text-xl font-bold mt-0.5" style={{ letterSpacing: '-0.01em' }}>
+                                        {broker.name}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 ml-2 rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30 text-emerald-300 text-[10px] font-bold tracking-wider uppercase align-middle">
                                             <CheckCircle2 className="w-3 h-3" /> Verificado
                                         </span>
-                                    </div>
+                                    </h3>
                                     <p className="text-slate-500 text-[11px] mt-0.5">{broker.legal_name}</p>
                                     <p className="text-slate-300 text-[12.5px] mt-2 leading-relaxed">{broker.description}</p>
+
+                                    {/* Regulator chips */}
+                                    <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 ring-1 ring-amber-500/30 text-amber-200 text-[10px] font-bold tracking-wider">
+                                            <ShieldCheck className="w-3 h-3" /> CNMV · España
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/15 ring-1 ring-cyan-500/30 text-cyan-200 text-[10px] font-bold tracking-wider">
+                                            <ShieldCheck className="w-3 h-3" /> CySEC · Chipre
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/15 ring-1 ring-indigo-500/30 text-indigo-200 text-[10px] font-bold tracking-wider">
+                                            <ShieldCheck className="w-3 h-3" /> FCA · Reino Unido
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/70 ring-1 ring-slate-700 text-slate-300 text-[10px] font-bold tracking-wider">
+                                            <Activity className="w-3 h-3" /> MetaTrader 5
+                                        </span>
+                                    </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-4">
                                         <div>
@@ -271,12 +293,20 @@ export const MT5Page = () => {
                                             <p className="text-[13px] text-white mt-0.5">{broker.regulator}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Número de licencia</p>
-                                            <p className="text-[13px] text-white mt-0.5 font-mono">{broker.license_number}</p>
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Licencia principal CySEC</p>
+                                            <p className="text-[13px] text-white mt-0.5 font-mono">No. {broker.cysec_license || broker.license_number}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Nº Registro CNMV</p>
+                                            <p className="text-[13px] text-white mt-0.5 font-mono">{broker.cnmv_registry_number || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Fecha de registro</p>
+                                            <p className="text-[13px] text-white mt-0.5">{broker.cnmv_registry_date || '—'}</p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Jurisdicción</p>
-                                            <p className="text-[13px] text-white mt-0.5">{broker.country}</p>
+                                            <p className="text-[13px] text-white mt-0.5">{broker.jurisdiction || broker.country}</p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Opera desde</p>
@@ -284,16 +314,27 @@ export const MT5Page = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3 mt-4 flex-wrap">
+                                    <div className="flex items-center gap-2 mt-4 flex-wrap">
                                         <a
                                             href={broker.license_url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#14549C]/15 hover:bg-[#14549C]/25 text-[#4a9eff] text-xs font-semibold ring-1 ring-[#14549C]/40 transition-colors"
+                                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 text-xs font-semibold ring-1 ring-emerald-500/40 transition-colors"
                                             data-no-hover
                                             data-testid="mt5-view-license-btn"
                                         >
                                             <FileCheck className="w-3.5 h-3.5" /> Ver licencia oficial
+                                            <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                        <a
+                                            href={broker.cysec_url || 'https://www.cysec.gov.cy/en-GB/entities/investment-firms/cypriot/37947/'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-200 text-xs font-semibold ring-1 ring-cyan-500/40 transition-colors"
+                                            data-no-hover
+                                            data-testid="mt5-validate-regulation-btn"
+                                        >
+                                            <ShieldCheck className="w-3.5 h-3.5" /> Validar regulación
                                             <ExternalLink className="w-3 h-3" />
                                         </a>
                                         <a
@@ -317,7 +358,69 @@ export const MT5Page = () => {
                                 <p className="text-[10px] text-slate-600 mt-1.5">Rating regulatorio</p>
                             </div>
                         </div>
+
+                        {/* Compliance disclaimer */}
+                        <div className="relative mt-5 px-4 py-3 rounded-lg bg-emerald-500/5 ring-1 ring-emerald-500/25">
+                            <div className="flex items-start gap-2">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0 mt-0.5" />
+                                <p className="text-slate-300 text-[11.5px] leading-relaxed">
+                                    Las operaciones financieras e inversiones son gestionadas mediante infraestructura <span className="text-white font-semibold">MetaTrader 5 (MT5)</span> y brokers regulados internacionalmente como <span className="text-emerald-200 font-semibold">eToro</span>, registrado ante la <span className="text-amber-200 font-semibold">CNMV (Nº 2534)</span> y supervisado por entidades financieras europeas, garantizando cumplimiento legal, trazabilidad y seguridad para nuestros usuarios.
+                                </p>
+                            </div>
+                        </div>
                     </Card>
+
+                    {/* ── European Protection visual section ───────── */}
+                    <div className="mt-3" data-testid="mt5-eu-protection">
+                        <Card className="relative overflow-hidden bg-gradient-to-r from-[#003399]/30 via-slate-900/80 to-[#003399]/20 border-[#FFCC00]/30 p-5">
+                            <div
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-0 opacity-[0.04]"
+                                style={{
+                                    background: 'repeating-linear-gradient(45deg, transparent, transparent 24px, #FFCC00 24px, #FFCC00 25px)',
+                                }}
+                            />
+                            <div className="relative flex items-start gap-4 flex-wrap">
+                                {/* EU stars badge */}
+                                <div className="w-14 h-14 rounded-full bg-[#003399] ring-2 ring-[#FFCC00]/60 flex items-center justify-center flex-shrink-0 relative">
+                                    <div className="absolute inset-0 rounded-full" style={{
+                                        background: 'conic-gradient(from 0deg, transparent 0deg, transparent 30deg, #FFCC00 30deg, #FFCC00 32deg, transparent 32deg, transparent 60deg, #FFCC00 60deg, #FFCC00 62deg, transparent 62deg, transparent 90deg, #FFCC00 90deg, #FFCC00 92deg, transparent 92deg, transparent 120deg, #FFCC00 120deg, #FFCC00 122deg, transparent 122deg, transparent 150deg, #FFCC00 150deg, #FFCC00 152deg, transparent 152deg, transparent 180deg, #FFCC00 180deg, #FFCC00 182deg, transparent 182deg, transparent 210deg, #FFCC00 210deg, #FFCC00 212deg, transparent 212deg, transparent 240deg, #FFCC00 240deg, #FFCC00 242deg, transparent 242deg, transparent 270deg, #FFCC00 270deg, #FFCC00 272deg, transparent 272deg, transparent 300deg, #FFCC00 300deg, #FFCC00 302deg, transparent 302deg, transparent 330deg, #FFCC00 330deg, #FFCC00 332deg, transparent 332deg)',
+                                        opacity: 0.8,
+                                        WebkitMask: 'radial-gradient(circle, transparent 18px, black 19px, black 26px, transparent 27px)',
+                                        mask: 'radial-gradient(circle, transparent 18px, black 19px, black 26px, transparent 27px)',
+                                    }} />
+                                    <ShieldCheck className="w-7 h-7 text-[#FFCC00] relative z-10" strokeWidth={2.2} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#FFCC00] font-bold">UE · MiFID II · ICF</p>
+                                    <h3 className="text-white text-base sm:text-lg font-bold mt-0.5" style={{ letterSpacing: '-0.01em' }}>
+                                        Inversiones protegidas bajo regulación europea
+                                    </h3>
+                                    <p className="text-slate-300 text-[12px] mt-1 leading-relaxed max-w-3xl">
+                                        Sus fondos están protegidos por el marco regulatorio de la Unión Europea bajo directivas <span className="text-white font-semibold">MiFID II</span>, supervisión de <span className="text-amber-200 font-semibold">CNMV (España)</span> y <span className="text-cyan-200 font-semibold">CySEC (Chipre)</span>, con cobertura del fondo de compensación de inversores <span className="text-white font-semibold">ICF</span> hasta <span className="text-white font-semibold">€20,000</span> por cliente.
+                                    </p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                                        <div className="px-2.5 py-1.5 rounded-md bg-slate-950/50 ring-1 ring-slate-800">
+                                            <p className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">Cobertura ICF</p>
+                                            <p className="text-emerald-300 text-[12px] font-mono tabular-nums font-bold">€20,000</p>
+                                        </div>
+                                        <div className="px-2.5 py-1.5 rounded-md bg-slate-950/50 ring-1 ring-slate-800">
+                                            <p className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">Segregación</p>
+                                            <p className="text-cyan-300 text-[12px] font-bold">100% Tier-1</p>
+                                        </div>
+                                        <div className="px-2.5 py-1.5 rounded-md bg-slate-950/50 ring-1 ring-slate-800">
+                                            <p className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">Auditoría</p>
+                                            <p className="text-amber-300 text-[12px] font-bold">PwC · KPMG</p>
+                                        </div>
+                                        <div className="px-2.5 py-1.5 rounded-md bg-slate-950/50 ring-1 ring-slate-800">
+                                            <p className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">Cumplimiento</p>
+                                            <p className="text-indigo-300 text-[12px] font-bold">MiFID II</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
                 </div>
 
                 {/* ── Section 3: Professional crypto investment ─── */}
