@@ -17,6 +17,13 @@ import { OpenPositions, PendingOrders, FundsPanel, JournalPanel, StatementPanel 
 import { MT5InvestSection } from '../components/mt5/MT5InvestSection';
 import { MT5CoachWidget } from '../components/mt5/MT5CoachWidget';
 import { BrokerVerifyModal, BrokerVerifyHistory } from '../components/mt5/BrokerVerifyModal';
+import {
+    MT5PrimaryActions,
+    MT5LimitsAndKyc,
+    GlobalWithdrawalsFeed,
+    BlockchainTransactions,
+    ReserveInvestmentModal,
+} from '../components/mt5/MT5HubSections';
 
 const fmtMoney = (n, cur = 'USD') => {
     const symbol = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '';
@@ -79,6 +86,8 @@ export const MT5Page = () => {
     const [copied, setCopied] = useState(false);
     const [verifyOpen, setVerifyOpen] = useState(false);
     const [verifyTick, setVerifyTick] = useState(0);
+    const [hubLimits, setHubLimits] = useState(null);
+    const [reserveOpen, setReserveOpen] = useState(false);
     const heartbeatRef = useRef(null);
 
     const fetchSummary = useCallback(async (silent = false) => {
@@ -90,11 +99,19 @@ export const MT5Page = () => {
         finally { setLoading(false); }
     }, []);
 
+    const fetchHubLimits = useCallback(async () => {
+        try {
+            const res = await api.get('/mt5-hub/limits');
+            setHubLimits(res.data);
+        } catch (e) { /* silent */ }
+    }, []);
+
     useEffect(() => {
         fetchSummary();
+        fetchHubLimits();
         heartbeatRef.current = setInterval(() => fetchSummary(true), 15000);
         return () => clearInterval(heartbeatRef.current);
-    }, [fetchSummary]);
+    }, [fetchSummary, fetchHubLimits]);
 
     const handleSync = async () => {
         setSyncing(true);
@@ -217,6 +234,12 @@ export const MT5Page = () => {
                         </div>
                     </div>
                 </Card>
+
+                {/* ── Primary Hub Actions: Invertir / Reservar / Operar ─── */}
+                <MT5PrimaryActions onReserveClick={() => setReserveOpen(true)} />
+
+                {/* ── Limits + KYC chips strip ─── */}
+                {hubLimits && <MT5LimitsAndKyc data={hubLimits} />}
 
                 {/* ── Section 1: Dashboard KPIs ─────────────── */}
                 <div>
@@ -447,6 +470,12 @@ export const MT5Page = () => {
                 {/* ── Section 3: Professional crypto investment ─── */}
                 <MT5InvestSection />
 
+                {/* ── Section 3b: Hub feeds — global withdrawals + blockchain TX ─ */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <GlobalWithdrawalsFeed />
+                    <BlockchainTransactions />
+                </div>
+
                 {/* ── Section 4: Full trading suite with tabs ─────── */}
                 <MT5TradingSuite account={acc} onAccountChange={() => fetchSummary(true)} />
 
@@ -457,6 +486,12 @@ export const MT5Page = () => {
                 <BrokerVerifyModal
                     open={verifyOpen}
                     onClose={() => { setVerifyOpen(false); setVerifyTick(t => t + 1); }}
+                />
+
+                {/* Reserve future investment modal */}
+                <ReserveInvestmentModal
+                    open={reserveOpen}
+                    onClose={() => setReserveOpen(false)}
                 />
 
                 {/* ── Linked withdrawals / footer ─── */}

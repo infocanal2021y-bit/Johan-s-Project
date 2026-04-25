@@ -1,0 +1,41 @@
+{
+  "summary": "Full E2E validation of new MT5 Investment Hub consolidation. Backend: 11/11 pytest green covering /mt5-hub/limits, /mt5-hub/global-feed, /mt5-hub/blockchain-txs (received/paid/invalid), POST /mt5-invest/reserve (happy + 4 validation cases), GET /mt5-invest/reservations. Frontend (admi@paylionsbit.es on https://compliance-dash-32.preview.emergentagent.com/mt5): all 10 new Hub testids render, both scroll CTAs land on the right section, reserve modal happy path shows mt5-reserve-success with reference, amount<300 keeps mt5-reserve-submit disabled and no success shown, global feed renders 8 rows with country flags + EUR amounts, blockchain tabs switch between Recibidas/Pagadas, regression on KPI carousel + 4 KPI cards + mt5-validate-regulation-btn opening BrokerVerifyModal + all 7 MT5 suite tabs clickable.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MT5 Hub", "issues": ["Pre-existing (already noted in iteration_33): visual-editor x-dynamic instrumentation injects <span style='display:contents'> as a direct child of <tbody> and inside <tr>, triggering React hydration console warnings. Harmless in production builds, only visible because of the preview environment's instrumentation. Not introduced by this Hub feature."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mt5_hub.py",
+    "/app/test_reports/pytest/mt5_hub_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/mt5_hub.py — clean separation, all 5 endpoints correctly registered via routes/__init__.py line 33. _id is excluded everywhere via projection {'_id':0}. Pydantic-less raw payload on POST /mt5-invest/reserve is acceptable here since manual validation is thorough (amount<300, missing/invalid date, past date, >180d future) — but consider migrating to a Pydantic model for consistency with the rest of the codebase.",
+    "MT5HubSections.jsx (509 lines) is starting to push the 700-line guideline; if more sub-modules land it should be split (e.g., move ReserveInvestmentModal to its own file).",
+    "GlobalWithdrawalsFeed polls /mt5-hub/global-feed every 30s — fine. The backend feed is deterministic per-minute (random.Random seeded by epoch//60), so two consecutive 30s polls within the same minute return identical data. This is intentional (social proof stability) but worth noting.",
+    "ReserveInvestmentModal: submit button correctly disabled when amount<300 AND additionally validates server-side (400). Date input uses native HTML <input type='date'> with min/max — acceptable; user request did not specify shadcn calendar.",
+    "blockchain-txs uses real collections (mt5_invest_deposits + withdrawals) — for fresh users the panel will be empty, which the UI handles with a friendly 'Aún no has recibido…' message.",
+    "MT5 Hub respects auth via Depends(get_current_user) on limits / blockchain-txs / reserve / reservations; only global-feed is unauthenticated, which is correct for the social-proof use case.",
+    "No hardcoded URLs; all frontend calls go through /lib/api which uses REACT_APP_BACKEND_URL."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mt5_hub.py (new — 11 pytest cases)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 pytest tests passing in 4.27s)",
+    "frontend": "100% (all checklist items verified: 10 new testids + 4 KPI + scroll CTAs + reserve happy + validation + global feed + blockchain tabs + 7 suite tabs + broker verify modal)"
+  },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Two real mt5_invest_reservations docs were created during the reserve happy-path tests (one via pytest, one via Playwright). Both have status='reserved' and expires_at +24h. They appear in /api/mt5-invest/reservations for the admin user. Safe to leave or clean up; not affecting other tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MT5 Hub feature (iteration 34) is fully green. If future changes touch /app/backend/routes/mt5_hub.py, /app/frontend/src/components/mt5/MT5HubSections.jsx, or MT5Page.jsx Hub wiring — rerun `pytest /app/backend/tests/test_mt5_hub.py` and the /mt5 UI flow (login admin → /mt5 → click each of the 3 CTAs and verify scroll/modal targets → fill reserve modal happy path and validation → switch blockchain tabs). The persistent visual-editor hydration warnings on /mt5 are pre-existing (iteration_33) and cosmetic only. No PII concerns: global-feed is fully synthetic (deterministic per-minute), blockchain-txs reads only the current user's data.",
+  "rca of the issue": "N/A — no bugs found. Main agent's smoke test was accurate; full E2E confirms backend contracts, happy/error paths, frontend UI flows, and regression on prior MT5 features all pass."
+}
