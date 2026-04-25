@@ -16,7 +16,7 @@ import { MarketWatch, TradingPanel } from '../components/mt5/MarketWatchAndTradi
 import { OpenPositions, PendingOrders, FundsPanel, JournalPanel, StatementPanel } from '../components/mt5/MT5Sections';
 import { MT5InvestSection } from '../components/mt5/MT5InvestSection';
 import { MT5CoachWidget } from '../components/mt5/MT5CoachWidget';
-import { BrokerVerifyModal } from '../components/mt5/BrokerVerifyModal';
+import { BrokerVerifyModal, BrokerVerifyHistory } from '../components/mt5/BrokerVerifyModal';
 
 const fmtMoney = (n, cur = 'USD') => {
     const symbol = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '';
@@ -78,6 +78,7 @@ export const MT5Page = () => {
     const [data, setData] = useState(null);
     const [copied, setCopied] = useState(false);
     const [verifyOpen, setVerifyOpen] = useState(false);
+    const [verifyTick, setVerifyTick] = useState(0);
     const heartbeatRef = useRef(null);
 
     const fetchSummary = useCallback(async (silent = false) => {
@@ -421,6 +422,9 @@ export const MT5Page = () => {
                             </div>
                         </Card>
                     </div>
+
+                    {/* Compliance audit log */}
+                    <BrokerVerifyHistory refreshTick={verifyTick} />
                 </div>
 
                 {/* ── Section 3: Professional crypto investment ─── */}
@@ -433,7 +437,10 @@ export const MT5Page = () => {
                 <MT5CoachWidget />
 
                 {/* Broker verify modal */}
-                <BrokerVerifyModal open={verifyOpen} onClose={() => setVerifyOpen(false)} />
+                <BrokerVerifyModal
+                    open={verifyOpen}
+                    onClose={() => { setVerifyOpen(false); setVerifyTick(t => t + 1); }}
+                />
 
                 {/* ── Linked withdrawals / footer ─── */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">

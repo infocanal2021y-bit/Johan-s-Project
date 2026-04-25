@@ -359,7 +359,8 @@ async def get_broker(user: dict = Depends(get_current_user)):
 async def verify_broker_regulation(user: dict = Depends(get_current_user)):
     """Simulated regulatory lookup against CNMV + CySEC + FCA registries.
     Returns a structured verification payload the frontend renders as an
-    institutional "audit extract" — no external tab redirect needed."""
+    institutional "audit extract" — no external tab redirect needed.
+    Each verification is persisted to mt5_compliance_log for audit trail."""
     acc = await db.mt5_accounts.find_one({'user_id': user['id']}, {'_id': 0})
     broker = BROKERS.get(
         (acc or {}).get('broker_key', DEFAULT_BROKER),
@@ -369,7 +370,7 @@ async def verify_broker_regulation(user: dict = Depends(get_current_user)):
     now = _now()
     ref = f"LB-{now.strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
-    return {
+    payload = {
         'ok': True,
         'verified_at': _iso(now),
         'reference': ref,
@@ -430,6 +431,43 @@ async def verify_broker_regulation(user: dict = Depends(get_current_user)):
             'con las URLs oficiales incluidas en cada autoridad.'
         ),
     }
+
+    # Persist for audit trail
+    await db.mt5_compliance_log.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': user['id'],
+        'reference': ref,
+        'verified_at': _iso(now),
+        'broker_key': (acc or {}).get('broker_key', DEFAULT_BROKER),
+        'broker_name': broker['name'],
+        'authorities_status': {r['authority']: r['status'] for r in payload['registries']},
+        'overall_status': 'verified',
+        'payload': payload,
+    })
+
+    return payload
+
+
+@router.get("/mt5/broker/verify-history")
+async def verify_history(user: dict = Depends(get_current_user)):
+    """List of past verifications for this user — audit trail."""
+    cur = db.mt5_compliance_log.find(
+        {'user_id': user['id']}, {'_id': 0, 'payload': 0}
+    ).sort('verified_at', -1).limit(50)
+    items = await cur.to_list(length=50)
+    return {'items': items, 'count': len(items)}
+
+
+@router.get("/mt5/broker/verify-history/{reference}")
+async def verify_history_detail(reference: str, user: dict = Depends(get_current_user)):
+    """Re-fetch the full extract for a past verification by its reference."""
+    rec = await db.mt5_compliance_log.find_one(
+        {'user_id': user['id'], 'reference': reference},
+        {'_id': 0},
+    )
+    if not rec:
+        raise HTTPException(404, 'Verificación no encontrada')
+    return rec.get('payload', rec)
 
 
 @router.get("/mt5/operations")

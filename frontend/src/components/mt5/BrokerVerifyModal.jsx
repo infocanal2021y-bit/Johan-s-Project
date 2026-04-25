@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import {
     ShieldCheck, X, Loader2, CheckCircle2, FileText, Download,
     ExternalLink, Clock, Building2, Sparkles,
+    History as HistoryIcon, Eye,
 } from 'lucide-react';
 
 const fmtDateTime = (iso) => {
@@ -34,7 +35,7 @@ const CHECK_STAGES = [
     { label: 'Firmando extracto regulatorio',           ms: 500 },
 ];
 
-export const BrokerVerifyModal = ({ open, onClose }) => {
+export const BrokerVerifyModal = ({ open, onClose, presetReference = null }) => {
     const [loading, setLoading] = useState(true);
     const [stageIdx, setStageIdx] = useState(0);
     const [data, setData] = useState(null);
@@ -47,10 +48,11 @@ export const BrokerVerifyModal = ({ open, onClose }) => {
 
         let cancelled = false;
 
-        // Animate through stages
+        // Animate through stages — skip animation for preset (historic) loads
+        const stages = presetReference ? [] : CHECK_STAGES;
         let elapsed = 0;
         const timers = [];
-        CHECK_STAGES.forEach((s, i) => {
+        stages.forEach((s, i) => {
             elapsed += s.ms;
             timers.push(setTimeout(() => { if (!cancelled) setStageIdx(i + 1); }, elapsed));
         });
@@ -58,10 +60,11 @@ export const BrokerVerifyModal = ({ open, onClose }) => {
         // Fetch the actual verification payload while stages animate
         (async () => {
             try {
-                const r = await api.post('/mt5/broker/verify');
+                const r = presetReference
+                    ? await api.get(`/mt5/broker/verify-history/${presetReference}`)
+                    : await api.post('/mt5/broker/verify');
                 if (cancelled) return;
-                // Wait for animation to complete gracefully
-                const totalMs = CHECK_STAGES.reduce((s, x) => s + x.ms, 0);
+                const totalMs = stages.reduce((s, x) => s + x.ms, 0);
                 setTimeout(() => { if (!cancelled) { setData(r.data); setLoading(false); } }, totalMs + 150);
             } catch (e) {
                 if (!cancelled) setLoading(false);
@@ -72,7 +75,7 @@ export const BrokerVerifyModal = ({ open, onClose }) => {
             cancelled = true;
             timers.forEach(t => clearTimeout(t));
         };
-    }, [open]);
+    }, [open, presetReference]);
 
     const handlePrint = () => {
         window.print();
@@ -333,5 +336,102 @@ const MiniStat = ({ label, value, color }) => (
         <p className="text-[11.5px] font-bold mt-0.5" style={{ color }}>{value}</p>
     </div>
 );
+
+// ─────────────────────────────────────────────────────────────────
+//  Compliance audit log (user's verification history)
+// ─────────────────────────────────────────────────────────────────
+export const BrokerVerifyHistory = ({ refreshTick = 0 }) => {
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [openRef, setOpenRef] = useState(null);
+
+    const load = async () => {
+        try {
+            const r = await api.get('/mt5/broker/verify-history');
+            setItems(r.data?.items || []);
+        } catch { /* silent */ }
+        finally { setLoading(false); }
+    };
+
+    useEffect(() => { load(); }, [refreshTick]);
+
+    return (
+        <div data-testid="mt5-compliance-history" className="mt-3">
+            <div className="rounded-xl border border-slate-800/80 bg-slate-950/40 overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-slate-800/70 flex items-center justify-between">
+                    <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold inline-flex items-center gap-1.5">
+                        <HistoryIcon className="w-3 h-3 text-cyan-400" />
+                        Historial de verificaciones regulatorias
+                    </p>
+                    <span className="text-[10px] text-slate-600">{items.length} extractos</span>
+                </div>
+                {loading && <p className="px-4 py-5 text-slate-500 text-[12px] text-center">Cargando…</p>}
+                {!loading && items.length === 0 && (
+                    <p className="px-4 py-6 text-slate-500 text-[12px] text-center">
+                        Aún no has solicitado ninguna verificación. Pulsa <span className="text-cyan-300 font-semibold">Validar regulación</span> para generar tu primer extracto auditable.
+                    </p>
+                )}
+                {!loading && items.length > 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-[11.5px]">
+                            <thead>
+                                <tr className="text-slate-600 text-left border-b border-slate-800/70">
+                                    <th className="py-2 px-3 font-semibold uppercase tracking-wider">Fecha</th>
+                                    <th className="py-2 px-3 font-semibold uppercase tracking-wider">Referencia</th>
+                                    <th className="py-2 px-3 font-semibold uppercase tracking-wider">Broker</th>
+                                    <th className="py-2 px-3 font-semibold uppercase tracking-wider hidden md:table-cell">Autoridades</th>
+                                    <th className="py-2 px-3 font-semibold uppercase tracking-wider">Estado</th>
+                                    <th className="py-2 px-3 font-semibold uppercase tracking-wider text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map(it => (
+                                    <tr key={it.id} className="border-b border-slate-800/40 hover:bg-slate-800/20">
+                                        <td className="py-2 px-3 text-slate-400">{fmtDateTime(it.verified_at)}</td>
+                                        <td className="py-2 px-3 text-white font-mono text-[11px]">{it.reference}</td>
+                                        <td className="py-2 px-3 text-slate-300">{it.broker_name}</td>
+                                        <td className="py-2 px-3 hidden md:table-cell">
+                                            <div className="inline-flex gap-1">
+                                                {Object.entries(it.authorities_status || {}).map(([k, v]) => (
+                                                    <span key={k} className={`text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider ${
+                                                        v === 'active'
+                                                            ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30'
+                                                            : 'bg-slate-700 text-slate-400'
+                                                    }`}>{k}</span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td className="py-2 px-3">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ring-1 ring-emerald-500/30 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold">
+                                                <CheckCircle2 className="w-3 h-3" /> Verificado
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-3 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() => setOpenRef(it.reference)}
+                                                data-no-hover
+                                                data-testid={`mt5-history-view-${it.reference}`}
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/70 hover:bg-cyan-500/15 hover:text-cyan-200 ring-1 ring-slate-700 text-slate-300 text-[10.5px] font-semibold transition-colors"
+                                            >
+                                                <Eye className="w-3 h-3" /> Ver extracto
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <BrokerVerifyModal
+                open={!!openRef}
+                onClose={() => setOpenRef(null)}
+                presetReference={openRef}
+            />
+        </div>
+    );
+};
 
 export default BrokerVerifyModal;
