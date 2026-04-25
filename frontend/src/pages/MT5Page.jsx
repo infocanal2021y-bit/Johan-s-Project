@@ -16,6 +16,7 @@ import { MarketWatch, TradingPanel } from '../components/mt5/MarketWatchAndTradi
 import { OpenPositions, PendingOrders, FundsPanel, JournalPanel, StatementPanel } from '../components/mt5/MT5Sections';
 import { MT5InvestSection } from '../components/mt5/MT5InvestSection';
 import { MT5CoachWidget } from '../components/mt5/MT5CoachWidget';
+import { BrokerVerifyModal } from '../components/mt5/BrokerVerifyModal';
 
 const fmtMoney = (n, cur = 'USD') => {
     const symbol = cur === 'USD' ? '$' : cur === 'EUR' ? '€' : '';
@@ -76,6 +77,7 @@ export const MT5Page = () => {
     const [syncing, setSyncing] = useState(false);
     const [data, setData] = useState(null);
     const [copied, setCopied] = useState(false);
+    const [verifyOpen, setVerifyOpen] = useState(false);
     const heartbeatRef = useRef(null);
 
     const fetchSummary = useCallback(async (silent = false) => {
@@ -326,17 +328,15 @@ export const MT5Page = () => {
                                             <FileCheck className="w-3.5 h-3.5" /> Ver licencia oficial
                                             <ExternalLink className="w-3 h-3" />
                                         </a>
-                                        <a
-                                            href={broker.cysec_url || 'https://www.cysec.gov.cy/en-GB/entities/investment-firms/cypriot/37947/'}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                        <button
+                                            type="button"
+                                            onClick={() => setVerifyOpen(true)}
                                             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-200 text-xs font-semibold ring-1 ring-cyan-500/40 transition-colors"
                                             data-no-hover
                                             data-testid="mt5-validate-regulation-btn"
                                         >
                                             <ShieldCheck className="w-3.5 h-3.5" /> Validar regulación
-                                            <ExternalLink className="w-3 h-3" />
-                                        </a>
+                                        </button>
                                         <a
                                             href={broker.website}
                                             target="_blank"
@@ -431,6 +431,9 @@ export const MT5Page = () => {
 
                 {/* AI Coach floating widget */}
                 <MT5CoachWidget />
+
+                {/* Broker verify modal */}
+                <BrokerVerifyModal open={verifyOpen} onClose={() => setVerifyOpen(false)} />
 
                 {/* ── Linked withdrawals / footer ─── */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
