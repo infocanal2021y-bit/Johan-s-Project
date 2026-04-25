@@ -13,6 +13,7 @@ from routes.trading_bot import router as trading_bot_router
 from routes.mt5 import router as mt5_router
 from routes.mt5_invest import router as mt5_invest_router
 from routes.mt5_coach import router as mt5_coach_router
+from routes.mt5_hub import router as mt5_hub_router
 
 
 def register_routes(api_router: APIRouter):
@@ -29,3 +30,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(mt5_router, tags=["mt5"])
     api_router.include_router(mt5_invest_router, tags=["mt5_invest"])
     api_router.include_router(mt5_coach_router, tags=["mt5_coach"])
+    api_router.include_router(mt5_hub_router, tags=["mt5_hub"])
