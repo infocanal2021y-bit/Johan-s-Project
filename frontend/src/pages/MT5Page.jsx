@@ -224,23 +224,40 @@ export const MT5Page = () => {
                         <div className="w-1 h-5 rounded-full bg-[#14549C]" />
                         <h2 className="text-[13px] font-semibold text-slate-200 tracking-wide uppercase">Dashboard de cuenta</h2>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                        <KpiCard icon={Wallet}    label="Balance disponible" color="#14549C" testId="mt5-kpi-balance" accent
-                            value={<OdometerValue value={fmtMoney(acc.balance)} staggerMs={40} />}
-                            sub="Saldo tras operaciones cerradas" />
-                        <KpiCard icon={TrendingUp} label="Equity (tiempo real)" color="#22d3ee" testId="mt5-kpi-equity"
-                            value={<OdometerValue value={fmtMoney(acc.equity)} staggerMs={40} />}
-                            sub="Balance + PnL flotante" />
-                        <KpiCard icon={Activity}  label="Profit / Loss" color={acc.profit >= 0 ? '#0ecb81' : '#f6465d'} testId="mt5-kpi-pnl"
-                            value={
-                                <span className={acc.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
-                                    {acc.profit >= 0 ? '+' : ''}{fmtMoney(Math.abs(acc.profit))}
-                                </span>
-                            }
-                            sub="PnL flotante abierto" />
-                        <KpiCard icon={Gauge}     label="Margin Level" color={mlColor} testId="mt5-kpi-margin-level"
-                            value={acc.margin_level > 0 ? fmtPct(acc.margin_level) : '—'}
-                            sub={`Margen usado: ${fmtMoney(acc.margin_used)}`} />
+                    {/* Mobile: horizontal snap-scroll carousel · Desktop: 4-col grid */}
+                    <div
+                        className="flex md:grid md:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0 pb-2 md:pb-0"
+                        style={{ scrollPaddingLeft: '0.75rem' }}
+                        data-testid="mt5-kpi-carousel"
+                    >
+                        <div className="snap-start flex-shrink-0 w-[78%] sm:w-[60%] md:w-auto">
+                            <KpiCard icon={Wallet}    label="Balance disponible" color="#14549C" testId="mt5-kpi-balance" accent
+                                value={<OdometerValue value={fmtMoney(acc.balance)} staggerMs={40} />}
+                                sub="Saldo tras operaciones cerradas" />
+                        </div>
+                        <div className="snap-start flex-shrink-0 w-[78%] sm:w-[60%] md:w-auto">
+                            <KpiCard icon={TrendingUp} label="Equity (tiempo real)" color="#22d3ee" testId="mt5-kpi-equity"
+                                value={<OdometerValue value={fmtMoney(acc.equity)} staggerMs={40} />}
+                                sub="Balance + PnL flotante" />
+                        </div>
+                        <div className="snap-start flex-shrink-0 w-[78%] sm:w-[60%] md:w-auto">
+                            <KpiCard icon={Activity}  label="Profit / Loss" color={acc.profit >= 0 ? '#0ecb81' : '#f6465d'} testId="mt5-kpi-pnl"
+                                value={
+                                    <span className={acc.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                                        {acc.profit >= 0 ? '+' : ''}{fmtMoney(Math.abs(acc.profit))}
+                                    </span>
+                                }
+                                sub="PnL flotante abierto" />
+                        </div>
+                        <div className="snap-start flex-shrink-0 w-[78%] sm:w-[60%] md:w-auto">
+                            <KpiCard icon={Gauge}     label="Margin Level" color={mlColor} testId="mt5-kpi-margin-level"
+                                value={acc.margin_level > 0 ? fmtPct(acc.margin_level) : '—'}
+                                sub={`Margen usado: ${fmtMoney(acc.margin_used)}`} />
+                        </div>
+                    </div>
+                    {/* Mobile-only swipe hint dots */}
+                    <div className="flex justify-center gap-1 mt-2 md:hidden" aria-hidden="true">
+                        {[0,1,2,3].map(i => <span key={i} className="w-1 h-1 rounded-full bg-slate-700" />)}
                     </div>
                 </div>
 
