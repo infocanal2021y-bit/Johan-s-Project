@@ -355,6 +355,21 @@ export const WithdrawPage = () => {
     const [activityScore, setActivityScore] = useState(null);
     const [withdrawVisits, setWithdrawVisits] = useState(0);
 
+    // Partial unlock 40% — gate + cap
+    const [unlockMaxEur, setUnlockMaxEur] = useState(null); // null = unknown, 0 = locked, >0 = cap
+    useEffect(() => {
+        let cancelled = false;
+        import('../lib/api').then(({ default: api }) => {
+            api.get('/partial-unlock/status').then(r => {
+                if (cancelled) return;
+                const ar = r.data?.active_request;
+                if (ar?.status === 'approved') setUnlockMaxEur(Number(ar.max_withdraw_eur_snapshot || 0));
+                else setUnlockMaxEur(0);
+            }).catch(() => { if (!cancelled) setUnlockMaxEur(0); });
+        });
+        return () => { cancelled = true; };
+    }, []);
+
     // Check KYC status on load
     useEffect(() => {
         const checkKYC = async () => {
@@ -1241,6 +1256,23 @@ export const WithdrawPage = () => {
                                                     {currency === 'USD' ? '$' : '€'}{currentBalance.toFixed(2)}
                                                 </span>
                                             </p>
+                                        )}
+                                        {/* Partial-unlock 40% gate indicator */}
+                                        {unlockMaxEur !== null && (
+                                            <div className="mt-1.5" data-testid="withdraw-unlock-indicator">
+                                                {unlockMaxEur > 0 ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-cyan-500/10 ring-1 ring-cyan-500/30 text-cyan-200 text-[11px] font-semibold">
+                                                        <Lock className="w-3 h-3 rotate-[-12deg]" />
+                                                        Límite por retiro: <span className="font-mono font-bold text-cyan-100">€{unlockMaxEur.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })}</span>
+                                                        <span className="text-cyan-400/70">· 40% desbloqueado</span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-200 text-[11px] font-semibold">
+                                                        <Lock className="w-3 h-3" />
+                                                        Retiro bloqueado · activa "Desbloqueo 40%" arriba
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
 

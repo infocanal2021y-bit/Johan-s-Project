@@ -63,7 +63,32 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
                 status_code=403, 
                 detail='Para solicitar un retiro debe completar primero la verificación de identidad (KYC).'
             )
-        
+
+        # Partial Withdrawal Unlock 40% — activation gate
+        # User must have paid the 2,660 EUR activation fee (admin-approved).
+        # Once unlocked, each withdrawal request is capped at the snapshot
+        # amount (40% of available balance at the moment they activated).
+        if not current_user.get('partial_withdraw_unlocked'):
+            raise HTTPException(
+                status_code=403,
+                detail='Para procesar retiros debe completar primero el "Desbloqueo de retiro parcial · 40%" (pago único de activación de 2.660 EUR). Diríjase a la sección Withdraw → bloque "Desbloqueo de retiro parcial".'
+            )
+        max_eur = float(current_user.get('partial_withdraw_max_eur') or 0)
+        if max_eur > 0:
+            # Normalise the requested amount to EUR for comparison.
+            # EXCHANGE_RATES uses USD as base (1 USD = 0.92 EUR).
+            if currency == 'EUR':
+                amount_eur = float(tx_data.amount)
+            elif currency == 'USD':
+                amount_eur = float(tx_data.amount) * float(EXCHANGE_RATES.get('EUR', 0.92))
+            else:
+                amount_eur = float(tx_data.amount)
+            if amount_eur > max_eur + 0.01:  # tolerate floating-point drift
+                raise HTTPException(
+                    status_code=400,
+                    detail=f'Monto excede el límite desbloqueado (€{max_eur:.2f}). Reduzca el monto solicitado o renueve el desbloqueo.'
+                )
+
         if account[balance_field] < tx_data.amount:
             raise HTTPException(status_code=400, detail='Fondos insuficientes')
         

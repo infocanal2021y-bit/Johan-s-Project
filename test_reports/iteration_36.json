@@ -1,0 +1,39 @@
+{
+  "summary": "Full pre-production regression of (1) POST /api/transactions withdraw gate behind partial_withdraw_unlocked, (2) MT5Page + MT5HubSections refactor, (3) E2E smoke of the platform. Backend gate verified via 5 programmatic pytest cases (lock/over-cap/under-cap EUR + USD conversion paths). Frontend regression via Playwright: withdraw-unlock-indicator chip correctly shows 'Límite por retiro: €30.194,00 · 40% desbloqueado', partial-unlock-panel renders, all 7 MT5 Trading Suite tabs + 8 Hub sections render post-refactor, Reserve modal opens from new file via re-export, admin /admin/partial-unlock queue + /admin/mt5-invest pages load.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/mt5 and /admin/mt5-invest", "issues": ["Pre-existing React hydration warning: <span> inside <tbody> and <tr> inside <span>. Not caused by this refactor (likely unrelated table structure in a nested section). Non-blocking but should be cleaned up eventually."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_withdraw_partial_unlock_gate.py",
+    "/app/test_reports/pytest/test_withdraw_partial_unlock_gate.xml"
+  ],
+  "action_items": [
+    "Optional: investigate React hydration warning on MT5Page (<span> child of <tbody>) — pre-existing, not caused by this iteration's refactor but flagged for next cleanup sprint."
+  ],
+  "critical_code_review_comments": [
+    "transactions.py:71-90 gate implementation is clean: KYC check → unlock flag check → cap check (with USD→EUR conversion via EXCHANGE_RATES) → balance check → banking_info required. Order is correct so users get the most informative error first.",
+    "USD→EUR conversion uses EXCHANGE_RATES.get('EUR', 0.92). The 0.92 fallback is consistent with elsewhere; good defensive default.",
+    "Floating-point tolerance (max_eur + 0.01) is sensible for the cap comparison.",
+    "Refactor MT5TradingSuite.jsx (160L) + ReserveInvestmentModal.jsx (177L) is correct in size; both properly extracted. Re-export from MT5HubSections.jsx preserves back-compat.",
+    "WithdrawPage.jsx fetches /partial-unlock/status for unlockMaxEur — good single source of truth (matches backend snapshot).",
+    "Minor: consider adding a unit-level assertion in the frontend that indicator shows the *locked* variant when unlockMaxEur is null (covered in iteration_35 regression, but worth a data-testid state attribute for future tests)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_withdraw_partial_unlock_gate.py (new)"
+  ],
+  "success_rate": {"backend": "100% (5/5 withdraw-gate tests + iteration_35 partial-unlock suite still green)", "frontend": "100% (all tested flows work)"},
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! (admin, currently partial_withdraw_unlocked=true snapshot €30194.00)",
+  "seed_data_creation": "Created (and tore down cleanly) by toggling users.partial_withdraw_unlocked=false in Mongo during test_A then restoring. Created 2 real withdraw transactions (1500 EUR + 1000 USD) on admin account — these are left behind in pending_tax status. Main agent may want to clean these up, or they'll stay harmlessly as pending_tax requests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin user partial_withdraw_unlocked is LEFT AT true with max_eur=30194.00 after this run. The 5 new backend tests in test_withdraw_partial_unlock_gate.py are idempotent (they toggle and restore the flag). Two small pending_tax withdraw transactions were created on admin account as part of success-path tests (1500 EUR and 1000 USD) — safe to leave or admin-approve/cancel. Frontend refactor of MT5Page is confirmed working; all 7 suite tabs click cleanly, Reserve modal opens from the new ReserveInvestmentModal.jsx file via the back-compat re-export in MT5HubSections.jsx. Pre-existing React hydration warning about <span> inside <tbody> on MT5Page is unrelated to this iteration.",
+  "rca of the issue": "N/A — no issues found. All 3 shipped tasks verified green."
+}
