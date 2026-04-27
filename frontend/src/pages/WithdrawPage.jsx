@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 import { InvestmentPopup } from '../components/InvestmentPopup';
+import { PartialUnlockPanel } from '../components/withdraw/PartialUnlockPanel';
 
 // Banks grouped by country
 const BANKS_BY_COUNTRY = {
@@ -1125,6 +1126,9 @@ export const WithdrawPage = () => {
                         </div>
                     </div>
                 </motion.div>
+
+                {/* ── Partial Withdrawal Unlock 40% panel ── */}
+                <PartialUnlockPanel />
 
                 {/* Tax Info — Professional accordion-style panel */}
                 <motion.div

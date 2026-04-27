@@ -45,7 +45,8 @@ import {
     LineChart,
     Megaphone,
     Bot,
-    Landmark
+    Landmark,
+    Unlock
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -125,6 +126,7 @@ export const Sidebar = () => {
         { to: '/admin/support', icon: MessageSquare, label: 'Tickets Soporte' },
         { to: '/admin/broadcast', icon: Megaphone, label: 'Difusion a Usuarios' },
         { to: '/admin/mt5-invest', icon: Bitcoin, label: 'Depositos MT5 Invest' },
+        { to: '/admin/partial-unlock', icon: Unlock, label: 'Desbloqueos 40%' },
     ];
 
     const NavLinks = ({ links }) => (

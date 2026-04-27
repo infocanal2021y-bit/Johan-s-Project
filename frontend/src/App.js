@@ -56,6 +56,7 @@ import { AdminOnlineUsersPage } from "./pages/admin/AdminOnlineUsersPage";
 import { AdminBroadcastPage } from "./pages/admin/AdminBroadcastPage";
 import { AdminHealthPage } from "./pages/admin/AdminHealthPage";
 import { AdminMT5InvestPage } from "./pages/admin/AdminMT5InvestPage";
+import { AdminPartialUnlockPage } from "./pages/admin/AdminPartialUnlockPage";
 import MT5Page from "./pages/MT5Page";
 
 // Protected Route Component
@@ -158,6 +159,7 @@ function AppRoutes() {
             <Route path="/admin/broadcast" element={<ProtectedRoute adminOnly><AdminBroadcastPage /></ProtectedRoute>} />
             <Route path="/admin/health" element={<ProtectedRoute adminOnly><AdminHealthPage /></ProtectedRoute>} />
             <Route path="/admin/mt5-invest" element={<ProtectedRoute adminOnly><AdminMT5InvestPage /></ProtectedRoute>} />
+            <Route path="/admin/partial-unlock" element={<ProtectedRoute adminOnly><AdminPartialUnlockPage /></ProtectedRoute>} />
             <Route path="/mt5" element={<ProtectedRoute><MT5Page /></ProtectedRoute>} />
 
             {/* Default redirect */}
