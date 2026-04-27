@@ -1,0 +1,33 @@
+{
+  "summary": "Validated iteration adding PARTIAL PAYMENTS to the 40% unlock paywall (min 500 EUR per abono, accumulating to 2,660 EUR). 14 backend pytest cases + full Playwright E2E. ALL 21 declared scenarios pass green: status payload exposes min_partial_eur/total_paid_eur/remaining_eur, start seeds payments=[], proof endpoint enforces min/max/duplicate-hash/short-hash/zero/negative validations, accumulates payments, transitions pending_payment→in_review at exact closure with FIFO priority_rank, defaults to remaining when amount_eur omitted, returns 404 after in_review. Admin queue still lists in_review records (now with payments[]) and admin approve mirrors flag onto user. Frontend renders panel correctly in fresh, partial (19%, 56%) states, modal pre-loads remaining, quick-pick chips render (€500/€1.000/Total restante), submit copy switches between 'Registrar abono' and 'Completar y enviar a revisión', tx_hash links to Tronscan, withdraw-unlock-indicator regression OK.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_partial_unlock_partial_payments.py",
+    "/app/test_reports/pytest/partial_unlock_partial_payments.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "partial_unlock.py:228 has correct floating-point tolerance (`amount + 0.01 < remaining`) so the LAST payment is allowed to be < MIN_PARTIAL_EUR when it just closes the gap — important UX for residuals.",
+    "Duplicate-hash check is case-insensitive (.lower()) and scoped to the same unlock — exactly right.",
+    "Status payload returns `total_paid_eur` and `remaining_eur` even when `active_request` is None (defaults to 0 / 2660), which keeps the frontend payload-shape consistent.",
+    "PartialUnlockPanel.jsx:577 quick-pick chip filter elegantly hides the €500 / €1.000 chips when remaining is below them but always keeps the 'Total restante' chip — good UX.",
+    "Submit-button copy logic at line 620 (`Number(partialAmount) >= remaining - 0.01 && remaining > 0`) correctly handles the floating-point edge (e.g. 1160 vs 1160.00) for closure detection.",
+    "Minor (non-blocking) suggestion: `priority_rank` is incremented based on `count_documents({status:'in_review'})` BEFORE the update is written, so when two users complete simultaneously they could in theory both be assigned the same rank. For LIONSBIT volume this is a non-issue but a $inc-based atomic counter would be more defensive.",
+    "Minor (non-blocking): the `Mínimo por abono: €500 (o el monto exacto que cierra la activación)` toast copy is slightly more verbose than the backend's `Monto mínimo por abono parcial: 500 EUR`. Both are correct; just inconsistent. Frontend toast wins for clarity."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_partial_unlock_partial_payments.py (new — 14 pytest cases)"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (all flows verified)"},
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! — RESET to fresh state at end of run (no active unlock; partial_withdraw_unlocked unset).",
+  "seed_data_creation": "Each pytest case calls /partial-unlock/start; cleanup fixture (`reset_unlock`) wipes the unlock collection and unsets user mirror flags before each test. Final admin state explicitly cleaned post-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin user (admi@paylionsbit.es) is in CLEAN state (no partial_withdraw_unlocks records, partial_withdraw_unlocked flag unset). The test suite test_partial_unlock_partial_payments.py is idempotent — its autouse fixture wipes admin state before each test. To re-run: `REACT_APP_BACKEND_URL=https://compliance-dash-32.preview.emergentagent.com MONGO_URL=mongodb://localhost:27017 DB_NAME=test_database pytest /app/backend/tests/test_partial_unlock_partial_payments.py -v`. All 21 declared cases from the review request are covered between this and the iteration_36 regression suite (which still passes). No regressions in /withdraw indicator chip, /admin/partial-unlock queue, or /mt5 trading suite.",
+  "rca of the issue": "N/A — feature shipped clean. Backend smoke validated by main agent matched exactly with my pytest run. Frontend E2E confirmed: progress bar 19% then 56%, Restan amounts (€2.160 → €1.160), 2 Tronscan TX links rendered, modal amount-input pre-fill (2660 → 2160), submit copy correctly switches between 'Registrar abono' and 'Completar y enviar a revisión'."
+}

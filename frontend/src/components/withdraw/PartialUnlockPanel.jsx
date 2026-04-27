@@ -130,6 +130,7 @@ export const PartialUnlockPanel = () => {
     const [proofOpen, setProofOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
     const [txHash, setTxHash] = useState('');
+    const [partialAmount, setPartialAmount] = useState('');
     const [supportNote, setSupportNote] = useState('');
     const [copied, setCopied] = useState(false);
 
@@ -148,11 +149,19 @@ export const PartialUnlockPanel = () => {
         return () => clearInterval(id);
     }, [fetchStatus]);
 
+    // Default the amount input to the remaining when opening the modal
+    useEffect(() => {
+        if (proofOpen && data) {
+            const rem = Number(data.remaining_eur || 0);
+            setPartialAmount(rem > 0 ? String(rem) : '');
+        }
+    }, [proofOpen, data]);
+
     const startProcess = async () => {
         setActionLoading(true);
         try {
             await api.post('/partial-unlock/start');
-            toast.success('Solicitud iniciada · realiza el pago de 2.660 EUR');
+            toast.success('Solicitud iniciada · puedes pagar desde 500 EUR por abono');
             await fetchStatus(true);
         } catch (e) {
             toast.error(e.response?.data?.detail || 'No se pudo iniciar el proceso');
@@ -164,12 +173,35 @@ export const PartialUnlockPanel = () => {
             toast.error('Introduce un TX hash válido (≥10 caracteres)');
             return;
         }
+        const amt = Number(partialAmount);
+        const remaining = Number(data?.remaining_eur || 0);
+        const minPartial = Number(data?.config?.min_partial_eur || 500);
+        if (!amt || amt <= 0) {
+            toast.error('Indica el monto del abono');
+            return;
+        }
+        // Min 500 EUR per partial — except when it just closes the gap
+        if (amt < minPartial && Math.abs(amt - remaining) > 0.01) {
+            toast.error(`Mínimo por abono: €${minPartial.toFixed(0)} (o el monto exacto que cierra la activación)`);
+            return;
+        }
+        if (amt > remaining + 0.01) {
+            toast.error(`Excede lo pendiente. Restan €${remaining.toFixed(2)}`);
+            return;
+        }
         setActionLoading(true);
         try {
-            await api.post('/partial-unlock/proof', { tx_hash: txHash.trim() });
-            toast.success('Comprobante enviado · estado: En revisión');
+            const r = await api.post('/partial-unlock/proof', {
+                tx_hash: txHash.trim(),
+                amount_eur: amt,
+            });
+            const completed = !!r.data?.completed;
+            toast.success(completed
+                ? '¡Activación completa! Pasaste a "En revisión"'
+                : `Abono de €${amt.toFixed(2)} registrado · Total: €${Number(r.data?.total_paid_eur || 0).toFixed(2)} / €2.660`);
             setProofOpen(false);
             setTxHash('');
+            setPartialAmount('');
             await fetchStatus(true);
         } catch (e) {
             toast.error(e.response?.data?.detail || 'Error al enviar el comprobante');
@@ -208,7 +240,7 @@ export const PartialUnlockPanel = () => {
 
     if (!data) return null;
 
-    const { config, available_balance_eur, live_max_withdraw_eur, active_request, history } = data;
+    const { config, available_balance_eur, live_max_withdraw_eur, active_request, history, total_paid_eur, remaining_eur } = data;
     const status = active_request?.status || 'none';
     const method = config.payment_method;
     const isApproved = status === 'approved';
@@ -217,6 +249,11 @@ export const PartialUnlockPanel = () => {
     // amount we display as "40% unlocked" — snapshot if there is an active request,
     // otherwise the live calc so the user sees what they would unlock right now.
     const displayMax = active_request?.max_withdraw_eur_snapshot ?? live_max_withdraw_eur;
+    const minPartial = Number(config.min_partial_eur || 500);
+    const paid = Number(total_paid_eur || 0);
+    const remaining = Number(remaining_eur || 0);
+    const progressPct = Math.min(100, Math.round((paid / Number(config.required_eur || 2660)) * 100));
+    const payments = active_request?.payments || [];
 
     return (
         <motion.div
@@ -247,7 +284,7 @@ export const PartialUnlockPanel = () => {
                                 Desbloqueo de retiro parcial · 40%
                             </h2>
                             <p className="text-slate-400 text-[12px] mt-1 leading-snug max-w-2xl">
-                                Activa el retiro de hasta el <span className="text-white font-semibold">40 %</span> de tu saldo disponible. Pago único de activación de <span className="text-cyan-300 font-mono font-bold">2.660 EUR</span> en USDT TRC20.
+                                Activa el retiro de hasta el <span className="text-white font-semibold">40 %</span> de tu saldo disponible. Pago único de activación de <span className="text-cyan-300 font-mono font-bold">2.660 EUR</span> en USDT TRC20 — <span className="text-emerald-300 font-semibold">abonos parciales desde €{minPartial.toFixed(0)}</span> hasta completarlo.
                             </p>
                         </div>
                     </div>
@@ -282,22 +319,85 @@ export const PartialUnlockPanel = () => {
                                 {active_request ? 'Snapshot fijado al iniciar' : 'Cálculo en vivo'}
                             </p>
                         </div>
-                        {/* Required */}
+                        {/* Required / Paid */}
                         <div className={`rounded-xl ring-1 p-3.5 ${isApproved ? 'bg-emerald-500/10 ring-emerald-500/40' : 'bg-amber-500/10 ring-amber-500/40'}`} data-testid="partial-unlock-required">
                             <div className="flex items-center gap-1.5 mb-1.5">
                                 <CreditCard className={`w-3 h-3 ${isApproved ? 'text-emerald-300' : 'text-amber-300'}`} />
                                 <p className={`text-[9.5px] uppercase tracking-wider font-bold ${isApproved ? 'text-emerald-300' : 'text-amber-300'}`}>
-                                    {isApproved ? 'Pagado' : 'Pago requerido'}
+                                    {isApproved ? 'Pagado' : (paid > 0 ? `Abonado · ${progressPct}%` : 'Pago requerido')}
                                 </p>
                             </div>
-                            <p className={`text-xl font-mono tabular-nums font-bold ${isApproved ? 'text-emerald-200' : 'text-amber-200'}`}>
-                                €{fmtEUR(config.required_eur)}
+                            <p className={`text-xl font-mono tabular-nums font-bold ${isApproved ? 'text-emerald-200' : 'text-amber-200'}`} data-testid="partial-unlock-paid-display">
+                                {isApproved
+                                    ? `€${fmtEUR(config.required_eur)}`
+                                    : (paid > 0
+                                        ? `€${fmtEUR(paid)} / €${fmtEUR(config.required_eur)}`
+                                        : `€${fmtEUR(config.required_eur)}`)}
                             </p>
                             <p className={`text-[10px] mt-0.5 ${isApproved ? 'text-emerald-400/70' : 'text-amber-400/70'}`}>
-                                {isApproved ? 'Activación confirmada' : 'USDT TRC20 · 1 confirmación'}
+                                {isApproved
+                                    ? 'Activación confirmada'
+                                    : (paid > 0
+                                        ? `Restan €${fmtEUR(remaining)}`
+                                        : `Desde €${fmtEUR(minPartial)} por abono`)}
                             </p>
                         </div>
                     </div>
+
+                    {/* Progress bar (only while paying) */}
+                    {isPendingPayment && paid > 0 && (
+                        <div className="rounded-xl bg-slate-950/60 ring-1 ring-cyan-500/25 p-3" data-testid="partial-unlock-progress">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <p className="text-[10px] uppercase tracking-wider text-cyan-300 font-bold">
+                                    Progreso de activación
+                                </p>
+                                <p className="text-cyan-200 text-[11px] font-mono font-bold">{progressPct}%</p>
+                            </div>
+                            <div className="relative h-2 rounded-full bg-slate-800 overflow-hidden">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${progressPct}%` }}
+                                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full shadow-[0_0_12px_rgba(34,211,238,0.45)]"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between mt-1.5 text-[10.5px]">
+                                <span className="text-emerald-300 font-mono font-bold">€{fmtEUR(paid)}</span>
+                                <span className="text-slate-500">restan <span className="text-amber-300 font-mono font-bold">€{fmtEUR(remaining)}</span></span>
+                                <span className="text-slate-500 font-mono">€{fmtEUR(config.required_eur)}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Submitted partial payments list */}
+                    {payments.length > 0 && (
+                        <div className="rounded-xl bg-slate-950/40 ring-1 ring-slate-800/80 p-3" data-testid="partial-unlock-payments-list">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-2">
+                                Abonos registrados ({payments.length})
+                            </p>
+                            <ul className="space-y-1.5">
+                                {payments.map((p, i) => (
+                                    <li key={p.id || i} className="flex items-center justify-between gap-2 text-[11.5px]">
+                                        <span className="inline-flex items-center gap-1.5 text-slate-300">
+                                            <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                                            <span className="font-mono font-bold text-emerald-200">€{fmtEUR(p.amount_eur)}</span>
+                                            <a
+                                                href={`${method.tx_explorer}${p.tx_hash}`}
+                                                target="_blank" rel="noopener noreferrer"
+                                                className="text-slate-500 hover:text-cyan-300 font-mono text-[10.5px] inline-flex items-center gap-1"
+                                                data-no-hover
+                                            >
+                                                <Hash className="w-2.5 h-2.5" />
+                                                {p.tx_hash.slice(0, 6)}…{p.tx_hash.slice(-4)}
+                                                <ExternalLink className="w-2.5 h-2.5" />
+                                            </a>
+                                        </span>
+                                        <span className="text-slate-600 text-[10px] whitespace-nowrap">{fmtDate(p.submitted_at)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     {/* CTA strip — context-aware */}
                     {status === 'none' && (
@@ -314,7 +414,16 @@ export const PartialUnlockPanel = () => {
                     )}
 
                     {isPendingPayment && (
-                        <PaymentDetails method={method} requiredEur={config.required_eur} onCopy={copyAddress} copied={copied} onProof={() => setProofOpen(true)} />
+                        <PaymentDetails
+                            method={method}
+                            requiredEur={config.required_eur}
+                            remainingEur={remaining}
+                            minPartial={minPartial}
+                            paid={paid}
+                            onCopy={copyAddress}
+                            copied={copied}
+                            onProof={() => setProofOpen(true)}
+                        />
                     )}
 
                     {isInReview && (
@@ -428,21 +537,64 @@ export const PartialUnlockPanel = () => {
                                     <Upload className="w-4.5 h-4.5 text-amber-300" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-[0.16em] text-amber-300 font-bold">Paso 2 de 3</p>
-                                    <h3 className="text-white text-base font-bold">Subir comprobante</h3>
+                                    <p className="text-[10px] uppercase tracking-[0.16em] text-amber-300 font-bold">
+                                        {paid > 0 ? 'Nuevo abono parcial' : 'Primer abono'}
+                                    </p>
+                                    <h3 className="text-white text-base font-bold">Registrar comprobante</h3>
                                 </div>
                             </div>
                             <div className="px-5 py-5 space-y-3">
                                 <div className="rounded-lg bg-slate-950/60 ring-1 ring-slate-800 p-3">
-                                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Pago realizado</p>
-                                    <p className="text-white text-base font-mono tabular-nums font-bold mt-0.5">€{fmtEUR(config.required_eur)} · USDT TRC20</p>
-                                    <p className="text-slate-500 text-[10.5px] mt-0.5">Hacia: {method.wallet_address}</p>
+                                    <div className="flex items-center justify-between gap-3 mb-1">
+                                        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Activación</p>
+                                        <p className="text-emerald-300 text-[11px] font-mono font-bold">{progressPct}% completado</p>
+                                    </div>
+                                    <p className="text-white text-base font-mono tabular-nums font-bold mt-0.5">
+                                        €{fmtEUR(paid)} <span className="text-slate-600">/</span> €{fmtEUR(config.required_eur)}
+                                    </p>
+                                    <p className="text-slate-500 text-[10.5px] mt-0.5">
+                                        Restan <span className="text-amber-300 font-mono font-bold">€{fmtEUR(remaining)}</span> · USDT TRC20 · Min €{fmtEUR(minPartial)} por abono
+                                    </p>
                                 </div>
+
+                                <label className="block">
+                                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Monto del abono (EUR)</span>
+                                    <input
+                                        type="number"
+                                        min={Math.min(minPartial, remaining)}
+                                        max={remaining}
+                                        step="50"
+                                        value={partialAmount}
+                                        onChange={(e) => setPartialAmount(e.target.value)}
+                                        placeholder={`Min ${minPartial.toFixed(0)}`}
+                                        data-testid="partial-unlock-amount-input"
+                                        className="w-full h-11 mt-1 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-base font-mono tabular-nums font-bold focus:outline-none focus:border-cyan-500/50"
+                                    />
+                                    {/* Quick-pick chips */}
+                                    <div className="flex items-center gap-1.5 mt-2 flex-wrap" data-testid="partial-unlock-quick-picks">
+                                        {[500, 1000, 2660].map((v) => {
+                                            const value = Math.min(v, remaining);
+                                            if (value < minPartial && Math.abs(value - remaining) > 0.01) return null;
+                                            const label = v >= 2660 ? `Total restante (€${fmtEUR(remaining)})` : `€${fmtEUR(value)}`;
+                                            return (
+                                                <button
+                                                    key={v}
+                                                    type="button"
+                                                    data-no-hover
+                                                    onClick={() => setPartialAmount(String(value))}
+                                                    className="text-[10.5px] px-2 py-1 rounded-md bg-slate-900 ring-1 ring-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </label>
+
                                 <label className="block">
                                     <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">TX Hash de la transacción</span>
                                     <input
                                         type="text"
-                                        autoFocus
                                         value={txHash}
                                         onChange={(e) => setTxHash(e.target.value)}
                                         placeholder="ej. a1b2c3d4e5f6..."
@@ -460,12 +612,12 @@ export const PartialUnlockPanel = () => {
                                     </Button>
                                     <Button
                                         onClick={submitProof}
-                                        disabled={actionLoading || txHash.trim().length < 10}
+                                        disabled={actionLoading || txHash.trim().length < 10 || !partialAmount || Number(partialAmount) <= 0}
                                         data-testid="partial-unlock-proof-submit"
                                         className="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold"
                                     >
                                         {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                                        Enviar a revisión
+                                        {Number(partialAmount) >= remaining - 0.01 && remaining > 0 ? 'Completar y enviar a revisión' : 'Registrar abono'}
                                     </Button>
                                 </div>
                             </div>
@@ -541,7 +693,8 @@ export const PartialUnlockPanel = () => {
 
 
 // ─────────────── Sub-component: Payment details when pending_payment ───────────────
-const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof }) => {
+const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainingEur, minPartial, paid }) => {
+    const showAmount = remainingEur != null ? remainingEur : requiredEur;
     return (
         <div className="rounded-xl bg-slate-950/60 ring-1 ring-cyan-500/30 p-4 space-y-3" data-testid="partial-unlock-payment-details">
             <div className="flex items-center gap-2">
@@ -552,9 +705,14 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof }) => {
                 <p className="text-slate-400 text-[11px]">Recomendado · ~{method.avg_confirmation_min} min</p>
             </div>
             <div>
-                <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Monto exacto a enviar</p>
+                <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">
+                    {paid > 0 ? 'Pendiente por completar' : 'Monto a enviar (puedes hacer abonos)'}
+                </p>
                 <p className="text-white text-2xl font-mono tabular-nums font-bold mt-0.5" data-testid="partial-unlock-amount-display">
-                    €{fmtEUR(requiredEur)}
+                    €{fmtEUR(showAmount)}
+                </p>
+                <p className="text-slate-500 text-[10.5px] mt-1">
+                    Mínimo por abono parcial: <span className="text-cyan-300 font-mono font-bold">€{fmtEUR(minPartial || 500)}</span>
                 </p>
             </div>
             <div>
@@ -585,7 +743,7 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof }) => {
                 className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold tracking-wider shadow-md"
             >
                 <Upload className="w-4 h-4 mr-2" />
-                Ya pagué · Subir comprobante
+                {paid > 0 ? 'Registrar nuevo abono' : 'Ya pagué · Subir comprobante'}
             </Button>
         </div>
     );

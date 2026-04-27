@@ -45,6 +45,7 @@ router = APIRouter()
 
 # ── Constants ─────────────────────────────────────────────────────
 REQUIRED_EUR = 2660.0
+MIN_PARTIAL_EUR = 500.0  # minimum per partial payment (lowers entry friction)
 UNLOCK_PCT = 40.0  # 40 % of available balance
 PAYMENT_METHOD = {
     'key': 'usdt_trc20',
@@ -80,6 +81,17 @@ def _serialize(doc: dict) -> dict:
     return d
 
 
+def _total_paid_eur(unlock: dict) -> float:
+    """Sum of all partial payments submitted for this unlock."""
+    if not unlock:
+        return 0.0
+    return float(sum((p.get('amount_eur') or 0) for p in (unlock.get('payments') or [])))
+
+
+def _remaining_eur(unlock: dict) -> float:
+    return max(0.0, REQUIRED_EUR - _total_paid_eur(unlock))
+
+
 # ══════════════════════════════════════════════════════════════════
 #  USER ENDPOINTS
 # ══════════════════════════════════════════════════════════════════
@@ -111,12 +123,15 @@ async def get_status(user: dict = Depends(get_current_user)):
     return {
         'config': {
             'required_eur': REQUIRED_EUR,
+            'min_partial_eur': MIN_PARTIAL_EUR,
             'unlock_pct': UNLOCK_PCT,
             'payment_method': PAYMENT_METHOD,
         },
         'available_balance_eur': round(available_eur, 2),
         'live_max_withdraw_eur': live_max_withdraw,
         'active_request': active,
+        'total_paid_eur': round(_total_paid_eur(active), 2),
+        'remaining_eur': round(_remaining_eur(active), 2) if active else REQUIRED_EUR,
         'history': history,
         # convenience flags for the UI
         'can_start': active is None,
@@ -155,8 +170,9 @@ async def start_request(user: dict = Depends(get_current_user)):
         'max_withdraw_eur_snapshot': snapshot_max,
         'payment_method': PAYMENT_METHOD['key'],
         'wallet_address': PAYMENT_METHOD['wallet_address'],
-        'tx_hash': None,
-        'proof_uploaded_at': None,
+        'tx_hash': None,             # legacy single-payment field (latest payment)
+        'proof_uploaded_at': None,   # legacy field (timestamp of latest payment)
+        'payments': [],              # NEW: list of partial payments
         'admin_validated_at': None,
         'admin_validated_by': None,
         'admin_note': None,
@@ -170,10 +186,17 @@ async def start_request(user: dict = Depends(get_current_user)):
 
 @router.post("/partial-unlock/proof")
 async def submit_proof(payload: dict, user: dict = Depends(get_current_user)):
-    """User submits the TX hash of the 2,660 EUR USDT payment.
+    """User submits a (partial) payment proof toward the 2,660 EUR activation.
 
-    Moves status from 'pending_payment' → 'in_review' and assigns a FIFO
-    priority_rank so admins can validate in order. Notifies admins.
+    Accepts:
+        tx_hash    (required, >= 10 chars)
+        amount_eur (optional; defaults to remaining; min 500)
+
+    Behavior:
+        - Each call appends a payment to the unlock record.
+        - Status stays 'pending_payment' until the cumulative paid amount
+          reaches REQUIRED_EUR; then moves to 'in_review' and a FIFO
+          priority_rank is assigned, and admins are notified.
     """
     tx_hash = (payload.get('tx_hash') or '').strip()
     if not tx_hash or len(tx_hash) < 10:
@@ -186,29 +209,83 @@ async def submit_proof(payload: dict, user: dict = Depends(get_current_user)):
     if not record:
         raise HTTPException(404, 'No tienes una solicitud pendiente de pago. Inicia el proceso primero.')
 
-    # FIFO priority: count of currently in_review unlocks + 1
-    in_review_count = await db.partial_withdraw_unlocks.count_documents({'status': 'in_review'})
-    priority = in_review_count + 1
+    # Reject duplicate hashes within the same unlock
+    existing_hashes = {(p.get('tx_hash') or '').lower() for p in (record.get('payments') or [])}
+    if tx_hash.lower() in existing_hashes:
+        raise HTTPException(400, 'Ese TX hash ya fue registrado en esta solicitud')
+
+    # Amount: default to remaining if not provided
+    remaining = _remaining_eur(record)
+    raw_amount = payload.get('amount_eur')
+    try:
+        amount = float(raw_amount) if raw_amount is not None else remaining
+    except (TypeError, ValueError):
+        raise HTTPException(400, 'amount_eur debe ser numérico')
+
+    if amount <= 0:
+        raise HTTPException(400, 'El monto debe ser mayor a 0')
+    # Floor of 500 EUR per partial — except the LAST payment that just closes the gap
+    if amount < MIN_PARTIAL_EUR and amount + 0.01 < remaining:
+        raise HTTPException(
+            400,
+            f'Monto mínimo por abono parcial: {int(MIN_PARTIAL_EUR)} EUR. '
+            f'(Pendiente: €{remaining:.2f})',
+        )
+    if amount > remaining + 0.01:
+        raise HTTPException(
+            400,
+            f'Monto excede lo pendiente. Restan €{remaining:.2f} para completar la activación.',
+        )
 
     now = _now_iso()
-    await db.partial_withdraw_unlocks.update_one(
-        {'id': record['id']},
-        {'$set': {
-            'status': 'in_review',
-            'tx_hash': tx_hash,
-            'proof_uploaded_at': now,
-            'priority_rank': priority,
-            'updated_at': now,
-        }},
-    )
+    payment = {
+        'id': str(uuid.uuid4()),
+        'amount_eur': round(amount, 2),
+        'tx_hash': tx_hash,
+        'submitted_at': now,
+    }
 
-    # Admin notification (in-app + email)
+    new_total = _total_paid_eur(record) + amount
+    completed = new_total + 0.01 >= REQUIRED_EUR
+
+    update: dict = {
+        '$push': {'payments': payment},
+        '$set': {
+            'tx_hash': tx_hash,           # legacy: latest hash
+            'proof_uploaded_at': now,     # legacy: latest timestamp
+            'updated_at': now,
+        },
+    }
+
+    priority = None
+    if completed:
+        in_review_count = await db.partial_withdraw_unlocks.count_documents({'status': 'in_review'})
+        priority = in_review_count + 1
+        update['$set'].update({'status': 'in_review', 'priority_rank': priority})
+
+    await db.partial_withdraw_unlocks.update_one({'id': record['id']}, update)
+
+    # Admin notification
     short_hash = tx_hash[:8] + '…' + tx_hash[-6:] if len(tx_hash) > 16 else tx_hash
     try:
+        if completed:
+            title = 'Desbloqueo 40% — comprobante recibido'
+            message = (
+                f"{user.get('email', 'Usuario')} ha completado el pago de {REQUIRED_EUR:.0f} EUR "
+                f"(USDT TRC20) con {len((record.get('payments') or [])) + 1} abonos. "
+                f"Último TX: {short_hash}. Prioridad #{priority}."
+            )
+        else:
+            title = 'Desbloqueo 40% — abono parcial recibido'
+            message = (
+                f"{user.get('email', 'Usuario')} ha registrado un abono parcial de €{amount:.2f}. "
+                f"Total acumulado: €{new_total:.2f} / €{REQUIRED_EUR:.0f} "
+                f"(restan €{REQUIRED_EUR - new_total:.2f}). TX: {short_hash}."
+            )
         await create_admin_notification(
             notification_type='withdrawal_request',
-            title='Desbloqueo 40% — comprobante recibido',
-            message=f"{user.get('email', 'Usuario')} ha enviado el comprobante de pago de {REQUIRED_EUR:.0f} EUR (USDT TRC20). TX: {short_hash}. Prioridad #{priority}.",
+            title=title,
+            message=message,
             user_info={
                 'name': user.get('full_name') or user.get('email'),
                 'email': user.get('email'),
@@ -217,17 +294,38 @@ async def submit_proof(payload: dict, user: dict = Depends(get_current_user)):
             metadata={
                 'unlock_id': record['id'],
                 'tx_hash': tx_hash,
-                'amount_eur': REQUIRED_EUR,
+                'amount_eur': round(amount, 2),
+                'total_paid_eur': round(new_total, 2),
                 'max_withdraw_eur': record.get('max_withdraw_eur_snapshot'),
                 'priority_rank': priority,
+                'completed': completed,
             },
-            send_email_notification=True,
+            send_email_notification=completed,  # only email on full completion
         )
     except Exception:
-        pass  # do not break the user flow if notif fails
+        pass
+
+    # In-app confirmation to the user for the partial payment itself
+    try:
+        if completed:
+            await create_notification(
+                user['id'],
+                'Pago de activación completado',
+                f'Has completado el pago de €{REQUIRED_EUR:.0f}. Tu solicitud pasó a "En revisión" (prioridad #{priority}).',
+            )
+        else:
+            await create_notification(
+                user['id'],
+                'Abono parcial registrado',
+                f'Hemos registrado tu abono de €{amount:.2f}. '
+                f'Total acumulado: €{new_total:.2f} / €{REQUIRED_EUR:.0f} '
+                f'(restan €{REQUIRED_EUR - new_total:.2f}).',
+            )
+    except Exception:
+        pass
 
     fresh = await db.partial_withdraw_unlocks.find_one({'id': record['id']}, {'_id': 0})
-    return {'ok': True, 'request': fresh}
+    return {'ok': True, 'request': fresh, 'completed': completed, 'total_paid_eur': round(new_total, 2)}
 
 
 @router.post("/partial-unlock/support-request")
