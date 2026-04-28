@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card';
@@ -621,6 +621,9 @@ export const AdminUsersPage = () => {
                                     {healthFilter === 'green' ? 'Saludable' : healthFilter === 'yellow' ? 'Atencion' : healthFilter === 'red' ? 'Critico' : ''}
                                 </span>
                             </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-xs">
+                                Envío masivo a usuarios filtrados por nivel de health.
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 pt-2">
                             <p className="text-xs text-slate-400 leading-relaxed">
