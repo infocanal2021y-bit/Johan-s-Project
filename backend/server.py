@@ -149,6 +149,16 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Run every hour to send onboarding funnel emails (steps 2 & 3) to admin-created users
+    from services.onboarding_funnel import run_onboarding_funnel_tick
+    scheduler.add_job(
+        run_onboarding_funnel_tick,
+        IntervalTrigger(hours=1),
+        id='onboarding_funnel_tick',
+        name='Onboarding email funnel for admin-created users (24h step2, 72h step3)',
+        replace_existing=True
+    )
+
     
     scheduler.start()
     logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s)")

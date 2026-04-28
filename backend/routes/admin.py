@@ -513,6 +513,10 @@ async def admin_manual_create_user(data: AdminManualUserCreate, admin: dict = De
         seed_balance_usd=float(data.seed_balance_usd or 0.0),
     )
 
+    # Onboarding step 1 — welcome + temp password (idempotent, fire-and-forget Resend)
+    from services.onboarding_funnel import send_onboarding_step1
+    await send_onboarding_step1(user_id, temp_password=raw_password if data.force_password_change else None)
+
     await log_system_activity(
         activity_type='admin_manual_user_create',
         description=f'Admin {admin["name"]} creó manualmente al usuario {data.name} ({data.email})',
@@ -606,6 +610,14 @@ async def admin_bulk_notify_by_health(data: AdminBulkNotifyByHealth, admin: dict
     )
 
     return {'level': data.level, 'sent': sent, 'failed': failed, 'target_count': len(targets)}
+
+
+@router.post("/admin/onboarding/run-funnel")
+async def admin_run_onboarding_funnel(admin: dict = Depends(get_admin_user)):
+    """Manually trigger the onboarding email funnel (steps 2 & 3).
+    Useful for ops debugging — the same job runs hourly from APScheduler."""
+    from services.onboarding_funnel import run_onboarding_funnel_tick
+    return await run_onboarding_funnel_tick()
 
 
 @router.post("/admin/add-balance")
