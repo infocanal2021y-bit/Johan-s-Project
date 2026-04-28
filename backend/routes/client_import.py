@@ -436,6 +436,10 @@ async def execute_import(job_id: str, admin: dict = Depends(get_admin_user)):
                 created_count += 1
                 r['committed_user_id'] = user_id
 
+                # Auto-provision checking + savings (seed checking with legacy_balance if any)
+                from services.accounts_lifecycle import ensure_user_accounts
+                await ensure_user_accounts(user_id, seed_checking_eur=r.get('balance') or 0.0)
+
             elif action == 'reactivate':
                 existing = await db.users.find_one({'email': r['email']}, {'_id': 0})
                 if not existing:  # race-safe fallback
@@ -467,6 +471,10 @@ async def execute_import(job_id: str, admin: dict = Depends(get_admin_user)):
                 await db.users.update_one({'id': existing['id']}, {'$set': set_fields})
                 reactivated_count += 1
                 r['committed_user_id'] = existing['id']
+
+                # Self-heal: ensure both internal accounts exist for legacy users
+                from services.accounts_lifecycle import ensure_user_accounts
+                await ensure_user_accounts(existing['id'])
 
             # Email — fire-and-forget, never blocks
             login_url = f"{APP_BASE_URL}/login?reactivated=1"

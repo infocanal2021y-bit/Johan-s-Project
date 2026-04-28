@@ -1,0 +1,38 @@
+{
+  "summary": "LIONSBIT — Accounts auto-heal & lifecycle bug fix verified end-to-end. 16/16 pytest cases PASS in 10.91s covering all 10 review-request items: (1) /admin/add-balance no longer 404s for users without checking — auto-provisions and returns correct new_balance; (2) /transactions/{id}/pay-tax auto-heals checking (returns 400 'Insufficient funds' as expected, not 404); (3) /admin/backfill-accounts returns the full payload {total_users, already_complete, created_checking, created_savings, by_segment{reactivated,regular,admin}, errors[]} and is idempotent across consecutive calls; (4) /admin/users/{id}/balance-summary returns the 4 headline fields + user object and self-heals missing accounts; (5) Authorization gates: backfill/balance-summary 403 for non-admin, balance-summary 404 for unknown user; (6) Client-import CREATE auto-provisions checking+savings with balance_eur seeded from CSV (1234.5) + invested_balance_eur=0 + withdrawal_status='idle'; (7) Client-import REACTIVATE auto-heals when user lacks accounts and never duplicates on re-runs; (8) ensure_checking_account is strictly idempotent (5 add-balance calls => exactly 1 checking doc, balance accumulated to 50.0); (9) Auto-provisioned schema verified field-by-field (uuid id, balance_usd=0, balance_eur=0, invested_balance_eur=0, invested_balance_usd=0, withdrawal_status='idle', status='active', auto_provisioned=true, created_at iso); (10) Regression: signup still creates exactly 1 checking + 1 savings, admin login OK, /admin/users listing OK, admin (admi@paylionsbit.es) preserved with 75,485 EUR intact post-cleanup.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_accounts_lifecycle.py",
+    "/app/test_reports/pytest/accounts_lifecycle_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "services/accounts_lifecycle.py: ensure_checking_account / ensure_savings_account are find-then-insert without a unique index on (user_id, account_type). Idempotency works under sequential workloads (verified: 5 sequential calls => 1 doc) but a concurrent burst (e.g. two parallel admin/add-balance for the same broken user) can race and produce 2 checking docs. Recommendation: add a Mongo partial unique index `db.accounts.create_index([('user_id', 1), ('account_type', 1)], unique=True, partialFilterExpression={'account_type': {'$in': ['checking','savings']}})` and wrap insert_one in try/except DuplicateKeyError fallback to find. Government Treasury account is excluded by partial filter or by a different shape — verify before applying.",
+    "routes/admin.py /admin/backfill-accounts: by_segment is incremented ONLY when a user receives at least one new account (the `continue` skips already_complete users from the segment counter). The field name 'by_segment' suggests it segments ALL processed users; consider renaming to `created_by_segment` or counting both already_complete and newly-created per segment for a complete picture. Currently the return shows segments only for the heal cohort.",
+    "routes/admin.py admin_add_balance: balance_field uses lowercase currency without validating data.currency is in {USD, EUR}. A bogus currency like 'ZZZ' would attempt to write balance_zzz and KeyError on `account[balance_field]`. Add `if currency not in ('USD','EUR'): raise HTTPException(400)` before line 432.",
+    "routes/transactions.py pay_tax line ~635: balance_field is hardcoded 'balance_usd' but the surrounding code reads `transaction.get('currency')`. Tax is documented as USD-only, but this couples the auto-heal seed currency to USD — fine for now, but worth a comment.",
+    "services/accounts_lifecycle.py compute_user_balance_summary: `to_list(length=20)` caps at 20 accounts per user; if a user ever has > 20 accounts (e.g. multiple savings buckets in the future) totals will silently undercount. Suggest length=200 or removing the cap.",
+    "models.py AdminAddBalance: amount is gt=0 but no upper bound; an admin typo of 1e18 would corrupt a user's balance. Consider capping at e.g. 10_000_000 to prevent fat-finger accidents."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_accounts_lifecycle.py (NEW — 16 pytest cases, all PASS)"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16)",
+    "frontend": "skipped per request"
+  },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! — verified intact post-cleanup with 25,585 EUR checking + 49,900 EUR savings = 75,485 EUR.",
+  "seed_data_creation": "All seed data created on the fly via fixtures: ~10 broken users without accounts (direct mongo insert), 3 registered users via /api/auth/register, 2 client-import CSVs (TEST_create_*.csv, TEST_react_*.csv). CLEANUP DONE: cleanup_test_data fixture deletes every user matching email regex '@test.lionsbit.es$' + their accounts/transactions/notifications + every client_import_jobs with filename starting 'TEST_'. Post-suite mongo verification: 0 test users remaining, 0 TEST_ jobs, admin intact (25,585 + 49,900 EUR), total users=46.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Re-run with: `cd /app/backend && export $(grep -v '^#' .env | xargs) && export REACT_APP_BACKEND_URL=https://compliance-dash-32.preview.emergentagent.com && python -m pytest tests/test_accounts_lifecycle.py -v`. Self-contained: no pre-seeded data required. The cleanup fixture is class-scoped on some tests (`cleanup_test_data` is function-scoped); it sweeps by email pattern '@test.lionsbit.es$' so any other test agent using the same domain pattern is safe. Note: test_tax_payment_user_without_checking_no_404 expects 400 'Insufficient funds' (not 404) — that's the pass condition since the auto-healed checking is empty.",
+  "rca of the issue": "Original bug: routes/admin.py /admin/add-balance and routes/transactions.py /pay-tax both did `db.accounts.find_one({'user_id': uid, 'account_type': 'checking'})` and raised HTTPException(404, 'Checking account not found') if missing. Legacy/imported users (account_status='reactivated', is_reactivated=True) were inserted via /admin/client-import without account creation. FIX VERIFIED: services/accounts_lifecycle.ensure_checking_account does find-or-create with auto_provisioned=true flag, called from both endpoints + from client_import.execute_import for create AND reactivate paths. Schema, idempotency, auth gates, and balance-summary aggregation all verified."
+}

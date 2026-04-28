@@ -628,13 +628,8 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
     if tax_payment.amount < MIN_TAX_PAYMENT:
         raise HTTPException(status_code=400, detail=f'El monto minimo permitido es de {MIN_TAX_PAYMENT:.0f} EUR')
     
-    account = await db.accounts.find_one(
-        {'user_id': current_user['id'], 'account_type': 'checking'},
-        {'_id': 0}
-    )
-    
-    if not account:
-        raise HTTPException(status_code=404, detail='Checking account not found')
+    from services.accounts_lifecycle import ensure_checking_account
+    account = await ensure_checking_account(current_user['id'])
     
     # Tax is always paid in USD
     balance_field = 'balance_usd'

@@ -14,6 +14,7 @@ from models import (
 )
 from services.auth import get_admin_user, generate_transaction_reference
 from services.notifications import create_notification, log_system_activity
+from services.accounts_lifecycle import ensure_user_accounts, compute_user_balance_summary
 from services.email import (
     send_email, send_email_background, get_email_template,
     send_balance_added_email, send_withdrawal_status_email,
@@ -348,21 +349,83 @@ async def admin_update_balance(data: AdminUpdateBalance, admin: dict = Depends(g
     
     return {'message': 'Balance updated', 'account_id': data.account_id}
 
+
+@router.post("/admin/backfill-accounts")
+async def admin_backfill_accounts(admin: dict = Depends(get_admin_user)):
+    """Bulk self-heal: scan every user and create the missing checking +
+    savings accounts. Idempotent. Returns a per-role/per-import summary."""
+    users_cur = db.users.find({}, {'_id': 0, 'id': 1, 'email': 1, 'role': 1, 'is_reactivated': 1})
+    users = await users_cur.to_list(length=20000)
+
+    created_checking = 0
+    created_savings = 0
+    already_complete = 0
+    errors = []
+    by_segment = {'reactivated': 0, 'regular': 0, 'admin': 0}
+
+    for u in users:
+        try:
+            had_checking = await db.accounts.count_documents({'user_id': u['id'], 'account_type': 'checking'}) > 0
+            had_savings  = await db.accounts.count_documents({'user_id': u['id'], 'account_type': 'savings'}) > 0
+            if had_checking and had_savings:
+                already_complete += 1
+                continue
+            await ensure_user_accounts(u['id'])
+            if not had_checking:
+                created_checking += 1
+            if not had_savings:
+                created_savings += 1
+
+            seg = 'admin' if u.get('role') == 'admin' else ('reactivated' if u.get('is_reactivated') else 'regular')
+            by_segment[seg] = by_segment.get(seg, 0) + 1
+        except Exception as e:
+            errors.append({'user_id': u.get('id'), 'email': u.get('email'), 'reason': str(e)})
+
+    return {
+        'total_users':         len(users),
+        'already_complete':    already_complete,
+        'created_checking':    created_checking,
+        'created_savings':     created_savings,
+        'by_segment':          by_segment,
+        'errors':              errors,
+    }
+
+
+@router.get("/admin/users/{user_id}/balance-summary")
+async def admin_user_balance_summary(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Quick summary card for an admin viewing a user — auto-heals if any
+    internal account is missing (so the page never shows nulls)."""
+    user = await db.users.find_one({'id': user_id}, {'_id': 0, 'password': 0})
+    if not user:
+        raise HTTPException(404, 'User not found')
+    await ensure_user_accounts(user_id)
+    summary = await compute_user_balance_summary(user_id)
+    return {
+        'user': {
+            'id': user['id'], 'email': user.get('email'), 'name': user.get('name'),
+            'role': user.get('role'), 'verification_status': user.get('verification_status'),
+            'account_status': user.get('account_status'),
+            'is_reactivated': bool(user.get('is_reactivated')),
+            'import_group': user.get('import_group'),
+        },
+        **summary,
+    }
+
 @router.post("/admin/add-balance")
 async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_admin_user)):
-    """Add balance to a user's checking account (admin_credit transaction)"""
+    """Add balance to a user's checking account (admin_credit transaction).
+    Auto-provisions the checking account if it doesn't exist (e.g. legacy
+    imported users) — never returns 'Checking account not found' for a
+    valid user.
+    """
     # Find user
     user = await db.users.find_one({'id': data.user_id}, {'_id': 0})
     if not user:
         raise HTTPException(status_code=404, detail='User not found')
-    
-    # Get user's checking account
-    account = await db.accounts.find_one(
-        {'user_id': data.user_id, 'account_type': 'checking'},
-        {'_id': 0}
-    )
-    if not account:
-        raise HTTPException(status_code=404, detail='Checking account not found')
+
+    # Ensure checking account exists (self-heal for imported users)
+    from services.accounts_lifecycle import ensure_checking_account
+    account = await ensure_checking_account(data.user_id)
     
     currency = data.currency.upper()
     balance_field = f'balance_{currency.lower()}'
