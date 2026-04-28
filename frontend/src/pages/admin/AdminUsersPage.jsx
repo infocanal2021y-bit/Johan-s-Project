@@ -9,10 +9,88 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp, DollarSign, Search, Loader2 } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card';
+import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp, DollarSign, Search, Loader2, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const HEALTH_STYLES = {
+    green:  { dot: 'bg-emerald-400', ring: 'ring-emerald-400/30', glow: 'shadow-[0_0_10px_rgba(52,211,153,0.6)]', label: 'Saludable',  text: 'text-emerald-300' },
+    yellow: { dot: 'bg-amber-400',   ring: 'ring-amber-400/30',   glow: 'shadow-[0_0_10px_rgba(251,191,36,0.6)]', label: 'Atencion',   text: 'text-amber-300' },
+    red:    { dot: 'bg-rose-500',    ring: 'ring-rose-500/30',    glow: 'shadow-[0_0_10px_rgba(244,63,94,0.7)]',  label: 'Critico',    text: 'text-rose-300' },
+};
+
+const HealthDot = ({ health, testId }) => {
+    const level = health?.level || 'yellow';
+    const style = HEALTH_STYLES[level] || HEALTH_STYLES.yellow;
+    const reasons = Array.isArray(health?.reasons) ? health.reasons : [];
+
+    return (
+        <HoverCard openDelay={120} closeDelay={80}>
+            <HoverCardTrigger asChild>
+                <button
+                    type="button"
+                    aria-label={`Health: ${style.label}`}
+                    data-testid={testId}
+                    data-health-level={level}
+                    className="inline-flex items-center justify-center w-6 h-6 rounded-full hover:bg-slate-800/60 transition-colors"
+                >
+                    <span className={`relative w-2.5 h-2.5 rounded-full ${style.dot} ${style.glow} ring-2 ${style.ring}`}>
+                        {level !== 'green' && (
+                            <span className={`absolute inset-0 rounded-full ${style.dot} opacity-60 animate-ping`} />
+                        )}
+                    </span>
+                </button>
+            </HoverCardTrigger>
+            <HoverCardContent
+                side="right"
+                align="start"
+                className="w-72 bg-slate-950/95 border-slate-800 text-slate-200 backdrop-blur-xl"
+                data-testid={testId ? `${testId}-tooltip` : undefined}
+            >
+                <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                        <Activity className={`w-4 h-4 ${style.text}`} />
+                        <span className={`font-mono text-xs uppercase tracking-wider ${style.text}`}>
+                            Estado · {style.label}
+                        </span>
+                    </div>
+                    {reasons.length === 0 ? (
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                            La cuenta esta provisionada, verificada y con acceso registrado.
+                        </p>
+                    ) : (
+                        <ul className="space-y-1.5">
+                            {reasons.map((r, i) => (
+                                <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                                    <span className={`mt-1 w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />
+                                    <span>{r}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {health?.flags && (
+                        <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono uppercase tracking-wider">
+                            <span className={health.flags.has_checking ? 'text-emerald-400' : 'text-rose-400'}>
+                                {health.flags.has_checking ? 'OK' : '--'} Checking
+                            </span>
+                            <span className={health.flags.has_savings ? 'text-emerald-400' : 'text-slate-500'}>
+                                {health.flags.has_savings ? 'OK' : '--'} Savings
+                            </span>
+                            <span className={health.flags.verified ? 'text-emerald-400' : 'text-amber-400'}>
+                                {health.flags.verified ? 'OK' : '--'} KYC
+                            </span>
+                            <span className={health.flags.logged_in ? 'text-emerald-400' : 'text-slate-500'}>
+                                {health.flags.logged_in ? 'OK' : '--'} Login
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </HoverCardContent>
+        </HoverCard>
+    );
+};
 
 const getScoreBadge = (score) => {
     switch (score) {
@@ -323,6 +401,12 @@ export const AdminUsersPage = () => {
                                                         </div>
                                                     </div>
                                                     {getScoreBadge(user.interest_score)}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <HealthDot health={user.health} testId={`mobile-health-${user.id}`} />
+                                                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                                                        {HEALTH_STYLES[user.health?.level || 'yellow'].label}
+                                                    </span>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                                     <div><span className="text-slate-500">Rol:</span> <span className={`ml-1 ${user.role === 'admin' ? 'text-amber-400' : 'text-slate-300'}`}>{user.role === 'admin' ? 'Admin' : 'Usuario'}</span></div>

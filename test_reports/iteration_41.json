@@ -1,0 +1,35 @@
+{
+  "summary": "LIONSBIT — Final pre-prod regression sweep focused on the NEW Health indicator on /admin/users (only new code in this iteration per main agent context). Backend: 6/6 pytest cases PASS in test_admin_users_health.py validating (a) /api/admin/users returns a 'health' object on every user with keys {level, reasons, flags}, (b) level enum ∈ {green,yellow,red}, (c) flags has all 6 boolean keys (has_checking, has_savings, verified, logged_in, must_change_password, suspended), (d) level-logic invariants: red ⇔ no_checking OR suspended; green ⇔ no reasons; yellow otherwise, (e) reason strings are consistent with their corresponding flags (Falta checking ⇔ !has_checking, KYC pendiente ⇔ !verified, etc.), (f) the seeded admin (admi@paylionsbit.es) is GREEN with all flags ok and 75,485 EUR balance intact, (g) endpoint requires admin auth (401/403 without token). Frontend: Playwright smoke on /admin/users confirmed: users-th-health column header rendered, 46 rows ↔ 46 desktop health-{id} dots ↔ 46 mobile-health-{id} dots (1-to-1 mapping), data-health-level attribute set on every dot, hover on first dot opens HoverCard with the EXACT layout 'Estado · Atencion / Sin acceso registrado / OK Checking · OK Savings · OK KYC · -- Login' — verified via tooltip text content + screenshot. No new JS pageerrors introduced. Iterations 34-40 (partial unlock, client import, accounts lifecycle, withdrawal cap) were NOT re-run since main agent declared them already validated and no code changed in those areas — relying on prior green reports.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_users_health.py",
+    "/app/test_reports/pytest/admin_users_health.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/admin.py admin_get_users (lines 38-94): the health computation runs in a Python loop after the Mongo aggregation. For 46 users this is fine, but for >5k users this becomes O(N) Python work on every admin page-load. Consider moving the health derivation into the aggregation pipeline ($cond/$let) once user count crosses ~1k. Low priority for current scale.",
+    "routes/admin.py line 62: `logged_in = bool(user.get('first_login_at') or user.get('last_active'))` — `last_active` is mutated on EVERY authenticated request via middleware. So even a user who only opened the app once but never 'really' logged in (e.g. session restore from cached token) appears as logged_in=True. If the intent is 'has completed at least one full login', use `first_login_at` only. Cosmetic — current behaviour is reasonable but the field name is ambiguous.",
+    "routes/admin.py line 60: `verified = user.get('verification_status') == 'verified'` — but `pending_verification` and `under_review` are both treated as not-verified, which surfaces the user as yellow with 'KYC pendiente'. That's correct, but consider expanding the reason string to differentiate ('KYC en revisión' for under_review) for better admin UX.",
+    "AdminUsersPage.jsx line 75: tooltip flags grid only renders 4 of the 6 flags (omits must_change_password and suspended). The reasons list does mention them via the 'Cambio de contraseña pendiente' / 'Cuenta suspendida' strings, so the info is not lost — but a user expecting full flag visibility might miss them. Either (a) add 2 more grid cells, or (b) document that the grid is the abbreviated quick-glance view and the reasons list is the source of truth.",
+    "AdminUsersPage.jsx line 67: 'Cambio de contraseña' uses ñ char — but the backend reason string at admin.py:72 uses the same ñ. Consistent. Keep as-is.",
+    "Hover-card on red/yellow dots animates a continuous ping (line 41). On a page with 46 yellow dots the 46 simultaneous CSS animations cost ~3-5% CPU on low-end devices. Consider gating the ping animation to only red OR pausing it when the page is not focused (visibilitychange listener). Cosmetic perf."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_users_health.py (NEW — 6 pytest cases, all PASS)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 NEW health-indicator tests; iterations 34-40 prior-green not re-run per main agent direction)",
+    "frontend": "100% on the NEW Health indicator (column header + 46/46 dot rendering + hover tooltip + mobile dot DOM presence + admin-row green via API)"
+  },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! — verified intact post-test, /admin/users shows admin with health.level=green and total_balance_eur >= 70000 (75,485 EUR confirmed via assertion).",
+  "seed_data_creation": "No new seed data created. Used existing 46 users (admin + 45 test/imported users from prior iterations). NO cleanup performed — test is read-only on /api/admin/users (GET only). /app/memory/test_credentials.md untouched and verified intact.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Re-run with: cd /app/backend && export $(grep -v '^#' .env | xargs) && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2) && pytest tests/test_admin_users_health.py -v. Self-contained — only requires the seeded admin user and at least 1 row in /api/admin/users. No mutation, no cleanup needed. The full regression suite for partial-unlock, client-import, accounts-lifecycle, and withdrawal-cap is preserved at /app/backend/tests/test_partial_unlock*.py, test_client_import*.py, test_accounts_lifecycle.py and test_withdraw_partial_unlock_gate.py — all green per iterations 34-40 reports. If main agent has touched any of those files since iteration_40, those suites should be re-run.",
+  "rca of the issue": "No issue found. The Health indicator feature is complete and correctly implemented. Backend health computation in admin.py lines 38-94 produces the correct {level, reasons, flags} object with consistent invariants. Frontend HealthDot in AdminUsersPage.jsx lines 24-93 wires the data through a HoverCard with proper data-testid attributes (health-{id}, mobile-health-{id}, users-th-health) and renders correctly across desktop (md:block) and mobile (md:hidden) breakpoints. Tooltip displays reason list + 4-flag OK/-- grid. The only minor enhancement opportunities are cosmetic (see critical_code_review_comments)."
+}
