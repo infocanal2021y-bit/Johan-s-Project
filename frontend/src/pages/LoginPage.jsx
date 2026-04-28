@@ -26,8 +26,13 @@ export const LoginPage = () => {
         const result = await login(email, password);
         
         if (result.success) {
-            toast.success('¡Bienvenido de nuevo!');
-            navigate('/dashboard');
+            if (result.must_change_password) {
+                toast.info('Por motivos de seguridad, debe actualizar su contraseña antes de continuar.');
+                navigate('/force-password-change', { replace: true });
+            } else {
+                toast.success('¡Bienvenido de nuevo!');
+                navigate('/dashboard');
+            }
         } else {
             toast.error(result.error);
         }

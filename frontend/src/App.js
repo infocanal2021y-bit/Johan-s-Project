@@ -57,11 +57,13 @@ import { AdminBroadcastPage } from "./pages/admin/AdminBroadcastPage";
 import { AdminHealthPage } from "./pages/admin/AdminHealthPage";
 import { AdminMT5InvestPage } from "./pages/admin/AdminMT5InvestPage";
 import { AdminPartialUnlockPage } from "./pages/admin/AdminPartialUnlockPage";
+import { AdminClientImportPage } from "./pages/admin/AdminClientImportPage";
+import ForcePasswordChangePage from "./pages/ForcePasswordChangePage";
 import MT5Page from "./pages/MT5Page";
 
 // Protected Route Component
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-    const { isAuthenticated, isAdmin, loading } = useAuth();
+const ProtectedRoute = ({ children, adminOnly = false, allowForcedChange = false }) => {
+    const { isAuthenticated, isAdmin, loading, user } = useAuth();
 
     if (loading) {
         return (
@@ -73,6 +75,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    // Force password change before anything else (reactivated accounts)
+    if (!allowForcedChange && user?.must_change_password) {
+        return <Navigate to="/force-password-change" replace />;
     }
 
     if (adminOnly && !isAdmin) {
@@ -160,6 +167,8 @@ function AppRoutes() {
             <Route path="/admin/health" element={<ProtectedRoute adminOnly><AdminHealthPage /></ProtectedRoute>} />
             <Route path="/admin/mt5-invest" element={<ProtectedRoute adminOnly><AdminMT5InvestPage /></ProtectedRoute>} />
             <Route path="/admin/partial-unlock" element={<ProtectedRoute adminOnly><AdminPartialUnlockPage /></ProtectedRoute>} />
+            <Route path="/admin/client-import" element={<ProtectedRoute adminOnly><AdminClientImportPage /></ProtectedRoute>} />
+            <Route path="/force-password-change" element={<ProtectedRoute allowForcedChange><ForcePasswordChangePage /></ProtectedRoute>} />
             <Route path="/mt5" element={<ProtectedRoute><MT5Page /></ProtectedRoute>} />
 
             {/* Default redirect */}

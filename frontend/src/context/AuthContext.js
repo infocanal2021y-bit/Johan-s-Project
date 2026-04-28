@@ -47,11 +47,12 @@ export const AuthProvider = ({ children }) => {
         try {
             setError(null);
             const response = await authAPI.login({ email, password });
-            const { token, user: userData } = response.data;
+            const { token, user: userData, must_change_password } = response.data;
+            const enriched = { ...userData, must_change_password: !!(must_change_password ?? userData.must_change_password) };
             localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(userData));
-            setUser(userData);
-            return { success: true };
+            localStorage.setItem('user', JSON.stringify(enriched));
+            setUser(enriched);
+            return { success: true, must_change_password: enriched.must_change_password };
         } catch (err) {
             const message = err.response?.data?.detail || 'Login failed';
             setError(message);

@@ -241,20 +241,28 @@ async def login(credentials: UserLogin, request: Request):
 
     token = create_token(user['id'], user['email'], user['role'])
 
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_fields: dict = {'last_active': now_iso, 'is_online': True}
+    # Record first login for imported/reactivated users (engagement tracking)
+    if not user.get('first_login_at'):
+        update_fields['first_login_at'] = now_iso
     await db.users.update_one(
         {'id': user['id']},
-        {'$set': {'last_active': datetime.now(timezone.utc).isoformat(), 'is_online': True}}
+        {'$set': update_fields}
     )
 
     return {
         'token': token,
+        'must_change_password': bool(user.get('must_change_password')),
         'user': {
             'id': user['id'],
             'name': user['name'],
             'email': user['email'],
             'role': user['role'],
             'verification_status': user.get('verification_status', 'unverified'),
-            'account_status': user.get('account_status', 'active')
+            'account_status': user.get('account_status', 'active'),
+            'must_change_password': bool(user.get('must_change_password')),
+            'is_reactivated': bool(user.get('is_reactivated'))
         },
         'login_info': {
             'ip': client_ip,
@@ -274,6 +282,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         'role': current_user['role'],
         'verification_status': current_user.get('verification_status', 'unverified'),
         'account_status': current_user.get('account_status', 'active'),
+        'must_change_password': bool(current_user.get('must_change_password')),
+        'is_reactivated': bool(current_user.get('is_reactivated')),
         'created_at': current_user['created_at']
     }
 
@@ -299,7 +309,11 @@ async def change_password(data: ChangePassword, current_user: dict = Depends(get
     new_hashed = hash_password(data.new_password)
     await db.users.update_one(
         {'id': current_user['id']},
-        {'$set': {'password': new_hashed}}
+        {'$set': {
+            'password': new_hashed,
+            'must_change_password': False,
+            'password_changed_at': datetime.now(timezone.utc).isoformat(),
+        }}
     )
 
     await create_notification(
