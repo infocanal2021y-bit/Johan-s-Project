@@ -82,6 +82,7 @@ export const Sidebar = () => {
         { to: '/mt5', icon: Landmark, label: 'MT5 Profesional' },
         { to: '/investing-pro', icon: TrendingUp, label: 'InvestingPro' },
         { to: '/advisors', icon: Users, label: 'Asesores y Analistas' },
+        { to: '/community', icon: Users, label: 'Comunidad' },
     ];
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },

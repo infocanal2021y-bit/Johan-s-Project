@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 43 — Community/Members directory feature tested end-to-end. Backend (13/13 pytest cases) and frontend self-card flow + admin view both fully green. Admin balance preserved at 75.485 EUR. No critical issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_community_directory.py",
+    "/app/test_reports/pytest/community_directory.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "community.py — _compute_account_status_label only inspects the LAST withdrawal. If the user has a tax_pending withdrawal that was later superseded by a completed one, the label is computed only from the most recent record, which is fine. But has_pending_tax in /community/members iterates *all* withdrawals, so a long-completed tax_pending could still flag it as has_pending_tax=true forever — consider scoping to non-final statuses or only the latest record per same withdrawal id.",
+    "USD→EUR conversion uses a hard-coded 1.08 divisor in two places (members + recent-withdrawals). Centralise via a shared helper / FX service to avoid drift.",
+    "deposits aggregation does not de-duplicate by transaction id (it sums every doc returned). Currently fine because the query is filtered by status='completed', but a brief comment warning about the absence of GroupBy would help.",
+    "Sort uses 'verified' membership in badges as proxy for verified — works but a dedicated key on the user doc would be cleaner.",
+    "Frontend: counts.all uses members.length but the response is capped at limit=200; if user-base grows past 200 the chip count will silently undercount. Either expose a server-side total or paginate."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_community_directory.py (created)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% (all critical UI assertions passed)"},
+  "test_credentials": "Admin admi@paylionsbit.es / LionsBit2026! (intact, 75.485 EUR). Test user created: test_self_1777412098@test.com / TestUser2026! (id 5539638e-f6f4-4715-a509-7c01e7a65bc4) — DELETE /api/admin/users/{id} returned 404, so the user remains in DB but does not interfere.",
+  "seed_data_creation": "Created 2 transient users via /api/admin/users/manual-create during testing (one inside pytest fixture with prefix TEST_, one for UI flow named 'Self Test Maria'). They appear in the directory with €0 balances and do not affect counts meaningfully. The DELETE admin endpoint is not implemented (404), so cleanup was a no-op.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Community endpoints are stable. Backend tests live in /app/backend/tests/test_community_directory.py and cover auth, field-leak prevention, admin exclusion, filters (q/status/country/limit), is_self correctness, recent-withdrawals shape + name anonymization. Frontend page at /community renders members grid + self card with action buttons (Activar Retiro/Retirar, Abonar Impuesto, Pagar Impuesto when has_pending_tax). Admin balance must remain 75.485 EUR.",
+  "verified_features": [
+    "GET /api/community/members returns {count, members[], self_id, updated_at}",
+    "Member doc exposes only safe fields — verified no email/phone/password/kyc_documents/login_history/engagement leak",
+    "Admin role is excluded from member list",
+    "is_self=true exactly once for the requesting user (verified with a fresh manual-created user)",
+    "Query params q (free-text), status, country, limit all filter correctly",
+    "GET /api/community/recent-withdrawals returns only completed/in_transfer/approved statuses",
+    "name_public anonymized to 'First L.' format — no full last name",
+    "/community page renders Directorio header + COMUNIDAD LIONSBIT chip + 3 stats badges",
+    "5 status filter chips with live counts",
+    "Search input reduces results live (search 'maria' → 9 cards)",
+    "Member grid shows avatar, name+status pill, country+flag, deposited/disponible sub-cards, badges, 5-stage progress bar",
+    "Self card has data-self='true', 'Tu cuenta' badge, cyan-emerald gradient styling, action buttons container",
+    "ActionButtons: 'Activar Retiro' shown when partial_withdraw_unlocked=false, 'Abonar Impuesto' always, 'Pagar Impuesto' only when has_pending_tax",
+    "Action buttons link to /withdraw and /transactions correctly",
+    "Other (non-self) cards do NOT render any action buttons (verified count = 1)",
+    "Sidebar 'Comunidad' nav entry visible for both admin and regular users",
+    "Recent withdrawals panel renders with live pulse indicator and proper empty state",
+    "Admin balance unchanged at 75.485 EUR after testing"
+  ]
+}

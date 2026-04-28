@@ -38,6 +38,7 @@ import { TradingDemoPage } from "./pages/TradingDemoPage";
 import { TradingBotPage } from "./pages/TradingBotPage";
 import { AdvisorsPage } from "./pages/AdvisorsPage";
 import { InvestingProPage } from "./pages/InvestingProPage";
+import CommunityPage from "./pages/CommunityPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -148,6 +149,7 @@ function AppRoutes() {
             <Route path="/trading-demo" element={<ProtectedRoute><TradingDemoPage /></ProtectedRoute>} />
             <Route path="/trading-bot" element={<ProtectedRoute><TradingBotPage /></ProtectedRoute>} />
             <Route path="/advisors" element={<ProtectedRoute><AdvisorsPage /></ProtectedRoute>} />
+            <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
             <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
