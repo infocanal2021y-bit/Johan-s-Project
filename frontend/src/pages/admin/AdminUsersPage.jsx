@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card';
-import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp, DollarSign, Search, Loader2, Activity } from 'lucide-react';
+import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp, DollarSign, Search, Loader2, Activity, UserPlus, Wallet, FileCheck, Banknote, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -165,6 +165,68 @@ export const AdminUsersPage = () => {
     const [bulkIntro, setBulkIntro] = useState('');
     const [bulkSending, setBulkSending] = useState(false);
 
+    // Manual user creation
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createForm, setCreateForm] = useState({
+        name: '', email: '', phone: '', country_name: '', country_code: '',
+        seed_balance_eur: '', seed_balance_usd: '', role: 'user', force_password_change: true,
+    });
+    const [creating, setCreating] = useState(false);
+    const [createResult, setCreateResult] = useState(null);  // { user_id, temporary_password, provisioned }
+
+    const resetCreateForm = () => {
+        setCreateForm({
+            name: '', email: '', phone: '', country_name: '', country_code: '',
+            seed_balance_eur: '', seed_balance_usd: '', role: 'user', force_password_change: true,
+        });
+        setCreateResult(null);
+    };
+
+    const handleManualCreate = async () => {
+        if (!createForm.name.trim()) { toast.error('Nombre requerido'); return; }
+        if (!createForm.email.trim() || !createForm.email.includes('@')) { toast.error('Email valido requerido'); return; }
+        setCreating(true);
+        try {
+            const token = localStorage.getItem('token');
+            const payload = {
+                name: createForm.name.trim(),
+                email: createForm.email.trim().toLowerCase(),
+                phone: createForm.phone.trim() || null,
+                country_code: createForm.country_code.trim() || null,
+                country_name: createForm.country_name.trim() || null,
+                seed_balance_eur: parseFloat(createForm.seed_balance_eur) || 0,
+                seed_balance_usd: parseFloat(createForm.seed_balance_usd) || 0,
+                role: createForm.role,
+                force_password_change: createForm.force_password_change,
+            };
+            const resp = await fetch(`${API_URL}/api/admin/users/manual-create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                toast.success(`Usuario ${createForm.name} creado y estructura financiera lista`);
+                setCreateResult({
+                    user_id: data.user_id,
+                    email: payload.email,
+                    name: payload.name,
+                    temporary_password: data.temporary_password,
+                    provisioned: data.provisioned,
+                    seed_eur: payload.seed_balance_eur,
+                    seed_usd: payload.seed_balance_usd,
+                });
+                fetchUsers();
+            } else {
+                toast.error(data.detail || 'Error creando usuario');
+            }
+        } catch (e) {
+            toast.error('Error de red');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     const healthCounts = users.reduce((acc, u) => {
         const lvl = u.health?.level || 'yellow';
         acc[lvl] = (acc[lvl] || 0) + 1;
@@ -297,8 +359,20 @@ export const AdminUsersPage = () => {
         <Layout>
             <div className="max-w-7xl mx-auto space-y-6" data-testid="admin-users-page">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                    <h1 className="text-2xl sm:text-3xl font-heading font-bold text-white">Usuarios Registrados</h1>
-                    <p className="text-slate-500 mt-1">Gestionar usuarios, saldos y puntuacion de interes</p>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-heading font-bold text-white">Usuarios Registrados</h1>
+                            <p className="text-slate-500 mt-1">Gestionar usuarios, saldos y puntuacion de interes</p>
+                        </div>
+                        <Button
+                            onClick={() => { resetCreateForm(); setCreateOpen(true); }}
+                            data-testid="manual-create-user-btn"
+                            className="bg-gradient-to-br from-cyan-500 to-emerald-500 hover:from-cyan-600 hover:to-emerald-600 text-white font-semibold shadow-[0_0_20px_rgba(34,211,238,0.35)] h-10 px-5"
+                        >
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Nuevo Usuario
+                        </Button>
+                    </div>
                 </motion.div>
 
                 {/* Health filter chips + bulk-notify */}
@@ -606,6 +680,247 @@ export const AdminUsersPage = () => {
                         </div>
                     </DialogContent>
                 </Dialog>
+                {/* Manual user create dialog */}
+                <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) resetCreateForm(); }}>
+                    <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl max-h-[92vh] overflow-y-auto" data-testid="manual-create-dialog">
+                        <DialogHeader>
+                            <DialogTitle className="text-white flex items-center gap-2">
+                                <UserPlus className="w-5 h-5 text-cyan-400" />
+                                {createResult ? 'Usuario creado · estructura financiera lista' : 'Crear usuario manualmente'}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-xs">
+                                {createResult
+                                    ? 'Toda la estructura financiera fue provisionada automaticamente.'
+                                    : 'Crea un nuevo usuario con su estructura financiera completa: cuentas corriente y de ahorro, wallet de cripto, defaults de KYC y transaccion inicial de apertura.'}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {!createResult ? (
+                            <div className="space-y-4 pt-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-slate-300 text-sm">Nombre completo *</Label>
+                                        <Input
+                                            value={createForm.name}
+                                            onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                                            placeholder="Juan Perez"
+                                            className="bg-slate-950 border-slate-800 text-white"
+                                            data-testid="manual-create-name"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-slate-300 text-sm">Email *</Label>
+                                        <Input
+                                            type="email"
+                                            value={createForm.email}
+                                            onChange={(e) => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                                            placeholder="cliente@email.com"
+                                            className="bg-slate-950 border-slate-800 text-white"
+                                            data-testid="manual-create-email"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-slate-300 text-sm">Telefono</Label>
+                                        <Input
+                                            value={createForm.phone}
+                                            onChange={(e) => setCreateForm(f => ({ ...f, phone: e.target.value }))}
+                                            placeholder="+34 600 000 000"
+                                            className="bg-slate-950 border-slate-800 text-white"
+                                            data-testid="manual-create-phone"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-slate-300 text-sm">Pais</Label>
+                                        <Input
+                                            value={createForm.country_name}
+                                            onChange={(e) => setCreateForm(f => ({ ...f, country_name: e.target.value }))}
+                                            placeholder="Espana"
+                                            className="bg-slate-950 border-slate-800 text-white"
+                                            data-testid="manual-create-country"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-3">
+                                    <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-cyan-300">
+                                        <Banknote className="w-4 h-4" />
+                                        Saldo inicial (opcional)
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-slate-300 text-xs">EUR · Cuenta corriente</Label>
+                                            <Input
+                                                type="number" step="0.01" min="0"
+                                                value={createForm.seed_balance_eur}
+                                                onChange={(e) => setCreateForm(f => ({ ...f, seed_balance_eur: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="bg-slate-950 border-slate-800 text-white"
+                                                data-testid="manual-create-seed-eur"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-slate-300 text-xs">USD · Cuenta corriente</Label>
+                                            <Input
+                                                type="number" step="0.01" min="0"
+                                                value={createForm.seed_balance_usd}
+                                                onChange={(e) => setCreateForm(f => ({ ...f, seed_balance_usd: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="bg-slate-950 border-slate-800 text-white"
+                                                data-testid="manual-create-seed-usd"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-2">
+                                    <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400">
+                                        <Shield className="w-3.5 h-3.5" />
+                                        Configuracion de acceso
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                            <p className="text-xs text-slate-300">Forzar cambio de contrasena en el primer login</p>
+                                            <p className="text-[10px] text-slate-500">El usuario recibira la contrasena temporal <code className="font-mono text-cyan-300">lionsbit2.0</code></p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCreateForm(f => ({ ...f, force_password_change: !f.force_password_change }))}
+                                            data-testid="manual-create-force-toggle"
+                                            className={`relative w-11 h-6 rounded-full transition-colors ${createForm.force_password_change ? 'bg-cyan-500' : 'bg-slate-700'}`}
+                                        >
+                                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${createForm.force_password_change ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                                    <p className="text-[11px] font-mono uppercase tracking-wider text-emerald-300 mb-2">Se creara automaticamente:</p>
+                                    <div className="grid grid-cols-2 gap-1.5 text-xs text-slate-300">
+                                        <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400" />Cuenta corriente</span>
+                                        <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400" />Cuenta de ahorro</span>
+                                        <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400" />Wallet de cripto</span>
+                                        <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400" />KYC pendiente</span>
+                                        <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400" />Withdrawal status idle</span>
+                                        <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400" />Historial inicial</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 pt-1">
+                                    <Button variant="outline" onClick={() => setCreateOpen(false)}
+                                        className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                                        data-testid="manual-create-cancel">
+                                        Cancelar
+                                    </Button>
+                                    <Button onClick={handleManualCreate} disabled={creating}
+                                        className="flex-1 bg-gradient-to-br from-cyan-500 to-emerald-500 hover:from-cyan-600 hover:to-emerald-600 text-white disabled:opacity-50"
+                                        data-testid="manual-create-submit">
+                                        {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
+                                        Crear usuario y provisionar
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 pt-2" data-testid="manual-create-result">
+                                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center gap-3">
+                                    <CheckCircle className="w-8 h-8 text-emerald-400 flex-shrink-0" />
+                                    <div>
+                                        <p className="font-bold text-white">{createResult.name}</p>
+                                        <p className="text-xs text-slate-300">{createResult.email}</p>
+                                        <p className="text-[10px] font-mono text-emerald-300 mt-1">ID: {createResult.user_id}</p>
+                                    </div>
+                                </div>
+
+                                {createResult.temporary_password && (
+                                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                                        <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-amber-300 mb-2">
+                                            <Shield className="w-3.5 h-3.5" />
+                                            Contrasena temporal · entregar al cliente
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <code className="flex-1 bg-slate-950 border border-amber-500/30 rounded px-3 py-2 font-mono text-amber-200 text-sm">
+                                                {createResult.temporary_password}
+                                            </code>
+                                            <Button
+                                                variant="outline" size="icon"
+                                                onClick={() => { navigator.clipboard.writeText(createResult.temporary_password); toast.success('Copiado'); }}
+                                                className="border-amber-500/40 hover:bg-amber-500/10"
+                                                data-testid="copy-temp-password"
+                                            >
+                                                <Copy className="w-4 h-4 text-amber-300" />
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-2">El usuario debera cambiarla obligatoriamente en su primer acceso.</p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <p className="text-[11px] font-mono uppercase tracking-wider text-cyan-300">Estructura financiera provisionada</p>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                                            <Banknote className="w-5 h-5 text-cyan-400" />
+                                            <div className="flex-1">
+                                                <p className="text-sm text-white">Cuenta corriente</p>
+                                                <p className="text-[10px] font-mono text-slate-500">{createResult.provisioned?.checking_id}</p>
+                                            </div>
+                                            <div className="text-right text-xs">
+                                                <p className="text-emerald-400 font-mono">€{(createResult.seed_eur || 0).toFixed(2)}</p>
+                                                <p className="text-slate-500 font-mono">${(createResult.seed_usd || 0).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                                            <Banknote className="w-5 h-5 text-emerald-400" />
+                                            <div className="flex-1">
+                                                <p className="text-sm text-white">Cuenta de ahorro</p>
+                                                <p className="text-[10px] font-mono text-slate-500">{createResult.provisioned?.savings_id}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-500 font-mono">€0.00</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                                            <Wallet className="w-5 h-5 text-purple-400" />
+                                            <div className="flex-1">
+                                                <p className="text-sm text-white">Wallet de cripto</p>
+                                                <p className="text-[10px] font-mono text-slate-500">{createResult.provisioned?.wallet_id}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-500">vacio</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                                            <FileCheck className="w-5 h-5 text-amber-400" />
+                                            <div className="flex-1">
+                                                <p className="text-sm text-white">KYC + withdrawal status</p>
+                                                <p className="text-[10px] font-mono text-slate-500">kyc_status=pending · withdrawal_status=idle</p>
+                                            </div>
+                                            <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                        </div>
+                                        <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                                            <Activity className="w-5 h-5 text-blue-400" />
+                                            <div className="flex-1">
+                                                <p className="text-sm text-white">Historial inicial</p>
+                                                <p className="text-[10px] font-mono text-slate-500">transaction_type=account_opening</p>
+                                            </div>
+                                            <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 pt-1">
+                                    <Button variant="outline" onClick={() => { resetCreateForm(); }}
+                                        className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                                        data-testid="manual-create-another">
+                                        <UserPlus className="w-4 h-4 mr-2" />
+                                        Crear otro usuario
+                                    </Button>
+                                    <Button onClick={() => setCreateOpen(false)}
+                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+                                        data-testid="manual-create-close">
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        Cerrar
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
+
                 {/* Bulk-notify-by-health Dialog */}
                 <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
                     <DialogContent className="bg-slate-900 border-slate-800 max-w-lg" data-testid="bulk-notify-dialog">
