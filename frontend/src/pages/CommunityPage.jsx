@@ -289,25 +289,48 @@ export const CommunityPage = () => {
     const { user } = useAuth();
     const [members, setMembers] = useState([]);
     const [totalInDb, setTotalInDb] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+
+    const PAGE_SIZE = 120;
 
     const fetchMembers = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
-            const r = await fetch(`${API_URL}/api/community/members?limit=500`, {
+            const r = await fetch(`${API_URL}/api/community/members?limit=${PAGE_SIZE}&offset=0`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const d = await r.json();
             setMembers(d.members || []);
             setTotalInDb(d.total_in_db || 0);
+            setHasMore(!!d.has_more);
         } catch (e) {
             // silent
         } finally {
             setLoading(false);
         }
     }, []);
+
+    const loadMore = useCallback(async () => {
+        if (loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        try {
+            const token = localStorage.getItem('token');
+            const r = await fetch(`${API_URL}/api/community/members?limit=${PAGE_SIZE}&offset=${members.length}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const d = await r.json();
+            setMembers(prev => [...prev, ...(d.members || [])]);
+            setHasMore(!!d.has_more);
+        } catch (e) {
+            // silent
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [members.length, loadingMore, hasMore]);
 
     useEffect(() => {
         fetchMembers();
@@ -443,6 +466,21 @@ export const CommunityPage = () => {
                         ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" data-testid="community-members-grid">
                                 {filtered.map(m => <MemberCard key={m.id} member={m} />)}
+                            </div>
+                        )}
+
+                        {/* Load more — only when no active search/filter */}
+                        {!loading && hasMore && search.trim() === '' && statusFilter === 'all' && (
+                            <div className="flex justify-center pt-3" data-testid="community-load-more-wrapper">
+                                <Button
+                                    onClick={loadMore}
+                                    disabled={loadingMore}
+                                    data-testid="community-load-more-btn"
+                                    className="bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-cyan-200 font-semibold px-8 h-11 backdrop-blur-xl"
+                                >
+                                    {loadingMore ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                                    Cargar más miembros · {(totalInDb - members.length).toLocaleString('es-ES')} restantes
+                                </Button>
                             </div>
                         )}
 

@@ -148,7 +148,8 @@ async def community_members(
     q: Optional[str] = Query(None, description='Free-text search on name + country'),
     status: Optional[str] = Query(None, description='Filter by account_status label'),
     country: Optional[str] = Query(None, description='Filter by country (case-insensitive contains)'),
-    limit: int = Query(500, ge=1, le=2500),
+    limit: int = Query(120, ge=1, le=500),
+    offset: int = Query(0, ge=0, description='Skip this many records before returning'),
     user: dict = Depends(get_current_user),
 ):
     """Public directory of registered members. Returns SAFE fields only."""
@@ -235,10 +236,15 @@ async def community_members(
     # Sort: self first, then verified, then by deposited desc
     out.sort(key=lambda m: (not m['is_self'], 'verified' not in m['badges'], -m['deposited_eur']))
     total_filtered = len(out)
+    page = out[offset:offset + limit]
     return {
         'count': total_filtered,
         'total_in_db': len(users),
-        'members': out[:limit],
+        'returned': len(page),
+        'offset': offset,
+        'limit': limit,
+        'has_more': (offset + len(page)) < total_filtered,
+        'members': page,
         'self_id': user['id'],
         'updated_at': datetime.now(timezone.utc).isoformat(),
     }
