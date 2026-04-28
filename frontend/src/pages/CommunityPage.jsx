@@ -50,34 +50,43 @@ const timeAgo = (iso) => {
     return `hace ${d} d`;
 };
 
-const ProgressBar = ({ step }) => (
-    <div className="flex items-center gap-1 mt-3" data-testid="community-progress-bar">
-        {PROGRESS_STAGES.map((s, i) => {
-            const done = step >= s.key;
-            const current = step === s.key;
-            const Icon = s.icon;
-            return (
-                <div key={s.key} className="flex-1 flex items-center gap-1">
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
-                            done ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
-                            current ? 'bg-cyan-500/20 border-cyan-400 ring-2 ring-cyan-400/40 animate-pulse' :
-                            'bg-slate-800/50 border-slate-700'
-                        }`}>
-                            <Icon className={`w-3.5 h-3.5 ${done ? 'text-white' : current ? 'text-cyan-300' : 'text-slate-600'}`} />
+const ProgressBar = ({ step }) => {
+    const fullyCompleted = step >= 5;
+    // When fully completed → render in BLUE (premium completion); otherwise emerald/cyan default
+    const doneCls = fullyCompleted
+        ? 'bg-blue-500 border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.65)]'
+        : 'bg-emerald-500 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]';
+    const doneTextCls = fullyCompleted ? 'text-blue-300' : 'text-emerald-300';
+    const connectorCls = fullyCompleted ? 'bg-blue-500' : 'bg-emerald-500';
+    return (
+        <div className="flex items-center gap-1 mt-3" data-testid="community-progress-bar" data-fully-completed={fullyCompleted ? 'true' : 'false'}>
+            {PROGRESS_STAGES.map((s, i) => {
+                const done = step >= s.key;
+                const current = step === s.key && !fullyCompleted;
+                const Icon = s.icon;
+                return (
+                    <div key={s.key} className="flex-1 flex items-center gap-1">
+                        <div className="flex flex-col items-center gap-1 flex-1">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
+                                done ? doneCls :
+                                current ? 'bg-cyan-500/20 border-cyan-400 ring-2 ring-cyan-400/40 animate-pulse' :
+                                'bg-slate-800/50 border-slate-700'
+                            }`}>
+                                <Icon className={`w-3.5 h-3.5 ${done ? 'text-white' : current ? 'text-cyan-300' : 'text-slate-600'}`} />
+                            </div>
+                            <span className={`text-[9px] font-mono uppercase tracking-tight ${done ? doneTextCls : current ? 'text-cyan-300' : 'text-slate-600'}`}>
+                                {s.label}
+                            </span>
                         </div>
-                        <span className={`text-[9px] font-mono uppercase tracking-tight ${done ? 'text-emerald-300' : current ? 'text-cyan-300' : 'text-slate-600'}`}>
-                            {s.label}
-                        </span>
+                        {i < PROGRESS_STAGES.length - 1 && (
+                            <div className={`h-0.5 flex-1 mb-4 ${done && step > s.key ? connectorCls : 'bg-slate-800'}`} />
+                        )}
                     </div>
-                    {i < PROGRESS_STAGES.length - 1 && (
-                        <div className={`h-0.5 flex-1 mb-4 ${done && step > s.key ? 'bg-emerald-500' : 'bg-slate-800'}`} />
-                    )}
-                </div>
-            );
-        })}
-    </div>
-);
+                );
+            })}
+        </div>
+    );
+};
 
 const BadgeCloud = ({ badges }) => {
     if (!badges?.length) return null;
