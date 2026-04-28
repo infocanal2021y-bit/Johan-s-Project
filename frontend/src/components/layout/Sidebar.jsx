@@ -129,6 +129,7 @@ export const Sidebar = () => {
         { to: '/admin/mt5-invest', icon: Bitcoin, label: 'Depositos MT5 Invest' },
         { to: '/admin/partial-unlock', icon: Unlock, label: 'Desbloqueos 40%' },
         { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar clientes' },
+        { to: '/admin/client-import/analytics', icon: TrendingUp, label: 'Analytics importación' },
     ];
 
     const NavLinks = ({ links }) => (

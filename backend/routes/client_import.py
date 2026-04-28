@@ -553,6 +553,239 @@ async def get_job(job_id: str, admin: dict = Depends(get_admin_user)):
 
 
 # ══════════════════════════════════════════════════════════════════
+#  ADMIN: Analytics — conversion funnel + segmented campaigns
+# ══════════════════════════════════════════════════════════════════
+
+FUNNEL_STAGES = [
+    ('emailed',           'Correo enviado'),
+    ('opened',            'Correo abierto'),
+    ('logged_in',         'Inició sesión'),
+    ('password_changed',  'Cambió contraseña'),
+    ('kyc_completed',     'Completó KYC'),
+    ('withdraw_requested', 'Solicitó retiro'),
+]
+
+
+def _classify_user_stage(user: dict) -> str:
+    """Return the furthest funnel stage this user has reached."""
+    eng = user.get('engagement') or {}
+    if eng.get('last_withdraw_request_at'):
+        return 'withdraw_requested'
+    if user.get('verification_status') == 'verified':
+        return 'kyc_completed'
+    if eng.get('password_changed_at') or not user.get('must_change_password'):
+        # 'must_change_password' was True at import → flipping it off means the change happened
+        if user.get('is_reactivated') and (eng.get('password_changed_at') or user.get('password_changed_at')):
+            return 'password_changed'
+    if user.get('first_login_at'):
+        return 'logged_in'
+    if eng.get('email_opened_at'):
+        return 'opened'
+    return 'emailed'
+
+
+async def _compute_funnel(match_filter: dict) -> dict:
+    """Aggregate users matching ``match_filter`` into the 5-stage funnel,
+    with per-group breakdown. Users are counted at the FURTHEST stage
+    they've reached (so each stage is cumulative: stage N >= stage N+1)."""
+    cur = db.users.find(match_filter, {
+        '_id': 0, 'id': 1, 'email': 1, 'import_group': 1, 'engagement': 1,
+        'verification_status': 1, 'first_login_at': 1, 'is_reactivated': 1,
+        'must_change_password': 1, 'password_changed_at': 1, 'import_job_id': 1,
+    })
+    users = [u async for u in cur]
+
+    total = len(users)
+    cumulative = {k: 0 for k, _ in FUNNEL_STAGES}
+    by_group_cumulative: dict = {}
+    order_idx = {k: i for i, (k, _) in enumerate(FUNNEL_STAGES)}
+
+    for u in users:
+        stage = _classify_user_stage(u)
+        idx = order_idx[stage]
+        # Count cumulative: if user reached stage N, count them in all stages 0..N
+        for k, _ in FUNNEL_STAGES[: idx + 1]:
+            cumulative[k] += 1
+            g = u.get('import_group') or 'unknown'
+            by_group_cumulative.setdefault(g, {k2: 0 for k2, _ in FUNNEL_STAGES})
+            by_group_cumulative[g][k] += 1
+
+    stages: list = []
+    prev_count: int = 0
+    for i, (key, label) in enumerate(FUNNEL_STAGES):
+        count = cumulative[key]
+        pct = round((count / total) * 100, 1) if total else 0.0
+        drop_off_pct = 0.0
+        if i > 0 and prev_count > 0:
+            drop_off_pct = round(((prev_count - count) / prev_count) * 100, 1)
+        stages.append({
+            'key': key, 'label': label,
+            'count': count, 'pct': pct, 'drop_off_pct': drop_off_pct,
+        })
+        prev_count = count
+
+    # Sum total per group
+    by_group = {}
+    for g, counts in by_group_cumulative.items():
+        g_total = counts['emailed']
+        group_stages = []
+        prev = 0
+        for i, (key, label) in enumerate(FUNNEL_STAGES):
+            c = counts[key]
+            p = round((c / g_total) * 100, 1) if g_total else 0.0
+            d = round(((prev - c) / prev) * 100, 1) if i > 0 and prev > 0 else 0.0
+            group_stages.append({'key': key, 'label': label, 'count': c, 'pct': p, 'drop_off_pct': d})
+            prev = c
+        by_group[g] = {'total': g_total, 'stages': group_stages}
+
+    return {
+        'total': total,
+        'stages': stages,
+        'by_group': by_group,
+        'last_sync': _now_iso(),
+    }
+
+
+@router.get("/admin/client-import/funnel")
+async def get_funnel(
+    job_id: Optional[str] = None,
+    group: Optional[str] = None,
+    admin: dict = Depends(get_admin_user),
+):
+    """Real-time conversion funnel for imported users.
+    Filters: job_id (single import), group (only that segment)."""
+    match: dict = {'import_job_id': {'$exists': True, '$ne': None}}
+    if job_id:
+        match['import_job_id'] = job_id
+    if group:
+        match['import_group'] = _normalize_group(group, group)
+    return await _compute_funnel(match)
+
+
+# ── Segmented campaigns (re-engagement) ──────────────────────────
+CAMPAIGN_SEGMENTS = {
+    'not_opened':      {'label': 'No abrieron el correo',        'subject': 'Recordatorio · Su cuenta LIONSBIT sigue habilitada'},
+    'opened_no_login': {'label': 'Abrieron pero no iniciaron sesión', 'subject': 'Complete el acceso a su cuenta reactivada'},
+    'no_kyc':          {'label': 'Iniciaron sesión sin completar KYC', 'subject': 'Finalice su verificación para desbloquear retiros'},
+}
+
+
+def _segment_match_fragment(segment: str) -> dict:
+    """Return the Mongo fragment that selects users in this segment."""
+    if segment == 'not_opened':
+        return {'engagement.email_opened_at': {'$in': [None, '', False]}}
+    if segment == 'opened_no_login':
+        return {
+            'engagement.email_opened_at': {'$nin': [None, '', False]},
+            'first_login_at': {'$in': [None, '']},
+        }
+    if segment == 'no_kyc':
+        return {
+            'first_login_at': {'$nin': [None, '']},
+            'verification_status': {'$ne': 'verified'},
+        }
+    raise HTTPException(400, f"Segmento inválido: {segment}. Usa uno de {list(CAMPAIGN_SEGMENTS)}")
+
+
+@router.get("/admin/client-import/segment-preview")
+async def segment_preview(
+    segment: str,
+    job_id: Optional[str] = None,
+    group: Optional[str] = None,
+    admin: dict = Depends(get_admin_user),
+):
+    """Return the count of users that would be targeted by this campaign
+    (dry-run, no emails sent)."""
+    if segment not in CAMPAIGN_SEGMENTS:
+        raise HTTPException(400, f"Segmento inválido: {segment}")
+
+    base = {'import_job_id': {'$exists': True, '$ne': None}}
+    base.update(_segment_match_fragment(segment))
+    if job_id:
+        base['import_job_id'] = job_id
+    if group:
+        base['import_group'] = _normalize_group(group, group)
+
+    count = await db.users.count_documents(base)
+    # Sample 5 emails so admin can preview
+    sample_cur = db.users.find(base, {'_id': 0, 'email': 1, 'name': 1, 'import_group': 1}).limit(5)
+    sample = await sample_cur.to_list(length=5)
+    return {
+        'segment': segment,
+        'label': CAMPAIGN_SEGMENTS[segment]['label'],
+        'suggested_subject': CAMPAIGN_SEGMENTS[segment]['subject'],
+        'count': count,
+        'sample': sample,
+    }
+
+
+@router.post("/admin/client-import/resend-campaign")
+async def resend_campaign(payload: dict, admin: dict = Depends(get_admin_user)):
+    """Send a re-engagement email to a filtered segment.
+    Payload: { segment: 'not_opened'|'opened_no_login'|'no_kyc',
+               job_id?: str, group?: str,
+               subject?: str, intro?: str }"""
+    segment = (payload.get('segment') or '').strip()
+    if segment not in CAMPAIGN_SEGMENTS:
+        raise HTTPException(400, f"Segmento inválido: {segment}")
+
+    base = {'import_job_id': {'$exists': True, '$ne': None}}
+    base.update(_segment_match_fragment(segment))
+    if payload.get('job_id'):
+        base['import_job_id'] = payload['job_id']
+    if payload.get('group'):
+        base['import_group'] = _normalize_group(payload['group'], payload['group'])
+
+    subject = (payload.get('subject') or CAMPAIGN_SEGMENTS[segment]['subject']).strip()[:200]
+    intro   = (payload.get('intro') or '').strip()[:600]
+
+    users_cur = db.users.find(base, {'_id': 0, 'id': 1, 'email': 1, 'name': 1, 'email_open_token': 1})
+    targets = await users_cur.to_list(length=5000)
+
+    login_url = f"{APP_BASE_URL}/login?reactivated=1"
+    sent = 0
+    for u in targets:
+        try:
+            token = u.get('email_open_token') or str(uuid.uuid4())
+            if not u.get('email_open_token'):
+                # back-fill token so re-engagement opens still register
+                await db.users.update_one({'id': u['id']}, {'$set': {'email_open_token': token}})
+            track_url = f"{APP_BASE_URL}/api/client-import/track/open/{token}.png"
+            html = get_email_template(
+                _build_reengagement_email_html(u.get('name') or 'Cliente', login_url, track_url, segment, intro),
+                subject,
+            )
+            send_email_background(u['email'], subject, html)
+            sent += 1
+        except Exception as e:
+            logging.warning(f"resend failed for {u.get('email')}: {e}")
+
+    # Log the campaign for audit
+    campaign_doc = {
+        'id': str(uuid.uuid4()),
+        'segment': segment,
+        'job_id': payload.get('job_id'),
+        'group':  payload.get('group'),
+        'subject': subject,
+        'intro': intro,
+        'targets_matched': len(targets),
+        'emails_sent': sent,
+        'triggered_by': admin.get('email'),
+        'triggered_at': _now_iso(),
+    }
+    await db.client_import_campaigns.insert_one(campaign_doc)
+    campaign_doc.pop('_id', None)
+    return {'ok': True, 'sent': sent, 'matched': len(targets), 'campaign': campaign_doc}
+
+
+@router.get("/admin/client-import/campaigns")
+async def list_campaigns(limit: int = 50, admin: dict = Depends(get_admin_user)):
+    cur = db.client_import_campaigns.find({}, {'_id': 0}).sort('triggered_at', -1).limit(min(limit, 200))
+    items = await cur.to_list(length=200)
+    return {'items': items, 'count': len(items)}
+
+
+# ══════════════════════════════════════════════════════════════════
 #  PUBLIC: Email open tracking pixel
 # ══════════════════════════════════════════════════════════════════
 
@@ -631,6 +864,85 @@ def _build_reactivation_email_html(user_name: str, login_url: str, tracker_url: 
 
         <p style="color:#64748b; font-size:12px; line-height:1.7; margin:22px 0 8px;">
             En caso de cualquier duda, puede contactarnos desde el área de soporte o respondiendo directamente a este correo.
+        </p>
+        <p style="color:#94a3b8; font-size:13px; margin:16px 0 0;">
+            Atentamente,<br><strong style="color:#cbd5e1;">Departamento de Soporte</strong>
+        </p>
+    </div>
+    <img src="{tracker_url}" width="1" height="1" alt="" style="display:block; border:0;" />
+    """
+
+
+# ── Re-engagement email (segmented resend) ───────────────────────
+def _build_reengagement_email_html(user_name: str, login_url: str, tracker_url: str, segment: str, intro: str = '') -> str:
+    safe_name = (user_name or 'Cliente').split('@')[0]
+
+    # Per-segment hook copy
+    HOOKS = {
+        'not_opened': {
+            'title':   'Le recordamos que su cuenta está habilitada',
+            'badge':   'Recordatorio · Cuenta reactivada',
+            'hook':    'Hemos notado que aún no ha accedido a su cuenta tras la reactivación. Sus fondos siguen disponibles y puede ingresar utilizando su correo histórico y la contraseña temporal asignada.',
+            'cta':     'Acceder ahora',
+        },
+        'opened_no_login': {
+            'title':   'Complete el acceso a su cuenta',
+            'badge':   'Paso pendiente · Iniciar sesión',
+            'hook':    'Su cuenta está preparada y esperando su primer acceso. Solo faltan 30 segundos para entrar, actualizar su contraseña y continuar con su proceso.',
+            'cta':     'Iniciar sesión',
+        },
+        'no_kyc': {
+            'title':   'Finalice su verificación para desbloquear retiros',
+            'badge':   'Paso pendiente · Verificación KYC',
+            'hook':    'Ha iniciado sesión correctamente. Para habilitar el procesamiento de retiros, complete su verificación de identidad (KYC). Los clientes verificados primero tienen prioridad de validación.',
+            'cta':     'Completar verificación',
+        },
+    }
+    hook = HOOKS.get(segment, HOOKS['not_opened'])
+    custom = f'<p style="color:#cbd5e1; font-size:14px; line-height:1.7; margin:0 0 14px;">{intro}</p>' if intro else ''
+
+    return f"""
+    <div style="padding: 28px 28px 8px;">
+        <p style="color:#22d3ee; font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; margin:0 0 6px;">
+            {hook['badge']}
+        </p>
+        <h1 style="color:#ffffff; font-size:22px; font-weight:700; margin:0 0 6px; letter-spacing:-0.02em;">
+            {hook['title']}
+        </h1>
+        <p style="color:#94a3b8; font-size:13px; margin:0 0 20px;">Departamento de Soporte · LIONSBIT VERIFICACION</p>
+
+        <p style="color:#cbd5e1; font-size:14px; line-height:1.7; margin:0 0 14px;">
+            Estimado {safe_name},
+        </p>
+        <p style="color:#cbd5e1; font-size:14px; line-height:1.7; margin:0 0 14px;">
+            {hook['hook']}
+        </p>
+        {custom}
+
+        <table role="presentation" style="width:100%; margin:18px 0 22px; border-collapse:separate; border-spacing:0;">
+            <tr>
+                <td style="background:rgba(34,211,238,0.08); border:1px solid rgba(34,211,238,0.35); border-radius:10px; padding:14px 16px;">
+                    <p style="color:#22d3ee; font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; margin:0 0 6px;">Acceso rápido</p>
+                    <p style="color:#ffffff; font-size:13px; margin:0 0 4px;">Correo registrado <span style="color:#64748b;">+</span> contraseña temporal</p>
+                    <p style="color:#22d3ee; font-family:'SF Mono', monospace; font-size:15px; font-weight:700; letter-spacing:0.04em; margin:8px 0 0;">
+                        {TEMP_PASSWORD}
+                    </p>
+                </td>
+            </tr>
+        </table>
+
+        <table role="presentation" style="margin:20px 0;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#0891b2,#06b6d4); border-radius:10px;">
+                    <a href="{login_url}" target="_blank" style="display:inline-block; padding:14px 28px; color:#ffffff; font-size:14px; font-weight:700; text-decoration:none; letter-spacing:0.04em;">
+                        {hook['cta']} →
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <p style="color:#64748b; font-size:12px; line-height:1.7; margin:20px 0 8px;">
+            Si necesita asistencia, responda directamente a este correo o contacte al área de soporte.
         </p>
         <p style="color:#94a3b8; font-size:13px; margin:16px 0 0;">
             Atentamente,<br><strong style="color:#cbd5e1;">Departamento de Soporte</strong>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import api from '../../lib/api';
 import { Card } from '../../components/ui/card';
@@ -9,6 +10,7 @@ import {
     Upload, FileSpreadsheet, Loader2, Users, UserCheck, UserPlus, Copy, XCircle,
     AlertTriangle, CheckCircle2, RefreshCw, ArrowRight, PlayCircle,
     Sparkles, Clock, Mail, Shield, Eye, ChevronRight, ChevronDown,
+    TrendingUp,
 } from 'lucide-react';
 
 const GROUPS = [
@@ -154,9 +156,16 @@ export const AdminClientImportPage = () => {
                             </p>
                         </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={loadJobs} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9" data-testid="client-import-refresh">
-                        <RefreshCw className="w-3.5 h-3.5 mr-1" /> Refrescar
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Link to="/admin/client-import/analytics">
+                            <Button size="sm" className="h-9 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white font-bold tracking-wider shadow-md" data-testid="link-to-analytics">
+                                <TrendingUp className="w-3.5 h-3.5 mr-1" /> Analytics de conversión
+                            </Button>
+                        </Link>
+                        <Button variant="outline" size="sm" onClick={loadJobs} className="border-slate-700 text-slate-300 hover:bg-slate-800 h-9" data-testid="client-import-refresh">
+                            <RefreshCw className="w-3.5 h-3.5 mr-1" /> Refrescar
+                        </Button>
+                    </div>
                 </div>
 
                 {/* ── Upload zone ── */}
