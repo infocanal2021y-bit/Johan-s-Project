@@ -288,6 +288,7 @@ const RecentWithdrawalsFeed = () => {
 export const CommunityPage = () => {
     const { user } = useAuth();
     const [members, setMembers] = useState([]);
+    const [totalInDb, setTotalInDb] = useState(0);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -295,11 +296,12 @@ export const CommunityPage = () => {
     const fetchMembers = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
-            const r = await fetch(`${API_URL}/api/community/members?limit=200`, {
+            const r = await fetch(`${API_URL}/api/community/members?limit=500`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const d = await r.json();
             setMembers(d.members || []);
+            setTotalInDb(d.total_in_db || 0);
         } catch (e) {
             // silent
         } finally {
@@ -356,7 +358,7 @@ export const CommunityPage = () => {
                                 </div>
                                 <div className="flex items-center gap-1.5 text-cyan-300">
                                     <Globe className="w-3.5 h-3.5" />
-                                    <span>{counts.all} cuentas activas</span>
+                                    <span>{totalInDb.toLocaleString('es-ES')} cuentas activas</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-violet-300">
                                     <Sparkles className="w-3.5 h-3.5" />
@@ -412,6 +414,19 @@ export const CommunityPage = () => {
                         </Card>
 
                         {/* Members grid */}
+                        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                            <span data-testid="community-results-count">
+                                Mostrando <strong className="text-white">{filtered.length.toLocaleString('es-ES')}</strong>
+                                {totalInDb > members.length && (
+                                    <> de <strong className="text-cyan-300">{totalInDb.toLocaleString('es-ES')}</strong> miembros</>
+                                )}
+                                {totalInDb > members.length && (
+                                    <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-400">
+                                        · usa la búsqueda para encontrar a alguien específico
+                                    </span>
+                                )}
+                            </span>
+                        </div>
                         {loading ? (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                 {[...Array(6)].map((_, i) => (

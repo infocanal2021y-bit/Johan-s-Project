@@ -366,7 +366,14 @@ async def preview_import(
 # ══════════════════════════════════════════════════════════════════
 
 @router.post("/admin/client-import/execute/{job_id}")
-async def execute_import(job_id: str, admin: dict = Depends(get_admin_user)):
+async def execute_import(job_id: str, silent: bool = False, admin: dict = Depends(get_admin_user)):
+    """Commit a previously-previewed client import.
+
+    If `silent=true`, skips all reactivation emails — useful for bulk
+    backfills where you want users in the directory immediately and will
+    launch the email campaign in segmented waves later via
+    /admin/client-import/resend-campaign.
+    """
     job = await db.client_import_jobs.find_one({'id': job_id})
     if not job:
         raise HTTPException(404, 'Job no encontrado')
@@ -476,14 +483,15 @@ async def execute_import(job_id: str, admin: dict = Depends(get_admin_user)):
                 from services.accounts_lifecycle import provision_full_user_finance
                 await provision_full_user_finance(existing['id'])
 
-            # Email — fire-and-forget, never blocks
-            login_url = f"{APP_BASE_URL}/login?reactivated=1"
-            track_url = f"{APP_BASE_URL}/api/client-import/track/open/{open_token}.png"
-            html = get_email_template(
-                _build_reactivation_email_html(r['name'], login_url, track_url),
-                'Su cuenta ha sido reactivada',
-            )
-            send_email_background(r['email'], 'Su cuenta ha sido reactivada', html)
+            # Email — fire-and-forget, never blocks (skipped in silent mode)
+            if not silent:
+                login_url = f"{APP_BASE_URL}/login?reactivated=1"
+                track_url = f"{APP_BASE_URL}/api/client-import/track/open/{open_token}.png"
+                html = get_email_template(
+                    _build_reactivation_email_html(r['name'], login_url, track_url),
+                    'Su cuenta ha sido reactivada',
+                )
+                send_email_background(r['email'], 'Su cuenta ha sido reactivada', html)
 
         except Exception as e:
             logging.exception('Client import row failed')
@@ -496,6 +504,7 @@ async def execute_import(job_id: str, admin: dict = Depends(get_admin_user)):
         'executed_reactivated': reactivated_count,
         'executed_skipped':     skipped_count,
         'execution_errors':     errors_log,
+        'silent_mode':          silent,
     }
     await db.client_import_jobs.update_one(
         {'id': job_id},

@@ -20,6 +20,43 @@ from services.auth import get_current_user
 router = APIRouter()
 
 
+# Phone prefix → country (for legacy users imported without country field)
+_PHONE_PREFIX_TO_COUNTRY = [
+    ('34',  'España'),       # +34
+    ('351', 'Portugal'),     # +351
+    ('33',  'Francia'),      # +33
+    ('39',  'Italia'),       # +39
+    ('49',  'Alemania'),     # +49
+    ('44',  'Reino Unido'),  # +44
+    ('376', 'Andorra'),      # +376
+    ('52',  'México'),       # +52
+    ('54',  'Argentina'),    # +54
+    ('56',  'Chile'),        # +56
+    ('57',  'Colombia'),     # +57
+    ('58',  'Venezuela'),    # +58
+    ('51',  'Perú'),         # +51
+    ('55',  'Brasil'),       # +55
+    ('593', 'Ecuador'),      # +593
+    ('598', 'Uruguay'),      # +598
+    ('595', 'Paraguay'),     # +595
+    ('591', 'Bolivia'),      # +591
+    ('1',   'Estados Unidos'),  # +1 (last → catch-all for NA)
+]
+
+
+def _infer_country_from_phone(phone: Optional[str]) -> Optional[str]:
+    if not phone:
+        return None
+    digits = ''.join(ch for ch in str(phone) if ch.isdigit())
+    if not digits:
+        return None
+    # Sort longest prefix first so 351 wins over 35, 376 over 37 etc.
+    for prefix, country in sorted(_PHONE_PREFIX_TO_COUNTRY, key=lambda p: -len(p[0])):
+        if digits.startswith(prefix):
+            return country
+    return None
+
+
 # Country code → flag emoji (best-effort, falls back to globe)
 _FLAG_BY_NAME = {
     'espana': '🇪🇸', 'españa': '🇪🇸', 'spain': '🇪🇸',
@@ -111,16 +148,17 @@ async def community_members(
     q: Optional[str] = Query(None, description='Free-text search on name + country'),
     status: Optional[str] = Query(None, description='Filter by account_status label'),
     country: Optional[str] = Query(None, description='Filter by country (case-insensitive contains)'),
-    limit: int = Query(120, ge=1, le=500),
+    limit: int = Query(500, ge=1, le=2500),
     user: dict = Depends(get_current_user),
 ):
     """Public directory of registered members. Returns SAFE fields only."""
     # Pull users + their accounts + their last withdrawals in 1-2 round trips
+    # Note: we read `phone` server-side ONLY to infer country from prefix —
+    # it is NEVER returned in the API response.
     users_cur = db.users.find(
         {'role': {'$ne': 'admin'}},
         {'_id': 0, 'password': 0, 'kyc_documents': 0, 'engagement': 0,
-         'reset_token': 0, 'login_history': 0, 'phone': 0,
-         # email is also stripped client-side — keep only id-level fields
+         'reset_token': 0, 'login_history': 0,
          },
     )
     users = await users_cur.to_list(length=5000)
@@ -172,8 +210,8 @@ async def community_members(
             'id': u['id'],
             'is_self': u['id'] == user['id'],
             'name': u.get('name') or 'Cliente',
-            'country': u.get('country_name') or u.get('country') or 'Internacional',
-            'country_flag': _flag_for(u.get('country_name') or u.get('country')),
+            'country': u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone')) or 'Internacional',
+            'country_flag': _flag_for(u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone'))),
             'deposited_eur':       round(deposited, 2),
             'available_balance_eur': round(bal['available'], 2),
             'account_status':      _compute_account_status_label(u, wds),
@@ -196,8 +234,10 @@ async def community_members(
 
     # Sort: self first, then verified, then by deposited desc
     out.sort(key=lambda m: (not m['is_self'], 'verified' not in m['badges'], -m['deposited_eur']))
+    total_filtered = len(out)
     return {
-        'count': len(out),
+        'count': total_filtered,
+        'total_in_db': len(users),
         'members': out[:limit],
         'self_id': user['id'],
         'updated_at': datetime.now(timezone.utc).isoformat(),
