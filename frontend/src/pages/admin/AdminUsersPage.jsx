@@ -219,6 +219,7 @@ export const AdminUsersPage = () => {
                                         <TableHeader>
                                             <TableRow className="border-slate-800 hover:bg-transparent">
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Usuario</TableHead>
+                                                <TableHead className="text-slate-500 font-mono text-xs uppercase text-center" data-testid="users-th-health">Health</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Interes</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">Rol</TableHead>
                                                 <TableHead className="text-slate-500 font-mono text-xs uppercase">KYC</TableHead>
@@ -244,6 +245,9 @@ export const AdminUsersPage = () => {
                                                                     {user.phone && <p className="text-[10px] text-slate-600">{user.phone}</p>}
                                                                 </div>
                                                             </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <HealthDot health={user.health} testId={`health-${user.id}`} />
                                                         </TableCell>
                                                         <TableCell>{getScoreBadge(user.interest_score)}</TableCell>
                                                         <TableCell>

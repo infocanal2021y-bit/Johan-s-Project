@@ -28,7 +28,13 @@ router = APIRouter()
 
 @router.get("/admin/users")
 async def admin_get_users(admin: dict = Depends(get_admin_user)):
-    """Get all users with their accounts - optimized with aggregation"""
+    """Get all users with their accounts + computed health status.
+
+    Health is a single-glance indicator for the admin:
+      • green  → all good (accounts ok + verified + has logged in)
+      • yellow → has accounts but pending action (KYC pending OR no login OR must_change_password)
+      • red    → critical: missing internal accounts OR account_status='suspended'/'rejected'
+    """
     users = await db.users.aggregate([
         {'$project': {'_id': 0, 'password': 0}},
         {'$limit': 1000},
@@ -43,12 +49,48 @@ async def admin_get_users(admin: dict = Depends(get_admin_user)):
             'total_balance_eur': {'$sum': '$accounts.balance_eur'}
         }}
     ]).to_list(1000)
-    
-    # Clean up accounts array to remove _id
+
+    # Clean up accounts array to remove _id + compute health per user
     for user in users:
         if 'accounts' in user:
             user['accounts'] = [{k: v for k, v in acc.items() if k != '_id'} for acc in user['accounts']]
-    
+
+        types = {a.get('account_type') for a in user.get('accounts', [])}
+        has_checking = 'checking' in types
+        has_savings  = 'savings' in types
+        verified     = user.get('verification_status') == 'verified'
+        logged_in    = bool(user.get('first_login_at') or user.get('last_active'))
+        must_change  = bool(user.get('must_change_password'))
+        suspended    = user.get('account_status') in ('suspended', 'rejected', 'blocked')
+
+        reasons = []
+        if not has_checking: reasons.append('Falta checking account')
+        if not has_savings:  reasons.append('Falta savings account')
+        if suspended:        reasons.append(f"Cuenta {user.get('account_status')}")
+        if not verified:     reasons.append('KYC pendiente')
+        if not logged_in:    reasons.append('Sin acceso registrado')
+        if must_change:      reasons.append('Cambio de contraseña pendiente')
+
+        if not has_checking or suspended:
+            level = 'red'
+        elif reasons:
+            level = 'yellow'
+        else:
+            level = 'green'
+
+        user['health'] = {
+            'level':   level,
+            'reasons': reasons,
+            'flags': {
+                'has_checking': has_checking,
+                'has_savings':  has_savings,
+                'verified':     verified,
+                'logged_in':    logged_in,
+                'must_change_password': must_change,
+                'suspended':    suspended,
+            },
+        }
+
     return users
 
 @router.get("/admin/transactions")
