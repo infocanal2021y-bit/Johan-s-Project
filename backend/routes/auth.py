@@ -54,16 +54,8 @@ async def register(user_data: UserCreate, request: Request):
     }
     await db.users.insert_one(user)
 
-    for acc_type in ['checking', 'savings']:
-        account = {
-            'id': str(uuid.uuid4()),
-            'user_id': user_id,
-            'account_type': acc_type,
-            'balance_usd': 0.0,
-            'balance_eur': 0.0,
-            'created_at': now
-        }
-        await db.accounts.insert_one(account)
+    from services.accounts_lifecycle import provision_full_user_finance
+    await provision_full_user_finance(user_id)
 
     await create_notification(user_id, 'Bienvenido a LIONSBIT VERIFICACION!',
         'Su cuenta ha sido creada. Por favor complete la verificacion KYC para desbloquear todas las funciones.')

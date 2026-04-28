@@ -159,11 +159,50 @@ export const AdminUsersPage = () => {
 
     useEffect(() => { fetchUsers(); }, []);
 
+    const [healthFilter, setHealthFilter] = useState('all');  // all | green | yellow | red
+    const [bulkOpen, setBulkOpen] = useState(false);
+    const [bulkSubject, setBulkSubject] = useState('Recordatorio de su cuenta LIONSBIT');
+    const [bulkIntro, setBulkIntro] = useState('');
+    const [bulkSending, setBulkSending] = useState(false);
+
+    const healthCounts = users.reduce((acc, u) => {
+        const lvl = u.health?.level || 'yellow';
+        acc[lvl] = (acc[lvl] || 0) + 1;
+        return acc;
+    }, { green: 0, yellow: 0, red: 0 });
+
     const filteredUsers = users.filter(u => {
+        if (healthFilter !== 'all' && (u.health?.level || 'yellow') !== healthFilter) return false;
         if (!search) return true;
         const q = search.toLowerCase();
         return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
     });
+
+    const handleBulkNotify = async () => {
+        if (!bulkSubject.trim()) { toast.error('El asunto es obligatorio'); return; }
+        if (healthFilter === 'all') { toast.error('Selecciona un nivel de health'); return; }
+        setBulkSending(true);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(`${API_URL}/api/admin/users/bulk-notify-by-health`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ level: healthFilter, subject: bulkSubject, intro: bulkIntro }),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                toast.success(`Notificación enviada a ${data.sent} usuarios (${data.failed} fallidos)`);
+                setBulkOpen(false);
+                setBulkIntro('');
+            } else {
+                toast.error(data.detail || 'Error enviando notificación');
+            }
+        } catch (e) {
+            toast.error('Error de red');
+        } finally {
+            setBulkSending(false);
+        }
+    };
 
     const handleEditBalance = (user, account) => {
         setSelectedUser(user);
@@ -261,6 +300,48 @@ export const AdminUsersPage = () => {
                     <h1 className="text-2xl sm:text-3xl font-heading font-bold text-white">Usuarios Registrados</h1>
                     <p className="text-slate-500 mt-1">Gestionar usuarios, saldos y puntuacion de interes</p>
                 </motion.div>
+
+                {/* Health filter chips + bulk-notify */}
+                <div className="flex flex-wrap items-center gap-2" data-testid="health-filter-bar">
+                    {[
+                        { key: 'all',    label: 'Todos',     count: users.length,                  cls: 'bg-slate-800 text-slate-200 border-slate-700' },
+                        { key: 'green',  label: 'Saludable', count: healthCounts.green || 0,       cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+                        { key: 'yellow', label: 'Atencion',  count: healthCounts.yellow || 0,      cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+                        { key: 'red',    label: 'Critico',   count: healthCounts.red || 0,         cls: 'bg-rose-500/15 text-rose-300 border-rose-500/30' },
+                    ].map(chip => {
+                        const active = healthFilter === chip.key;
+                        return (
+                            <button
+                                key={chip.key}
+                                type="button"
+                                onClick={() => setHealthFilter(chip.key)}
+                                data-testid={`health-filter-${chip.key}`}
+                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider border transition-all ${chip.cls} ${active ? 'ring-2 ring-cyan-400/60 shadow-[0_0_14px_rgba(34,211,238,0.35)]' : 'opacity-70 hover:opacity-100'}`}
+                            >
+                                {chip.key !== 'all' && (
+                                    <span className={`w-2 h-2 rounded-full ${
+                                        chip.key === 'green' ? 'bg-emerald-400' :
+                                        chip.key === 'yellow' ? 'bg-amber-400' : 'bg-rose-500'
+                                    }`} />
+                                )}
+                                <span>{chip.label}</span>
+                                <span className="font-bold">{chip.count}</span>
+                            </button>
+                        );
+                    })}
+
+                    {healthFilter !== 'all' && filteredUsers.length > 0 && (
+                        <Button
+                            size="sm"
+                            onClick={() => setBulkOpen(true)}
+                            data-testid="bulk-notify-btn"
+                            className="ml-auto bg-cyan-500 hover:bg-cyan-600 text-white text-xs h-9"
+                        >
+                            <Activity className="w-3.5 h-3.5 mr-1.5" />
+                            Notificar a {filteredUsers.length} usuarios
+                        </Button>
+                    )}
+                </div>
 
                 {/* Search */}
                 <div className="relative max-w-md">
@@ -522,6 +603,64 @@ export const AdminUsersPage = () => {
                             <Button onClick={handleSaveRole} className="w-full bg-emerald-500 hover:bg-emerald-600" data-testid="save-role-btn">
                                 Actualizar Rol
                             </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                {/* Bulk-notify-by-health Dialog */}
+                <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                    <DialogContent className="bg-slate-900 border-slate-800 max-w-lg" data-testid="bulk-notify-dialog">
+                        <DialogHeader>
+                            <DialogTitle className="text-white flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-cyan-400" />
+                                Notificar a {filteredUsers.length} usuarios
+                                <span className={`text-xs font-mono uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                    healthFilter === 'green' ? 'bg-emerald-500/20 text-emerald-300' :
+                                    healthFilter === 'yellow' ? 'bg-amber-500/20 text-amber-300' :
+                                    healthFilter === 'red' ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-700 text-slate-300'
+                                }`}>
+                                    {healthFilter === 'green' ? 'Saludable' : healthFilter === 'yellow' ? 'Atencion' : healthFilter === 'red' ? 'Critico' : ''}
+                                </span>
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 pt-2">
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                                Cada destinatario recibirá un correo institucional vía Resend + una notificación en la campanita.
+                                Esta acción no se puede deshacer.
+                            </p>
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-300 text-sm">Asunto</Label>
+                                <Input
+                                    value={bulkSubject}
+                                    onChange={(e) => setBulkSubject(e.target.value)}
+                                    placeholder="Recordatorio de su cuenta LIONSBIT"
+                                    className="bg-slate-950 border-slate-800 text-white"
+                                    data-testid="bulk-notify-subject"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-300 text-sm">Mensaje (opcional)</Label>
+                                <textarea
+                                    value={bulkIntro}
+                                    onChange={(e) => setBulkIntro(e.target.value)}
+                                    rows={4}
+                                    placeholder="Le recordamos que aún tiene pendiente completar su verificación KYC..."
+                                    className="w-full bg-slate-950 border border-slate-800 text-white rounded-md px-3 py-2 text-sm resize-none"
+                                    data-testid="bulk-notify-intro"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => setBulkOpen(false)}
+                                    className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                                    data-testid="bulk-notify-cancel">
+                                    Cancelar
+                                </Button>
+                                <Button onClick={handleBulkNotify} disabled={bulkSending || !bulkSubject.trim()}
+                                    className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white disabled:opacity-50"
+                                    data-testid="bulk-notify-submit">
+                                    {bulkSending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Activity className="w-4 h-4 mr-2" />}
+                                    Enviar a {filteredUsers.length}
+                                </Button>
+                            </div>
                         </div>
                     </DialogContent>
                 </Dialog>

@@ -14,7 +14,7 @@ from models import (
 )
 from services.auth import get_admin_user, generate_transaction_reference
 from services.notifications import create_notification, log_system_activity
-from services.accounts_lifecycle import ensure_user_accounts, compute_user_balance_summary
+from services.accounts_lifecycle import ensure_user_accounts, compute_user_balance_summary, provision_full_user_finance
 from services.email import (
     send_email, send_email_background, get_email_template,
     send_balance_added_email, send_withdrawal_status_email,
@@ -412,7 +412,7 @@ async def admin_backfill_accounts(admin: dict = Depends(get_admin_user)):
             if had_checking and had_savings:
                 already_complete += 1
                 continue
-            await ensure_user_accounts(u['id'])
+            await provision_full_user_finance(u['id'])
             if not had_checking:
                 created_checking += 1
             if not had_savings:
@@ -452,6 +452,161 @@ async def admin_user_balance_summary(user_id: str, admin: dict = Depends(get_adm
         },
         **summary,
     }
+
+
+# ==================== Manual user creation + bulk health-notify ====================
+
+from pydantic import BaseModel, EmailStr
+from services.auth import hash_password
+
+
+class AdminManualUserCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: Optional[str] = None  # default 'lionsbit2.0' if not provided
+    phone: Optional[str] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
+    seed_balance_eur: Optional[float] = 0.0
+    seed_balance_usd: Optional[float] = 0.0
+    role: Optional[str] = 'user'
+    force_password_change: Optional[bool] = True
+
+
+@router.post("/admin/users/manual-create")
+async def admin_manual_create_user(data: AdminManualUserCreate, admin: dict = Depends(get_admin_user)):
+    """Create a single user manually from the admin panel — guarantees the
+    full financial structure (checking + savings + wallet + KYC defaults +
+    seed history) is created atomically. Never raises 'Checking account
+    not found' for the new user.
+    """
+    if await db.users.find_one({'email': data.email}):
+        raise HTTPException(400, 'Email already registered')
+
+    user_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    raw_password = data.password or 'lionsbit2.0'
+
+    user_doc = {
+        'id': user_id,
+        'name': data.name,
+        'email': data.email,
+        'password': hash_password(raw_password),
+        'phone': data.phone,
+        'country_code': data.country_code,
+        'country_name': data.country_name,
+        'role': data.role or 'user',
+        'verification_status': 'unverified',
+        'account_status': 'active',
+        'kyc_status': 'pending',
+        'kyc_documents': None,
+        'must_change_password': bool(data.force_password_change),
+        'created_at': now,
+        'created_by_admin': admin['id'],
+        'created_by_admin_name': admin.get('name'),
+    }
+    await db.users.insert_one(user_doc)
+
+    provisioned = await provision_full_user_finance(
+        user_id,
+        seed_balance_eur=float(data.seed_balance_eur or 0.0),
+        seed_balance_usd=float(data.seed_balance_usd or 0.0),
+    )
+
+    await log_system_activity(
+        activity_type='admin_manual_user_create',
+        description=f'Admin {admin["name"]} creó manualmente al usuario {data.name} ({data.email})',
+        user_id=user_id,
+        user_name=data.name,
+        user_email=data.email,
+        metadata={'seed_eur': data.seed_balance_eur, 'seed_usd': data.seed_balance_usd},
+    )
+
+    return {
+        'message': 'Usuario creado y estructura financiera provisionada',
+        'user_id': user_id,
+        'temporary_password': raw_password if data.force_password_change else None,
+        'provisioned': provisioned,
+    }
+
+
+def _user_health_level(user: dict, account_types: set) -> str:
+    has_checking = 'checking' in account_types
+    suspended    = user.get('account_status') in ('suspended', 'rejected', 'blocked')
+    if not has_checking or suspended:
+        return 'red'
+    verified     = user.get('verification_status') == 'verified'
+    logged_in    = bool(user.get('first_login_at') or user.get('last_active'))
+    must_change  = bool(user.get('must_change_password'))
+    has_savings  = 'savings' in account_types
+    if not (has_savings and verified and logged_in and not must_change):
+        return 'yellow'
+    return 'green'
+
+
+class AdminBulkNotifyByHealth(BaseModel):
+    level: str                # 'green' | 'yellow' | 'red'
+    subject: str
+    intro: Optional[str] = ''
+    dry_run: Optional[bool] = False
+
+
+@router.post("/admin/users/bulk-notify-by-health")
+async def admin_bulk_notify_by_health(data: AdminBulkNotifyByHealth, admin: dict = Depends(get_admin_user)):
+    """Send a re-engagement email + in-app notification to every user
+    whose health bucket matches `level`. Returns counts; if dry_run=true
+    only returns the target list without sending."""
+    if data.level not in ('green', 'yellow', 'red'):
+        raise HTTPException(400, 'level debe ser green | yellow | red')
+    if not data.subject or not data.subject.strip():
+        raise HTTPException(400, 'subject es obligatorio')
+
+    users = await db.users.find({}, {'_id': 0, 'password': 0}).to_list(20000)
+    accounts_cur = db.accounts.find({}, {'_id': 0, 'user_id': 1, 'account_type': 1})
+    accounts = await accounts_cur.to_list(50000)
+
+    types_by_user: dict = {}
+    for a in accounts:
+        types_by_user.setdefault(a['user_id'], set()).add(a.get('account_type'))
+
+    targets = []
+    for u in users:
+        if u.get('role') == 'admin':
+            continue
+        if not u.get('email'):
+            continue
+        lvl = _user_health_level(u, types_by_user.get(u['id'], set()))
+        if lvl == data.level:
+            targets.append({'id': u['id'], 'email': u['email'], 'name': u.get('name') or 'Cliente'})
+
+    if data.dry_run:
+        return {'level': data.level, 'count': len(targets), 'sample': targets[:5]}
+
+    sent = 0
+    failed = 0
+    intro_html = (data.intro or '').strip()
+    for t in targets:
+        try:
+            await create_notification(t['id'], data.subject, intro_html or 'Tiene una notificación de su asesor LIONSBIT.')
+            html_body = f"""
+                <p style="color:#e2e8f0;font-size:15px;">Estimado/a {t['name']},</p>
+                <p style="color:#cbd5e1;font-size:14px;line-height:1.6;">{intro_html or 'Le contactamos desde el departamento de cumplimiento de LIONSBIT.'}</p>
+                <p style="color:#94a3b8;font-size:13px;margin-top:24px;">Equipo LIONSBIT VERIFICACION</p>
+            """
+            send_email_background(t['email'], data.subject, get_email_template(html_body, data.subject))
+            sent += 1
+        except Exception as e:
+            failed += 1
+            logging.warning(f'[bulk-notify] failed for {t["email"]}: {e}')
+
+    await log_system_activity(
+        activity_type='admin_bulk_health_notify',
+        description=f'Admin {admin["name"]} notificó a {sent} usuarios bucket {data.level}',
+        metadata={'level': data.level, 'sent': sent, 'failed': failed, 'subject': data.subject},
+    )
+
+    return {'level': data.level, 'sent': sent, 'failed': failed, 'target_count': len(targets)}
+
 
 @router.post("/admin/add-balance")
 async def admin_add_balance(data: AdminAddBalance, admin: dict = Depends(get_admin_user)):
