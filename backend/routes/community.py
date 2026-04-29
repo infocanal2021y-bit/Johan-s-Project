@@ -548,3 +548,16 @@ async def admin_get_auto_advance_log(
     runs = await get_recent_runs(limit)
     pool = await get_pool_status()
     return {'runs': runs, 'pool': pool}
+
+
+@router.post("/admin/community/bootstrap-demo")
+async def admin_bootstrap_demo(admin: dict = Depends(get_admin_user)):
+    """Idempotent bootstrap of the community social-proof demo pools.
+
+    Use this AFTER deploying to production to populate the empty database
+    with the same 80 completed + 35 in-process demo users that exist in
+    preview. Safe to call multiple times (matches by email).
+    """
+    from services.community_demo_bootstrap import bootstrap_community_demo
+    result = await bootstrap_community_demo()
+    return {'status': 'ok', **result}

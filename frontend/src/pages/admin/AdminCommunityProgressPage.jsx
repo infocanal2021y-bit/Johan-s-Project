@@ -74,6 +74,35 @@ const AdminCommunityProgressPage = () => {
         }
     };
 
+    // Bootstrap demo pools (post-deploy)
+    const [bootstrapping, setBootstrapping] = useState(false);
+    const bootstrapDemo = async () => {
+        if (!window.confirm('Sembrar los pools demo (80 completados + 35 en proceso). Idempotente — ya existentes se saltan. ¿Continuar?')) return;
+        setBootstrapping(true);
+        try {
+            const token = localStorage.getItem('token');
+            const r = await fetch(`${API_URL}/api/admin/community/bootstrap-demo`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const d = await r.json();
+            if (r.ok) {
+                const c = d.completed_pool, p = d.in_process_pool;
+                toast.success(
+                    `✓ Pool sembrado · Completados: ${c.created} nuevos / ${c.skipped_existing} ya existían · En proceso: ${p.created} nuevos / ${p.skipped_existing} ya existían`,
+                    { duration: 8000 },
+                );
+                await Promise.all([fetchAutoAdvance(), fetchQueue()]);
+            } else {
+                toast.error(d.detail || 'Error al sembrar');
+            }
+        } catch (e) {
+            toast.error('Error al sembrar el pool demo');
+        } finally {
+            setBootstrapping(false);
+        }
+    };
+
     const fetchQueue = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
@@ -218,18 +247,34 @@ const AdminCommunityProgressPage = () => {
                                 </p>
                             </div>
                         </div>
-                        <Button
-                            onClick={triggerAutoAdvance}
-                            disabled={autoTriggering}
-                            className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs h-9 px-4 flex-shrink-0"
-                            data-testid="auto-advance-trigger-btn"
-                        >
-                            {autoTriggering ? (
-                                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Procesando…</>
-                            ) : (
-                                <><Play className="w-3.5 h-3.5 mr-1.5" /> Ejecutar ahora</>
-                            )}
-                        </Button>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <Button
+                                onClick={bootstrapDemo}
+                                disabled={bootstrapping}
+                                variant="outline"
+                                className="border-amber-500/40 bg-amber-500/[0.06] text-amber-300 hover:bg-amber-500/15 text-xs h-9 px-3"
+                                data-testid="bootstrap-demo-btn"
+                                title="Sembrar 80 completados + 35 en proceso (idempotente). Útil tras desplegar."
+                            >
+                                {bootstrapping ? (
+                                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sembrando…</>
+                                ) : (
+                                    <><RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Sembrar pool demo</>
+                                )}
+                            </Button>
+                            <Button
+                                onClick={triggerAutoAdvance}
+                                disabled={autoTriggering}
+                                className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs h-9 px-4"
+                                data-testid="auto-advance-trigger-btn"
+                            >
+                                {autoTriggering ? (
+                                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Procesando…</>
+                                ) : (
+                                    <><Play className="w-3.5 h-3.5 mr-1.5" /> Ejecutar ahora</>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                     {/* Pool status row */}
                     {autoAdvance.pool && (
