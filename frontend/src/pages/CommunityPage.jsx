@@ -18,13 +18,13 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 const STATUS_LABELS = {
     activo:           { label: 'Activo',            cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-400' },
     en_revision:      { label: 'En revisión',       cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',         dot: 'bg-amber-400'   },
-    retiro_pendiente: { label: 'Retiro pendiente',  cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',            dot: 'bg-cyan-400'    },
-    completado:       { label: 'Retirado',          cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30',            dot: 'bg-blue-400'    },
+    retiro_pendiente: { label: 'Retiro pendiente',  cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',         dot: 'bg-amber-400'   },
+    completado:       { label: 'Retirado',          cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',   dot: 'bg-emerald-400' },
 };
 
 const BADGE_DEFS = {
     verified:             { label: 'Verificado',     icon: BadgeCheck,  cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
-    withdrawal_processed: { label: 'Retiro Procesado', icon: ShieldCheck, cls: 'border-blue-500/40 text-blue-300 bg-blue-500/[0.07]' },
+    withdrawal_processed: { label: 'Retiro Procesado', icon: ShieldCheck, cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
     premium:              { label: 'Premium',        icon: Crown,       cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.07]' },
     high_priority:        { label: 'Prioritario',    icon: Flame,       cls: 'border-rose-500/40 text-rose-300 bg-rose-500/[0.07]' },
 };
@@ -91,7 +91,7 @@ const RoiBadge = ({ deposited, withdrawn }) => {
     }
     if (ratio >= 0.65) {
         return (
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-blue-500/40 text-blue-300 bg-blue-500/[0.07] text-[10px] font-medium tracking-wide" data-testid="community-roi-badge">
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07] text-[10px] font-medium tracking-wide" data-testid="community-roi-badge">
                 <CheckCircle2 className="w-2.5 h-2.5" />
                 Capital recuperado
             </div>
@@ -102,16 +102,23 @@ const RoiBadge = ({ deposited, withdrawn }) => {
 
 const ProgressBar = ({ step }) => {
     const fullyCompleted = step >= 5;
-    const doneRing  = fullyCompleted ? 'border-blue-500 bg-blue-500/20' : 'border-emerald-500 bg-emerald-500/20';
-    const doneIcon  = fullyCompleted ? 'text-blue-300' : 'text-emerald-300';
-    const doneLabel = fullyCompleted ? 'text-blue-300/90' : 'text-emerald-300/90';
-    const doneLine  = fullyCompleted ? 'bg-blue-500/70' : 'bg-emerald-500/70';
     return (
         <div className="flex items-center gap-1 mt-4" data-testid="community-progress-bar" data-fully-completed={fullyCompleted ? 'true' : 'false'}>
             {PROGRESS_STAGES.map((s, i) => {
                 const done = step >= s.key;
                 const current = step === s.key && !fullyCompleted;
+                const isFinal = s.key === 5;
                 const Icon = s.icon;
+
+                // Color per stage role: 1-4 = amber (process); 5 = emerald (final achievement)
+                const doneRing  = isFinal ? 'border-emerald-500 bg-emerald-500/20' : 'border-amber-500 bg-amber-500/20';
+                const doneIcon  = isFinal ? 'text-emerald-300' : 'text-amber-300';
+                const doneLabel = isFinal ? 'text-emerald-300/90' : 'text-amber-300/90';
+
+                // Connector takes the color of the NEXT stage when crossed
+                const nextIsFinal = s.key + 1 === 5;
+                const lineDoneCls = nextIsFinal ? 'bg-emerald-500/70' : 'bg-amber-500/70';
+
                 return (
                     <div key={s.key} className="flex-1 flex items-center gap-1">
                         <div className="flex flex-col items-center gap-1.5 flex-1">
@@ -127,7 +134,7 @@ const ProgressBar = ({ step }) => {
                             </span>
                         </div>
                         {i < PROGRESS_STAGES.length - 1 && (
-                            <div className={`h-px flex-1 mb-4 ${done && step > s.key ? doneLine : 'bg-slate-800'}`} />
+                            <div className={`h-px flex-1 mb-4 ${done && step > s.key ? lineDoneCls : 'bg-slate-800'}`} />
                         )}
                     </div>
                 );
@@ -251,16 +258,16 @@ const MemberCard = ({ member }) => {
                     </p>
                 </div>
                 {member.progress_step >= 5 ? (
-                    <div className="px-4 py-3 bg-blue-500/[0.04]">
-                        <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-blue-300/80">Retirado</p>
-                        <p className="text-base font-semibold text-blue-200 font-mono tabular-nums mt-0.5" data-testid="community-member-withdrawn">
+                    <div className="px-4 py-3 bg-emerald-500/[0.05]">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-emerald-300/80">Retirado</p>
+                        <p className="text-base font-semibold text-emerald-300 font-mono tabular-nums mt-0.5" data-testid="community-member-withdrawn">
                             {fmtEUR(member.withdrawn_eur)}
                         </p>
                     </div>
                 ) : (
                     <div className="px-4 py-3">
                         <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-slate-500">Disponible</p>
-                        <p className="text-base font-semibold text-emerald-300 font-mono tabular-nums mt-0.5" data-testid="community-member-available">
+                        <p className="text-base font-semibold text-slate-100 font-mono tabular-nums mt-0.5" data-testid="community-member-available">
                             {fmtEUR(member.available_balance_eur)}
                         </p>
                     </div>
@@ -369,8 +376,8 @@ const RecentWithdrawalsFeed = () => {
                                         <p className="text-[10px] text-slate-500 mt-0.5">{it.country} · {timeAgo(it.date)}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[13px] font-semibold text-blue-200 font-mono tabular-nums leading-tight">{fmtEUR(it.amount_eur)}</p>
-                                        <p className="text-[9px] text-blue-400/80 uppercase tracking-widest mt-0.5 flex items-center gap-1 justify-end">
+                                        <p className="text-[13px] font-semibold text-emerald-300 font-mono tabular-nums leading-tight">{fmtEUR(it.amount_eur)}</p>
+                                        <p className="text-[9px] text-emerald-400/80 uppercase tracking-widest mt-0.5 flex items-center gap-1 justify-end">
                                             <CheckCircle2 className="w-2.5 h-2.5" />
                                             {it.status === 'completed' ? 'Retirado' : 'En transferencia'}
                                         </p>
@@ -512,7 +519,7 @@ export const CommunityPage = () => {
                         <div className="grid grid-cols-2 md:grid-cols-5 border-t border-slate-800/80 divide-x divide-slate-800/80">
                             <div className="px-4 py-4">
                                 <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Total Retirado</p>
-                                <p className="text-lg font-semibold text-blue-300 mt-1" data-testid="community-total-withdrawn">
+                                <p className="text-lg font-semibold text-emerald-300 mt-1" data-testid="community-total-withdrawn">
                                     <AnimatedCounter value={stats?.total_withdrawn_eur || 0} />
                                 </p>
                                 <p className="text-[9px] text-slate-600 mt-1">
@@ -521,7 +528,7 @@ export const CommunityPage = () => {
                             </div>
                             <div className="px-4 py-4">
                                 <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Total Depositado</p>
-                                <p className="text-lg font-semibold text-emerald-300 mt-1">
+                                <p className="text-lg font-semibold text-slate-100 mt-1">
                                     <AnimatedCounter value={stats?.total_deposited_eur || 0} />
                                 </p>
                                 <p className="text-[9px] text-slate-600 mt-1">en la plataforma</p>
@@ -618,8 +625,8 @@ export const CommunityPage = () => {
                                     { key: 'all',              label: 'Todos',           cls: 'border-slate-700 text-slate-300 bg-slate-800/50' },
                                     { key: 'activo',           label: 'Activo',          cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.06]' },
                                     { key: 'en_revision',      label: 'En revisión',     cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.06]' },
-                                    { key: 'retiro_pendiente', label: 'Retiro pendiente', cls: 'border-cyan-500/40 text-cyan-300 bg-cyan-500/[0.06]' },
-                                    { key: 'completado',       label: 'Retirado',         cls: 'border-blue-500/40 text-blue-300 bg-blue-500/[0.06]' },
+                                    { key: 'retiro_pendiente', label: 'Retiro pendiente', cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.06]' },
+                                    { key: 'completado',       label: 'Retirado',         cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.06]' },
                                 ].map(f => {
                                     const active = statusFilter === f.key;
                                     return (
@@ -628,7 +635,7 @@ export const CommunityPage = () => {
                                             type="button"
                                             onClick={() => setStatusFilter(f.key)}
                                             data-testid={`community-filter-${f.key}`}
-                                            className={`inline-flex items-center gap-2 px-3 h-7 rounded-md text-[11px] font-medium tracking-wide border transition-colors ${f.cls} ${active ? 'ring-1 ring-blue-400/70 ring-offset-1 ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`}
+                                            className={`inline-flex items-center gap-2 px-3 h-7 rounded-md text-[11px] font-medium tracking-wide border transition-colors ${f.cls} ${active ? 'ring-1 ring-emerald-400/70 ring-offset-1 ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`}
                                         >
                                             {f.label}
                                             <span className="font-mono tabular-nums text-[10px] text-slate-400">{(counts[f.key] || 0).toLocaleString('es-ES')}</span>
@@ -699,7 +706,7 @@ export const CommunityPage = () => {
                                                             <span className="mr-1.5">{m.country_flag}</span>{m.country}
                                                         </td>
                                                         <td className="px-3 py-2.5 text-right text-slate-100 font-mono tabular-nums">{fmtEUR(m.deposited_eur)}</td>
-                                                        <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${completed ? 'text-blue-300' : 'text-emerald-300'}`}>
+                                                        <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${completed ? 'text-emerald-300' : 'text-slate-100'}`}>
                                                             {fmtEUR(completed ? m.withdrawn_eur : m.available_balance_eur)}
                                                         </td>
                                                         <td className="px-3 py-2.5">
@@ -709,7 +716,7 @@ export const CommunityPage = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[10px] text-slate-400">
-                                                            <span className={`font-mono tabular-nums ${completed ? 'text-blue-300' : ''}`}>{m.progress_step}/5</span>
+                                                            <span className={`font-mono tabular-nums ${completed ? 'text-emerald-300' : 'text-amber-300'}`}>{m.progress_step}/5</span>
                                                             <span className="ml-1 uppercase tracking-wider">{PROGRESS_STAGES[m.progress_step - 1]?.label || '—'}</span>
                                                         </td>
                                                     </tr>
