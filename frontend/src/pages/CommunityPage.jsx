@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     Users, Search, Shield, BadgeCheck, TrendingUp, Crown, Flame, CheckCircle2,
     ArrowUpRight, Wallet, Receipt, Sparkles, Filter, Loader2, Globe,
-    Banknote, ShieldCheck, FileCheck, Truck, Trophy
+    Banknote, ShieldCheck, FileCheck, Truck, Trophy, LayoutGrid, List, Award
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -48,6 +48,56 @@ const timeAgo = (iso) => {
     if (h < 24) return `hace ${h} h`;
     const d = Math.floor(h / 24);
     return `hace ${d} d`;
+};
+
+// Animated number counter — counts up from 0 to value over `duration` ms
+const AnimatedCounter = ({ value = 0, duration = 1400, prefix = '€', testid }) => {
+    const [n, setN] = useState(0);
+    useEffect(() => {
+        if (!value) return;
+        let start;
+        let frame;
+        const step = (ts) => {
+            if (!start) start = ts;
+            const t = Math.min(1, (ts - start) / duration);
+            // ease-out cubic
+            const eased = 1 - Math.pow(1 - t, 3);
+            setN(value * eased);
+            if (t < 1) frame = requestAnimationFrame(step);
+            else setN(value);
+        };
+        frame = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(frame);
+    }, [value, duration]);
+    return (
+        <span className="font-mono tabular-nums" data-testid={testid}>
+            {prefix}{n.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+        </span>
+    );
+};
+
+// ROI badge for completed profiles only
+const RoiBadge = ({ deposited, withdrawn }) => {
+    if (!deposited || !withdrawn) return null;
+    const ratio = withdrawn / deposited;
+    if (ratio >= 1.05) {
+        const pct = Math.round((ratio - 1) * 100);
+        return (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07] text-[10px] font-medium tracking-wide" data-testid="community-roi-badge">
+                <TrendingUp className="w-2.5 h-2.5" />
+                ROI +{pct}%
+            </div>
+        );
+    }
+    if (ratio >= 0.65) {
+        return (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-blue-500/40 text-blue-300 bg-blue-500/[0.07] text-[10px] font-medium tracking-wide" data-testid="community-roi-badge">
+                <CheckCircle2 className="w-2.5 h-2.5" />
+                Capital recuperado
+            </div>
+        );
+    }
+    return null;
 };
 
 const ProgressBar = ({ step }) => {
@@ -219,7 +269,25 @@ const MemberCard = ({ member }) => {
 
             {/* Compliance markers + progress timeline */}
             <div className="px-4 pt-3 pb-4 space-y-3 border-t border-slate-800/60">
-                {member.badges?.length > 0 && <BadgeCloud badges={member.badges} />}
+                <div className="flex flex-wrap gap-1.5">
+                    {member.progress_step >= 5 && (
+                        <RoiBadge deposited={member.deposited_eur} withdrawn={member.withdrawn_eur} />
+                    )}
+                    {member.badges?.length > 0 && member.badges.map(b => {
+                        const def = BADGE_DEFS[b];
+                        if (!def) return null;
+                        const Icon = def.icon;
+                        return (
+                            <div key={b}
+                                data-testid={`community-badge-${b}`}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${def.cls} text-[10px] font-medium tracking-wide`}
+                            >
+                                <Icon className="w-2.5 h-2.5" />
+                                {def.label}
+                            </div>
+                        );
+                    })}
+                </div>
                 <ProgressBar step={member.progress_step} />
             </div>
 
@@ -328,6 +396,9 @@ export const CommunityPage = () => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [view, setView] = useState('cards');  // 'cards' | 'table'
+    const [stats, setStats] = useState(null);
+    const [showAutocomplete, setShowAutocomplete] = useState(false);
 
     const PAGE_SIZE = 120;
 
@@ -372,7 +443,20 @@ export const CommunityPage = () => {
     // Initial load + auto-refresh every 60s (preserves current search/filter)
     useEffect(() => {
         fetchMembers({ q: '', statusF: 'all' });
-        const id = setInterval(() => fetchMembers({ q: search, statusF: statusFilter }), 60000);
+        // Stats — fetch once on mount + every 60s
+        const fetchStats = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const r = await fetch(`${API_URL}/api/community/stats`, { headers: { Authorization: `Bearer ${token}` } });
+                const d = await r.json();
+                setStats(d);
+            } catch (e) { /* silent */ }
+        };
+        fetchStats();
+        const id = setInterval(() => {
+            fetchMembers({ q: search, statusF: statusFilter });
+            fetchStats();
+        }, 60000);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -425,27 +509,43 @@ export const CommunityPage = () => {
                         </div>
 
                         {/* Stats row — banking dashboard metrics */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-slate-800/80 divide-x divide-slate-800/80">
-                            <div className="px-5 py-4">
+                        <div className="grid grid-cols-2 md:grid-cols-5 border-t border-slate-800/80 divide-x divide-slate-800/80">
+                            <div className="px-4 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Total Retirado</p>
+                                <p className="text-lg font-semibold text-blue-300 mt-1" data-testid="community-total-withdrawn">
+                                    <AnimatedCounter value={stats?.total_withdrawn_eur || 0} />
+                                </p>
+                                <p className="text-[9px] text-slate-600 mt-1">
+                                    {stats?.completed_withdrawals_count || 0} retiros completados
+                                </p>
+                            </div>
+                            <div className="px-4 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Total Depositado</p>
+                                <p className="text-lg font-semibold text-emerald-300 mt-1">
+                                    <AnimatedCounter value={stats?.total_deposited_eur || 0} />
+                                </p>
+                                <p className="text-[9px] text-slate-600 mt-1">en la plataforma</p>
+                            </div>
+                            <div className="px-4 py-4">
                                 <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Cuentas registradas</p>
                                 <p className="text-lg font-semibold text-white font-mono tabular-nums mt-1">{totalInDb.toLocaleString('es-ES')}</p>
+                                <p className="text-[9px] text-slate-600 mt-1">activas en la red</p>
                             </div>
-                            <div className="px-5 py-4">
-                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Cuentas activas</p>
-                                <p className="text-lg font-semibold text-emerald-300 font-mono tabular-nums mt-1">
-                                    {(statusCounts.activo || 0).toLocaleString('es-ES')}
-                                </p>
-                            </div>
-                            <div className="px-5 py-4">
-                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Retiros procesados</p>
-                                <p className="text-lg font-semibold text-blue-300 font-mono tabular-nums mt-1">
-                                    {(statusCounts.completado || 0).toLocaleString('es-ES')}
-                                </p>
-                            </div>
-                            <div className="px-5 py-4">
+                            <div className="px-4 py-4">
                                 <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">En revisión</p>
                                 <p className="text-lg font-semibold text-amber-300 font-mono tabular-nums mt-1">
                                     {(statusCounts.en_revision || 0).toLocaleString('es-ES')}
+                                </p>
+                                <p className="text-[9px] text-slate-600 mt-1">pendientes</p>
+                            </div>
+                            <div className="px-4 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">País principal</p>
+                                <p className="text-lg font-semibold text-white mt-1 flex items-center gap-2">
+                                    <span>{stats?.top_countries?.[0]?.flag || '🌐'}</span>
+                                    <span className="text-sm">{stats?.top_countries?.[0]?.country || '—'}</span>
+                                </p>
+                                <p className="text-[9px] text-slate-600 mt-1 font-mono tabular-nums">
+                                    {(stats?.top_countries?.[0]?.count || 0).toLocaleString('es-ES')} cuentas
                                 </p>
                             </div>
                         </div>
@@ -456,17 +556,62 @@ export const CommunityPage = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
                     {/* Directory */}
                     <div className="xl:col-span-2 space-y-4">
-                        {/* Search + Filters */}
+                        {/* Search + Filters + View toggle */}
                         <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-3">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                <Input
-                                    placeholder="Buscar por nombre, país o estado..."
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    className="pl-10 bg-slate-950 border-slate-800 text-white text-sm h-10"
-                                    data-testid="community-search"
-                                />
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                                    <Input
+                                        placeholder="Buscar por nombre, país o estado..."
+                                        value={search}
+                                        onChange={e => { setSearch(e.target.value); setShowAutocomplete(true); }}
+                                        onFocus={() => setShowAutocomplete(true)}
+                                        onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+                                        className="pl-10 bg-slate-950 border-slate-800 text-white text-sm h-10"
+                                        data-testid="community-search"
+                                    />
+                                    {showAutocomplete && search.trim().length >= 2 && filtered.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-md border border-slate-700 bg-slate-950/95 backdrop-blur-xl shadow-xl overflow-hidden" data-testid="community-autocomplete">
+                                            {filtered.slice(0, 6).map(m => (
+                                                <button
+                                                    key={m.id}
+                                                    type="button"
+                                                    onMouseDown={(e) => { e.preventDefault(); setSearch(m.name); setShowAutocomplete(false); }}
+                                                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-800/60 text-left"
+                                                >
+                                                    <span className="text-base leading-none">{m.country_flag}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm text-slate-100 truncate">{m.name}</p>
+                                                        <p className="text-[10px] text-slate-500">{m.country} · LB-{m.id.slice(0, 8).toUpperCase()}</p>
+                                                    </div>
+                                                    <span className={`text-[9px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded border ${(STATUS_LABELS[m.account_status] || STATUS_LABELS.activo).cls}`}>
+                                                        {(STATUS_LABELS[m.account_status] || STATUS_LABELS.activo).label}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="inline-flex rounded-md border border-slate-800 bg-slate-950 overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => setView('cards')}
+                                        data-testid="community-view-cards"
+                                        className={`px-3 h-10 flex items-center justify-center transition-colors ${view === 'cards' ? 'bg-blue-500/15 text-blue-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                        title="Vista tarjetas"
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setView('table')}
+                                        data-testid="community-view-table"
+                                        className={`px-3 h-10 flex items-center justify-center border-l border-slate-800 transition-colors ${view === 'table' ? 'bg-blue-500/15 text-blue-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                        title="Vista tabla"
+                                    >
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                             <div className="flex flex-wrap gap-2" data-testid="community-status-filters">
                                 {[
@@ -524,6 +669,56 @@ export const CommunityPage = () => {
                                 <Users className="w-8 h-8 mx-auto text-slate-600 mb-3" />
                                 <p className="text-slate-400 text-sm">No se encontraron miembros con esos filtros.</p>
                             </div>
+                        ) : view === 'table' ? (
+                            <div className="rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden" data-testid="community-members-table">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-800 bg-slate-900/60">
+                                                <th className="px-4 py-2.5 text-left text-[10px] font-medium uppercase tracking-wider text-slate-500">Cuenta</th>
+                                                <th className="px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-wider text-slate-500">Nombre</th>
+                                                <th className="px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-wider text-slate-500">País</th>
+                                                <th className="px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Depositado</th>
+                                                <th className="px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Disp. / Retirado</th>
+                                                <th className="px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-wider text-slate-500">Estado</th>
+                                                <th className="px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-wider text-slate-500">Etapa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-800/60">
+                                            {filtered.map(m => {
+                                                const status = STATUS_LABELS[m.account_status] || STATUS_LABELS.activo;
+                                                const completed = m.progress_step >= 5;
+                                                return (
+                                                    <tr key={m.id} data-testid={`community-table-row-${m.id}`} data-self={m.is_self ? 'true' : 'false'} className={`hover:bg-slate-800/30 transition-colors ${m.is_self ? 'bg-blue-500/[0.04]' : ''}`}>
+                                                        <td className="px-4 py-2.5 text-[11px] font-mono text-slate-500 tabular-nums">LB-{m.id.slice(0, 8).toUpperCase()}</td>
+                                                        <td className="px-3 py-2.5 text-slate-100 font-medium whitespace-nowrap">
+                                                            {m.name}
+                                                            {m.is_self && <span className="ml-2 text-[9px] uppercase tracking-widest text-blue-300">Tú</span>}
+                                                        </td>
+                                                        <td className="px-3 py-2.5 text-slate-300 text-[13px]">
+                                                            <span className="mr-1.5">{m.country_flag}</span>{m.country}
+                                                        </td>
+                                                        <td className="px-3 py-2.5 text-right text-slate-100 font-mono tabular-nums">{fmtEUR(m.deposited_eur)}</td>
+                                                        <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${completed ? 'text-blue-300' : 'text-emerald-300'}`}>
+                                                            {fmtEUR(completed ? m.withdrawn_eur : m.available_balance_eur)}
+                                                        </td>
+                                                        <td className="px-3 py-2.5">
+                                                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium tracking-wide border ${status.cls}`}>
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                                                                {status.label}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2.5 text-[10px] text-slate-400">
+                                                            <span className={`font-mono tabular-nums ${completed ? 'text-blue-300' : ''}`}>{m.progress_step}/5</span>
+                                                            <span className="ml-1 uppercase tracking-wider">{PROGRESS_STAGES[m.progress_step - 1]?.label || '—'}</span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" data-testid="community-members-grid">
                                 {filtered.map(m => <MemberCard key={m.id} member={m} />)}
@@ -554,7 +749,40 @@ export const CommunityPage = () => {
                     </div>
 
                     {/* Recent withdrawals feed */}
-                    <div className="xl:col-span-1">
+                    <div className="xl:col-span-1 space-y-4">
+                        {/* Hall of Fame — top withdrawals last 30d */}
+                        {stats?.hall_of_fame?.length > 0 && (
+                            <div className="rounded-lg border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.04] to-transparent" data-testid="community-hall-of-fame">
+                                <div className="px-5 py-4 border-b border-amber-500/15 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Award className="w-4 h-4 text-amber-300" />
+                                        <div>
+                                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-amber-300/80">Hall of Fame · 30d</p>
+                                            <h3 className="text-white text-sm font-semibold">Top retiros del mes</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-3 space-y-1">
+                                    {stats.hall_of_fame.map((h, i) => (
+                                        <div key={i} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-slate-800/30">
+                                            <span className={`flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-bold ${
+                                                i === 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                                                i === 1 ? 'bg-slate-700/60 text-slate-200 border border-slate-600' :
+                                                i === 2 ? 'bg-orange-500/15 text-orange-300 border border-orange-500/30' :
+                                                'bg-slate-800/50 text-slate-400 border border-slate-700'
+                                            }`}>{i + 1}</span>
+                                            <span className="text-base leading-none">{h.country_flag}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[13px] text-slate-100 font-medium truncate leading-tight">{h.name_public}</p>
+                                                <p className="text-[10px] text-slate-500 mt-0.5">{h.country} · {timeAgo(h.date)}</p>
+                                            </div>
+                                            <p className="text-[13px] font-semibold text-amber-200 font-mono tabular-nums">{fmtEUR(h.amount_eur)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <RecentWithdrawalsFeed />
                     </div>
                 </div>

@@ -9,7 +9,7 @@ exists they are simply re-rendered with fresh aggregations on each call.
 """
 import re
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -308,5 +308,91 @@ async def community_recent_withdrawals(
     return {
         'count': len(items),
         'items': items,
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/community/stats")
+async def community_stats(user: dict = Depends(get_current_user)):
+    """Platform-wide aggregates for the community page (animated counter,
+    Hall of Fame, etc.). Cached client-side; safe to poll every 60s."""
+    # Total withdrawn (EUR equivalent)
+    wd_cur = db.transactions.find(
+        {'transaction_type': 'withdraw', 'status': 'completed'},
+        {'_id': 0, 'amount': 1, 'currency': 1, 'user_id': 1, 'created_at': 1, 'completed_at': 1},
+    )
+    rows = await wd_cur.to_list(50000)
+    total_withdrawn_eur = 0.0
+    for r in rows:
+        amt = float(r.get('amount') or 0)
+        if (r.get('currency') or 'EUR').upper() == 'USD':
+            amt = amt / 1.08
+        total_withdrawn_eur += amt
+
+    # Total deposited (EUR equivalent)
+    dep_cur = db.transactions.find(
+        {'transaction_type': {'$in': ['admin_credit', 'deposit', 'transfer_in']}, 'status': 'completed'},
+        {'_id': 0, 'amount': 1, 'currency': 1},
+    )
+    total_deposited_eur = 0.0
+    async for d in dep_cur:
+        amt = float(d.get('amount') or 0)
+        if (d.get('currency') or 'EUR').upper() == 'USD':
+            amt = amt / 1.08
+        total_deposited_eur += amt
+
+    # Hall of Fame — top 5 withdrawals last 30 days (by amount EUR-eq)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    monthly_rows = [r for r in rows if (r.get('completed_at') or r.get('created_at') or '') >= cutoff]
+    for r in monthly_rows:
+        a = float(r.get('amount') or 0)
+        if (r.get('currency') or 'EUR').upper() == 'USD':
+            a = a / 1.08
+        r['_eur'] = a
+    monthly_rows.sort(key=lambda x: -x.get('_eur', 0))
+    top5 = monthly_rows[:5]
+
+    # Resolve user names + countries for top5
+    if top5:
+        user_ids = [r['user_id'] for r in top5]
+        users_cur = db.users.find(
+            {'id': {'$in': user_ids}},
+            {'_id': 0, 'id': 1, 'name': 1, 'country': 1, 'country_name': 1, 'phone': 1},
+        )
+        user_map = {u['id']: u async for u in users_cur}
+    else:
+        user_map = {}
+
+    hall_of_fame = []
+    for r in top5:
+        u = user_map.get(r['user_id'])
+        if not u:
+            continue
+        country = u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone')) or 'Internacional'
+        hall_of_fame.append({
+            'name_public': _public_first_name(u.get('name') or 'Cliente'),
+            'country': country,
+            'country_flag': _flag_for(country),
+            'amount_eur': round(r['_eur'], 2),
+            'date': r.get('completed_at') or r.get('created_at'),
+        })
+
+    # Active country distribution (top 5)
+    countries: dict = {}
+    users_all = db.users.find(
+        {'role': {'$ne': 'admin'}},
+        {'_id': 0, 'country_name': 1, 'country': 1, 'phone': 1},
+    )
+    async for u in users_all:
+        c = u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone')) or 'Internacional'
+        countries[c] = countries.get(c, 0) + 1
+    top_countries = sorted(countries.items(), key=lambda x: -x[1])[:5]
+
+    return {
+        'total_withdrawn_eur': round(total_withdrawn_eur, 2),
+        'total_deposited_eur': round(total_deposited_eur, 2),
+        'completed_withdrawals_count': len(rows),
+        'hall_of_fame': hall_of_fame,
+        'top_countries': [{'country': c, 'flag': _flag_for(c), 'count': n} for c, n in top_countries],
         'updated_at': datetime.now(timezone.utc).isoformat(),
     }
