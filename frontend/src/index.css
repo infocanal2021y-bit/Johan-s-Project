@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,31 +6,42 @@
 
 @layer base {
     :root {
-        --background: 216 50% 3%;
-        --foreground: 210 40% 98%;
-        --card: 216 45% 7%;
-        --card-foreground: 210 40% 98%;
-        --popover: 216 45% 7%;
-        --popover-foreground: 210 40% 98%;
-        --primary: 210 100% 36%;
+        /* BBVA-inspired light theme */
+        --background: 0 0% 100%;                /* #FFFFFF */
+        --foreground: 215 82% 15%;              /* #072146 */
+        --card: 0 0% 100%;                      /* #FFFFFF */
+        --card-foreground: 215 82% 15%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 215 82% 15%;
+        --primary: 208 75% 41%;                 /* #1973B8 (CTA blue) */
         --primary-foreground: 0 0% 100%;
-        --secondary: 213 35% 25%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 213 35% 15%;
-        --muted-foreground: 215 20% 55%;
-        --accent: 213 35% 15%;
-        --accent-foreground: 210 40% 98%;
-        --destructive: 0 62% 50%;
-        --destructive-foreground: 210 40% 98%;
-        --border: 213 35% 17%;
-        --input: 213 35% 17%;
-        --ring: 210 100% 36%;
-        --chart-1: 210 100% 36%;
-        --chart-2: 199 90% 48%;
+        --secondary: 210 60% 95%;               /* light blue surface */
+        --secondary-foreground: 210 100% 25%;   /* #004481 */
+        --muted: 210 16% 96%;                   /* #F4F6F8 */
+        --muted-foreground: 0 0% 36%;           /* #5B5B5B */
+        --accent: 210 16% 96%;
+        --accent-foreground: 215 82% 15%;
+        --destructive: 0 84% 60%;               /* elegant red */
+        --destructive-foreground: 0 0% 100%;
+        --border: 214 32% 91%;                  /* light gray border */
+        --input: 214 32% 91%;
+        --ring: 208 75% 41%;                    /* #1973B8 focus ring */
+        --chart-1: 208 75% 41%;
+        --chart-2: 210 100% 25%;
         --chart-3: 38 92% 50%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
+        --chart-4: 142 71% 45%;
+        --chart-5: 0 84% 60%;
         --radius: 0.75rem;
+
+        /* BBVA custom tokens (exposed for direct use) */
+        --bbva-primary: #072146;
+        --bbva-secondary: #004481;
+        --bbva-accent: #1973B8;
+        --bbva-surface: #F4F6F8;
+        --bbva-text: #5B5B5B;
+        --bbva-success: #10B981;
+        --bbva-warning: #F59E0B;
+        --bbva-error: #EF4444;
     }
 }
 
@@ -48,7 +59,7 @@ html {
 
 body {
     margin: 0;
-    font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: hsl(var(--background));
@@ -69,9 +80,10 @@ body {
 
 /* Typography Hierarchy - BBVA Style (responsive) */
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Source Sans 3', sans-serif;
-    letter-spacing: -0.01em;
-    font-weight: 700;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+    color: var(--bbva-primary);
 }
 
 h1 { font-size: 1.75rem; }
@@ -94,27 +106,29 @@ h3 { font-size: 1.2rem; }
 }
 h4 { font-size: 1.25rem; }
 
-/* Financial Numbers - Outfit for premium banking feel */
+/* Financial Numbers - Inter tabular for premium banking feel */
 .font-mono, 
 .tabular-nums,
 [class*="font-mono"] {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
+    font-feature-settings: 'tnum' 1;
 }
 
 /* Balance & Financial Amount Styles */
 .balance-primary {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 36px;
-    font-weight: 500;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     line-height: 1.1;
+    color: var(--bbva-primary);
 }
 
 .balance-secondary {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 20px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
@@ -122,26 +136,29 @@ h4 { font-size: 1.25rem; }
 }
 
 .amount-display {
-    font-family: 'Outfit', sans-serif;
-    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
+    color: var(--bbva-primary);
 }
 
 .label-text {
-    font-size: 14px;
-    font-weight: 400;
-    letter-spacing: 0.01em;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--bbva-text);
 }
 
 .description-text {
-    font-weight: 300;
-    color: hsl(var(--muted-foreground));
+    font-weight: 400;
+    color: var(--bbva-text);
 }
 
-/* Override font-mono to use Source Sans 3 with tabular nums */
+/* Override font-mono to use Inter with tabular nums */
 code {
-    font-family: 'Source Sans 3', monospace;
+    font-family: 'Inter', monospace;
     font-variant-numeric: tabular-nums;
 }
 
@@ -154,35 +171,110 @@ code {
     }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - BBVA light */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    background: hsl(216, 45%, 7%);
+    background: #F4F6F8;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: hsl(213, 35%, 25%);
-    border-radius: 4px;
+    background: #C8D3DE;
+    border-radius: 5px;
+    border: 2px solid #F4F6F8;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(213, 35%, 35%);
+    background: #004481;
 }
 
-/* Glass effect utility */
+/* Glass effect utility - BBVA version (light) */
 .glass {
-    background: hsla(216, 45%, 7%, 0.7);
-    backdrop-filter: blur(16px);
-    border: 1px solid hsla(0, 0%, 100%, 0.1);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(7, 33, 70, 0.08);
 }
+
+/* BBVA card base — apply via className="bbva-card" */
+.bbva-card {
+    background: #FFFFFF;
+    border: 1px solid #E5EAF0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(7, 33, 70, 0.04), 0 4px 20px rgba(7, 33, 70, 0.04);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.bbva-card:hover {
+    box-shadow: 0 2px 6px rgba(7, 33, 70, 0.06), 0 10px 30px rgba(7, 33, 70, 0.08);
+}
+
+/* BBVA primary button (CTA) */
+.bbva-btn-primary {
+    background: #1973B8;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    box-shadow: 0 1px 2px rgba(7, 33, 70, 0.08);
+    cursor: pointer;
+}
+.bbva-btn-primary:hover {
+    background: #004481;
+    box-shadow: 0 4px 12px rgba(7, 33, 70, 0.15);
+    transform: translateY(-1px);
+}
+.bbva-btn-primary:active {
+    transform: translateY(0);
+}
+
+/* BBVA secondary button */
+.bbva-btn-secondary {
+    background: #FFFFFF;
+    color: #004481;
+    border: 1px solid #004481;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.bbva-btn-secondary:hover {
+    background: #F4F6F8;
+    border-color: #072146;
+}
+
+/* BBVA status badges */
+.bbva-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border: 1px solid;
+}
+.bbva-badge-pending    { background: #FFFBEB; color: #A16207; border-color: #FDE68A; }
+.bbva-badge-review     { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+.bbva-badge-tax        { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
+.bbva-badge-processing { background: #FAF5FF; color: #6B21A8; border-color: #E9D5FF; }
+.bbva-badge-completed  { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
+.bbva-badge-rejected   { background: #FEF2F2; color: #B91C1C; border-color: #FECACA; }
 
 /* Glow effects */
 .glow-emerald {
-    box-shadow: 0 0 20px rgba(25, 115, 184, 0.4);
+    box-shadow: 0 0 20px rgba(25, 115, 184, 0.2);
 }
 
 /* Loading bar animation for disabled providers */

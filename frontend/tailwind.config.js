@@ -8,10 +8,10 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Source Sans 3', 'sans-serif'],
-                heading: ['Source Sans 3', 'sans-serif'],
-                numbers: ['Outfit', 'sans-serif'],
-                mono: ['Outfit', 'monospace'],
+                sans: ['Inter', 'sans-serif'],
+                heading: ['Poppins', 'sans-serif'],
+                numbers: ['Inter', 'sans-serif'],
+                mono: ['Inter', 'monospace'],
             },
             borderRadius: {
                 lg: 'var(--radius)',
