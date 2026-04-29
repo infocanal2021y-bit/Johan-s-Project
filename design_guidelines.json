@@ -1,170 +1,102 @@
 {
-  "identity": {
-    "persona": "E1: The Anti-AI Designer",
-    "mission": "Create a fintech experience that feels like a high-end command center, not a spreadsheet. Use deep immersion, tactical precision, and 'The Tracing Beam' aesthetic.",
-    "emotional_tone": "Secure, Elite, Kinetic, Deep",
-    "design_principles": [
-      "Fusion: Military HUD precision mixed with Swiss typographic discipline",
-      "Emotion: Trust comes from clarity and solidity",
-      "Content: Data is the art; frame it beautifully",
-      "Negative Space: Luxury is the absence of clutter",
-      "Contrast: High-visibility Emerald against Deep Void Navy"
-    ]
+  "theme": "light",
+  "archetype": "Swiss & High-Contrast (Adapted for Premium Corporate Banking)",
+  "global_rules": {
+    "logic_constraint": "CRITICAL: Do not change internal logic, state management, API calls, or props. Only modify CSS classes and minor markup within existing components.",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute."
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#072146",
+      "description": "Deep blue, main brand color (BBVA style)"
+    },
+    "secondary": {
+      "DEFAULT": "#004481",
+      "description": "Corporate secondary blue for headers and active states"
+    },
+    "accent": {
+      "DEFAULT": "#1973B8",
+      "description": "Bright blue for primary CTA buttons"
+    },
+    "background": {
+      "DEFAULT": "#FFFFFF",
+      "alt": "#F4F6F8",
+      "description": "Clean white and elegant light gray for surfaces"
+    },
+    "text": {
+      "primary": "#072146",
+      "secondary": "#5B5B5B",
+      "description": "Deep blue for headings, pro gray for body text"
+    },
+    "status": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6",
+      "description": "Status colors for badges and alerts. Soft green for confirmations, elegant red for alerts."
+    }
   },
   "typography": {
     "font_family": {
-      "headings": "Outfit, sans-serif",
-      "body": "DM Sans, sans-serif",
-      "mono": "JetBrains Mono, monospace"
+      "heading": "Poppins, sans-serif",
+      "body": "Inter, sans-serif"
     },
-    "import_url": "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,100..1000&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap",
-    "rules": {
-      "headings": "Use 'Outfit' with tight tracking (-0.02em). Weight 600-800 for heroes, 500 for section titles.",
-      "body": "Use 'DM Sans' for all UI text. High legibility. Weight 400 for text, 500 for labels.",
-      "numbers": "Use 'JetBrains Mono' for tabular financial data and transaction IDs for perfect alignment."
-    }
-  },
-  "colors": {
-    "theme": "dark",
-    "palette": {
-      "background": {
-        "default": "#020617",
-        "paper": "#0f172a",
-        "subtle": "#1e293b"
-      },
-      "primary": {
-        "DEFAULT": "#10b981",
-        "hover": "#059669",
-        "foreground": "#ffffff",
-        "glow": "0 0 20px rgba(16, 185, 129, 0.5)"
-      },
-      "secondary": {
-        "DEFAULT": "#334155",
-        "foreground": "#f8fafc"
-      },
-      "accent": {
-        "cyan": "#06b6d4",
-        "amber": "#f59e0b"
-      },
-      "text": {
-        "primary": "#f8fafc",
-        "secondary": "#94a3b8",
-        "muted": "#64748b"
-      },
-      "border": {
-        "default": "#1e293b",
-        "active": "#334155"
-      }
-    },
-    "gradients": {
-      "card_surface": "linear-gradient(145deg, #0f172a 0%, #020617 100%)",
-      "emerald_glow": "radial-gradient(circle at center, rgba(16,185,129,0.15) 0%, transparent 70%)"
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-semibold tracking-tight text-[#072146]",
+      "h2": "text-2xl md:text-3xl font-semibold tracking-tight text-[#072146]",
+      "h3": "text-xl font-medium text-[#072146]",
+      "body": "text-base text-[#5B5B5B] leading-relaxed",
+      "caption": "text-sm text-[#5B5B5B]"
     }
   },
   "layout": {
-    "grid_system": "Bento Grid (Mode B - High Density)",
-    "spacing_scale": {
-      "base": "0.25rem",
-      "container_padding": "p-6 md:p-8 lg:p-12",
-      "section_gap": "gap-6 or gap-8"
+    "spacing": "Generous spacing. Use p-6, p-8 for cards.",
+    "border_radius": "rounded-xl for cards, rounded-lg for buttons. Soft, modern.",
+    "shadows": {
+      "card": "shadow-[0_4px_20px_rgba(0,0,0,0.05)]",
+      "hover": "shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
     },
-    "border_radius": {
-      "card": "rounded-xl",
-      "button": "rounded-lg",
-      "input": "rounded-lg"
-    },
-    "structure": {
-      "sidebar_width": "w-64",
-      "max_content_width": "max-w-7xl"
-    }
+    "borders": "border border-gray-100"
   },
   "components": {
-    "shadcn_customization": {
-      "general": "Strip default borders. Use 'bg-slate-900' with 'border-slate-800'. Add subtle inner glow 'inset-0 ring-1 ring-white/5'.",
-      "card": "Use 'Card' component but apply 'bg-slate-950/50 backdrop-blur-md border-slate-800' for glass effect.",
-      "button": "Primary buttons: 'bg-emerald-500 hover:bg-emerald-600 text-white font-medium tracking-wide shadow-[0_0_15px_rgba(16,185,129,0.4)]'.",
-      "input": "bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 placeholder:text-slate-600",
-      "table": "Header: 'bg-slate-900/50 text-slate-400 font-mono text-xs uppercase tracking-wider'. Rows: 'hover:bg-slate-800/50 transition-colors'."
+    "buttons": {
+      "primary": "bg-[#1973B8] text-white hover:bg-[#004481] transition-colors rounded-lg px-6 py-2.5 font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transform duration-200",
+      "secondary": "bg-white text-[#004481] border border-[#004481] hover:bg-[#F4F6F8] transition-colors rounded-lg px-6 py-2.5 font-medium",
+      "danger": "bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-colors rounded-lg px-6 py-2.5 font-medium"
     },
-    "custom_elements": {
-      "BalanceCard": {
-        "style": "The 'Tracing Beam' Effect. Dark gradient background. On hover, a subtle emerald border glow travels around the card.",
-        "content": "Large geometric font for amount. Small trend indicator (+2.4%) in green/red pill."
-      },
-      "TransactionRow": {
-        "style": "Minimalist. Icon on left (rounded square), Title top, Date bottom. Amount on right aligned. Status as a colored dot.",
-        "font": "Amount in JetBrains Mono."
-      }
+    "cards": {
+      "base": "bg-white rounded-xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-6 transition-shadow hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+    },
+    "badges": {
+      "pendiente": "bg-yellow-50 text-yellow-700 border border-yellow-200",
+      "en_revision": "bg-blue-50 text-blue-700 border border-blue-200",
+      "impuesto_pendiente": "bg-orange-50 text-orange-700 border border-orange-200",
+      "en_proceso": "bg-purple-50 text-purple-700 border border-purple-200",
+      "completado": "bg-green-50 text-green-700 border border-green-200",
+      "rechazado": "bg-red-50 text-red-700 border border-red-200"
+    },
+    "sidebar": {
+      "background": "bg-white border-r border-gray-200",
+      "link_active": "bg-[#F4F6F8] text-[#004481] font-medium border-r-4 border-[#1973B8]",
+      "link_inactive": "text-[#5B5B5B] hover:bg-gray-50 hover:text-[#004481] transition-colors"
     }
   },
-  "visual_enhancers": {
-    "surfaces": [
-      "Glassmorphism: bg-slate-900/70 backdrop-blur-xl border border-white/10",
-      "Tactile: bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700"
-    ],
-    "decorations": [
-      "Noise Overlay: Add a fixed 'opacity-[0.03]' noise texture over the entire app to kill digital flatness.",
-      "Glow Orbs: Place 'blur-[100px]' emerald or cyan orbs behind major sections (like Hero or Total Balance)."
-    ]
+  "animations": {
+    "page_transition": "opacity-0 animate-in fade-in duration-500",
+    "counter": "Use framer-motion useSpring for balance numbers",
+    "hover": "Smooth transform on buttons and cards"
   },
-  "motion": {
-    "library": "framer-motion",
-    "defaults": {
-      "duration": 0.3,
-      "ease": "easeOut"
-    },
-    "patterns": [
-      "Stagger Children: Parent container staggers children by 0.05s.",
-      "Slide Up Fade: Initial state { y: 20, opacity: 0 } -> { y: 0, opacity: 1 }.",
-      "Scale Tap: Active elements scale to 0.98 on press."
-    ]
+  "images": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1749310726959-d8fccfef7ee4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBidWlsZGluZyUyMGludGVyaW9yfGVufDB8fHx8MTc3NzQ5MjAzMXww&ixlib=rb-4.1.0&q=85",
+      "description": "Modern corporate building interior for login page background"
+    }
   },
-  "assets": {
-    "user_avatars": [
-      {
-        "url": "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "alt": "Main User Profile - Professional Male"
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1689600944138-da3b150d9cb8?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "alt": "Admin User 1 - Professional Female"
-      },
-      {
-        "url": "https://images.pexels.com/photos/6572210/pexels-photo-6572210.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "alt": "Admin User 2 - Businesswoman"
-      }
-    ],
-    "card_backgrounds": [
-      {
-        "url": "https://images.unsplash.com/photo-1762009365851-c5b5b1aae3b9?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "alt": "Abstract Geometric Dark Squares - For Checking Account"
-      },
-      {
-        "url": "https://images.pexels.com/photos/28428591/pexels-photo-28428591.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "alt": "Intricate Blue 3D Geometry - For Savings Account"
-      }
-    ]
-  },
-  "instructions_to_main_agent": {
-    "setup": "1. Import fonts in index.css. 2. Configure tailwind colors/fontFamily. 3. Update 'radius' in index.css to 0.75rem. 4. Install framer-motion, lucide-react, recharts.",
-    "critical": "Do NOT use default shadcn styles. Override them with the Dark Executive theme. Ensure all text meets 4.5:1 contrast against the dark navy background.",
-    "charts": "Use Recharts. Style the tooltip to be a glassmorphic card. Remove grid lines or make them very subtle (slate-800/20)."
-  },
-  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
-    "You tend to converge toward generic outputs. Avoid this.",
-    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
-    "Don't make generic centered layouts. Use Bento Grids.",
-    "Create depth through layered design elements with z-index hierarchy.",
-    "Use glass-morphism effects with backdrop filters (12-24px blur).",
-    "You MUST NOT apply universal transition 'transition: all'.",
-    "You MUST NOT center align the app container.",
-    "Always use modern button styles (pill or sharp) with interaction animations.",
-    "NEVER use AI assistant emojis.",
-    "Every interaction needs micro-animations (hover, focus, active).",
-    "Use 2-3x more spacing than feels comfortable.",
-    "Main agent relies on provided image URLs. Do not use placeholders.",
-    "Prioritize reusing components from src/components/ui.",
-    "Components MUST use named exports.",
-    "Use 'sonner' for toasts."
+  "implementation_plan": [
+    "Phase 1: Foundation. Update tailwind.config.js with the new color palette. Add global CSS variables in index.css.",
+    "Phase 2: Layout & Navigation. Update the Sidebar and Header to the light theme, using white background and deep blue active states.",
+    "Phase 3: Dashboard. Restructure KPI cards (Saldo, Capital, Retenidos) to use the new card design with soft shadows and animated counters.",
+    "Phase 4: Critical Pages. Update Withdrawal Management Panel, applying the 6 status badges. Update Client Profile and KYC flows.",
+    "Phase 5: Polish. Ensure mobile responsiveness, hover effects, loaders, and test all interactions."
   ]
 }
