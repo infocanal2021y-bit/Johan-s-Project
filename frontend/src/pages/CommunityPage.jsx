@@ -19,7 +19,7 @@ const STATUS_LABELS = {
     activo:           { label: 'Activo',            cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-400' },
     en_revision:      { label: 'En revisión',       cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',         dot: 'bg-amber-400'   },
     retiro_pendiente: { label: 'Retiro pendiente',  cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',            dot: 'bg-cyan-400'    },
-    completado:       { label: 'Completado',        cls: 'bg-violet-500/15 text-violet-300 border-violet-500/30',      dot: 'bg-violet-400'  },
+    completado:       { label: 'Retirado',          cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30',            dot: 'bg-blue-400'    },
 };
 
 const BADGE_DEFS = {
@@ -34,7 +34,7 @@ const PROGRESS_STAGES = [
     { key: 2, label: 'Impuesto',     icon: Receipt    },
     { key: 3, label: 'Revisión',     icon: FileCheck  },
     { key: 4, label: 'Transferencia', icon: Truck     },
-    { key: 5, label: 'Completado',   icon: Trophy     },
+    { key: 5, label: 'Retirado',     icon: Trophy     },
 ];
 
 const fmtEUR = (n) => `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -193,12 +193,21 @@ const MemberCard = ({ member }) => {
                         {fmtEUR(member.deposited_eur)}
                     </p>
                 </div>
-                <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
-                    <p className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Disponible</p>
-                    <p className="text-sm font-bold text-cyan-300 font-mono mt-0.5" data-testid="community-member-available">
-                        {fmtEUR(member.available_balance_eur)}
-                    </p>
-                </div>
+                {member.progress_step >= 5 ? (
+                    <div className="rounded-lg bg-blue-500/5 border border-blue-500/30 p-2.5">
+                        <p className="text-[9px] font-mono uppercase tracking-wider text-blue-300">Retirado</p>
+                        <p className="text-sm font-bold text-blue-300 font-mono mt-0.5" data-testid="community-member-withdrawn">
+                            {fmtEUR(member.withdrawn_eur)}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
+                        <p className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Disponible</p>
+                        <p className="text-sm font-bold text-cyan-300 font-mono mt-0.5" data-testid="community-member-available">
+                            {fmtEUR(member.available_balance_eur)}
+                        </p>
+                    </div>
+                )}
             </div>
 
             <div className="mt-3">
@@ -281,7 +290,7 @@ const RecentWithdrawalsFeed = () => {
                                         <p className="text-sm font-bold text-emerald-300 font-mono">{fmtEUR(it.amount_eur)}</p>
                                         <p className="text-[9px] text-emerald-400 uppercase tracking-wider flex items-center gap-1 justify-end">
                                             <CheckCircle2 className="w-3 h-3" />
-                                            {it.status === 'completed' ? 'Completado' : 'En transferencia'}
+                                            {it.status === 'completed' ? 'Retirado' : 'En transferencia'}
                                         </p>
                                     </div>
                                 </motion.div>
@@ -424,7 +433,7 @@ export const CommunityPage = () => {
                                         { key: 'activo',           label: 'Activo',          cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
                                         { key: 'en_revision',      label: 'En revisión',     cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
                                         { key: 'retiro_pendiente', label: 'Retiro pendiente', cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
-                                        { key: 'completado',       label: 'Completado',      cls: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
+                                        { key: 'completado',       label: 'Retirado',         cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
                                     ].map(f => {
                                         const active = statusFilter === f.key;
                                         return (

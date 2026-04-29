@@ -206,6 +206,7 @@ async def community_members(
         deposited = deposits_by_user.get(u['id'], 0.0)
         total_eur = bal['available'] + bal['invested']
         has_completed_wd = any((w.get('status') or '').lower() == 'completed' for w in wds)
+        withdrawn_eur = sum(float(w.get('amount') or 0) for w in wds if (w.get('status') or '').lower() == 'completed')
 
         out.append({
             'id': u['id'],
@@ -215,6 +216,7 @@ async def community_members(
             'country_flag': _flag_for(u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone'))),
             'deposited_eur':       round(deposited, 2),
             'available_balance_eur': round(bal['available'], 2),
+            'withdrawn_eur':       round(withdrawn_eur, 2),
             'account_status':      _compute_account_status_label(u, wds),
             'progress_step':       _compute_progress_step(u, wds),
             'badges':              _compute_badges(u, total_eur, has_completed_wd),
