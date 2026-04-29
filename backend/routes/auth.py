@@ -320,8 +320,52 @@ async def change_password(data: ChangePassword, current_user: dict = Depends(get
 
 
 @router.post("/auth/request-password-reset")
-async def request_password_reset(data: PasswordResetRequest):
-    """Request password reset link - sends real email"""
+async def request_password_reset(data: PasswordResetRequest, request: Request):
+    """Request password reset link - sends real email.
+
+    Rate limited to prevent abuse:
+      - max 3 requests per email per hour
+      - max 5 requests per IP per hour
+    Returns 429 when threshold is exceeded. Uses generic response for
+    non-existing emails to prevent enumeration.
+    """
+    # Extract client IP (X-Forwarded-For first, then direct)
+    client_ip = request.headers.get('X-Forwarded-For', request.client.host if request.client else 'unknown')
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+
+    one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+
+    # Per-email throttle (3/hour)
+    email_count = await db.password_reset_attempts.count_documents({
+        'email': data.email,
+        'attempted_at': {'$gte': one_hour_ago},
+    })
+    if email_count >= 3:
+        raise HTTPException(
+            status_code=429,
+            detail='Demasiadas solicitudes para este email. Inténtelo de nuevo en una hora.',
+        )
+
+    # Per-IP throttle (5/hour) — guards against enumeration sweeps
+    ip_count = await db.password_reset_attempts.count_documents({
+        'ip': client_ip,
+        'attempted_at': {'$gte': one_hour_ago},
+    })
+    if ip_count >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail='Demasiadas solicitudes desde su IP. Inténtelo de nuevo en una hora.',
+        )
+
+    # Log the attempt BEFORE the existence check (so enumeration doesn't bypass the limit)
+    await db.password_reset_attempts.insert_one({
+        'id': str(uuid.uuid4()),
+        'email': data.email,
+        'ip': client_ip,
+        'attempted_at': datetime.now(timezone.utc).isoformat(),
+    })
+
     user = await db.users.find_one({'email': data.email}, {'_id': 0})
 
     if not user:
