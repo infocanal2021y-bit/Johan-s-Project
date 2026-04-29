@@ -88,10 +88,10 @@ export const RegisterPage = () => {
         setLoading(false);
     };
 
-    const inputCls = "pl-10 bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-white placeholder:text-slate-600";
+    const inputCls = "pl-10 bg-slate-950/50 border-slate-800 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8]/40 text-white placeholder:text-slate-600";
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#040914]">
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#072146]">
             <AuthBackground />
 
             <motion.div
@@ -142,7 +142,7 @@ export const RegisterPage = () => {
                                     <select
                                         value={selectedCountry.code}
                                         onChange={(e) => setSelectedCountry(COUNTRIES.find(c => c.code === e.target.value) || COUNTRIES[0])}
-                                        className="bg-slate-950/50 border border-slate-800 text-white rounded-md px-2 text-sm w-[130px] focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50"
+                                        className="bg-slate-950/50 border border-slate-800 text-white rounded-md px-2 text-sm w-[130px] focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8]/40"
                                         data-testid="register-country-select"
                                     >
                                         {COUNTRIES.map(c => (
@@ -165,7 +165,7 @@ export const RegisterPage = () => {
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                         <Input id="password" type={showPassword ? "text" : "password"} placeholder="Min. 6 caracteres"
                                             value={password} onChange={(e) => setPassword(e.target.value)}
-                                            className="pl-10 pr-9 bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-white placeholder:text-slate-600"
+                                            className="pl-10 pr-9 bg-slate-950/50 border-slate-800 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8]/40 text-white placeholder:text-slate-600"
                                             required data-testid="register-password-input" />
                                         <button type="button" onClick={() => setShowPassword(!showPassword)}
                                             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
@@ -179,7 +179,7 @@ export const RegisterPage = () => {
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                                         <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="Repetir"
                                             value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="pl-10 pr-9 bg-slate-950/50 border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-white placeholder:text-slate-600"
+                                            className="pl-10 pr-9 bg-slate-950/50 border-slate-800 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8]/40 text-white placeholder:text-slate-600"
                                             required data-testid="register-confirm-password-input" />
                                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
@@ -215,7 +215,7 @@ export const RegisterPage = () => {
                                         id="ownerDeceased"
                                         checked={ownerDeceased}
                                         onChange={(e) => setOwnerDeceased(e.target.checked)}
-                                        className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500/50"
+                                        className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-[#1973B8]/40"
                                         data-testid="register-deceased-check"
                                     />
                                     <Label htmlFor="ownerDeceased" className="text-slate-300 text-sm cursor-pointer">
@@ -236,7 +236,7 @@ export const RegisterPage = () => {
                                             <select
                                                 value={relationship}
                                                 onChange={(e) => setRelationship(e.target.value)}
-                                                className="w-full pl-10 h-10 bg-slate-950/50 border border-slate-800 text-white rounded-md text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50"
+                                                className="w-full pl-10 h-10 bg-slate-950/50 border border-slate-800 text-white rounded-md text-sm focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8]/40"
                                                 data-testid="register-relationship-select"
                                             >
                                                 <option value="">Seleccione parentesco</option>
