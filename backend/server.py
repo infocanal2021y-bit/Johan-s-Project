@@ -159,6 +159,19 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Run daily to auto-advance 2 community in-process users to step 5 (Retirado).
+    # First fire happens 60s after boot (catch-up), then every 24h. The function
+    # itself is idempotent by UTC date so we never double-process a single day.
+    from services.community_auto_advance import run_community_auto_advance_tick
+    scheduler.add_job(
+        run_community_auto_advance_tick,
+        IntervalTrigger(hours=24),
+        id='community_auto_advance',
+        name='Auto-advance 2 community users/day to Retirado',
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=60),
+        replace_existing=True
+    )
+
     
     scheduler.start()
     logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s)")

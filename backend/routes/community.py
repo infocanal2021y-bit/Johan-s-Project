@@ -526,3 +526,25 @@ async def admin_reset_step(user_id: str, admin: dict = Depends(get_admin_user)):
         {'$unset': {'community_step_override': '', 'community_step_updated_at': '', 'community_step_updated_by': ''}},
     )
     return {'user_id': user_id, 'reset': True}
+
+
+# ====== Daily auto-advance scheduler endpoints ===============================
+
+@router.post("/admin/community/auto-advance/run")
+async def admin_run_auto_advance(admin: dict = Depends(get_admin_user)):
+    """Manually trigger the daily auto-advance tick. Forces a run even if
+    today's job already executed (scheduler-mode triggers do skip)."""
+    from services.community_auto_advance import run_community_auto_advance_tick
+    return await run_community_auto_advance_tick(triggered_by=admin.get('email') or 'manual')
+
+
+@router.get("/admin/community/auto-advance/log")
+async def admin_get_auto_advance_log(
+    limit: int = Query(30, ge=1, le=180),
+    admin: dict = Depends(get_admin_user),
+):
+    """Return the last N daily runs + current pool status."""
+    from services.community_auto_advance import get_recent_runs, get_pool_status
+    runs = await get_recent_runs(limit)
+    pool = await get_pool_status()
+    return {'runs': runs, 'pool': pool}

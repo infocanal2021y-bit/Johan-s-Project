@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import {
     ShieldCheck, Receipt, FileCheck, Truck, Trophy, Clock, Search,
-    ArrowRight, Loader2, RotateCcw, CheckCircle2, Activity
+    ArrowRight, Loader2, RotateCcw, CheckCircle2, Activity, Zap, Play, Calendar
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -34,6 +34,46 @@ const AdminCommunityProgressPage = () => {
     const [stepFilter, setStepFilter] = useState('all');  // 'all' | 1..5
     const [advancingId, setAdvancingId] = useState(null);
 
+    // Auto-advance daily scheduler state
+    const [autoAdvance, setAutoAdvance] = useState({ runs: [], pool: null });
+    const [autoAdvanceLoading, setAutoAdvanceLoading] = useState(false);
+    const [autoTriggering, setAutoTriggering] = useState(false);
+
+    const fetchAutoAdvance = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const r = await fetch(`${API_URL}/api/admin/community/auto-advance/log?limit=10`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const d = await r.json();
+            setAutoAdvance({ runs: d.runs || [], pool: d.pool || null });
+        } catch (e) { /* silent */ }
+    }, []);
+
+    const triggerAutoAdvance = async () => {
+        setAutoTriggering(true);
+        try {
+            const token = localStorage.getItem('token');
+            const r = await fetch(`${API_URL}/api/admin/community/auto-advance/run`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const d = await r.json();
+            if (d.status === 'ok' && d.count > 0) {
+                toast.success(`${d.count} cuenta(s) avanzadas a Retirado`);
+            } else if (d.status === 'ok_empty') {
+                toast.info('Pool agotado · no quedan cuentas en proceso');
+            } else {
+                toast.info('Sin cambios');
+            }
+            await Promise.all([fetchAutoAdvance(), fetchQueue()]);
+        } catch (e) {
+            toast.error('Error al ejecutar el avance automático');
+        } finally {
+            setAutoTriggering(false);
+        }
+    };
+
     const fetchQueue = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
@@ -51,6 +91,12 @@ const AdminCommunityProgressPage = () => {
         const id = setInterval(fetchQueue, 30000);
         return () => clearInterval(id);
     }, [fetchQueue]);
+
+    useEffect(() => {
+        fetchAutoAdvance();
+        const id = setInterval(fetchAutoAdvance, 60000);
+        return () => clearInterval(id);
+    }, [fetchAutoAdvance]);
 
     const advance = async (userId, currentStep) => {
         setAdvancingId(userId);
@@ -143,6 +189,93 @@ const AdminCommunityProgressPage = () => {
                             })}
                         </div>
                     </div>
+                </motion.div>
+
+                {/* Daily auto-advance scheduler panel */}
+                <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="rounded-lg border border-cyan-500/30 bg-gradient-to-br from-cyan-500/[0.04] to-emerald-500/[0.03] overflow-hidden"
+                    data-testid="auto-advance-panel"
+                >
+                    <div className="h-0.5 bg-gradient-to-r from-cyan-500 via-emerald-500 to-transparent" />
+                    <div className="px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                                <Zap className="w-4 h-4 text-cyan-300" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-cyan-300/80 mb-1">
+                                    <Calendar className="w-3 h-3" />
+                                    Avance automático diario
+                                </div>
+                                <p className="text-sm font-semibold text-white">
+                                    {autoAdvance.pool?.daily_count ?? 2} cuenta{(autoAdvance.pool?.daily_count ?? 2) === 1 ? '' : 's'} promovida{(autoAdvance.pool?.daily_count ?? 2) === 1 ? '' : 's'} cada día a Retirado
+                                </p>
+                                <p className="text-[12px] text-slate-400 mt-0.5 leading-relaxed">
+                                    El sistema verifica y completa automáticamente {autoAdvance.pool?.daily_count ?? 2} sesiones diarias del pool en proceso, simulando el flujo orgánico de aprobación.
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            onClick={triggerAutoAdvance}
+                            disabled={autoTriggering}
+                            className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs h-9 px-4 flex-shrink-0"
+                            data-testid="auto-advance-trigger-btn"
+                        >
+                            {autoTriggering ? (
+                                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Procesando…</>
+                            ) : (
+                                <><Play className="w-3.5 h-3.5 mr-1.5" /> Ejecutar ahora</>
+                            )}
+                        </Button>
+                    </div>
+                    {/* Pool status row */}
+                    {autoAdvance.pool && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-slate-800/80 divide-x divide-slate-800/80" data-testid="auto-advance-pool">
+                            <div className="px-4 py-3">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500">Pool total</p>
+                                <p className="text-base font-semibold font-mono tabular-nums text-slate-200 mt-0.5">{autoAdvance.pool.pool_total}</p>
+                            </div>
+                            <div className="px-4 py-3">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500">En proceso</p>
+                                <p className="text-base font-semibold font-mono tabular-nums text-amber-300 mt-0.5">{autoAdvance.pool.in_process_remaining}</p>
+                            </div>
+                            <div className="px-4 py-3">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500">Completados</p>
+                                <p className="text-base font-semibold font-mono tabular-nums text-emerald-300 mt-0.5">{autoAdvance.pool.completed_so_far}</p>
+                            </div>
+                            <div className="px-4 py-3">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500">Días restantes</p>
+                                <p className="text-base font-semibold font-mono tabular-nums text-cyan-300 mt-0.5">{autoAdvance.pool.days_remaining}</p>
+                            </div>
+                        </div>
+                    )}
+                    {/* Recent runs */}
+                    {autoAdvance.runs.length > 0 && (
+                        <div className="border-t border-slate-800/80 px-5 py-3" data-testid="auto-advance-runs">
+                            <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500 mb-2">Últimas ejecuciones</p>
+                            <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                                {autoAdvance.runs.map(run => (
+                                    <div key={run.id || run.date} className="flex items-center justify-between gap-3 text-xs py-1.5 border-b border-slate-800/40 last:border-0">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <CheckCircle2 className={`w-3.5 h-3.5 flex-shrink-0 ${run.count > 0 ? 'text-emerald-400' : 'text-slate-600'}`} />
+                                            <span className="font-mono tabular-nums text-slate-300 text-[11px]">{run.date}</span>
+                                            <span className="text-slate-500 text-[10px] truncate">
+                                                {run.advanced && run.advanced.length > 0
+                                                    ? run.advanced.map(a => a.name).join(' · ')
+                                                    : (run.note === 'no_candidates_available' ? 'pool agotado' : 'sin cambios')}
+                                            </span>
+                                        </div>
+                                        <span className={`font-mono tabular-nums text-[11px] flex-shrink-0 ${run.count > 0 ? 'text-emerald-300' : 'text-slate-500'}`}>
+                                            +{run.count}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Search + filter chips */}
