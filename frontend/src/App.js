@@ -71,7 +71,7 @@ const ProtectedRoute = ({ children, adminOnly = false, allowForcedChange = false
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#F4F6F8] flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" style={{ background: '#072146' }}>
                 <div className="w-8 h-8 border-2 border-[#1973B8] border-t-transparent rounded-full animate-spin" />
             </div>
         );
@@ -99,7 +99,7 @@ const PublicRoute = ({ children }) => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#F4F6F8] flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" style={{ background: '#072146' }}>
                 <div className="w-8 h-8 border-2 border-[#1973B8] border-t-transparent rounded-full animate-spin" />
             </div>
         );

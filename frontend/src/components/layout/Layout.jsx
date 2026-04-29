@@ -12,7 +12,7 @@ export const Layout = ({ children }) => {
     useActivityTracker(!!user);
 
     return (
-        <div className="relative min-h-screen bg-[#F4F6F8]">
+        <div className="relative min-h-screen" style={{ background: '#072146' }}>
             <AppBackground />
             <div className="relative" style={{ zIndex: 10 }}>
                 <Sidebar />

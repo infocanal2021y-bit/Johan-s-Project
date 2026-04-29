@@ -146,15 +146,15 @@ export const Sidebar = () => {
                     className={({ isActive }) =>
                         `group relative flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200 ease-out touch-manipulation overflow-hidden ${
                             isActive
-                                ? 'bg-[#F4F6F8] text-[#004481] font-medium'
-                                : 'text-[#5B5B5B] hover:bg-[#F4F6F8] hover:text-[#004481] active:bg-[#E5EAF0]'
+                                ? 'bg-white/10 text-white font-medium'
+                                : 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10'
                         }`
                     }
                 >
                     {/* Right accent bar on active */}
                     <span
                         aria-hidden="true"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-l-full bg-[#1973B8] opacity-0 group-[.active]:opacity-100 transition-opacity duration-200"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[#1973B8] opacity-0 group-[.active]:opacity-100 transition-opacity duration-200"
                     />
                     <link.icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-105" />
                     <span className="text-[13px] lg:text-sm" style={{ fontWeight: 500 }}>{link.label}</span>
@@ -165,13 +165,13 @@ export const Sidebar = () => {
 
     const SidebarContent = () => (
         <div className="flex flex-col h-full">
-            {/* Logo header — BBVA style */}
-            <div className="p-5 border-b border-[#E5EAF0]">
+            {/* Logo header — BBVA navy style */}
+            <div className="p-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
                         <div
-                            className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0"
-                            style={{ background: '#072146' }}
+                            className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 ring-1 ring-white/15"
+                            style={{ background: 'rgba(255,255,255,0.06)' }}
                         >
                             <img
                                 src="/lionsbit-logo.jpg"
@@ -182,13 +182,13 @@ export const Sidebar = () => {
                         </div>
                         <div className="leading-tight min-w-0">
                             <h1
-                                className="text-[#072146] truncate"
+                                className="text-white truncate"
                                 style={{ fontFamily: 'Poppins', fontSize: '0.95rem', fontWeight: 600, letterSpacing: '-0.01em' }}
                             >
                                 LIONSBIT
                             </h1>
                             <p
-                                className="text-[#1973B8] tracking-[0.18em] uppercase truncate"
+                                className="text-[#7CB1E5] tracking-[0.18em] uppercase truncate"
                                 style={{ fontSize: '0.56rem', fontWeight: 600 }}
                             >
                                 Verificación
@@ -201,7 +201,7 @@ export const Sidebar = () => {
 
             {/* User Links */}
             <div className="flex-1 p-4 overflow-y-auto">
-                <p className="text-[10px] text-[#8A95A5] uppercase tracking-[0.14em] px-4 mb-2" style={{ fontWeight: 600 }}>
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2" style={{ fontWeight: 600 }}>
                     Banca
                 </p>
                 <NavLinks links={userLinksTop} />
@@ -213,8 +213,8 @@ export const Sidebar = () => {
                         data-testid="sidebar-accounts-toggle"
                         className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md transition-colors duration-200 touch-manipulation ${
                             accountsOpen
-                                ? 'bg-[#F4F6F8] text-[#004481]'
-                                : 'text-[#5B5B5B] hover:bg-[#F4F6F8] hover:text-[#004481] active:bg-[#E5EAF0]'
+                                ? 'bg-white/10 text-white'
+                                : 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10'
                         }`}
                     >
                         <Wallet className="w-[18px] h-[18px] flex-shrink-0" />
@@ -223,7 +223,7 @@ export const Sidebar = () => {
                     </button>
 
                     {accountsOpen && (
-                        <div className="ml-4 pl-4 border-l border-[#E5EAF0] space-y-0.5" data-testid="sidebar-accounts-submenu">
+                        <div className="ml-4 pl-4 border-l space-y-0.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }} data-testid="sidebar-accounts-submenu">
                             <NavLink
                                 to="/accounts"
                                 onClick={() => setMobileOpen(false)}
@@ -231,8 +231,8 @@ export const Sidebar = () => {
                                 className={({ isActive }) =>
                                     `flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors duration-200 ${
                                         isActive
-                                            ? 'bg-[#F4F6F8] text-[#004481] font-medium'
-                                            : 'text-[#5B5B5B] hover:bg-[#F4F6F8] hover:text-[#004481]'
+                                            ? 'bg-white/10 text-white font-medium'
+                                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
                                     }`
                                 }
                             >
@@ -242,7 +242,7 @@ export const Sidebar = () => {
                             <button
                                 onClick={() => window.open('https://gz.blockchair.com/bitcoin/inputs/', '_blank')}
                                 data-testid="sidebar-tx-paid-btn"
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-[#5B5B5B] hover:bg-[#F4F6F8] hover:text-[#C2410C] transition-colors duration-200"
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-slate-300 hover:bg-white/5 hover:text-amber-300 transition-colors duration-200"
                             >
                                 <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
                                 <span style={{ fontWeight: 500 }}>Tx Pagadas</span>
@@ -251,7 +251,7 @@ export const Sidebar = () => {
                             <button
                                 onClick={() => window.open('https://gz.blockchair.com/bitcoin/outputs/', '_blank')}
                                 data-testid="sidebar-tx-received-btn"
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-[#5B5B5B] hover:bg-[#F4F6F8] hover:text-[#047857] transition-colors duration-200"
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-slate-300 hover:bg-white/5 hover:text-emerald-300 transition-colors duration-200"
                             >
                                 <ArrowDownLeft className="w-4 h-4 flex-shrink-0" />
                                 <span style={{ fontWeight: 500 }}>Tx Recibidas</span>
@@ -264,14 +264,14 @@ export const Sidebar = () => {
                 <NavLinks links={userLinksBottom} />
 
                 {/* Crypto/Finance Section */}
-                <p className="text-[10px] text-[#8A95A5] uppercase tracking-[0.14em] px-4 mb-2 mt-6" style={{ fontWeight: 600 }}>
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2 mt-6" style={{ fontWeight: 600 }}>
                     Análisis Financiero
                 </p>
                 <NavLinks links={cryptoLinks} />
 
                 {isAdmin && (
                     <>
-                        <p className="text-[10px] text-[#8A95A5] uppercase tracking-[0.14em] px-4 mb-2 mt-6" style={{ fontWeight: 600 }}>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2 mt-6" style={{ fontWeight: 600 }}>
                             Administración
                         </p>
                         <NavLinks links={adminLinks} />
@@ -280,32 +280,32 @@ export const Sidebar = () => {
             </div>
 
             {/* User Info & Logout */}
-            <div className="p-4 border-t border-[#E5EAF0] bg-[#FAFBFC]">
+            <div className="p-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.15)' }}>
                 <div className="flex items-center gap-3 px-3 py-2.5 mb-2">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #004481, #1973B8)' }}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
                         <span className="text-sm text-white" style={{ fontWeight: 600 }}>
                             {user?.name?.charAt(0).toUpperCase()}
                         </span>
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                            <p className="text-[13px] text-[#072146] truncate" style={{ fontWeight: 600 }}>{user?.name}</p>
+                            <p className="text-[13px] text-white truncate" style={{ fontWeight: 600 }}>{user?.name}</p>
                             {getVerificationBadge()}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-[11px] text-[#8A95A5] truncate">{user?.email}</p>
+                            <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
                         </div>
                         {!isAdmin && <div className="mt-1"><LevelBadge /></div>}
                     </div>
                     {isAdmin && (
-                        <span className="px-2 py-0.5 text-[10px] bg-[#1973B8]/10 text-[#004481] border border-[#1973B8]/20 rounded" style={{ fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        <span className="px-2 py-0.5 text-[10px] bg-[#1973B8]/20 text-[#7CB1E5] border border-[#1973B8]/30 rounded" style={{ fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                             Admin
                         </span>
                     )}
                 </div>
                 <Button
                     variant="ghost"
-                    className="w-full justify-start text-[#5B5B5B] hover:text-[#B91C1C] hover:bg-[#FEF2F2]"
+                    className="w-full justify-start text-slate-300 hover:text-rose-300 hover:bg-rose-500/10"
                     onClick={handleLogout}
                     data-testid="logout-btn"
                 >
@@ -322,7 +322,8 @@ export const Sidebar = () => {
             <Button
                 variant="ghost"
                 size="icon"
-                className="fixed top-3 left-3 z-50 lg:hidden w-11 h-11 bg-white border border-[#E5EAF0] rounded-lg shadow-sm text-[#072146] hover:bg-[#F4F6F8] touch-manipulation"
+                className="fixed top-3 left-3 z-50 lg:hidden w-11 h-11 rounded-lg shadow-md text-white touch-manipulation"
+                style={{ background: '#072146', border: '1px solid rgba(255,255,255,0.12)' }}
                 onClick={() => setMobileOpen(!mobileOpen)}
                 data-testid="mobile-menu-btn"
             >
@@ -332,22 +333,26 @@ export const Sidebar = () => {
             {/* Mobile Overlay */}
             {mobileOpen && (
                 <div
-                    className="fixed inset-0 bg-[#072146]/40 backdrop-blur-sm z-40 lg:hidden"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setMobileOpen(false)}
                 />
             )}
 
             {/* Sidebar - Mobile */}
             <aside
-                className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-[#E5EAF0] transform transition-transform duration-300 lg:hidden ${
+                className={`fixed inset-y-0 left-0 z-40 w-64 border-r transform transition-transform duration-300 lg:hidden ${
                     mobileOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
+                style={{ background: '#072146', borderColor: 'rgba(255,255,255,0.08)' }}
             >
                 <SidebarContent />
             </aside>
 
             {/* Sidebar - Desktop */}
-            <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 bg-white border-r border-[#E5EAF0]">
+            <aside
+                className="hidden lg:block fixed inset-y-0 left-0 w-64 border-r"
+                style={{ background: '#072146', borderColor: 'rgba(255,255,255,0.08)' }}
+            >
                 <SidebarContent />
             </aside>
         </>
