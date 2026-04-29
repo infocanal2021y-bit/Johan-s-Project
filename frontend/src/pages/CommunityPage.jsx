@@ -23,10 +23,10 @@ const STATUS_LABELS = {
 };
 
 const BADGE_DEFS = {
-    verified:             { label: 'Usuario Verificado',   icon: BadgeCheck,  cls: 'from-emerald-500 to-emerald-600', text: 'text-emerald-200', glow: 'shadow-[0_0_12px_rgba(16,185,129,0.45)]' },
-    withdrawal_processed: { label: 'Retiro Procesado',     icon: ShieldCheck, cls: 'from-cyan-500 to-cyan-600',       text: 'text-cyan-200',    glow: 'shadow-[0_0_12px_rgba(6,182,212,0.45)]' },
-    premium:              { label: 'Cuenta Premium',       icon: Crown,       cls: 'from-amber-500 to-amber-600',     text: 'text-amber-100',   glow: 'shadow-[0_0_12px_rgba(245,158,11,0.5)]' },
-    high_priority:        { label: 'Prioridad Alta',       icon: Flame,       cls: 'from-rose-500 to-rose-600',       text: 'text-rose-100',    glow: 'shadow-[0_0_12px_rgba(244,63,94,0.5)]' },
+    verified:             { label: 'Verificado',     icon: BadgeCheck,  cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
+    withdrawal_processed: { label: 'Retiro Procesado', icon: ShieldCheck, cls: 'border-blue-500/40 text-blue-300 bg-blue-500/[0.07]' },
+    premium:              { label: 'Premium',        icon: Crown,       cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.07]' },
+    high_priority:        { label: 'Prioritario',    icon: Flame,       cls: 'border-rose-500/40 text-rose-300 bg-rose-500/[0.07]' },
 };
 
 const PROGRESS_STAGES = [
@@ -52,34 +52,32 @@ const timeAgo = (iso) => {
 
 const ProgressBar = ({ step }) => {
     const fullyCompleted = step >= 5;
-    // When fully completed → render in BLUE (premium completion); otherwise emerald/cyan default
-    const doneCls = fullyCompleted
-        ? 'bg-blue-500 border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.65)]'
-        : 'bg-emerald-500 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]';
-    const doneTextCls = fullyCompleted ? 'text-blue-300' : 'text-emerald-300';
-    const connectorCls = fullyCompleted ? 'bg-blue-500' : 'bg-emerald-500';
+    const doneRing  = fullyCompleted ? 'border-blue-500 bg-blue-500/20' : 'border-emerald-500 bg-emerald-500/20';
+    const doneIcon  = fullyCompleted ? 'text-blue-300' : 'text-emerald-300';
+    const doneLabel = fullyCompleted ? 'text-blue-300/90' : 'text-emerald-300/90';
+    const doneLine  = fullyCompleted ? 'bg-blue-500/70' : 'bg-emerald-500/70';
     return (
-        <div className="flex items-center gap-1 mt-3" data-testid="community-progress-bar" data-fully-completed={fullyCompleted ? 'true' : 'false'}>
+        <div className="flex items-center gap-1 mt-4" data-testid="community-progress-bar" data-fully-completed={fullyCompleted ? 'true' : 'false'}>
             {PROGRESS_STAGES.map((s, i) => {
                 const done = step >= s.key;
                 const current = step === s.key && !fullyCompleted;
                 const Icon = s.icon;
                 return (
                     <div key={s.key} className="flex-1 flex items-center gap-1">
-                        <div className="flex flex-col items-center gap-1 flex-1">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
-                                done ? doneCls :
-                                current ? 'bg-cyan-500/20 border-cyan-400 ring-2 ring-cyan-400/40 animate-pulse' :
-                                'bg-slate-800/50 border-slate-700'
+                        <div className="flex flex-col items-center gap-1.5 flex-1">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${
+                                done ? doneRing :
+                                current ? 'bg-cyan-500/15 border-cyan-400' :
+                                'bg-slate-900 border-slate-700'
                             }`}>
-                                <Icon className={`w-3.5 h-3.5 ${done ? 'text-white' : current ? 'text-cyan-300' : 'text-slate-600'}`} />
+                                <Icon className={`w-3 h-3 ${done ? doneIcon : current ? 'text-cyan-300' : 'text-slate-600'}`} />
                             </div>
-                            <span className={`text-[9px] font-mono uppercase tracking-tight ${done ? doneTextCls : current ? 'text-cyan-300' : 'text-slate-600'}`}>
+                            <span className={`text-[8.5px] font-medium uppercase tracking-[0.08em] ${done ? doneLabel : current ? 'text-cyan-300' : 'text-slate-600'}`}>
                                 {s.label}
                             </span>
                         </div>
                         {i < PROGRESS_STAGES.length - 1 && (
-                            <div className={`h-0.5 flex-1 mb-4 ${done && step > s.key ? connectorCls : 'bg-slate-800'}`} />
+                            <div className={`h-px flex-1 mb-4 ${done && step > s.key ? doneLine : 'bg-slate-800'}`} />
                         )}
                     </div>
                 );
@@ -99,9 +97,9 @@ const BadgeCloud = ({ badges }) => {
                 return (
                     <div key={b}
                         data-testid={`community-badge-${b}`}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-br ${def.cls} ${def.glow} text-[10px] font-bold ${def.text} uppercase tracking-wider`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${def.cls} text-[10px] font-medium tracking-wide`}
                     >
-                        <Icon className="w-3 h-3" />
+                        <Icon className="w-2.5 h-2.5" />
                         {def.label}
                     </div>
                 );
@@ -147,76 +145,90 @@ const ActionButtons = ({ member, onAction }) => {
 
 const MemberCard = ({ member }) => {
     const status = STATUS_LABELS[member.account_status] || STATUS_LABELS.activo;
+    const accountId = `LB-${(member.id || '').slice(0, 8).toUpperCase()}`;
     return (
         <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25 }}
             data-testid={`community-member-${member.id}`}
             data-self={member.is_self ? 'true' : 'false'}
-            className={`group relative rounded-2xl p-4 border transition-all hover:scale-[1.01] ${
+            className={`relative rounded-lg border bg-slate-900/40 transition-colors ${
                 member.is_self
-                    ? 'bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 border-cyan-500/40 shadow-[0_0_30px_rgba(6,182,212,0.25)]'
-                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                    ? 'border-blue-500/40 ring-1 ring-blue-500/20'
+                    : 'border-slate-800 hover:border-slate-700'
             }`}
         >
             {member.is_self && (
-                <div className="absolute -top-2 left-4 px-2 py-0.5 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-full text-[9px] font-bold uppercase tracking-widest text-white shadow-lg">
-                    Tu cuenta
-                </div>
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t-lg" />
             )}
-            <div className="flex items-start gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold flex-shrink-0 ${
-                    member.is_self ? 'bg-gradient-to-br from-cyan-500 to-emerald-500 text-white' : 'bg-slate-800 text-slate-300'
-                }`}>
-                    {(member.name || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h3 className="text-white font-semibold truncate">{member.name}</h3>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider border ${status.cls}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                            {status.label}
-                        </span>
+
+            {/* Header row: avatar · name + ID · status pill */}
+            <div className="flex items-start justify-between gap-3 p-4 pb-3 border-b border-slate-800/60">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className={`w-10 h-10 rounded-md flex items-center justify-center text-sm font-semibold flex-shrink-0 border ${
+                        member.is_self ? 'bg-blue-500/10 text-blue-200 border-blue-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}>
+                        {(member.name || '?').charAt(0).toUpperCase()}
                     </div>
-                    <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <span className="text-base leading-none">{member.country_flag}</span>
-                        {member.country}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="text-white text-sm font-semibold truncate leading-tight">{member.name}</h3>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
+                            <span className="inline-flex items-center gap-1">
+                                <span className="text-sm leading-none">{member.country_flag}</span>
+                                {member.country}
+                            </span>
+                            <span className="text-slate-700">·</span>
+                            <span className="font-mono text-[10px] tracking-wide">{accountId}</span>
+                            {member.is_self && (
+                                <span className="ml-auto text-[9px] font-medium uppercase tracking-widest text-blue-300">Su cuenta</span>
+                            )}
+                        </div>
+                    </div>
                 </div>
+                <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium tracking-wide border ${status.cls} flex-shrink-0`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                    {status.label}
+                </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-4">
-                <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
-                    <p className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Depositado</p>
-                    <p className="text-sm font-bold text-emerald-300 font-mono mt-0.5" data-testid="community-member-deposited">
+            {/* Financial summary row — banking ledger style */}
+            <div className="grid grid-cols-2 divide-x divide-slate-800/60">
+                <div className="px-4 py-3">
+                    <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-slate-500">Depositado</p>
+                    <p className="text-base font-semibold text-white font-mono tabular-nums mt-0.5" data-testid="community-member-deposited">
                         {fmtEUR(member.deposited_eur)}
                     </p>
                 </div>
                 {member.progress_step >= 5 ? (
-                    <div className="rounded-lg bg-blue-500/5 border border-blue-500/30 p-2.5">
-                        <p className="text-[9px] font-mono uppercase tracking-wider text-blue-300">Retirado</p>
-                        <p className="text-sm font-bold text-blue-300 font-mono mt-0.5" data-testid="community-member-withdrawn">
+                    <div className="px-4 py-3 bg-blue-500/[0.04]">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-blue-300/80">Retirado</p>
+                        <p className="text-base font-semibold text-blue-200 font-mono tabular-nums mt-0.5" data-testid="community-member-withdrawn">
                             {fmtEUR(member.withdrawn_eur)}
                         </p>
                     </div>
                 ) : (
-                    <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
-                        <p className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Disponible</p>
-                        <p className="text-sm font-bold text-cyan-300 font-mono mt-0.5" data-testid="community-member-available">
+                    <div className="px-4 py-3">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-slate-500">Disponible</p>
+                        <p className="text-base font-semibold text-emerald-300 font-mono tabular-nums mt-0.5" data-testid="community-member-available">
                             {fmtEUR(member.available_balance_eur)}
                         </p>
                     </div>
                 )}
             </div>
 
-            <div className="mt-3">
-                <BadgeCloud badges={member.badges} />
+            {/* Compliance markers + progress timeline */}
+            <div className="px-4 pt-3 pb-4 space-y-3 border-t border-slate-800/60">
+                {member.badges?.length > 0 && <BadgeCloud badges={member.badges} />}
+                <ProgressBar step={member.progress_step} />
             </div>
 
-            <ProgressBar step={member.progress_step} />
-
-            <ActionButtons member={member} />
+            {/* Self-only action buttons (footer) */}
+            {member.is_self && (
+                <div className="px-4 pb-4">
+                    <ActionButtons member={member} />
+                </div>
+            )}
         </motion.div>
     );
 };
@@ -247,49 +259,51 @@ const RecentWithdrawalsFeed = () => {
     }, [fetchFeed]);
 
     return (
-        <Card className="bg-slate-900/70 border-slate-800 backdrop-blur-xl" data-testid="community-recent-withdrawals">
-            <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                        </div>
-                        <h3 className="text-white font-semibold">Retiros recientes verificados</h3>
-                    </div>
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Live · 30s</span>
+        <div className="rounded-lg border border-slate-800 bg-slate-900/40" data-testid="community-recent-withdrawals">
+            <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+                <div>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500 mb-1">Libro de transacciones</p>
+                    <h3 className="text-white text-sm font-semibold">Retiros verificados</h3>
                 </div>
-
+                <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-widest text-emerald-400">
+                    <span className="relative flex w-1.5 h-1.5">
+                        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
+                        <span className="relative w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    </span>
+                    Live · 30s
+                </div>
+            </div>
+            <div className="p-3">
                 {loading ? (
                     <div className="space-y-2">
-                        {[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-slate-800/40 rounded-lg animate-pulse" />)}
+                        {[...Array(3)].map((_, i) => <div key={i} className="h-11 bg-slate-800/40 rounded-md animate-pulse" />)}
                     </div>
                 ) : items.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 text-sm">
-                        <Sparkles className="w-6 h-6 mx-auto mb-2 text-slate-600" />
-                        Aún no hay retiros verificados públicos. <br />
-                        <span className="text-xs">Esta sección se actualizará en cuanto haya transacciones completadas.</span>
+                    <div className="text-center py-8 text-slate-500 text-xs">
+                        <Sparkles className="w-5 h-5 mx-auto mb-2 text-slate-600" />
+                        Sin retiros verificados aún.<br />
+                        <span className="text-[11px] text-slate-600">El libro se actualizará en cuanto haya transacciones completadas.</span>
                     </div>
                 ) : (
-                    <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+                    <div className="space-y-px max-h-[520px] overflow-y-auto pr-1">
                         <AnimatePresence>
                             {items.map(it => (
                                 <motion.div
                                     key={it.id}
-                                    initial={{ opacity: 0, x: -10 }}
+                                    initial={{ opacity: 0, x: -6 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0 }}
-                                    className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60 hover:border-emerald-500/30 transition-colors"
+                                    className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-slate-800/30 transition-colors"
                                 >
-                                    <div className="text-xl">{it.country_flag}</div>
+                                    <div className="text-base leading-none">{it.country_flag}</div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-white font-medium truncate">{it.name_public}</p>
-                                        <p className="text-[10px] text-slate-500">{it.country} · {timeAgo(it.date)}</p>
+                                        <p className="text-[13px] text-slate-200 font-medium truncate leading-tight">{it.name_public}</p>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">{it.country} · {timeAgo(it.date)}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-emerald-300 font-mono">{fmtEUR(it.amount_eur)}</p>
-                                        <p className="text-[9px] text-emerald-400 uppercase tracking-wider flex items-center gap-1 justify-end">
-                                            <CheckCircle2 className="w-3 h-3" />
+                                        <p className="text-[13px] font-semibold text-blue-200 font-mono tabular-nums leading-tight">{fmtEUR(it.amount_eur)}</p>
+                                        <p className="text-[9px] text-blue-400/80 uppercase tracking-widest mt-0.5 flex items-center gap-1 justify-end">
+                                            <CheckCircle2 className="w-2.5 h-2.5" />
                                             {it.status === 'completed' ? 'Retirado' : 'En transferencia'}
                                         </p>
                                     </div>
@@ -298,8 +312,8 @@ const RecentWithdrawalsFeed = () => {
                         </AnimatePresence>
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 };
 
@@ -379,102 +393,122 @@ export const CommunityPage = () => {
 
     return (
         <Layout>
-            <div className="max-w-7xl mx-auto space-y-6 pb-12" data-testid="community-page">
-                {/* Header */}
-                <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="rounded-2xl p-6 bg-gradient-to-br from-cyan-500/10 via-slate-900 to-emerald-500/10 border border-cyan-500/20 backdrop-blur-xl relative overflow-hidden">
-                        <div className="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl" />
-                        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
-                        <div className="relative">
-                            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-cyan-300 mb-2">
-                                <Users className="w-4 h-4" />
-                                Comunidad LIONSBIT
+            <div className="max-w-7xl mx-auto space-y-5 pb-12" data-testid="community-page">
+                {/* Institutional header — solid, no gradient blobs */}
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="rounded-lg border border-slate-800 bg-slate-900/60 overflow-hidden">
+                        {/* Top accent line */}
+                        <div className="h-0.5 bg-gradient-to-r from-blue-500 via-blue-500/50 to-transparent" />
+                        <div className="px-6 py-5">
+                            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                                <div>
+                                    <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500 mb-2">
+                                        <Shield className="w-3 h-3" />
+                                        Lionsbit · Directorio Institucional
+                                    </div>
+                                    <h1 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
+                                        Directorio de Miembros Verificados
+                                    </h1>
+                                    <p className="text-slate-400 mt-1.5 max-w-2xl text-[13px] leading-relaxed">
+                                        Registro público de cuentas verificadas. Consulta el estado de verificación,
+                                        depósitos y retiros procesados. Información estructurada bajo lineamientos GDPR.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-widest text-emerald-400 whitespace-nowrap">
+                                    <span className="relative flex w-1.5 h-1.5">
+                                        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
+                                        <span className="relative w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                    </span>
+                                    Sistema activo
+                                </div>
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-heading font-bold text-white">
-                                Directorio de miembros verificados
-                            </h1>
-                            <p className="text-slate-400 mt-2 max-w-2xl text-sm">
-                                Transparencia institucional. Consulta en tiempo real el estado de los perfiles de la plataforma:
-                                depósitos, saldos disponibles, etapa de verificación y retiros procesados. Sin información sensible.
-                            </p>
-                            <div className="flex flex-wrap gap-3 mt-4 text-xs">
-                                <div className="flex items-center gap-1.5 text-emerald-300">
-                                    <Shield className="w-3.5 h-3.5" />
-                                    <span>Datos públicos de miembros</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-cyan-300">
-                                    <Globe className="w-3.5 h-3.5" />
-                                    <span>{totalInDb.toLocaleString('es-ES')} cuentas activas</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-violet-300">
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span>Actualización en vivo</span>
-                                </div>
+                        </div>
+
+                        {/* Stats row — banking dashboard metrics */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-slate-800/80 divide-x divide-slate-800/80">
+                            <div className="px-5 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Cuentas registradas</p>
+                                <p className="text-lg font-semibold text-white font-mono tabular-nums mt-1">{totalInDb.toLocaleString('es-ES')}</p>
+                            </div>
+                            <div className="px-5 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Cuentas activas</p>
+                                <p className="text-lg font-semibold text-emerald-300 font-mono tabular-nums mt-1">
+                                    {(statusCounts.activo || 0).toLocaleString('es-ES')}
+                                </p>
+                            </div>
+                            <div className="px-5 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">Retiros procesados</p>
+                                <p className="text-lg font-semibold text-blue-300 font-mono tabular-nums mt-1">
+                                    {(statusCounts.completado || 0).toLocaleString('es-ES')}
+                                </p>
+                            </div>
+                            <div className="px-5 py-4">
+                                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">En revisión</p>
+                                <p className="text-lg font-semibold text-amber-300 font-mono tabular-nums mt-1">
+                                    {(statusCounts.en_revision || 0).toLocaleString('es-ES')}
+                                </p>
                             </div>
                         </div>
                     </div>
                 </motion.div>
 
                 {/* Layout: directory + recent withdrawals sidebar */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
                     {/* Directory */}
                     <div className="xl:col-span-2 space-y-4">
                         {/* Search + Filters */}
-                        <Card className="bg-slate-900/70 border-slate-800 backdrop-blur-xl">
-                            <CardContent className="p-4 space-y-3">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                    <Input
-                                        placeholder="Buscar por nombre, país o estado..."
-                                        value={search}
-                                        onChange={e => setSearch(e.target.value)}
-                                        className="pl-10 bg-slate-950 border-slate-800 text-white"
-                                        data-testid="community-search"
-                                    />
-                                </div>
-                                <div className="flex flex-wrap gap-2" data-testid="community-status-filters">
-                                    {[
-                                        { key: 'all',              label: 'Todos',           cls: 'bg-slate-800 text-slate-200 border-slate-700' },
-                                        { key: 'activo',           label: 'Activo',          cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
-                                        { key: 'en_revision',      label: 'En revisión',     cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
-                                        { key: 'retiro_pendiente', label: 'Retiro pendiente', cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
-                                        { key: 'completado',       label: 'Retirado',         cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
-                                    ].map(f => {
-                                        const active = statusFilter === f.key;
-                                        return (
-                                            <button
-                                                key={f.key}
-                                                type="button"
-                                                onClick={() => setStatusFilter(f.key)}
-                                                data-testid={`community-filter-${f.key}`}
-                                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider border transition-all ${f.cls} ${active ? 'ring-2 ring-cyan-400/60' : 'opacity-70 hover:opacity-100'}`}
-                                            >
-                                                <Filter className="w-3 h-3" />
-                                                {f.label}
-                                                <span className="font-bold">{counts[f.key] || 0}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 space-y-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                <Input
+                                    placeholder="Buscar por nombre, país o estado..."
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    className="pl-10 bg-slate-950 border-slate-800 text-white text-sm h-10"
+                                    data-testid="community-search"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-2" data-testid="community-status-filters">
+                                {[
+                                    { key: 'all',              label: 'Todos',           cls: 'border-slate-700 text-slate-300 bg-slate-800/50' },
+                                    { key: 'activo',           label: 'Activo',          cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.06]' },
+                                    { key: 'en_revision',      label: 'En revisión',     cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.06]' },
+                                    { key: 'retiro_pendiente', label: 'Retiro pendiente', cls: 'border-cyan-500/40 text-cyan-300 bg-cyan-500/[0.06]' },
+                                    { key: 'completado',       label: 'Retirado',         cls: 'border-blue-500/40 text-blue-300 bg-blue-500/[0.06]' },
+                                ].map(f => {
+                                    const active = statusFilter === f.key;
+                                    return (
+                                        <button
+                                            key={f.key}
+                                            type="button"
+                                            onClick={() => setStatusFilter(f.key)}
+                                            data-testid={`community-filter-${f.key}`}
+                                            className={`inline-flex items-center gap-2 px-3 h-7 rounded-md text-[11px] font-medium tracking-wide border transition-colors ${f.cls} ${active ? 'ring-1 ring-blue-400/70 ring-offset-1 ring-offset-slate-900' : 'opacity-70 hover:opacity-100'}`}
+                                        >
+                                            {f.label}
+                                            <span className="font-mono tabular-nums text-[10px] text-slate-400">{(counts[f.key] || 0).toLocaleString('es-ES')}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
                         {/* Members grid */}
-                        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
                             <span data-testid="community-results-count">
-                                Mostrando <strong className="text-white">{filtered.length.toLocaleString('es-ES')}</strong>
+                                Mostrando <strong className="text-slate-200 font-semibold tabular-nums">{filtered.length.toLocaleString('es-ES')}</strong>
                                 {filteredTotal > filtered.length && (
-                                    <> de <strong className="text-cyan-300">{filteredTotal.toLocaleString('es-ES')}</strong></>
+                                    <> de <strong className="text-blue-300 font-semibold tabular-nums">{filteredTotal.toLocaleString('es-ES')}</strong></>
                                 )}
                                 <> {(search.trim() || statusFilter !== 'all') ? 'resultados' : 'miembros'}</>
                                 {filteredTotal > filtered.length && search.trim() === '' && statusFilter === 'all' && (
-                                    <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-400">
-                                        · usa la búsqueda para encontrar a alguien específico
+                                    <span className="ml-2 text-[10px] uppercase tracking-widest text-slate-600">
+                                        · use la búsqueda para una consulta específica
                                     </span>
                                 )}
                                 {(search.trim() || statusFilter !== 'all') && (
-                                    <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-cyan-400">
-                                        · búsqueda en toda la base ({totalInDb.toLocaleString('es-ES')})
+                                    <span className="ml-2 text-[10px] uppercase tracking-widest text-blue-400/80">
+                                        · consulta global ({totalInDb.toLocaleString('es-ES')})
                                     </span>
                                 )}
                             </span>
@@ -482,16 +516,14 @@ export const CommunityPage = () => {
                         {loading ? (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                 {[...Array(6)].map((_, i) => (
-                                    <div key={i} className="h-64 rounded-2xl bg-slate-900/50 border border-slate-800 animate-pulse" />
+                                    <div key={i} className="h-56 rounded-lg bg-slate-900/40 border border-slate-800 animate-pulse" />
                                 ))}
                             </div>
                         ) : filtered.length === 0 ? (
-                            <Card className="bg-slate-900/70 border-slate-800">
-                                <CardContent className="p-12 text-center">
-                                    <Users className="w-10 h-10 mx-auto text-slate-600 mb-3" />
-                                    <p className="text-slate-400">No se encontraron miembros con esos filtros.</p>
-                                </CardContent>
-                            </Card>
+                            <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-12 text-center">
+                                <Users className="w-8 h-8 mx-auto text-slate-600 mb-3" />
+                                <p className="text-slate-400 text-sm">No se encontraron miembros con esos filtros.</p>
+                            </div>
                         ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" data-testid="community-members-grid">
                                 {filtered.map(m => <MemberCard key={m.id} member={m} />)}
@@ -500,15 +532,17 @@ export const CommunityPage = () => {
 
                         {/* Load more — works also during search/filter (server-side pagination) */}
                         {!loading && hasMore && (
-                            <div className="flex justify-center pt-3" data-testid="community-load-more-wrapper">
+                            <div className="flex justify-center pt-2" data-testid="community-load-more-wrapper">
                                 <Button
                                     onClick={loadMore}
                                     disabled={loadingMore}
                                     data-testid="community-load-more-btn"
-                                    className="bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-cyan-200 font-semibold px-8 h-11 backdrop-blur-xl"
+                                    variant="outline"
+                                    className="border-slate-700 hover:border-blue-500/50 hover:bg-blue-500/[0.04] text-slate-300 hover:text-blue-200 text-xs font-medium px-6 h-9"
                                 >
-                                    {loadingMore ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                                    Cargar más · {(filteredTotal - members.length).toLocaleString('es-ES')} restantes
+                                    {loadingMore ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : null}
+                                    Cargar más · <span className="font-mono tabular-nums ml-1.5">{(filteredTotal - members.length).toLocaleString('es-ES')}</span>
+                                    <span className="ml-1 text-slate-500">restantes</span>
                                 </Button>
                             </div>
                         )}
