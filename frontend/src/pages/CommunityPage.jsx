@@ -30,11 +30,31 @@ const BADGE_DEFS = {
 };
 
 const PROGRESS_STAGES = [
-    { key: 1, label: 'Verificación', icon: ShieldCheck },
-    { key: 2, label: 'Impuesto',     icon: Receipt    },
-    { key: 3, label: 'Revisión',     icon: FileCheck  },
-    { key: 4, label: 'Transferencia', icon: Truck     },
-    { key: 5, label: 'Retirado',     icon: Trophy     },
+    { key: 1, label: 'Verificación', icon: ShieldCheck, palette: {
+        doneRing: 'border-sky-500 bg-sky-500/20', doneIcon: 'text-sky-300', doneLabel: 'text-sky-300/90',
+        currentRing: 'bg-sky-500/15 border-sky-400 ring-2 ring-sky-400/30', currentIcon: 'text-sky-300', currentLabel: 'text-sky-300',
+        line: 'bg-sky-500/70', dot: 'bg-sky-400', clockIconCls: 'text-slate-900',
+    }},
+    { key: 2, label: 'Impuesto', icon: Receipt, palette: {
+        doneRing: 'border-amber-500 bg-amber-500/20', doneIcon: 'text-amber-300', doneLabel: 'text-amber-300/90',
+        currentRing: 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/30', currentIcon: 'text-amber-300', currentLabel: 'text-amber-300',
+        line: 'bg-amber-500/70', dot: 'bg-amber-400', clockIconCls: 'text-slate-900',
+    }},
+    { key: 3, label: 'Revisión', icon: FileCheck, palette: {
+        doneRing: 'border-violet-500 bg-violet-500/20', doneIcon: 'text-violet-300', doneLabel: 'text-violet-300/90',
+        currentRing: 'bg-violet-500/15 border-violet-400 ring-2 ring-violet-400/30', currentIcon: 'text-violet-300', currentLabel: 'text-violet-300',
+        line: 'bg-violet-500/70', dot: 'bg-violet-400', clockIconCls: 'text-slate-900',
+    }},
+    { key: 4, label: 'Transferencia', icon: Truck, palette: {
+        doneRing: 'border-cyan-500 bg-cyan-500/20', doneIcon: 'text-cyan-300', doneLabel: 'text-cyan-300/90',
+        currentRing: 'bg-cyan-500/15 border-cyan-400 ring-2 ring-cyan-400/30', currentIcon: 'text-cyan-300', currentLabel: 'text-cyan-300',
+        line: 'bg-cyan-500/70', dot: 'bg-cyan-400', clockIconCls: 'text-slate-900',
+    }},
+    { key: 5, label: 'Retirado', icon: Trophy, palette: {
+        doneRing: 'border-emerald-500 bg-emerald-500/20', doneIcon: 'text-emerald-300', doneLabel: 'text-emerald-300/90',
+        currentRing: 'bg-emerald-500/15 border-emerald-400 ring-2 ring-emerald-400/30', currentIcon: 'text-emerald-300', currentLabel: 'text-emerald-300',
+        line: 'bg-emerald-500/70', dot: 'bg-emerald-400', clockIconCls: 'text-slate-900',
+    }},
 ];
 
 const fmtEUR = (n) => `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -109,29 +129,27 @@ const ProgressBar = ({ step }) => {
                 {PROGRESS_STAGES.map((s, i) => {
                     const done = step >= s.key;
                     const current = step === s.key && !fullyCompleted;
-                    const isFinal = s.key === 5;
                     const Icon = s.icon;
-                    const doneRing  = isFinal ? 'border-emerald-500 bg-emerald-500/20' : 'border-amber-500 bg-amber-500/20';
-                    const doneIcon  = isFinal ? 'text-emerald-300' : 'text-amber-300';
-                    const doneLabel = isFinal ? 'text-emerald-300/90' : 'text-amber-300/90';
-                    const nextIsFinal = s.key + 1 === 5;
-                    const lineDoneCls = nextIsFinal ? 'bg-emerald-500/70' : 'bg-amber-500/70';
+                    const p = s.palette;
+                    // Línea entre etapas: usa el color de la siguiente etapa
+                    const nextPalette = PROGRESS_STAGES[i + 1]?.palette;
+                    const lineDoneCls = nextPalette?.line || 'bg-slate-700';
                     return (
                         <div key={s.key} className="flex-1 flex items-center gap-1">
                             <div className="flex flex-col items-center gap-1.5 flex-1 relative">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors relative ${
-                                    done ? doneRing :
-                                    current ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/30' :
+                                    done ? p.doneRing :
+                                    current ? p.currentRing :
                                     'bg-slate-900 border-slate-700'
                                 }`}>
-                                    <Icon className={`w-3 h-3 ${done ? doneIcon : current ? 'text-amber-300' : 'text-slate-600'}`} />
+                                    <Icon className={`w-3 h-3 ${done ? p.doneIcon : current ? p.currentIcon : 'text-slate-600'}`} />
                                     {current && (
-                                        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border border-slate-900 flex items-center justify-center" title="En proceso">
-                                            <Clock className="w-2 h-2 text-slate-900 animate-spin" style={{ animationDuration: '4s' }} />
+                                        <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${p.dot} border border-slate-900 flex items-center justify-center`} title="En proceso">
+                                            <Clock className={`w-2 h-2 ${p.clockIconCls} animate-spin`} style={{ animationDuration: '4s' }} />
                                         </span>
                                     )}
                                 </div>
-                                <span className={`text-[8.5px] font-medium uppercase tracking-[0.08em] ${done ? doneLabel : current ? 'text-amber-300' : 'text-slate-600'}`}>
+                                <span className={`text-[8.5px] font-medium uppercase tracking-[0.08em] ${done ? p.doneLabel : current ? p.currentLabel : 'text-slate-600'}`}>
                                     {s.label}
                                 </span>
                             </div>
@@ -143,11 +161,11 @@ const ProgressBar = ({ step }) => {
                 })}
             </div>
             <div className="flex items-center justify-between text-[10px] uppercase tracking-widest pt-1">
-                <span className={`font-medium ${fullyCompleted ? 'text-emerald-400' : 'text-amber-400'} flex items-center gap-1.5`}>
+                <span className={`font-medium ${fullyCompleted ? 'text-emerald-400' : (PROGRESS_STAGES[step - 1]?.palette.currentLabel || 'text-amber-400')} flex items-center gap-1.5`}>
                     {!fullyCompleted && <Clock className="w-2.5 h-2.5 animate-spin" style={{ animationDuration: '4s' }} />}
                     {fullyCompleted ? 'Proceso completado' : `En proceso · ${PROGRESS_STAGES[step - 1]?.label || ''}`}
                 </span>
-                <span className={`font-mono tabular-nums font-semibold ${fullyCompleted ? 'text-emerald-300' : 'text-amber-300'}`}>
+                <span className={`font-mono tabular-nums font-semibold ${fullyCompleted ? 'text-emerald-300' : (PROGRESS_STAGES[step - 1]?.palette.doneIcon || 'text-amber-300')}`}>
                     {pct}%
                 </span>
             </div>
@@ -728,8 +746,8 @@ export const CommunityPage = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2.5 text-[10px] text-slate-400">
-                                                            <span className={`font-mono tabular-nums ${completed ? 'text-emerald-300' : 'text-amber-300'}`}>{m.progress_step}/5</span>
-                                                            <span className="ml-1 uppercase tracking-wider">{PROGRESS_STAGES[m.progress_step - 1]?.label || '—'}</span>
+                                                            <span className={`font-mono tabular-nums ${completed ? 'text-emerald-300' : (PROGRESS_STAGES[m.progress_step - 1]?.palette.doneIcon || 'text-amber-300')}`}>{m.progress_step}/5</span>
+                                                            <span className={`ml-1 uppercase tracking-wider ${PROGRESS_STAGES[m.progress_step - 1]?.palette.doneLabel || 'text-slate-400'}`}>{PROGRESS_STAGES[m.progress_step - 1]?.label || '—'}</span>
                                                         </td>
                                                     </tr>
                                                 );
