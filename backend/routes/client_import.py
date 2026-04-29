@@ -967,3 +967,91 @@ def _build_reengagement_email_html(user_name: str, login_url: str, tracker_url: 
     </div>
     <img src="{tracker_url}" width="1" height="1" alt="" style="display:block; border:0;" />
     """
+
+
+
+# ══════════════════════════════════════════════════════════════════
+#  ADMIN: Reactivation overview — global re-engagement dashboard
+# ══════════════════════════════════════════════════════════════════
+
+REACTIVATION_GROUPS = ['recuperar', 'espanoles', 'latinos']
+
+
+async def _hourly_open_heatmap(group: Optional[str] = None) -> list:
+    """Return 24 buckets (0..23 UTC) with count of email opens by hour-of-day.
+    Used to optimise next campaign send-time."""
+    match: dict = {
+        'engagement.email_opened_at': {'$nin': [None, '', False]},
+        'import_job_id': {'$exists': True, '$ne': None},
+    }
+    if group:
+        match['import_group'] = _normalize_group(group, group)
+    cur = db.users.find(match, {'_id': 0, 'engagement.email_opened_at': 1})
+    buckets = [0] * 24
+    async for u in cur:
+        iso = (u.get('engagement') or {}).get('email_opened_at')
+        if not iso:
+            continue
+        try:
+            # Parse ISO string and extract hour
+            dt = datetime.fromisoformat(iso.replace('Z', '+00:00'))
+            buckets[dt.hour] += 1
+        except Exception:
+            continue
+    return buckets
+
+
+@router.get("/admin/reactivation/overview")
+async def reactivation_overview(admin: dict = Depends(get_admin_user)):
+    """Global re-engagement dashboard.
+
+    Returns:
+      - aggregated funnel across the 3 reactivation groups
+      - per-group funnel (Recuperar / Españoles / Latinos)
+      - hourly heat-map of email opens (24 UTC buckets)
+      - last 10 campaigns triggered
+      - totals for KPI cards
+    """
+    # 1. Aggregated funnel for the 3 reactivation groups
+    match = {
+        'import_job_id': {'$exists': True, '$ne': None},
+        'import_group': {'$in': REACTIVATION_GROUPS},
+    }
+    funnel = await _compute_funnel(match)
+
+    # 2. Hourly heatmap (aggregated across all 3 groups)
+    heatmap = await _hourly_open_heatmap()
+
+    # 3. Last 10 campaigns
+    campaigns_cur = db.client_import_campaigns.find({}, {'_id': 0}).sort('triggered_at', -1).limit(10)
+    campaigns = await campaigns_cur.to_list(length=10)
+
+    # 4. KPI summary
+    total_campaigns = await db.client_import_campaigns.count_documents({})
+    total_sent_agg = 0
+    cur_all = db.client_import_campaigns.find({}, {'_id': 0, 'emails_sent': 1})
+    async for c in cur_all:
+        total_sent_agg += int(c.get('emails_sent') or 0)
+
+    # Identify peak hour (for "next-send recommendation")
+    peak_hour = max(range(24), key=lambda h: heatmap[h]) if any(heatmap) else None
+    peak_count = heatmap[peak_hour] if peak_hour is not None else 0
+
+    return {
+        'funnel': funnel,
+        'heatmap': {
+            'buckets': heatmap,
+            'peak_hour_utc': peak_hour,
+            'peak_count': peak_count,
+        },
+        'campaigns': campaigns,
+        'kpi': {
+            'total_campaigns_run': total_campaigns,
+            'total_emails_dispatched': total_sent_agg,
+            'reactivation_audience': funnel['total'],
+            'opened_count': funnel['stages'][1]['count'] if len(funnel['stages']) > 1 else 0,
+            'logged_in_count': funnel['stages'][2]['count'] if len(funnel['stages']) > 2 else 0,
+            'verified_count': funnel['stages'][4]['count'] if len(funnel['stages']) > 4 else 0,
+        },
+        'last_sync': _now_iso(),
+    }

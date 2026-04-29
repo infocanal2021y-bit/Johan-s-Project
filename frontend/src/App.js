@@ -61,6 +61,7 @@ import { AdminMT5InvestPage } from "./pages/admin/AdminMT5InvestPage";
 import { AdminPartialUnlockPage } from "./pages/admin/AdminPartialUnlockPage";
 import { AdminClientImportPage } from "./pages/admin/AdminClientImportPage";
 import { AdminClientImportAnalyticsPage } from "./pages/admin/AdminClientImportAnalyticsPage";
+import { AdminReactivationOverviewPage } from "./pages/admin/AdminReactivationOverviewPage";
 import ForcePasswordChangePage from "./pages/ForcePasswordChangePage";
 import MT5Page from "./pages/MT5Page";
 
@@ -174,6 +175,7 @@ function AppRoutes() {
             <Route path="/admin/partial-unlock" element={<ProtectedRoute adminOnly><AdminPartialUnlockPage /></ProtectedRoute>} />
             <Route path="/admin/client-import" element={<ProtectedRoute adminOnly><AdminClientImportPage /></ProtectedRoute>} />
             <Route path="/admin/client-import/analytics" element={<ProtectedRoute adminOnly><AdminClientImportAnalyticsPage /></ProtectedRoute>} />
+            <Route path="/admin/reactivation" element={<ProtectedRoute adminOnly><AdminReactivationOverviewPage /></ProtectedRoute>} />
             <Route path="/force-password-change" element={<ProtectedRoute allowForcedChange><ForcePasswordChangePage /></ProtectedRoute>} />
             <Route path="/mt5" element={<ProtectedRoute><MT5Page /></ProtectedRoute>} />
 

@@ -47,7 +47,8 @@ import {
     Bot,
     Landmark,
     Unlock,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Mail
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -132,6 +133,7 @@ export const Sidebar = () => {
         { to: '/admin/partial-unlock', icon: Unlock, label: 'Desbloqueos 40%' },
         { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar clientes' },
         { to: '/admin/client-import/analytics', icon: TrendingUp, label: 'Analytics importación' },
+        { to: '/admin/reactivation', icon: Mail, label: 'Reactivación · Overview' },
     ];
 
     const NavLinks = ({ links }) => (
