@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 
 from config import db
 from services.auth import get_current_user
@@ -111,7 +111,15 @@ def _compute_account_status_label(user: dict, withdrawals: list) -> str:
 
 
 def _compute_progress_step(user: dict, withdrawals: list) -> int:
-    """1=Verificacion · 2=Impuesto · 3=Revision · 4=Transferencia · 5=Completado"""
+    """1=Verificacion · 2=Impuesto · 3=Revision · 4=Transferencia · 5=Retirado.
+    Admin can override the derived step via `community_step_override` on the
+    user doc — used by `/admin/community/advance` to manually walk a user
+    through the process for compliance demos / phone-walk-throughs.
+    """
+    override = user.get('community_step_override')
+    if isinstance(override, int) and 1 <= override <= 5:
+        return override
+
     verified = user.get('verification_status') == 'verified'
     if not verified:
         return 1
@@ -396,3 +404,125 @@ async def community_stats(user: dict = Depends(get_current_user)):
         'top_countries': [{'country': c, 'flag': _flag_for(c), 'count': n} for c, n in top_countries],
         'updated_at': datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ============================================================
+# Admin: walk users through the 5-stage progress manually
+# ============================================================
+from services.auth import get_admin_user
+
+PROGRESS_STAGE_LABELS = {
+    1: 'Verificación', 2: 'Impuesto', 3: 'Revisión', 4: 'Transferencia', 5: 'Retirado',
+}
+
+
+@router.get("/admin/community/progress-queue")
+async def admin_progress_queue(admin: dict = Depends(get_admin_user)):
+    """List of all non-admin users with their current community progress
+    step, sorted by step ASC (so the 'Verificación' bucket appears first)."""
+    users_cur = db.users.find(
+        {'role': {'$ne': 'admin'}},
+        {'_id': 0, 'id': 1, 'name': 1, 'country': 1, 'country_name': 1, 'phone': 1,
+         'verification_status': 1, 'community_step_override': 1, 'community_step_updated_at': 1},
+    )
+    users = await users_cur.to_list(length=5000)
+    user_ids = [u['id'] for u in users]
+    wd_cur = db.transactions.find(
+        {'user_id': {'$in': user_ids}, 'transaction_type': 'withdraw'},
+        {'_id': 0, 'user_id': 1, 'status': 1, 'created_at': 1},
+    ).sort('created_at', -1)
+    by_user: dict = {}
+    async for w in wd_cur:
+        by_user.setdefault(w['user_id'], []).append(w)
+
+    out = []
+    for u in users:
+        step = _compute_progress_step(u, by_user.get(u['id'], []))
+        country = u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone')) or 'Internacional'
+        out.append({
+            'id': u['id'],
+            'name': u.get('name') or 'Cliente',
+            'country': country,
+            'country_flag': _flag_for(country),
+            'step': step,
+            'step_label': PROGRESS_STAGE_LABELS.get(step, '—'),
+            'has_override': u.get('community_step_override') is not None,
+            'last_advanced_at': u.get('community_step_updated_at'),
+        })
+    out.sort(key=lambda x: (x['step'], x['name']))
+    return {'count': len(out), 'items': out, 'updated_at': datetime.now(timezone.utc).isoformat()}
+
+
+@router.post("/admin/community/advance/{user_id}")
+async def admin_advance_step(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Bump a user's community_step_override by 1 (max 5). Idempotent on
+    the cap. Useful for compliance demos / walking through the 5 stages."""
+    user = await db.users.find_one({'id': user_id}, {'_id': 0})
+    if not user:
+        raise HTTPException(404, 'Usuario no encontrado')
+
+    # Compute current step (using override if present, else derived)
+    wds_cur = db.transactions.find(
+        {'user_id': user_id, 'transaction_type': 'withdraw'},
+        {'_id': 0, 'status': 1, 'created_at': 1},
+    ).sort('created_at', -1)
+    wds = await wds_cur.to_list(20)
+    current = _compute_progress_step(user, wds)
+    next_step = min(5, current + 1)
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one(
+        {'id': user_id},
+        {'$set': {
+            'community_step_override': next_step,
+            'community_step_updated_at': now,
+            'community_step_updated_by': admin.get('email'),
+        }},
+    )
+
+    # In-app notification so the user sees real-time progress on next refresh
+    from services.notifications import create_notification
+    label = PROGRESS_STAGE_LABELS.get(next_step, str(next_step))
+    if next_step == 5:
+        title = 'Su retiro ha sido procesado'
+        body = 'Felicitaciones — su proceso de verificación está completo y su retiro ha sido marcado como retirado.'
+    else:
+        title = f'Etapa avanzada · {label}'
+        body = f'Su cuenta ha sido aprobada para la etapa {next_step}/5: {label}.'
+    try:
+        await create_notification(user_id, title, body)
+    except Exception:
+        pass
+
+    return {'user_id': user_id, 'previous_step': current, 'new_step': next_step, 'label': label}
+
+
+@router.post("/admin/community/set-step/{user_id}")
+async def admin_set_step(user_id: str, step: int, admin: dict = Depends(get_admin_user)):
+    """Force-set a user to a specific step (1-5). Used to seed initial state
+    or correct mistakes."""
+    if step < 1 or step > 5:
+        raise HTTPException(400, 'step debe estar entre 1 y 5')
+    user = await db.users.find_one({'id': user_id}, {'_id': 0, 'id': 1})
+    if not user:
+        raise HTTPException(404, 'Usuario no encontrado')
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one(
+        {'id': user_id},
+        {'$set': {
+            'community_step_override': step,
+            'community_step_updated_at': now,
+            'community_step_updated_by': admin.get('email'),
+        }},
+    )
+    return {'user_id': user_id, 'step': step, 'label': PROGRESS_STAGE_LABELS.get(step)}
+
+
+@router.post("/admin/community/reset/{user_id}")
+async def admin_reset_step(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Remove the override so the step reverts to the derived value."""
+    await db.users.update_one(
+        {'id': user_id},
+        {'$unset': {'community_step_override': '', 'community_step_updated_at': '', 'community_step_updated_by': ''}},
+    )
+    return {'user_id': user_id, 'reset': True}

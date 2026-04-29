@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     Users, Search, Shield, BadgeCheck, TrendingUp, Crown, Flame, CheckCircle2,
     ArrowUpRight, Wallet, Receipt, Sparkles, Filter, Loader2, Globe,
-    Banknote, ShieldCheck, FileCheck, Truck, Trophy, LayoutGrid, List, Award
+    Banknote, ShieldCheck, FileCheck, Truck, Trophy, LayoutGrid, List, Award, Clock
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -102,43 +102,55 @@ const RoiBadge = ({ deposited, withdrawn }) => {
 
 const ProgressBar = ({ step }) => {
     const fullyCompleted = step >= 5;
+    const pct = Math.round(((step - 1) / 4) * 100);  // 0/25/50/75/100
     return (
-        <div className="flex items-center gap-1 mt-4" data-testid="community-progress-bar" data-fully-completed={fullyCompleted ? 'true' : 'false'}>
-            {PROGRESS_STAGES.map((s, i) => {
-                const done = step >= s.key;
-                const current = step === s.key && !fullyCompleted;
-                const isFinal = s.key === 5;
-                const Icon = s.icon;
-
-                // Color per stage role: 1-4 = amber (process); 5 = emerald (final achievement)
-                const doneRing  = isFinal ? 'border-emerald-500 bg-emerald-500/20' : 'border-amber-500 bg-amber-500/20';
-                const doneIcon  = isFinal ? 'text-emerald-300' : 'text-amber-300';
-                const doneLabel = isFinal ? 'text-emerald-300/90' : 'text-amber-300/90';
-
-                // Connector takes the color of the NEXT stage when crossed
-                const nextIsFinal = s.key + 1 === 5;
-                const lineDoneCls = nextIsFinal ? 'bg-emerald-500/70' : 'bg-amber-500/70';
-
-                return (
-                    <div key={s.key} className="flex-1 flex items-center gap-1">
-                        <div className="flex flex-col items-center gap-1.5 flex-1">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${
-                                done ? doneRing :
-                                current ? 'bg-cyan-500/15 border-cyan-400' :
-                                'bg-slate-900 border-slate-700'
-                            }`}>
-                                <Icon className={`w-3 h-3 ${done ? doneIcon : current ? 'text-cyan-300' : 'text-slate-600'}`} />
+        <div className="space-y-2" data-testid="community-progress-bar" data-fully-completed={fullyCompleted ? 'true' : 'false'}>
+            <div className="flex items-center gap-1 mt-4">
+                {PROGRESS_STAGES.map((s, i) => {
+                    const done = step >= s.key;
+                    const current = step === s.key && !fullyCompleted;
+                    const isFinal = s.key === 5;
+                    const Icon = s.icon;
+                    const doneRing  = isFinal ? 'border-emerald-500 bg-emerald-500/20' : 'border-amber-500 bg-amber-500/20';
+                    const doneIcon  = isFinal ? 'text-emerald-300' : 'text-amber-300';
+                    const doneLabel = isFinal ? 'text-emerald-300/90' : 'text-amber-300/90';
+                    const nextIsFinal = s.key + 1 === 5;
+                    const lineDoneCls = nextIsFinal ? 'bg-emerald-500/70' : 'bg-amber-500/70';
+                    return (
+                        <div key={s.key} className="flex-1 flex items-center gap-1">
+                            <div className="flex flex-col items-center gap-1.5 flex-1 relative">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors relative ${
+                                    done ? doneRing :
+                                    current ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/30' :
+                                    'bg-slate-900 border-slate-700'
+                                }`}>
+                                    <Icon className={`w-3 h-3 ${done ? doneIcon : current ? 'text-amber-300' : 'text-slate-600'}`} />
+                                    {current && (
+                                        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border border-slate-900 flex items-center justify-center" title="En proceso">
+                                            <Clock className="w-2 h-2 text-slate-900 animate-spin" style={{ animationDuration: '4s' }} />
+                                        </span>
+                                    )}
+                                </div>
+                                <span className={`text-[8.5px] font-medium uppercase tracking-[0.08em] ${done ? doneLabel : current ? 'text-amber-300' : 'text-slate-600'}`}>
+                                    {s.label}
+                                </span>
                             </div>
-                            <span className={`text-[8.5px] font-medium uppercase tracking-[0.08em] ${done ? doneLabel : current ? 'text-cyan-300' : 'text-slate-600'}`}>
-                                {s.label}
-                            </span>
+                            {i < PROGRESS_STAGES.length - 1 && (
+                                <div className={`h-px flex-1 mb-4 ${done && step > s.key ? lineDoneCls : 'bg-slate-800'}`} />
+                            )}
                         </div>
-                        {i < PROGRESS_STAGES.length - 1 && (
-                            <div className={`h-px flex-1 mb-4 ${done && step > s.key ? lineDoneCls : 'bg-slate-800'}`} />
-                        )}
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-widest pt-1">
+                <span className={`font-medium ${fullyCompleted ? 'text-emerald-400' : 'text-amber-400'} flex items-center gap-1.5`}>
+                    {!fullyCompleted && <Clock className="w-2.5 h-2.5 animate-spin" style={{ animationDuration: '4s' }} />}
+                    {fullyCompleted ? 'Proceso completado' : `En proceso · ${PROGRESS_STAGES[step - 1]?.label || ''}`}
+                </span>
+                <span className={`font-mono tabular-nums font-semibold ${fullyCompleted ? 'text-emerald-300' : 'text-amber-300'}`}>
+                    {pct}%
+                </span>
+            </div>
         </div>
     );
 };
