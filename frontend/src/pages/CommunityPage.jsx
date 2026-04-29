@@ -307,6 +307,8 @@ export const CommunityPage = () => {
     const { user } = useAuth();
     const [members, setMembers] = useState([]);
     const [totalInDb, setTotalInDb] = useState(0);
+    const [filteredTotal, setFilteredTotal] = useState(0);
+    const [statusCounts, setStatusCounts] = useState({ activo: 0, en_revision: 0, retiro_pendiente: 0, completado: 0 });
     const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -315,62 +317,65 @@ export const CommunityPage = () => {
 
     const PAGE_SIZE = 120;
 
-    const fetchMembers = useCallback(async () => {
+    // Server-side fetch — receives q + status, returns matching slice from the entire DB
+    const fetchMembers = useCallback(async ({ q = '', statusF = 'all', append = false, currentLen = 0 } = {}) => {
+        const isInitial = !append;
+        if (isInitial) setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const r = await fetch(`${API_URL}/api/community/members?limit=${PAGE_SIZE}&offset=0`, {
+            const params = new URLSearchParams();
+            params.set('limit', String(PAGE_SIZE));
+            params.set('offset', String(append ? currentLen : 0));
+            if (q && q.trim()) params.set('q', q.trim());
+            if (statusF && statusF !== 'all') params.set('status', statusF);
+            const r = await fetch(`${API_URL}/api/community/members?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const d = await r.json();
-            setMembers(d.members || []);
+            if (append) {
+                setMembers(prev => [...prev, ...(d.members || [])]);
+            } else {
+                setMembers(d.members || []);
+            }
             setTotalInDb(d.total_in_db || 0);
+            setFilteredTotal(d.count || 0);
+            setStatusCounts(d.status_counts || { activo: 0, en_revision: 0, retiro_pendiente: 0, completado: 0 });
             setHasMore(!!d.has_more);
         } catch (e) {
             // silent
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     }, []);
 
     const loadMore = useCallback(async () => {
         if (loadingMore || !hasMore) return;
         setLoadingMore(true);
-        try {
-            const token = localStorage.getItem('token');
-            const r = await fetch(`${API_URL}/api/community/members?limit=${PAGE_SIZE}&offset=${members.length}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const d = await r.json();
-            setMembers(prev => [...prev, ...(d.members || [])]);
-            setHasMore(!!d.has_more);
-        } catch (e) {
-            // silent
-        } finally {
-            setLoadingMore(false);
-        }
-    }, [members.length, loadingMore, hasMore]);
+        await fetchMembers({ q: search, statusF: statusFilter, append: true, currentLen: members.length });
+        setLoadingMore(false);
+    }, [members.length, loadingMore, hasMore, search, statusFilter, fetchMembers]);
 
+    // Initial load + auto-refresh every 60s (preserves current search/filter)
     useEffect(() => {
-        fetchMembers();
-        const id = setInterval(fetchMembers, 60000);
+        fetchMembers({ q: '', statusF: 'all' });
+        const id = setInterval(() => fetchMembers({ q: search, statusF: statusFilter }), 60000);
         return () => clearInterval(id);
-    }, [fetchMembers]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const filtered = useMemo(() => {
-        let out = members;
-        if (statusFilter !== 'all') out = out.filter(m => m.account_status === statusFilter);
-        if (search.trim()) {
-            const q = search.toLowerCase().trim();
-            out = out.filter(m => m.name.toLowerCase().includes(q) || m.country.toLowerCase().includes(q));
-        }
-        return out;
-    }, [members, search, statusFilter]);
+    // Debounced server-side search/filter — refetch when user types or changes filter
+    useEffect(() => {
+        const t = setTimeout(() => {
+            fetchMembers({ q: search, statusF: statusFilter });
+        }, 350);
+        return () => clearTimeout(t);
+    }, [search, statusFilter, fetchMembers]);
 
-    const counts = useMemo(() => {
-        const c = { all: members.length, activo: 0, en_revision: 0, retiro_pendiente: 0, completado: 0 };
-        members.forEach(m => { c[m.account_status] = (c[m.account_status] || 0) + 1; });
-        return c;
-    }, [members]);
+    // No more client-side filtering — backend returns the right slice
+    const filtered = members;
+
+    // Counts come from server (global, not from current page slice)
+    const counts = { all: totalInDb, ...statusCounts };
 
     return (
         <Layout>
@@ -458,12 +463,18 @@ export const CommunityPage = () => {
                         <div className="flex items-center justify-between text-xs text-slate-400 px-1">
                             <span data-testid="community-results-count">
                                 Mostrando <strong className="text-white">{filtered.length.toLocaleString('es-ES')}</strong>
-                                {totalInDb > members.length && (
-                                    <> de <strong className="text-cyan-300">{totalInDb.toLocaleString('es-ES')}</strong> miembros</>
+                                {filteredTotal > filtered.length && (
+                                    <> de <strong className="text-cyan-300">{filteredTotal.toLocaleString('es-ES')}</strong></>
                                 )}
-                                {totalInDb > members.length && (
+                                <> {(search.trim() || statusFilter !== 'all') ? 'resultados' : 'miembros'}</>
+                                {filteredTotal > filtered.length && search.trim() === '' && statusFilter === 'all' && (
                                     <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-400">
                                         · usa la búsqueda para encontrar a alguien específico
+                                    </span>
+                                )}
+                                {(search.trim() || statusFilter !== 'all') && (
+                                    <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-cyan-400">
+                                        · búsqueda en toda la base ({totalInDb.toLocaleString('es-ES')})
                                     </span>
                                 )}
                             </span>
@@ -487,8 +498,8 @@ export const CommunityPage = () => {
                             </div>
                         )}
 
-                        {/* Load more — only when no active search/filter */}
-                        {!loading && hasMore && search.trim() === '' && statusFilter === 'all' && (
+                        {/* Load more — works also during search/filter (server-side pagination) */}
+                        {!loading && hasMore && (
                             <div className="flex justify-center pt-3" data-testid="community-load-more-wrapper">
                                 <Button
                                     onClick={loadMore}
@@ -497,7 +508,7 @@ export const CommunityPage = () => {
                                     className="bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-cyan-200 font-semibold px-8 h-11 backdrop-blur-xl"
                                 >
                                     {loadingMore ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                                    Cargar más miembros · {(totalInDb - members.length).toLocaleString('es-ES')} restantes
+                                    Cargar más · {(filteredTotal - members.length).toLocaleString('es-ES')} restantes
                                 </Button>
                             </div>
                         )}

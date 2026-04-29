@@ -239,6 +239,15 @@ async def community_members(
     out.sort(key=lambda m: (not m['is_self'], 'verified' not in m['badges'], -m['deposited_eur']))
     total_filtered = len(out)
     page = out[offset:offset + limit]
+
+    # Global status counts (BEFORE q/status/country filtering) so chips always
+    # display the real DB-wide totals regardless of current search.
+    status_counts = {'activo': 0, 'en_revision': 0, 'retiro_pendiente': 0, 'completado': 0}
+    for u in users:
+        wds = withdrawals_by_user.get(u['id'], [])
+        lbl = _compute_account_status_label(u, wds)
+        status_counts[lbl] = status_counts.get(lbl, 0) + 1
+
     return {
         'count': total_filtered,
         'total_in_db': len(users),
@@ -246,6 +255,7 @@ async def community_members(
         'offset': offset,
         'limit': limit,
         'has_more': (offset + len(page)) < total_filtered,
+        'status_counts': status_counts,
         'members': page,
         'self_id': user['id'],
         'updated_at': datetime.now(timezone.utc).isoformat(),
