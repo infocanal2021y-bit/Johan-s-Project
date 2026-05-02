@@ -77,7 +77,7 @@ const AdminCommunityProgressPage = () => {
     // Bootstrap demo pools (post-deploy)
     const [bootstrapping, setBootstrapping] = useState(false);
     const bootstrapDemo = async () => {
-        if (!window.confirm('Sembrar los pools demo (80 completados + 35 en proceso). Idempotente — ya existentes se saltan. ¿Continuar?')) return;
+        if (!window.confirm('Sembrar los pools demo (80 completados + 35 en proceso + 70 impuesto). Idempotente — ya existentes se saltan. ¿Continuar?')) return;
         setBootstrapping(true);
         try {
             const token = localStorage.getItem('token');
@@ -87,10 +87,10 @@ const AdminCommunityProgressPage = () => {
             });
             const d = await r.json();
             if (r.ok) {
-                const c = d.completed_pool, p = d.in_process_pool;
+                const c = d.completed_pool, p = d.in_process_pool, i = d.impuesto_pool || { created: 0, skipped_existing: 0 };
                 toast.success(
-                    `✓ Pool sembrado · Completados: ${c.created} nuevos / ${c.skipped_existing} ya existían · En proceso: ${p.created} nuevos / ${p.skipped_existing} ya existían`,
-                    { duration: 8000 },
+                    `✓ Pools sembrados · Completados: ${c.created}/${c.skipped_existing} · En proceso: ${p.created}/${p.skipped_existing} · Impuesto: ${i.created}/${i.skipped_existing} (creados/existentes)`,
+                    { duration: 9000 },
                 );
                 await Promise.all([fetchAutoAdvance(), fetchQueue()]);
             } else {

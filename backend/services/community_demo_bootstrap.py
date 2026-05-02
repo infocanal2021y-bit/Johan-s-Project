@@ -68,6 +68,34 @@ IN_PROCESS_DISTRIBUTION = [1] * 9 + [2] * 9 + [3] * 9 + [4] * 8
 assert len(IN_PROCESS_DISTRIBUTION) == len(IN_PROCESS_NAMES)
 
 
+# ============================ POOL 3: IMPUESTO (70) ============================
+# Users parked at step 2 (Impuesto) — show the yellow clock animation.
+
+IMPUESTO_NAMES = [
+    'Carlos Mendoza',     'José Ramírez',       'Antonio López',     'Manuel Torres',
+    'Luis Fernández',     'Javier Gómez',       'David Martínez',    'Daniel Herrera',
+    'Sergio Navarro',     'Alejandro Ruiz',     'Miguel Sánchez',    'Francisco Vega',
+    'Rafael Castro',      'Pedro Morales',      'Juan Romero',       'Álvaro Delgado',
+    'Marcos Ortega',      'Fernando Cabrera',   'Rubén Domínguez',   'Víctor Paredes',
+    'Andrés Cortés',      'Pablo León',         'Diego Molina',      'Adrián Guerrero',
+    'Iván Santos',        'Óscar Vidal',        'Joaquín Fuentes',   'Ricardo Núñez',
+    'Emilio Salazar',     'Gonzalo Prieto',     'Hugo Castillo',     'Tomás Ríos',
+    'Esteban Vargas',     'Mario Aguilar',      'Alberto Silva',     'Lucas Serrano',
+    'Cristian Blanco',    'Nicolás Bravo',      'Samuel Peña',       'Raúl Méndez',
+    'César Campos',       'Enrique Soler',      'Mateo Ferrer',      'Bruno Valero',
+    'Ignacio Lozano',     'Karim Benítez',      'Youssef García',    'Ahmed Navarro',
+    'Samir Torres',       'Omar Fernández',     'Nabil Ramírez',     'Hassan López',
+    'Khalid Morales',     'Ibrahim Sánchez',    'Tariq Gómez',       'Zaid Herrera',
+    'Farid Ruiz',         'Amine Castro',       'Bilal Ortega',      'Rachid Delgado',
+    'Hamza Vega',         'Adil Cabrera',       'Mourad León',       'Ismael Cortés',
+    'Jalil Domínguez',    'Said Molina',        'Anwar Serrano',     'Yasin Núñez',
+    'Walid Prieto',       'Zakaria Paredes',
+]
+# Reuse a slightly different email suffix so this pool never collides with the
+# completed pool, which already uses some shared first names (Carlos Mendoza, etc.)
+IMPUESTO_EMAIL_SUFFIX = 'lionsbit-community-impuesto.com'
+
+
 # ============================ HELPERS ============================
 
 def _slug_email(name: str, idx: int, suffix: str = 'lionsbit-community.com') -> str:
@@ -183,6 +211,57 @@ async def _seed_in_process_one(name: str, idx: int, step: int) -> dict:
     return {'created': True}
 
 
+async def _seed_impuesto_one(name: str, idx: int) -> dict:
+    """Seed one user parked at step 2 (Impuesto) with the yellow-clock state."""
+    email = _slug_email(name, idx, suffix=IMPUESTO_EMAIL_SUFFIX)
+    existing = await db.users.find_one({'email': email}, {'_id': 0, 'id': 1})
+    if existing:
+        return {'skipped': True}
+
+    user_id = str(uuid.uuid4())
+    base_dt = datetime.now(timezone.utc) - timedelta(days=random.randint(5, 30))
+    dep_dt = base_dt + timedelta(days=random.randint(1, 7))
+    review_dt = dep_dt + timedelta(days=random.randint(1, 5))
+    deposit_eur = round(random.uniform(18000, 75000), 2)
+
+    await db.users.insert_one({
+        'id': user_id, 'name': name, 'email': email,
+        'password': '$2b$12$placeholder.no.login.impuesto.demo.AAAAAAAAAAAAAAAAAA',
+        'phone': f"+346{random.randint(10000000, 99999999)}",
+        'country': 'España', 'country_name': 'España', 'country_code': '+34',
+        'role': 'user',
+        'verification_status': 'verified', 'kyc_status': 'approved', 'account_status': 'en_revision',
+        'kyc_verified_at': dep_dt.isoformat(),
+        'first_login_at': base_dt.isoformat(), 'last_active': review_dt.isoformat(),
+        'must_change_password': False,
+        'is_demo': True, 'demo_seed_batch': 'community_impuesto_v1',
+        'created_at': base_dt.isoformat(),
+        # Pin to step 2 (Impuesto) — yellow clock activates automatically
+        'community_step_override': 2,
+        'estado_actual': 'impuesto',
+        'has_pending_tax': True,
+        'community_step_updated_at': review_dt.isoformat(),
+        'community_step_updated_by': 'bootstrap_endpoint',
+    })
+
+    await provision_full_user_finance(user_id)
+    checking = await db.accounts.find_one({'user_id': user_id, 'account_type': 'checking'}, {'_id': 0})
+
+    await db.transactions.insert_one({
+        'id': str(uuid.uuid4()), 'account_id': checking['id'], 'user_id': user_id,
+        'transaction_type': 'admin_credit', 'amount': deposit_eur, 'currency': 'EUR',
+        'status': 'completed', 'description': 'Depósito inicial verificado',
+        'transaction_reference': f"IMPDEP-{uuid.uuid4().hex[:8].upper()}",
+        'created_at': dep_dt.isoformat(), 'completed_at': dep_dt.isoformat(),
+        'is_demo': True,
+    })
+    await db.accounts.update_one(
+        {'id': checking['id']},
+        {'$set': {'balance_eur': deposit_eur}},
+    )
+    return {'created': True}
+
+
 # ============================ PUBLIC ENTRY ============================
 
 async def bootstrap_community_demo() -> dict:
@@ -220,6 +299,19 @@ async def bootstrap_community_demo() -> dict:
         except Exception as exc:  # pragma: no cover
             logger.exception('[bootstrap-demo] failed in-process user %s: %s', name, exc)
 
+    random.seed(1492)  # deterministic for impuesto pool
+    impuesto_created = 0
+    impuesto_skipped = 0
+    for idx, name in enumerate(IMPUESTO_NAMES):
+        try:
+            r = await _seed_impuesto_one(name, idx + 1)
+            if r.get('created'):
+                impuesto_created += 1
+            else:
+                impuesto_skipped += 1
+        except Exception as exc:  # pragma: no cover
+            logger.exception('[bootstrap-demo] failed impuesto user %s: %s', name, exc)
+
     total_in_db = await db.users.count_documents({'role': {'$ne': 'admin'}})
     return {
         'completed_pool': {
@@ -231,6 +323,11 @@ async def bootstrap_community_demo() -> dict:
             'created': in_process_created,
             'skipped_existing': in_process_skipped,
             'target': len(IN_PROCESS_NAMES),
+        },
+        'impuesto_pool': {
+            'created': impuesto_created,
+            'skipped_existing': impuesto_skipped,
+            'target': len(IMPUESTO_NAMES),
         },
         'total_users_in_db': total_in_db,
     }
