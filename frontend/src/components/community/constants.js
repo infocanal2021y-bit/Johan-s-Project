@@ -1,49 +1,114 @@
 import { BadgeCheck, Crown, Flame, ShieldCheck, Receipt, FileCheck, Truck, Trophy } from 'lucide-react';
 
+// =============================================================================
+// BBVA PREMIUM BANKING — LIGHT THEME PALETTES
+// All community surfaces sit on white cards over a navy app background.
+// Colours follow the spec:
+//   • Texto principal ........ #111827
+//   • Texto secundario ....... #6B7280
+//   • Verde éxito ............ #16A34A
+//   • Azul acento ............ #1E3A8A
+// =============================================================================
+
+// Account-level status badges (Activo, En revisión, etc.) — pill style, light bg.
 export const STATUS_LABELS = {
-    activo:           { label: 'Activo',            cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-400' },
-    en_revision:      { label: 'En revisión',       cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',         dot: 'bg-amber-400'   },
-    retiro_pendiente: { label: 'Retiro pendiente',  cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',         dot: 'bg-amber-400'   },
-    completado:       { label: 'Retirado',          cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',   dot: 'bg-emerald-400' },
+    activo: {
+        label: 'Activo',
+        cls: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30',
+        dot: 'bg-[#16A34A]',
+    },
+    en_revision: {
+        label: 'En revisión',
+        cls: 'bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/30',
+        dot: 'bg-[#F59E0B]',
+    },
+    retiro_pendiente: {
+        label: 'Retiro pendiente',
+        cls: 'bg-[#1E3A8A]/10 text-[#1E3A8A] border-[#1E3A8A]/30',
+        dot: 'bg-[#1E3A8A]',
+    },
+    completado: {
+        label: 'Retirado',
+        cls: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30',
+        dot: 'bg-[#16A34A]',
+    },
 };
 
+// Compliance / achievement badges that float on top of member cards.
 export const BADGE_DEFS = {
-    verified:             { label: 'Verificado',        icon: BadgeCheck,  cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
-    withdrawal_processed: { label: 'Retiro Procesado',  icon: ShieldCheck, cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
-    capital_recovered:    { label: 'Capital recuperado', icon: ShieldCheck, cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
-    premium:              { label: 'Premium',           icon: Crown,       cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.07]' },
-    high_priority:        { label: 'Prioritario',       icon: Flame,       cls: 'border-rose-500/40 text-rose-300 bg-rose-500/[0.07]' },
+    verified: {
+        label: 'Verificado',
+        icon: BadgeCheck,
+        cls: 'border-[#1E3A8A]/30 text-[#1E3A8A] bg-[#1E3A8A]/[0.06]',
+    },
+    withdrawal_processed: {
+        label: 'Retiro Procesado',
+        icon: ShieldCheck,
+        cls: 'border-[#16A34A]/30 text-[#16A34A] bg-[#16A34A]/[0.06]',
+    },
+    capital_recovered: {
+        label: 'Capital recuperado',
+        icon: ShieldCheck,
+        cls: 'border-[#16A34A]/30 text-[#16A34A] bg-[#16A34A]/[0.06]',
+    },
+    premium: {
+        label: 'Premium',
+        icon: Crown,
+        cls: 'border-[#F59E0B]/30 text-[#B45309] bg-[#F59E0B]/[0.07]',
+    },
+    high_priority: {
+        label: 'Prioritario',
+        icon: Flame,
+        cls: 'border-[#DC2626]/30 text-[#DC2626] bg-[#DC2626]/[0.06]',
+    },
 };
 
+// Verification timeline — order is canonical:
+//   Verificación → Impuesto → Revisión → Transferencia → Retirado
 export const PROGRESS_STAGES = [
-    { key: 1, label: 'Verificación', icon: ShieldCheck, palette: {
-        doneRing: 'border-sky-500 bg-sky-500/20', doneIcon: 'text-sky-300', doneLabel: 'text-sky-300/90',
-        currentRing: 'bg-sky-500/15 border-sky-400 ring-2 ring-sky-400/30', currentIcon: 'text-sky-300', currentLabel: 'text-sky-300',
-        line: 'bg-sky-500/70', dot: 'bg-sky-400', clockIconCls: 'text-slate-900',
-    }},
-    { key: 2, label: 'Impuesto', icon: Receipt, palette: {
-        doneRing: 'border-amber-500 bg-amber-500/20', doneIcon: 'text-amber-300', doneLabel: 'text-amber-300/90',
-        currentRing: 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/30', currentIcon: 'text-amber-300', currentLabel: 'text-amber-300',
-        line: 'bg-amber-500/70', dot: 'bg-amber-400', clockIconCls: 'text-slate-900',
-    }},
-    { key: 3, label: 'Revisión', icon: FileCheck, palette: {
-        doneRing: 'border-violet-500 bg-violet-500/20', doneIcon: 'text-violet-300', doneLabel: 'text-violet-300/90',
-        currentRing: 'bg-violet-500/15 border-violet-400 ring-2 ring-violet-400/30', currentIcon: 'text-violet-300', currentLabel: 'text-violet-300',
-        line: 'bg-violet-500/70', dot: 'bg-violet-400', clockIconCls: 'text-slate-900',
-    }},
-    { key: 4, label: 'Transferencia', icon: Truck, palette: {
-        doneRing: 'border-cyan-500 bg-cyan-500/20', doneIcon: 'text-cyan-300', doneLabel: 'text-cyan-300/90',
-        currentRing: 'bg-cyan-500/15 border-cyan-400 ring-2 ring-cyan-400/30', currentIcon: 'text-cyan-300', currentLabel: 'text-cyan-300',
-        line: 'bg-cyan-500/70', dot: 'bg-cyan-400', clockIconCls: 'text-slate-900',
-    }},
-    { key: 5, label: 'Retirado', icon: Trophy, palette: {
-        doneRing: 'border-emerald-500 bg-emerald-500/20', doneIcon: 'text-emerald-300', doneLabel: 'text-emerald-300/90',
-        currentRing: 'bg-emerald-500/15 border-emerald-400 ring-2 ring-emerald-400/30', currentIcon: 'text-emerald-300', currentLabel: 'text-emerald-300',
-        line: 'bg-emerald-500/70', dot: 'bg-emerald-400', clockIconCls: 'text-slate-900',
-    }},
+    { key: 1, label: 'Verificación',  icon: ShieldCheck },
+    { key: 2, label: 'Impuesto',      icon: Receipt },
+    { key: 3, label: 'Revisión',      icon: FileCheck },
+    { key: 4, label: 'Transferencia', icon: Truck },
+    { key: 5, label: 'Retirado',      icon: Trophy },
 ];
 
-export const fmtEUR = (n) => `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Unified BBVA palette for the timeline. The same colours are reused across
+// MemberCard, ProgressBar, and RecentWithdrawalsFeed so the institutional look
+// stays consistent everywhere.
+export const TIMELINE_PALETTE = {
+    // Stage already completed before the current one (filled blue)
+    done: {
+        circle: 'bg-[#1E3A8A] border-[#1E3A8A]',
+        icon: 'text-white',
+        label: 'text-[#1E3A8A]',
+        line: '#1E3A8A',
+    },
+    // Current stage in progress (white circle, blue ring)
+    current: {
+        circle: 'bg-white border-[#1E3A8A] ring-2 ring-[#1E3A8A]/20',
+        icon: 'text-[#1E3A8A]',
+        label: 'text-[#1E3A8A]',
+    },
+    // Stage not yet reached
+    pending: {
+        circle: 'bg-[#F1F4F8] border-[#E5EAF0]',
+        icon: 'text-[#9CA3AF]',
+        label: 'text-[#9CA3AF]',
+        line: '#E5EAF0',
+    },
+    // Whole journey finished (estado = retirado / completado) → switch to green
+    allDone: {
+        circle: 'bg-[#16A34A] border-[#16A34A]',
+        icon: 'text-white',
+        label: 'text-[#16A34A]',
+        line: '#16A34A',
+    },
+};
+
+// European banking number format: € 39.813,03
+export const fmtEUR = (n) =>
+    `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const timeAgo = (iso) => {
     if (!iso) return '';

@@ -4,28 +4,30 @@ import {
     Sparkles, CheckCircle2, ChevronDown, ShieldCheck, Receipt,
     FileCheck, Truck, Trophy, TrendingDown, TrendingUp,
 } from 'lucide-react';
-import { fmtEUR, timeAgo, PROGRESS_STAGES } from './constants';
+import { fmtEUR, timeAgo, PROGRESS_STAGES, TIMELINE_PALETTE } from './constants';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+// Static "all-completed" timeline for verified withdrawals — every stage is
+// rendered in BBVA green (#16A34A) since the journey ended successfully.
 const StaticTimeline = () => (
     <div className="flex items-center gap-1 mt-3 mb-2">
         {PROGRESS_STAGES.map((s, i) => {
             const Icon = s.icon;
-            const p = s.palette;
             const isLast = i === PROGRESS_STAGES.length - 1;
+            const tier = TIMELINE_PALETTE.allDone;
             return (
                 <div key={s.key} className="flex-1 flex items-center gap-1">
                     <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border ${p.doneRing}`}>
-                            <Icon className={`w-3.5 h-3.5 ${p.doneIcon}`} />
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border ${tier.circle}`}>
+                            <Icon className={`w-3.5 h-3.5 ${tier.icon}`} />
                         </div>
-                        <span className={`text-[8px] font-semibold uppercase tracking-[0.05em] ${p.doneLabel} text-center leading-tight`}>
+                        <span className={`text-[8px] font-semibold uppercase tracking-[0.05em] ${tier.label} text-center leading-tight`}>
                             {s.label}
                         </span>
                     </div>
                     {!isLast && (
-                        <div className={`h-[2px] flex-1 mb-4 rounded-full`} style={{ background: 'rgba(22, 163, 74, 0.6)' }} />
+                        <div className="h-[2px] flex-1 mb-4 rounded-full" style={{ background: tier.line }} />
                     )}
                 </div>
             );
