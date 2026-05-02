@@ -356,6 +356,19 @@ async def community_recent_withdrawals(
     )
     user_map = {u['id']: u async for u in users_cur}
 
+    # Build per-user deposit + total-withdrawn aggregates for expanded card detail
+    deposit_agg = db.transactions.aggregate([
+        {'$match': {'user_id': {'$in': user_ids}, 'transaction_type': {'$in': ['deposit', 'admin_credit']}, 'status': 'completed'}},
+        {'$group': {'_id': '$user_id', 'total': {'$sum': '$amount'}}},
+    ])
+    deposits_by_user = {d['_id']: float(d.get('total') or 0) async for d in deposit_agg}
+
+    withdraw_agg = db.transactions.aggregate([
+        {'$match': {'user_id': {'$in': user_ids}, 'transaction_type': 'withdraw', 'status': 'completed'}},
+        {'$group': {'_id': '$user_id', 'total': {'$sum': '$amount'}}},
+    ])
+    withdrawn_by_user = {d['_id']: float(d.get('total') or 0) async for d in withdraw_agg}
+
     items = []
     for r in rows[:limit]:
         u = user_map.get(r['user_id'])
@@ -365,14 +378,22 @@ async def community_recent_withdrawals(
         amt = float(r.get('amount') or 0)
         if (r.get('currency') or 'EUR').upper() == 'USD':
             amt = amt / 1.08
+        deposited = deposits_by_user.get(r['user_id'], 0.0)
+        total_withdrawn = withdrawn_by_user.get(r['user_id'], 0.0)
+        is_completed = (r.get('status') or '').lower() == 'completed'
         items.append({
             'id': f"{r['user_id'][:8]}-{r.get('created_at','')[-8:]}",
+            'user_short_id': f"LB-{r['user_id'][:8].upper()}",
             'name_public': _public_first_name(u.get('name') or 'Cliente'),
             'country': country,
             'country_flag': _flag_for(country),
             'amount_eur': round(amt, 2),
+            'deposited_eur': round(deposited, 2),
+            'total_withdrawn_eur': round(total_withdrawn, 2),
             'date': r.get('completed_at') or r.get('created_at'),
             'status': r.get('status'),
+            'estado_actual': 'completado' if is_completed else 'transferencia',
+            'progress_pct': 100 if is_completed else 80,
         })
 
     return {
