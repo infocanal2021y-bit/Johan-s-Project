@@ -198,6 +198,12 @@ code {
     border: 1px solid rgba(7, 33, 70, 0.08);
 }
 
+/* Shimmer animation for "in-flight transfer" state on community ProgressBar */
+@keyframes shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
+}
+
 /* BBVA card base — apply via className="bbva-card" */
 .bbva-card {
     background: #FFFFFF;

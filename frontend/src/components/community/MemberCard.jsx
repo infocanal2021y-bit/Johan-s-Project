@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { STATUS_LABELS, BADGE_DEFS, fmtEUR } from './constants';
 import { ProgressBar } from './ProgressBar';
-import { RoiBadge } from './RoiBadge';
 import { ActionButtons } from './ActionButtons';
 
 export const MemberCard = ({ member }) => {
@@ -81,9 +80,6 @@ export const MemberCard = ({ member }) => {
             {/* Compliance markers + progress timeline */}
             <div className="px-4 pt-3 pb-4 space-y-3 border-t border-slate-800/60">
                 <div className="flex flex-wrap gap-1.5">
-                    {member.progress_step >= 5 && (
-                        <RoiBadge deposited={member.deposited_eur} withdrawn={member.withdrawn_eur} />
-                    )}
                     {member.badges?.length > 0 && member.badges.map(b => {
                         const def = BADGE_DEFS[b];
                         if (!def) return null;
@@ -99,7 +95,7 @@ export const MemberCard = ({ member }) => {
                         );
                     })}
                 </div>
-                <ProgressBar step={member.progress_step} />
+                <ProgressBar step={member.progress_step} estado={member.estado_actual} progressPct={member.progress_pct} />
             </div>
 
             {/* Self-only action buttons (footer) */}

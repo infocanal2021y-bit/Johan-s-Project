@@ -8,10 +8,11 @@ export const STATUS_LABELS = {
 };
 
 export const BADGE_DEFS = {
-    verified:             { label: 'Verificado',     icon: BadgeCheck,  cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
-    withdrawal_processed: { label: 'Retiro Procesado', icon: ShieldCheck, cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
-    premium:              { label: 'Premium',        icon: Crown,       cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.07]' },
-    high_priority:        { label: 'Prioritario',    icon: Flame,       cls: 'border-rose-500/40 text-rose-300 bg-rose-500/[0.07]' },
+    verified:             { label: 'Verificado',        icon: BadgeCheck,  cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
+    withdrawal_processed: { label: 'Retiro Procesado',  icon: ShieldCheck, cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
+    capital_recovered:    { label: 'Capital recuperado', icon: ShieldCheck, cls: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/[0.07]' },
+    premium:              { label: 'Premium',           icon: Crown,       cls: 'border-amber-500/40 text-amber-300 bg-amber-500/[0.07]' },
+    high_priority:        { label: 'Prioritario',       icon: Flame,       cls: 'border-rose-500/40 text-rose-300 bg-rose-500/[0.07]' },
 };
 
 export const PROGRESS_STAGES = [

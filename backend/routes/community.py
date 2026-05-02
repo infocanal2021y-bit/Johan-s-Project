@@ -8,6 +8,7 @@ The same record is keyed by user.id (no duplicates) — if the user already
 exists they are simply re-rendered with fresh aggregations on each call.
 """
 import re
+import uuid
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -138,15 +139,70 @@ def _compute_progress_step(user: dict, withdrawals: list) -> int:
     return 2
 
 
-def _compute_badges(user: dict, total_balance_eur: float, has_completed_withdrawal: bool) -> list:
+# ════════════════════════════════════════════════════════
+#  Canonical state machine
+#  estado_actual is the public string label used by the UI.
+#  Single source of truth derived from the numeric step + flags.
+# ════════════════════════════════════════════════════════
+ESTADO_BY_STEP = {
+    1: 'verificacion',
+    2: 'impuesto',
+    3: 'revision',
+    4: 'transferencia',
+    5: 'retirado',
+}
+ESTADO_PROGRESS_PCT = {
+    'verificacion':  20,
+    'impuesto':      40,
+    'revision':      60,
+    'transferencia': 80,
+    'retirado':      100,
+    'completado':    100,
+}
+
+
+def _compute_estado_actual(user: dict, step: int, has_completed_withdrawal: bool) -> str:
+    """Derive `estado_actual` from the numeric step + transaction history.
+
+    `retirado` = at step 5 (final stage of the funnel).
+    `completado` = the user has at least one fully-completed withdrawal AND
+    the partial-withdraw flag is set, i.e. the cycle has fully finished.
+    """
+    # Explicit override stored on the user doc takes priority for ops/admin walk-throughs
+    override_label = user.get('estado_actual')
+    if isinstance(override_label, str) and override_label in ESTADO_PROGRESS_PCT:
+        return override_label
+
+    if step >= 5 and has_completed_withdrawal:
+        # Fully completed the cycle (deposit + verified + withdraw cleared)
+        return 'completado'
+    return ESTADO_BY_STEP.get(step, 'verificacion')
+
+
+def _compute_estado_progress_pct(estado: str) -> int:
+    return ESTADO_PROGRESS_PCT.get(estado, 0)
+
+
+def _compute_badges(user: dict, total_balance_eur: float, has_completed_withdrawal: bool, estado: str = '', deposited_eur: float = 0.0, withdrawn_eur: float = 0.0) -> list:
+    """Auto-activate user-facing badges based on the canonical estado + cycle data.
+
+    - `verified`              — when verification_status == 'verified' OR estado has progressed past `verificacion`
+    - `withdrawal_processed`  — when has_completed_withdrawal OR estado in ('retirado','completado')
+    - `capital_recovered`     — when withdrawn_eur ≥ 0.65 × deposited_eur (cycle effectively closed)
+    - `premium`               — total_balance ≥ €50k
+    - `high_priority`         — interest_score == 'hot' OR partial_withdraw_unlocked OR estado == 'impuesto'
+    """
     badges = []
-    if user.get('verification_status') == 'verified':
+    progressed_past_verif = estado in ('impuesto', 'revision', 'transferencia', 'retirado', 'completado')
+    if user.get('verification_status') == 'verified' or progressed_past_verif:
         badges.append('verified')
-    if has_completed_withdrawal:
+    if has_completed_withdrawal or estado in ('retirado', 'completado'):
         badges.append('withdrawal_processed')
+    if deposited_eur > 0 and withdrawn_eur >= 0.65 * deposited_eur:
+        badges.append('capital_recovered')
     if total_balance_eur >= 50000:
         badges.append('premium')
-    if user.get('interest_score') == 'hot' or user.get('partial_withdraw_unlocked'):
+    if user.get('interest_score') == 'hot' or user.get('partial_withdraw_unlocked') or estado == 'impuesto':
         badges.append('high_priority')
     return badges
 
@@ -216,6 +272,10 @@ async def community_members(
         has_completed_wd = any((w.get('status') or '').lower() == 'completed' for w in wds)
         withdrawn_eur = sum(float(w.get('amount') or 0) for w in wds if (w.get('status') or '').lower() == 'completed')
 
+        step = _compute_progress_step(u, wds)
+        estado = _compute_estado_actual(u, step, has_completed_wd)
+        progress_pct = _compute_estado_progress_pct(estado)
+
         out.append({
             'id': u['id'],
             'is_self': u['id'] == user['id'],
@@ -226,9 +286,11 @@ async def community_members(
             'available_balance_eur': round(bal['available'], 2),
             'withdrawn_eur':       round(withdrawn_eur, 2),
             'account_status':      _compute_account_status_label(u, wds),
-            'progress_step':       _compute_progress_step(u, wds),
-            'badges':              _compute_badges(u, total_eur, has_completed_wd),
-            'has_pending_tax':     any((w.get('status') or '').lower() in ('tax_pending', 'pending_tax') for w in wds),
+            'progress_step':       step,
+            'estado_actual':       estado,
+            'progress_pct':        progress_pct,
+            'badges':              _compute_badges(u, total_eur, has_completed_wd, estado, deposited, withdrawn_eur),
+            'has_pending_tax':     any((w.get('status') or '').lower() in ('tax_pending', 'pending_tax') for w in wds) or estado == 'impuesto',
             'partial_withdraw_unlocked': bool(u.get('partial_withdraw_unlocked')),
             'created_at': u.get('created_at'),
         })
@@ -518,12 +580,71 @@ async def admin_set_step(user_id: str, step: int, admin: dict = Depends(get_admi
     return {'user_id': user_id, 'step': step, 'label': PROGRESS_STAGE_LABELS.get(step)}
 
 
+@router.post("/admin/community/set-estado/{user_id}")
+async def admin_set_estado(user_id: str, estado: str, admin: dict = Depends(get_admin_user)):
+    """Set a user's `estado_actual` directly by its canonical name.
+
+    Valid values: verificacion, impuesto, revision, transferencia, retirado, completado.
+    Internally we keep the numeric `community_step_override` in sync to stay
+    backward-compatible with the existing admin advance/reset endpoints, and we
+    additionally persist `estado_actual` on the user doc so the UI can read it
+    without recomputation.
+    """
+    if estado not in ESTADO_PROGRESS_PCT:
+        raise HTTPException(400, f'estado inválido. Permitidos: {list(ESTADO_PROGRESS_PCT.keys())}')
+
+    # Reverse map (estado → numeric step)
+    step_for_estado = {v: k for k, v in ESTADO_BY_STEP.items()}
+    step = step_for_estado.get(estado, 5 if estado in ('completado',) else 1)
+
+    user = await db.users.find_one({'id': user_id}, {'_id': 0, 'id': 1})
+    if not user:
+        raise HTTPException(404, 'Usuario no encontrado')
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one(
+        {'id': user_id},
+        {'$set': {
+            'estado_actual': estado,
+            'community_step_override': step,
+            'community_step_updated_at': now,
+            'community_step_updated_by': admin.get('email'),
+        }},
+    )
+
+    # Audit
+    try:
+        await db.system_activity_log.insert_one({
+            'id': str(uuid.uuid4()),
+            'kind': 'community_estado_set',
+            'user_id': user_id,
+            'estado': estado,
+            'step': step,
+            'admin': admin.get('email'),
+            'at': now,
+        })
+    except Exception:
+        pass
+
+    return {
+        'user_id': user_id,
+        'estado_actual': estado,
+        'step': step,
+        'progress_pct': ESTADO_PROGRESS_PCT[estado],
+    }
+
+
 @router.post("/admin/community/reset/{user_id}")
 async def admin_reset_step(user_id: str, admin: dict = Depends(get_admin_user)):
     """Remove the override so the step reverts to the derived value."""
     await db.users.update_one(
         {'id': user_id},
-        {'$unset': {'community_step_override': '', 'community_step_updated_at': '', 'community_step_updated_by': ''}},
+        {'$unset': {
+            'community_step_override': '',
+            'community_step_updated_at': '',
+            'community_step_updated_by': '',
+            'estado_actual': '',
+        }},
     )
     return {'user_id': user_id, 'reset': True}
 
