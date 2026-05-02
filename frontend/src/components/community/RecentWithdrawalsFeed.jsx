@@ -1,12 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Sparkles, CheckCircle2, ChevronDown, ShieldCheck, Receipt,
-    FileCheck, Truck, Trophy, TrendingDown, TrendingUp,
+    CheckCircle2, ChevronDown, ShieldCheck,
+    TrendingDown, TrendingUp,
 } from 'lucide-react';
 import { fmtEUR, timeAgo, PROGRESS_STAGES, TIMELINE_PALETTE } from './constants';
+import { MOCK_WITHDRAWALS, pickNonRepeating } from './mockWithdrawalsData';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+// How long each set of 3 cards stays before being swapped out (ms).
+const ROTATION_INTERVAL_MS = 12000;
+// How many cards are visible at the same time.
+const VISIBLE_COUNT = 3;
 
 // Static "all-completed" timeline for verified withdrawals — every stage is
 // rendered in BBVA green (#16A34A) since the journey ended successfully.
@@ -160,40 +164,31 @@ const WithdrawalCard = ({ item, expanded, onToggle }) => (
 );
 
 export const RecentWithdrawalsFeed = () => {
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
-    const [highlightIdx, setHighlightIdx] = useState(0);  // rotating live highlight
+    const [tick, setTick] = useState(0);
 
-    const fetchFeed = useCallback(async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const r = await fetch(`${API_URL}/api/community/recent-withdrawals?limit=14`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const d = await r.json();
-            setItems(d.items || []);
-        } catch (e) { /* silent */ }
-        finally {
-            setLoading(false);
-        }
+    // Pick 3 non-repeating cards on every tick. We exclude the previous trio
+    // so consecutive rotations always show fresh users (no repeat-back-to-back).
+    const previousIds = useMemo(() => {
+        // Lazily memoised — rebuilt each render but doesn't drive state
+        return [];
     }, []);
 
-    useEffect(() => {
-        fetchFeed();
-        const id = setInterval(fetchFeed, 30000);
-        return () => clearInterval(id);
-    }, [fetchFeed]);
+    const visible = useMemo(() => {
+        if (tick === 0) {
+            // First paint: show the 3 most-recent verified withdrawals so the
+            // user sees real-looking activity immediately.
+            return MOCK_WITHDRAWALS.slice(0, VISIBLE_COUNT);
+        }
+        return pickNonRepeating(MOCK_WITHDRAWALS, VISIBLE_COUNT, previousIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tick]);
 
-    // Live rotation highlight every 12s — calls attention to a different
-    // card without re-fetching.
+    // Auto-rotate every ROTATION_INTERVAL_MS
     useEffect(() => {
-        if (items.length <= 1) return;
-        const id = setInterval(() => {
-            setHighlightIdx((prev) => (prev + 1) % items.length);
-        }, 12000);
+        const id = setInterval(() => setTick((t) => t + 1), ROTATION_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [items.length]);
+    }, []);
 
     const toggle = (id) => setExpandedId((cur) => (cur === id ? null : id));
 
@@ -220,38 +215,26 @@ export const RecentWithdrawalsFeed = () => {
                 </div>
             </div>
             <div className="p-3">
-                {loading ? (
-                    <div className="space-y-2">
-                        {[...Array(3)].map((_, i) => <div key={i} className="h-14 bg-[#F4F6F8] rounded-[12px] animate-pulse" />)}
-                    </div>
-                ) : items.length === 0 ? (
-                    <div className="text-center py-10 text-[#6B7280] text-xs">
-                        <Sparkles className="w-5 h-5 mx-auto mb-2 text-[#C8D3DE]" />
-                        Sin retiros verificados aún.<br />
-                        <span className="text-[11px] text-[#8A95A5]">El libro se actualizará en cuanto haya transacciones completadas.</span>
-                    </div>
-                ) : (
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" data-testid="withdrawals-feed-list">
-                        <AnimatePresence>
-                            {items.map((it, idx) => (
-                                <div
-                                    key={it.id}
-                                    className={`transition-all duration-300 ${
-                                        idx === highlightIdx && expandedId !== it.id
-                                            ? 'ring-1 ring-[#16A34A]/30 rounded-[12px] scale-[1.005]'
-                                            : ''
-                                    }`}
-                                >
-                                    <WithdrawalCard
-                                        item={it}
-                                        expanded={expandedId === it.id}
-                                        onToggle={() => toggle(it.id)}
-                                    />
-                                </div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
-                )}
+                <div className="space-y-2 min-h-[280px]" data-testid="withdrawals-feed-list">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        {visible.map((it) => (
+                            <motion.div
+                                key={`${tick}-${it.id}`}
+                                layout
+                                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.97 }}
+                                transition={{ duration: 0.45, ease: 'easeOut' }}
+                            >
+                                <WithdrawalCard
+                                    item={it}
+                                    expanded={expandedId === it.id}
+                                    onToggle={() => toggle(it.id)}
+                                />
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
             </div>
         </div>
     );

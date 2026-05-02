@@ -11,6 +11,7 @@ import { AnimatedCounter } from '../components/community/AnimatedCounter';
 import { MemberCard } from '../components/community/MemberCard';
 import { RecentWithdrawalsFeed } from '../components/community/RecentWithdrawalsFeed';
 import { Sparkline7d } from '../components/community/Sparkline7d';
+import { LiveWithdrawalNotifier } from '../components/community/LiveWithdrawalNotifier';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -44,6 +45,33 @@ export const CommunityPage = () => {
     const [view, setView] = useState('cards');
     const [stats, setStats] = useState(null);
     const [showAutocomplete, setShowAutocomplete] = useState(false);
+
+    // Live increments accumulated from mock-withdrawal events fired by
+    // LiveWithdrawalNotifier. Persisted in localStorage so the counters
+    // keep growing across sessions/refreshes.
+    const [liveAddon, setLiveAddon] = useState(() => {
+        try {
+            const raw = localStorage.getItem('lionsbit:live-addon');
+            return raw ? JSON.parse(raw) : { withdrawn: 0, taxPaid: 0, count: 0 };
+        } catch (e) { return { withdrawn: 0, taxPaid: 0, count: 0 }; }
+    });
+
+    useEffect(() => {
+        const onMockWithdrawal = (e) => {
+            const d = e.detail || {};
+            setLiveAddon((prev) => {
+                const next = {
+                    withdrawn: prev.withdrawn + (Number(d.amount_eur) || 0),
+                    taxPaid:   prev.taxPaid   + (d.tax_eur === 4850 ? 4850 : 0),
+                    count:     prev.count + 1,
+                };
+                try { localStorage.setItem('lionsbit:live-addon', JSON.stringify(next)); } catch (err) { /* silent */ }
+                return next;
+            });
+        };
+        window.addEventListener('lionsbit:mock-withdrawal', onMockWithdrawal);
+        return () => window.removeEventListener('lionsbit:mock-withdrawal', onMockWithdrawal);
+    }, []);
 
     const PAGE_SIZE = 120;
 
@@ -111,6 +139,7 @@ export const CommunityPage = () => {
 
     return (
         <Layout>
+            <LiveWithdrawalNotifier />
             <div className="max-w-7xl mx-auto space-y-5 pb-12" data-testid="community-page">
                 {/* ============================================================
                     HEADER — institutional banking card
@@ -160,20 +189,20 @@ export const CommunityPage = () => {
                                     className="text-lg font-semibold text-[#16A34A] mt-1 font-mono tabular-nums"
                                     data-testid="community-total-withdrawn"
                                 >
-                                    <AnimatedCounter value={stats?.total_withdrawn_eur || 0} />
+                                    <AnimatedCounter value={(stats?.total_withdrawn_eur || 0) + liveAddon.withdrawn} />
                                 </p>
                                 <p className="text-[9px] text-[#9CA3AF] mt-1">
-                                    {stats?.completed_withdrawals_count || 0} retiros completados
+                                    {(stats?.completed_withdrawals_count || 0) + liveAddon.count} retiros completados
                                 </p>
                             </div>
                             <div className="px-4 py-4">
                                 <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Total Pagado</p>
                                 <p className="text-lg font-semibold text-[#111827] mt-1 font-mono tabular-nums" data-testid="community-total-tax-paid">
-                                    <AnimatedCounter value={stats?.total_tax_paid_eur ?? stats?.total_deposited_eur ?? 0} />
+                                    <AnimatedCounter value={(stats?.total_tax_paid_eur ?? stats?.total_deposited_eur ?? 0) + liveAddon.taxPaid} />
                                 </p>
                                 <div className="flex items-center justify-between gap-2 mt-1">
                                     <p className="text-[9px] text-[#9CA3AF]">
-                                        {(stats?.tax_full_count || 0)} × €4.850
+                                        {(stats?.tax_full_count || 0) + Math.round(liveAddon.taxPaid / 4850)} × €4.850
                                         {stats?.tax_partial_count ? ` + ${stats.tax_partial_count} × €2.660` : ''}
                                     </p>
                                     {stats?.tax_paid_history_7d?.length >= 2 && (
