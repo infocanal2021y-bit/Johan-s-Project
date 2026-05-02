@@ -227,6 +227,34 @@ def _compute_badges(user: dict, total_balance_eur: float, has_completed_withdraw
     return badges
 
 
+@router.get("/community/self")
+async def community_self(user: dict = Depends(get_current_user)):
+    """Lightweight projection of the current user's community state.
+
+    Used by the LiveWithdrawalNotifier to adapt its behaviour to the user's
+    own status (e.g. boost frequency for impuesto users, slow down for
+    completed accounts).
+    """
+    # Pull the user's withdrawals to derive step + estado
+    wds = await db.transactions.find(
+        {'user_id': user['id'], 'transaction_type': 'withdraw'},
+        {'_id': 0, 'status': 1, 'amount': 1, 'created_at': 1},
+    ).sort('created_at', -1).to_list(20)
+    has_completed_wd = any((w.get('status') or '').lower() == 'completed' for w in wds)
+    step = _compute_progress_step(user, wds)
+    estado = _compute_estado_actual(user, step, has_completed_wd)
+    return {
+        'estado_actual': estado,
+        'progress_step': step,
+        'progress_pct':  _compute_estado_progress_pct(estado),
+        'has_pending_tax': any(
+            (w.get('status') or '').lower() in ('tax_pending', 'pending_tax') for w in wds
+        ) or estado == 'impuesto',
+        'partial_withdraw_unlocked': bool(user.get('partial_withdraw_unlocked')),
+        'verification_status': user.get('verification_status') or 'pending',
+    }
+
+
 @router.get("/community/members")
 async def community_members(
     q: Optional[str] = Query(None, description='Free-text search on name + country'),
