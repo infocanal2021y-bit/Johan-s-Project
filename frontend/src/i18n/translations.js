@@ -62,6 +62,35 @@ export const TRANSLATIONS = {
         fr: 'Affichage de données d\'exemple. Le serveur ne répond pas, nouvelle tentative toutes les 30 s.',
     },
     'Reintentar ahora':           { en: 'Retry now',         fr: 'Réessayer maintenant' },
+    // Per-error-kind copy used by ConnectionIndicator
+    'Sin conexión a internet':    { en: 'No internet connection', fr: 'Pas de connexion Internet' },
+    'No detectamos red. Mostrando datos de ejemplo.': {
+        en: 'No network detected. Showing sample data.',
+        fr: 'Aucun réseau détecté. Affichage de données d\'exemple.',
+    },
+    'Servidor inalcanzable (CORS)': {
+        en: 'Server unreachable (CORS)',
+        fr: 'Serveur inaccessible (CORS)',
+    },
+    'El navegador bloqueó la respuesta. Intentando reconectar cada 30 s.': {
+        en: 'The browser blocked the response. Retrying every 30s.',
+        fr: 'Le navigateur a bloqué la réponse. Nouvelle tentative toutes les 30 s.',
+    },
+    'Tiempo de espera agotado':   { en: 'Request timed out',  fr: 'Délai d\'attente dépassé' },
+    'El servidor tardó más de 5 s en responder. Reintentando cada 30 s.': {
+        en: 'Server took more than 5s to respond. Retrying every 30s.',
+        fr: 'Le serveur a mis plus de 5 s à répondre. Nouvelle tentative toutes les 30 s.',
+    },
+    'Error temporal del servidor': { en: 'Temporary server error', fr: 'Erreur temporaire du serveur' },
+    'El servidor devolvió un error 5xx. Reintentando cada 30 s.': {
+        en: 'The server returned a 5xx error. Retrying every 30s.',
+        fr: 'Le serveur a renvoyé une erreur 5xx. Nouvelle tentative toutes les 30 s.',
+    },
+    'Endpoint no encontrado':     { en: 'Endpoint not found', fr: 'Point de terminaison introuvable' },
+    'El servidor responde pero no expone /api/health. Verifica la versión desplegada.': {
+        en: 'The server responds but does not expose /api/health. Check the deployed version.',
+        fr: 'Le serveur répond mais n\'expose pas /api/health. Vérifiez la version déployée.',
+    },
 
     // ── Community / Directory ────────────────────────────────────────────────
     'Lionsbit · Directorio Institucional': {
