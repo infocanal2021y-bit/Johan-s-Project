@@ -1,5 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useT } from '../../i18n/LanguageContext';
+import { LanguageSwitcher } from '../LanguageSwitcher';
 import { NotificationBell } from '../NotificationBell';
 import { LevelBadge } from '../dashboard/LevelBadge';
 import { 
@@ -57,6 +59,7 @@ import { ChevronDown } from 'lucide-react';
 export const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
     const navigate = useNavigate();
+    const t = useT();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountsOpen, setAccountsOpen] = useState(false);
 
@@ -158,7 +161,7 @@ export const Sidebar = () => {
                         className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[#1973B8] opacity-0 group-[.active]:opacity-100 transition-opacity duration-200"
                     />
                     <link.icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-105" />
-                    <span className="text-[13px] lg:text-sm" style={{ fontWeight: 500 }}>{link.label}</span>
+                    <span className="text-[13px] lg:text-sm" style={{ fontWeight: 500 }}>{t(link.label)}</span>
                 </NavLink>
             ))}
         </nav>
@@ -203,7 +206,7 @@ export const Sidebar = () => {
             {/* User Links */}
             <div className="flex-1 p-4 overflow-y-auto">
                 <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2" style={{ fontWeight: 600 }}>
-                    Banca
+                    {t('Banca')}
                 </p>
                 <NavLinks links={userLinksTop} />
 
@@ -219,7 +222,7 @@ export const Sidebar = () => {
                         }`}
                     >
                         <Wallet className="w-[18px] h-[18px] flex-shrink-0" />
-                        <span className="text-[13px] lg:text-sm flex-1 text-left" style={{ fontWeight: 500 }}>Accounts</span>
+                        <span className="text-[13px] lg:text-sm flex-1 text-left" style={{ fontWeight: 500 }}>{t('Accounts')}</span>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${accountsOpen ? 'rotate-180' : ''}`} />
                     </button>
 
@@ -266,7 +269,7 @@ export const Sidebar = () => {
 
                 {/* Crypto/Finance Section */}
                 <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2 mt-6" style={{ fontWeight: 600 }}>
-                    Análisis Financiero
+                    {t('Análisis Financiero')}
                 </p>
                 <NavLinks links={cryptoLinks} />
 
@@ -304,6 +307,9 @@ export const Sidebar = () => {
                         </span>
                     )}
                 </div>
+                <div className="mb-2.5">
+                    <LanguageSwitcher variant="sidebar" />
+                </div>
                 <Button
                     variant="ghost"
                     className="w-full justify-start text-slate-300 hover:text-rose-300 hover:bg-rose-500/10"
@@ -311,7 +317,7 @@ export const Sidebar = () => {
                     data-testid="logout-btn"
                 >
                     <LogOut className="w-4 h-4 mr-2.5" />
-                    <span className="text-[13px]">Cerrar Sesión</span>
+                    <span className="text-[13px]">{t('Cerrar Sesión')}</span>
                 </Button>
             </div>
         </div>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { fmtEUR, timeAgo, PROGRESS_STAGES, TIMELINE_PALETTE } from './constants';
 import { MOCK_WITHDRAWALS, pickNonRepeating } from './mockWithdrawalsData';
+import { useT } from '../../i18n/LanguageContext';
 
 // How long each set of 3 cards stays before being swapped out (ms).
 const ROTATION_INTERVAL_MS = 12000;
@@ -164,6 +165,7 @@ const WithdrawalCard = ({ item, expanded, onToggle }) => (
 );
 
 export const RecentWithdrawalsFeed = () => {
+    const t = useT();
     const [expandedId, setExpandedId] = useState(null);
     const [tick, setTick] = useState(0);
 
@@ -202,10 +204,10 @@ export const RecentWithdrawalsFeed = () => {
             <div className="px-5 py-4 border-b border-[#F1F4F8] flex items-center justify-between">
                 <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#6B7280] mb-1">
-                        Libro de transacciones
+                        {t('Libro de transacciones')}
                     </p>
                     <h3 className="text-[14px] font-semibold text-[#111827]" style={{ fontFamily: 'Poppins' }}>
-                        Retiros verificados
+                        {t('Retiros verificados')}
                     </h3>
                 </div>
                 <div
@@ -223,7 +225,7 @@ export const RecentWithdrawalsFeed = () => {
                             style={{ background: expandedId ? '#9CA3AF' : '#16A34A' }}
                         />
                     </span>
-                    {expandedId ? 'En pausa' : 'Live · 12s'}
+                    {expandedId ? t('En pausa') : t('Live · 12s')}
                 </div>
             </div>
             <div className="p-3">

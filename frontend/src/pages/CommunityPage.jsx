@@ -4,6 +4,7 @@ import { Layout } from '../components/layout/Layout';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
+import { useT } from '../i18n/LanguageContext';
 import { Users, Search, Shield, Loader2, LayoutGrid, List, Award } from 'lucide-react';
 
 import { STATUS_LABELS, PROGRESS_STAGES, fmtEUR, timeAgo } from '../components/community/constants';
@@ -24,15 +25,16 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 // =============================================================================
 
 const FILTER_DEFS = [
-    { key: 'all',              label: 'Todos',           cls: 'bg-white text-[#6B7280] border-[#E5EAF0]' },
-    { key: 'activo',           label: 'Activo',          cls: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30' },
-    { key: 'en_revision',      label: 'En revisión',     cls: 'bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/30' },
-    { key: 'retiro_pendiente', label: 'Retiro pendiente', cls: 'bg-[#1E3A8A]/10 text-[#1E3A8A] border-[#1E3A8A]/30' },
-    { key: 'completado',       label: 'Retirado',        cls: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30' },
+    { key: 'all',              labelKey: 'Todos',           cls: 'bg-white text-[#6B7280] border-[#E5EAF0]' },
+    { key: 'activo',           labelKey: 'Activo',          cls: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30' },
+    { key: 'en_revision',      labelKey: 'En revisión',     cls: 'bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/30' },
+    { key: 'retiro_pendiente', labelKey: 'Retiro pendiente', cls: 'bg-[#1E3A8A]/10 text-[#1E3A8A] border-[#1E3A8A]/30' },
+    { key: 'completado',       labelKey: 'Retirado',        cls: 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/30' },
 ];
 
 export const CommunityPage = () => {
     const { user } = useAuth();  // eslint-disable-line no-unused-vars
+    const t = useT();
     const [members, setMembers] = useState([]);
     const [totalInDb, setTotalInDb] = useState(0);
     const [filteredTotal, setFilteredTotal] = useState(0);
@@ -158,17 +160,16 @@ export const CommunityPage = () => {
                                 <div>
                                     <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#1E3A8A] mb-2">
                                         <Shield className="w-3 h-3" />
-                                        Lionsbit · Directorio Institucional
+                                        {t('Lionsbit · Directorio Institucional')}
                                     </div>
                                     <h1
                                         className="text-xl sm:text-2xl font-semibold text-[#111827] tracking-tight"
                                         style={{ fontFamily: 'Poppins, Inter, sans-serif' }}
                                     >
-                                        Directorio de Miembros Verificados
+                                        {t('Directorio de Miembros Verificados')}
                                     </h1>
                                     <p className="text-[#6B7280] mt-1.5 max-w-2xl text-[13px] leading-relaxed">
-                                        Registro público de cuentas verificadas. Consulta el estado de verificación,
-                                        depósitos y retiros procesados. Información estructurada bajo lineamientos GDPR.
+                                        {t('Registro público de cuentas verificadas. Consulta el estado de verificación, depósitos y retiros procesados. Información estructurada bajo lineamientos GDPR.')}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#16A34A] whitespace-nowrap">
@@ -176,7 +177,7 @@ export const CommunityPage = () => {
                                         <span className="absolute inset-0 rounded-full bg-[#16A34A] animate-ping opacity-60" />
                                         <span className="relative w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
                                     </span>
-                                    Sistema activo
+                                    {t('Sistema activo')}
                                 </div>
                             </div>
                         </div>
@@ -184,7 +185,7 @@ export const CommunityPage = () => {
                         {/* Stats row — banking metrics */}
                         <div className="grid grid-cols-2 md:grid-cols-5 border-t border-[#F1F4F8] divide-x divide-[#F1F4F8]">
                             <div className="px-4 py-4">
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Total Retirado</p>
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{t('Total Retirado')}</p>
                                 <p
                                     className="text-lg font-semibold text-[#16A34A] mt-1 font-mono tabular-nums"
                                     data-testid="community-total-withdrawn"
@@ -192,11 +193,11 @@ export const CommunityPage = () => {
                                     <AnimatedCounter value={(stats?.total_withdrawn_eur || 0) + liveAddon.withdrawn} />
                                 </p>
                                 <p className="text-[9px] text-[#9CA3AF] mt-1">
-                                    {(stats?.completed_withdrawals_count || 0) + liveAddon.count} retiros completados
+                                    {(stats?.completed_withdrawals_count || 0) + liveAddon.count} {t('retiros completados')}
                                 </p>
                             </div>
                             <div className="px-4 py-4">
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Total Pagado</p>
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{t('Total Pagado')}</p>
                                 <p className="text-lg font-semibold text-[#111827] mt-1 font-mono tabular-nums" data-testid="community-total-tax-paid">
                                     <AnimatedCounter value={(stats?.total_tax_paid_eur ?? stats?.total_deposited_eur ?? 0) + liveAddon.taxPaid} />
                                 </p>
@@ -217,27 +218,27 @@ export const CommunityPage = () => {
                                 </div>
                             </div>
                             <div className="px-4 py-4">
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Cuentas registradas</p>
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{t('Cuentas registradas')}</p>
                                 <p className="text-lg font-semibold text-[#111827] font-mono tabular-nums mt-1">
                                     {totalInDb.toLocaleString('es-ES')}
                                 </p>
-                                <p className="text-[9px] text-[#9CA3AF] mt-1">activas en la red</p>
+                                <p className="text-[9px] text-[#9CA3AF] mt-1">{t('activas en la red')}</p>
                             </div>
                             <div className="px-4 py-4">
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">En revisión</p>
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{t('En revisión')}</p>
                                 <p className="text-lg font-semibold text-[#B45309] font-mono tabular-nums mt-1">
                                     {(statusCounts.en_revision || 0).toLocaleString('es-ES')}
                                 </p>
-                                <p className="text-[9px] text-[#9CA3AF] mt-1">pendientes</p>
+                                <p className="text-[9px] text-[#9CA3AF] mt-1">{t('pendientes')}</p>
                             </div>
                             <div className="px-4 py-4">
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">País principal</p>
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{t('País principal')}</p>
                                 <p className="text-lg font-semibold text-[#111827] mt-1 flex items-center gap-2">
                                     <span>{stats?.top_countries?.[0]?.flag || '🌐'}</span>
                                     <span className="text-sm">{stats?.top_countries?.[0]?.country || '—'}</span>
                                 </p>
                                 <p className="text-[9px] text-[#9CA3AF] mt-1 font-mono tabular-nums">
-                                    {(stats?.top_countries?.[0]?.count || 0).toLocaleString('es-ES')} cuentas
+                                    {(stats?.top_countries?.[0]?.count || 0).toLocaleString('es-ES')} {t('cuentas')}
                                 </p>
                             </div>
                         </div>
@@ -256,7 +257,7 @@ export const CommunityPage = () => {
                                 <div className="relative flex-1">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF] pointer-events-none" />
                                     <Input
-                                        placeholder="Buscar por nombre, país o estado..."
+                                        placeholder={t('Buscar por nombre, país o estado...')}
                                         value={search}
                                         onChange={(e) => { setSearch(e.target.value); setShowAutocomplete(true); }}
                                         onFocus={() => setShowAutocomplete(true)}
@@ -336,7 +337,7 @@ export const CommunityPage = () => {
                                                 f.cls
                                             } ${active ? 'ring-2 ring-[#1E3A8A]/25 ring-offset-1 ring-offset-white shadow-sm' : 'opacity-80 hover:opacity-100'}`}
                                         >
-                                            {f.label}
+                                            {t(f.labelKey)}
                                             <span className="font-mono tabular-nums text-[10px]">
                                                 {(counts[f.key] || 0).toLocaleString('es-ES')}
                                             </span>
@@ -349,7 +350,7 @@ export const CommunityPage = () => {
                         {/* Result count */}
                         <div className="flex items-center justify-between text-[11px] text-[#6B7280] px-1">
                             <span data-testid="community-results-count">
-                                Mostrando{' '}
+                                {t('Mostrando')}{' '}
                                 <strong className="text-[#111827] font-semibold tabular-nums">
                                     {filtered.length.toLocaleString('es-ES')}
                                 </strong>
@@ -361,15 +362,15 @@ export const CommunityPage = () => {
                                         </strong>
                                     </>
                                 )}
-                                <> {(search.trim() || statusFilter !== 'all') ? 'resultados' : 'miembros'}</>
+                                <> {(search.trim() || statusFilter !== 'all') ? t('resultados') : t('miembros')}</>
                                 {filteredTotal > filtered.length && search.trim() === '' && statusFilter === 'all' && (
                                     <span className="ml-2 text-[10px] uppercase tracking-widest text-[#9CA3AF]">
-                                        · use la búsqueda para una consulta específica
+                                        · {t('use la búsqueda para una consulta específica')}
                                     </span>
                                 )}
                                 {(search.trim() || statusFilter !== 'all') && (
                                     <span className="ml-2 text-[10px] uppercase tracking-widest text-[#1E3A8A]">
-                                        · consulta global ({totalInDb.toLocaleString('es-ES')})
+                                        · {t('consulta global')} ({totalInDb.toLocaleString('es-ES')})
                                     </span>
                                 )}
                             </span>
@@ -388,7 +389,7 @@ export const CommunityPage = () => {
                             <div className="rounded-[14px] bg-white border border-[#E5EAF0] p-12 text-center shadow-sm">
                                 <Users className="w-8 h-8 mx-auto text-[#C8D3DE] mb-3" />
                                 <p className="text-[#6B7280] text-sm">
-                                    No se encontraron miembros con esos filtros.
+                                    {t('No se encontraron miembros con esos filtros.')}
                                 </p>
                             </div>
                         ) : view === 'table' ? (
@@ -519,10 +520,10 @@ export const CommunityPage = () => {
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
-                                                Hall of Fame · 30d
+                                                {t('Hall of Fame · 30d')}
                                             </p>
                                             <h3 className="text-[#111827] text-[14px] font-semibold" style={{ fontFamily: 'Poppins' }}>
-                                                Top retiros del mes
+                                                {t('Top retiros del mes')}
                                             </h3>
                                         </div>
                                     </div>

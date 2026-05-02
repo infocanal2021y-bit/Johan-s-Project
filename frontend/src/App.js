@@ -1,6 +1,7 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { LanguageProvider } from "./i18n/LanguageContext";
 import { Toaster } from "./components/ui/sonner";
 
 // Pages
@@ -193,10 +194,12 @@ function App() {
     return (
         <div className="App">
             <BrowserRouter>
-                <AuthProvider>
-                    <AppRoutes />
-                    <Toaster position="top-right" richColors />
-                </AuthProvider>
+                <LanguageProvider>
+                    <AuthProvider>
+                        <AppRoutes />
+                        <Toaster position="top-right" richColors />
+                    </AuthProvider>
+                </LanguageProvider>
             </BrowserRouter>
         </div>
     );
