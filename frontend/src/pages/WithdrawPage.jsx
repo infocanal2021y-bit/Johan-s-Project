@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 import { InvestmentPopup } from '../components/InvestmentPopup';
 import { PartialUnlockPanel } from '../components/withdraw/PartialUnlockPanel';
+import { WithdrawTypeSelector } from '../components/withdraw/WithdrawTypeSelector';
+import api from '../lib/api';
 
 // Banks grouped by country
 const BANKS_BY_COUNTRY = {
@@ -357,6 +359,29 @@ export const WithdrawPage = () => {
 
     // Partial unlock 40% — gate + cap
     const [unlockMaxEur, setUnlockMaxEur] = useState(null); // null = unknown, 0 = locked, >0 = cap
+
+    // Withdrawal type gate — 'partial' | 'full' | null
+    const [withdrawalType, setWithdrawalType] = useState(null);
+    const [withdrawalTypeLoading, setWithdrawalTypeLoading] = useState(true);
+    useEffect(() => {
+        let cancelled = false;
+        api.get('/withdraw-type').then((r) => {
+            if (cancelled) return;
+            setWithdrawalType(r.data?.withdrawal_type || null);
+        }).catch(() => {}).finally(() => {
+            if (!cancelled) setWithdrawalTypeLoading(false);
+        });
+        const onStorage = () => {
+            api.get('/withdraw-type').then((r) => {
+                if (!cancelled) setWithdrawalType(r.data?.withdrawal_type || null);
+            }).catch(() => {});
+        };
+        window.addEventListener('lionsbit:withdraw-type-changed', onStorage);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('lionsbit:withdraw-type-changed', onStorage);
+        };
+    }, []);
     useEffect(() => {
         let cancelled = false;
         import('../lib/api').then(({ default: api }) => {
@@ -1142,8 +1167,34 @@ export const WithdrawPage = () => {
                     </div>
                 </motion.div>
 
-                {/* ── Partial Withdrawal Unlock 40% panel ── */}
-                <PartialUnlockPanel />
+                {/* ── Step 1: Withdraw type selection (partial 40% vs full 100%) ── */}
+                <WithdrawTypeSelector onSelected={(t) => {
+                    setWithdrawalType(t);
+                    window.dispatchEvent(new Event('lionsbit:withdraw-type-changed'));
+                }} />
+
+                {/* ── Partial Withdrawal Unlock 40% panel — only when type=partial ── */}
+                {withdrawalType === 'partial' && <PartialUnlockPanel />}
+
+                {/* ── Gate notice: nothing chosen yet ────────────────── */}
+                {!withdrawalType && !withdrawalTypeLoading && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 }}
+                        className="rounded-xl bg-slate-900/60 border border-slate-700/60 p-5 text-center"
+                        data-testid="withdraw-no-type-selected"
+                    >
+                        <Shield className="w-7 h-7 text-slate-500 mx-auto mb-2" />
+                        <p className="text-slate-300 text-sm font-semibold">Elija una modalidad arriba para continuar</p>
+                        <p className="text-slate-500 text-xs mt-1">
+                            Seleccione <strong>retiro parcial (40%)</strong> o <strong>retiro total (100%)</strong> para activar el formulario de retiro.
+                        </p>
+                    </motion.div>
+                )}
+
+                {/* ── Full withdraw form only if type=full ───────────── */}
+                {withdrawalType === 'full' && (<>
 
                 {/* Tax Info — Professional accordion-style panel */}
                 <motion.div
@@ -1628,6 +1679,7 @@ export const WithdrawPage = () => {
                         </CardContent>
                     </Card>
                 </motion.div>
+                </>)}
             </div>
 
             {/* Investment Popup */}
