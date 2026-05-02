@@ -466,6 +466,39 @@ async def community_stats(user: dict = Depends(get_current_user)):
     tax_partial_total = partial_only_count * TAX_PARTIAL_EUR
     total_tax_paid_eur = tax_full_total + tax_partial_total
 
+    # ════════════════════════════════════════════════════════════════
+    # Sparkline 7d — cumulative tax_paid running total per day (UTC).
+    # We bucket each completed withdrawal by its completion day, then
+    # walk the last 7 days appending the running total × €4.850.
+    # ════════════════════════════════════════════════════════════════
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    days_window = [today - timedelta(days=i) for i in range(6, -1, -1)]  # 7 buckets, oldest → newest
+    seen_users: set = set()
+    daily_new_users: dict = {d.date().isoformat(): 0 for d in days_window}
+    older_users: set = set()  # users whose retirement is BEFORE the 7-day window
+    window_start_iso = days_window[0].isoformat()
+    for r in rows:
+        uid = r.get('user_id')
+        if not uid or uid in seen_users:
+            continue
+        seen_users.add(uid)
+        completed_at = r.get('completed_at') or r.get('created_at') or ''
+        if completed_at < window_start_iso:
+            older_users.add(uid)
+            continue
+        day_key = completed_at[:10]  # YYYY-MM-DD
+        if day_key in daily_new_users:
+            daily_new_users[day_key] += 1
+    # Build cumulative series, baseline = users that retired before the window
+    cumulative = len(older_users)
+    tax_paid_history_7d = []
+    for d in days_window:
+        cumulative += daily_new_users.get(d.date().isoformat(), 0)
+        tax_paid_history_7d.append({
+            'date': d.date().isoformat(),
+            'tax_paid_eur': round(cumulative * TAX_FULL_EUR + tax_partial_total, 2),
+        })
+
     # Hall of Fame — top 5 withdrawals last 30 days (by amount EUR-eq)
     cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
     monthly_rows = [r for r in rows if (r.get('completed_at') or r.get('created_at') or '') >= cutoff]
@@ -518,6 +551,7 @@ async def community_stats(user: dict = Depends(get_current_user)):
         'total_tax_paid_eur': round(total_tax_paid_eur, 2),
         'tax_full_count': full_withdrawer_count,
         'tax_partial_count': partial_only_count,
+        'tax_paid_history_7d': tax_paid_history_7d,
         # Backwards compatible alias — older clients expecting `total_deposited_eur`
         # now receive the new tax-paid figure here so the KPI keeps populating.
         'total_deposited_eur': round(total_tax_paid_eur, 2),

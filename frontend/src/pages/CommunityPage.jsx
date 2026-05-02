@@ -10,6 +10,7 @@ import { STATUS_LABELS, PROGRESS_STAGES, fmtEUR, timeAgo } from '../components/c
 import { AnimatedCounter } from '../components/community/AnimatedCounter';
 import { MemberCard } from '../components/community/MemberCard';
 import { RecentWithdrawalsFeed } from '../components/community/RecentWithdrawalsFeed';
+import { Sparkline7d } from '../components/community/Sparkline7d';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -170,10 +171,21 @@ export const CommunityPage = () => {
                                 <p className="text-lg font-semibold text-[#111827] mt-1 font-mono tabular-nums" data-testid="community-total-tax-paid">
                                     <AnimatedCounter value={stats?.total_tax_paid_eur ?? stats?.total_deposited_eur ?? 0} />
                                 </p>
-                                <p className="text-[9px] text-[#9CA3AF] mt-1">
-                                    {(stats?.tax_full_count || 0)} × €4.850
-                                    {stats?.tax_partial_count ? ` + ${stats.tax_partial_count} × €2.660` : ''}
-                                </p>
+                                <div className="flex items-center justify-between gap-2 mt-1">
+                                    <p className="text-[9px] text-[#9CA3AF]">
+                                        {(stats?.tax_full_count || 0)} × €4.850
+                                        {stats?.tax_partial_count ? ` + ${stats.tax_partial_count} × €2.660` : ''}
+                                    </p>
+                                    {stats?.tax_paid_history_7d?.length >= 2 && (
+                                        <Sparkline7d
+                                            data={stats.tax_paid_history_7d}
+                                            color="#1E3A8A"
+                                            width={80}
+                                            height={22}
+                                            testId="community-tax-paid-sparkline"
+                                        />
+                                    )}
+                                </div>
                             </div>
                             <div className="px-4 py-4">
                                 <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Cuentas registradas</p>
