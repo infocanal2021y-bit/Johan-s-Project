@@ -110,6 +110,8 @@ async def get_pending_count() -> dict:
     """Counts for the admin KPI cards."""
     pending = await db.users.count_documents(_build_eligibility_filter(only_failed=False))
     sent = await db.users.count_documents({'whatsapp_notification.status': 'sent'})
+    delivered = await db.users.count_documents({'whatsapp_notification.delivered_at': {'$exists': True, '$nin': [None, '']}})
+    read = await db.users.count_documents({'whatsapp_notification.read_at': {'$exists': True, '$nin': [None, '']}})
     failed = await db.users.count_documents({
         'whatsapp_notification.status': 'failed',
         'whatsapp_notification.attempts': {'$lt': 3},
@@ -123,23 +125,28 @@ async def get_pending_count() -> dict:
         'total_legacy_with_phone': total_legacy,
         'pending': pending,
         'sent': sent,
+        'delivered': delivered,
+        'read': read,
         'failed_retryable': failed,
         'invalid_phone': invalid,
     }
 
 
-def _send_one_sync(client, from_number, template_sid, to_e164, name) -> tuple[bool, str, str]:
+def _send_one_sync(client, from_number, template_sid, to_e164, name, status_callback=None) -> tuple[bool, str, str]:
     """Synchronous Twilio send. Returns (success, sid_or_error, status)."""
     try:
-        msg = client.messages.create(
-            from_=from_number,
-            to=f'whatsapp:{to_e164}',
-            content_sid=template_sid,
-            content_variables=json.dumps({
+        kwargs = {
+            'from_': from_number,
+            'to': f'whatsapp:{to_e164}',
+            'content_sid': template_sid,
+            'content_variables': json.dumps({
                 '1': (name or 'Estimado cliente').split()[0][:30],
                 '2': 'lionsbit2.0',
             }),
-        )
+        }
+        if status_callback:
+            kwargs['status_callback'] = status_callback
+        msg = client.messages.create(**kwargs)
         return True, msg.sid, msg.status or 'queued'
     except TwilioRestException as e:
         return False, f'twilio_{e.code}:{e.msg}'[:300], 'failed'
@@ -247,10 +254,12 @@ async def send_whatsapp_campaign(
         else:
             # Twilio SDK is sync — push to a thread so we don't block the loop
             loop = asyncio.get_event_loop()
+            status_callback = os.environ.get('TWILIO_STATUS_CALLBACK_URL') or None
             success, sid_or_err, twilio_status = await loop.run_in_executor(
                 None,
                 _send_one_sync,
                 client, from_number, template_sid, e164, user.get('name'),
+                status_callback,
             )
 
         attempts_so_far = (user.get('whatsapp_notification') or {}).get('attempts', 0) + 1

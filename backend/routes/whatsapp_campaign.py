@@ -1,6 +1,14 @@
 """Admin routes for the WhatsApp reactivation campaign."""
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+import logging
+import os
+import uuid
+from datetime import datetime, timezone
 
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import Response
+from twilio.request_validator import RequestValidator
+
+from config import db
 from services.auth import get_admin_user
 from services.whatsapp_campaign import (
     get_campaign_status,
@@ -10,6 +18,7 @@ from services.whatsapp_campaign import (
     send_whatsapp_campaign,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["whatsapp-campaign"])
 
 
@@ -89,3 +98,86 @@ async def whatsapp_logs(
     admin: dict = Depends(get_admin_user),
 ):
     return {'logs': await get_recent_logs(campaign_id=campaign_id, limit=limit)}
+
+
+
+# ══════════════════════════════════════════════════════════════════
+#  TWILIO STATUS WEBHOOK
+#  Public endpoint — Twilio POSTs delivery status updates here:
+#    MessageSid, MessageStatus (queued|sent|delivered|read|failed|undelivered)
+#    ErrorCode, ErrorMessage, From, To, AccountSid, SmsSid
+#  Validates authenticity via X-Twilio-Signature header when possible.
+# ══════════════════════════════════════════════════════════════════
+
+TERMINAL_FAILURE_STATUSES = {'failed', 'undelivered'}
+TERMINAL_READ_STATUSES = {'read'}
+TERMINAL_DELIVERED_STATUSES = {'delivered'}
+
+
+async def _validate_twilio_signature(request: Request, form_params: dict) -> bool:
+    """Best-effort HMAC check. Skips if auth token missing (dev) or signature absent."""
+    token = os.environ.get('TWILIO_AUTH_TOKEN')
+    signature = request.headers.get('X-Twilio-Signature')
+    if not token or not signature:
+        return True  # Fail open in dev. Prod should always have both.
+    try:
+        validator = RequestValidator(token)
+        url = str(request.url)
+        return validator.validate(url, form_params, signature)
+    except Exception as exc:  # pragma: no cover
+        logger.warning('[twilio-webhook] signature validation error: %s', exc)
+        return False
+
+
+@router.post("/webhooks/twilio/whatsapp-status")
+async def twilio_whatsapp_status(
+    request: Request,
+    MessageSid: str = Form(...),
+    MessageStatus: str = Form(...),
+    ErrorCode: str = Form(None),
+    ErrorMessage: str = Form(None),
+    From: str = Form(None),
+    To: str = Form(None),
+):
+    """Twilio status callback — records delivery/read/failure per message SID."""
+    form = await request.form()
+    params = {k: v for k, v in form.items()}
+    if not await _validate_twilio_signature(request, params):
+        raise HTTPException(status_code=403, detail='invalid_twilio_signature')
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_fields = {
+        'whatsapp_notification.twilio_status': MessageStatus,
+        'whatsapp_notification.last_status_at': now_iso,
+    }
+    if MessageStatus in TERMINAL_DELIVERED_STATUSES:
+        update_fields['whatsapp_notification.delivered_at'] = now_iso
+    if MessageStatus in TERMINAL_READ_STATUSES:
+        update_fields['whatsapp_notification.read_at'] = now_iso
+    if MessageStatus in TERMINAL_FAILURE_STATUSES:
+        update_fields['whatsapp_notification.status'] = 'failed'
+        update_fields['whatsapp_notification.last_error'] = (
+            f"twilio_{ErrorCode}:{ErrorMessage}" if ErrorCode else MessageStatus
+        )
+
+    # Update the matching user doc (match by twilio_sid)
+    await db.users.update_one(
+        {'whatsapp_notification.twilio_sid': MessageSid},
+        {'$set': update_fields},
+    )
+
+    # Log the status event for audit / debugging
+    await db.whatsapp_status_events.insert_one({
+        'id': str(uuid.uuid4()),
+        'twilio_sid': MessageSid,
+        'status': MessageStatus,
+        'error_code': ErrorCode,
+        'error_message': ErrorMessage,
+        'from': From,
+        'to': To,
+        'received_at': now_iso,
+    })
+
+    logger.info('[twilio-webhook] %s → %s', MessageSid, MessageStatus)
+    # Twilio expects 200 with empty body
+    return Response(status_code=200)

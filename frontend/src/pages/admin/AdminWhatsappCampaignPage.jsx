@@ -4,7 +4,8 @@ import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/button';
 import {
     MessageSquare, Send, RefreshCw, Loader2, CheckCircle2, XCircle,
-    AlertTriangle, Phone, Activity, Clock, FlaskConical, Sparkles, Users
+    AlertTriangle, Phone, Activity, Clock, FlaskConical, Sparkles, Users,
+    CheckCheck, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -200,12 +201,14 @@ export const AdminWhatsappCampaignPage = () => {
                 </motion.div>
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                     <KPICard icon={Users}        label="Total con tel."   value={counts.total_legacy_with_phone} accent="#004481" testid="kpi-wa-total" />
                     <KPICard icon={Activity}     label="Pendientes"        value={counts.pending}                 accent="#1973B8" testid="kpi-wa-pending" />
-                    <KPICard icon={CheckCircle2} label="Enviados"          value={counts.sent}                    accent="#10B981" testid="kpi-wa-sent" />
+                    <KPICard icon={Send}         label="Enviados"          value={counts.sent}                    accent="#0EA5E9" testid="kpi-wa-sent" />
+                    <KPICard icon={CheckCheck}   label="Entregados"        value={counts.delivered}               accent="#10B981" testid="kpi-wa-delivered" />
+                    <KPICard icon={Eye}          label="Leídos"            value={counts.read}                    accent="#25D366" testid="kpi-wa-read" />
                     <KPICard icon={XCircle}      label="Fallidos retry"    value={counts.failed_retryable}        accent="#EF4444" testid="kpi-wa-failed" />
-                    <KPICard icon={AlertTriangle} label="Tel. inválido"     value={counts.invalid_phone}           accent="#F59E0B" testid="kpi-wa-invalid" />
+                    <KPICard icon={AlertTriangle} label="Tel. inválido"    value={counts.invalid_phone}           accent="#F59E0B" testid="kpi-wa-invalid" />
                 </div>
 
                 {/* Action panel */}
