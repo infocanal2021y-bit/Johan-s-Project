@@ -52,6 +52,18 @@ export const TRANSLATIONS = {
     'Mercado en Vivo':            { en: 'Live Market',     fr: 'Marché en direct' },
     'Cerrar Sesión':              { en: 'Sign Out',        fr: 'Déconnexion' },
     'Idioma':                     { en: 'Language',        fr: 'Langue' },
+    'Conectando…':                { en: 'Connecting…',     fr: 'Connexion…' },
+    'Conectado':                  { en: 'Online',          fr: 'En ligne' },
+    'Modo demo':                  { en: 'Demo mode',       fr: 'Mode démo' },
+    'Conexión restablecida':      { en: 'Connection restored', fr: 'Connexion rétablie' },
+    'Sin conexión al servidor — algunos datos pueden no estar actualizados': {
+        en: 'No connection to the server — some data may be out of date',
+        fr: 'Pas de connexion au serveur — certaines données peuvent être obsolètes',
+    },
+    'Reintentaremos automáticamente cada 30 segundos.': {
+        en: 'We will retry automatically every 30 seconds.',
+        fr: 'Nous réessayerons automatiquement toutes les 30 secondes.',
+    },
 
     // ── Community / Directory ────────────────────────────────────────────────
     'Lionsbit · Directorio Institucional': {

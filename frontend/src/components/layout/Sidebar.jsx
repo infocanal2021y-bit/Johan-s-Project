@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n/LanguageContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
+import { ConnectionIndicator } from '../ConnectionIndicator';
 import { NotificationBell } from '../NotificationBell';
 import { LevelBadge } from '../dashboard/LevelBadge';
 import { 
@@ -306,6 +307,9 @@ export const Sidebar = () => {
                             Admin
                         </span>
                     )}
+                </div>
+                <div className="mb-2 flex justify-end">
+                    <ConnectionIndicator variant="sidebar" />
                 </div>
                 <div className="mb-2.5">
                     <LanguageSwitcher variant="sidebar" />

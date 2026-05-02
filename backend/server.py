@@ -63,6 +63,17 @@ app.add_middleware(
     max_age=3600,
 )
 
+# Public healthcheck — no auth, no auth side-effects. Used by the frontend
+# `ConnectionIndicator` widget to detect whether the backend is reachable
+# (CORS, downtime, ingress issues) and switch to mock-data fallback.
+@app.get("/api/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "service": "lionsbit-api",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
 @app.on_event("startup")
 async def startup_event():
     await ensure_government_treasury()
