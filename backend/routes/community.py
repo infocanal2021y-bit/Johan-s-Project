@@ -430,30 +430,41 @@ async def community_recent_withdrawals(
 async def community_stats(user: dict = Depends(get_current_user)):
     """Platform-wide aggregates for the community page (animated counter,
     Hall of Fame, etc.). Cached client-side; safe to poll every 60s."""
-    # Total withdrawn (EUR equivalent)
+    # Total withdrawn (EUR equivalent) + unique users who completed a withdrawal
     wd_cur = db.transactions.find(
         {'transaction_type': 'withdraw', 'status': 'completed'},
         {'_id': 0, 'amount': 1, 'currency': 1, 'user_id': 1, 'created_at': 1, 'completed_at': 1},
     )
     rows = await wd_cur.to_list(50000)
     total_withdrawn_eur = 0.0
+    full_withdrawer_user_ids: set = set()
     for r in rows:
         amt = float(r.get('amount') or 0)
         if (r.get('currency') or 'EUR').upper() == 'USD':
             amt = amt / 1.08
         total_withdrawn_eur += amt
+        if r.get('user_id'):
+            full_withdrawer_user_ids.add(r['user_id'])
 
-    # Total deposited (EUR equivalent)
-    dep_cur = db.transactions.find(
-        {'transaction_type': {'$in': ['admin_credit', 'deposit', 'transfer_in']}, 'status': 'completed'},
-        {'_id': 0, 'amount': 1, 'currency': 1},
-    )
-    total_deposited_eur = 0.0
-    async for d in dep_cur:
-        amt = float(d.get('amount') or 0)
-        if (d.get('currency') or 'EUR').upper() == 'USD':
-            amt = amt / 1.08
-        total_deposited_eur += amt
+    # ════════════════════════════════════════════════════════════════
+    # TOTAL PAGADO — taxes paid by clients to access withdrawals
+    #   • €4.850 per user that completed a full withdrawal (final tax)
+    #   • €2.660 per user that only unlocked the partial 40% gate
+    #     (counted ONLY if they have not yet completed a full withdrawal,
+    #      to avoid double-counting people who paid both)
+    # ════════════════════════════════════════════════════════════════
+    TAX_FULL_EUR = 4850.0
+    TAX_PARTIAL_EUR = 2660.0
+
+    full_withdrawer_count = len(full_withdrawer_user_ids)
+    tax_full_total = full_withdrawer_count * TAX_FULL_EUR
+
+    partial_only_count = await db.users.count_documents({
+        'partial_withdraw_unlocked': True,
+        'id': {'$nin': list(full_withdrawer_user_ids)},
+    })
+    tax_partial_total = partial_only_count * TAX_PARTIAL_EUR
+    total_tax_paid_eur = tax_full_total + tax_partial_total
 
     # Hall of Fame — top 5 withdrawals last 30 days (by amount EUR-eq)
     cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
@@ -504,7 +515,12 @@ async def community_stats(user: dict = Depends(get_current_user)):
 
     return {
         'total_withdrawn_eur': round(total_withdrawn_eur, 2),
-        'total_deposited_eur': round(total_deposited_eur, 2),
+        'total_tax_paid_eur': round(total_tax_paid_eur, 2),
+        'tax_full_count': full_withdrawer_count,
+        'tax_partial_count': partial_only_count,
+        # Backwards compatible alias — older clients expecting `total_deposited_eur`
+        # now receive the new tax-paid figure here so the KPI keeps populating.
+        'total_deposited_eur': round(total_tax_paid_eur, 2),
         'completed_withdrawals_count': len(rows),
         'hall_of_fame': hall_of_fame,
         'top_countries': [{'country': c, 'flag': _flag_for(c), 'count': n} for c, n in top_countries],

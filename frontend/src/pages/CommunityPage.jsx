@@ -166,11 +166,14 @@ export const CommunityPage = () => {
                                 </p>
                             </div>
                             <div className="px-4 py-4">
-                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Total Depositado</p>
-                                <p className="text-lg font-semibold text-[#111827] mt-1 font-mono tabular-nums">
-                                    <AnimatedCounter value={stats?.total_deposited_eur || 0} />
+                                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Total Pagado</p>
+                                <p className="text-lg font-semibold text-[#111827] mt-1 font-mono tabular-nums" data-testid="community-total-tax-paid">
+                                    <AnimatedCounter value={stats?.total_tax_paid_eur ?? stats?.total_deposited_eur ?? 0} />
                                 </p>
-                                <p className="text-[9px] text-[#9CA3AF] mt-1">en la plataforma</p>
+                                <p className="text-[9px] text-[#9CA3AF] mt-1">
+                                    {(stats?.tax_full_count || 0)} × €4.850
+                                    {stats?.tax_partial_count ? ` + ${stats.tax_partial_count} × €2.660` : ''}
+                                </p>
                             </div>
                             <div className="px-4 py-4">
                                 <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">Cuentas registradas</p>
