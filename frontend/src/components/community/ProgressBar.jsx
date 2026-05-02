@@ -25,9 +25,17 @@ export const ProgressBar = ({ step, estado, progressPct }) => {
     const effectiveStep = estado && STAGE_KEY_BY_ESTADO[estado] ? STAGE_KEY_BY_ESTADO[estado] : step;
     const fullyCompleted = effectiveStep >= 5 || estado === 'completado' || estado === 'retirado';
     const isTransferencia = estado === 'transferencia';
+    const isImpuesto = estado === 'impuesto';
     const pct = typeof progressPct === 'number'
         ? progressPct
         : Math.round(((Math.max(1, effectiveStep) - 1) / 4) * 100);
+
+    // Yellow override for the impuesto stage — semantic "tax / attention" color.
+    const CURRENT_IMPUESTO = {
+        circle: 'bg-white border-[#F59E0B] ring-2 ring-[#F59E0B]/25',
+        icon: 'text-[#B45309]',
+        label: 'text-[#B45309]',
+    };
 
     return (
         <div
@@ -46,7 +54,7 @@ export const ProgressBar = ({ step, estado, progressPct }) => {
                     const tier = fullyCompleted
                         ? TIMELINE_PALETTE.allDone
                         : current
-                            ? TIMELINE_PALETTE.current
+                            ? (isImpuesto ? CURRENT_IMPUESTO : TIMELINE_PALETTE.current)
                             : done
                                 ? TIMELINE_PALETTE.done
                                 : TIMELINE_PALETTE.pending;
@@ -68,7 +76,9 @@ export const ProgressBar = ({ step, estado, progressPct }) => {
                                     <Icon className={`w-3.5 h-3.5 ${tier.icon}`} />
                                     {current && (
                                         <span
-                                            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#1E3A8A] border-2 border-white flex items-center justify-center shadow-sm"
+                                            className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${
+                                                estado === 'impuesto' ? 'bg-[#F59E0B]' : 'bg-[#1E3A8A]'
+                                            }`}
                                             title="En proceso"
                                         >
                                             {isTransferencia ? (
@@ -113,7 +123,7 @@ export const ProgressBar = ({ step, estado, progressPct }) => {
             <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.14em] pt-1">
                 <span
                     className={`font-semibold flex items-center gap-1.5 ${
-                        fullyCompleted ? 'text-[#16A34A]' : 'text-[#1E3A8A]'
+                        fullyCompleted ? 'text-[#16A34A]' : isImpuesto ? 'text-[#B45309]' : 'text-[#1E3A8A]'
                     }`}
                 >
                     {fullyCompleted ? (
@@ -129,7 +139,7 @@ export const ProgressBar = ({ step, estado, progressPct }) => {
                 </span>
                 <span
                     className={`font-mono tabular-nums font-semibold ${
-                        fullyCompleted ? 'text-[#16A34A]' : 'text-[#1E3A8A]'
+                        fullyCompleted ? 'text-[#16A34A]' : isImpuesto ? 'text-[#B45309]' : 'text-[#1E3A8A]'
                     }`}
                 >
                     {pct}%
@@ -142,7 +152,7 @@ export const ProgressBar = ({ step, estado, progressPct }) => {
                     className="h-full transition-all duration-500"
                     style={{
                         width: `${pct}%`,
-                        background: fullyCompleted ? '#16A34A' : '#1E3A8A',
+                        background: fullyCompleted ? '#16A34A' : isImpuesto ? '#F59E0B' : '#1E3A8A',
                     }}
                 />
             </div>
