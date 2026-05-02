@@ -1,5 +1,8 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import Response, JSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import re
 import os
 import logging
 import uuid
@@ -37,35 +40,104 @@ logger = logging.getLogger(__name__)
 register_routes(api_router)
 app.include_router(api_router)
 
+# =============================================================================
+# CORS — bullet-proof config to survive proxies, ingress quirks, and crashes.
+# =============================================================================
+# Allow-list: paylionsbit.es (+ subdomains) · all Emergent hosts · localhost.
+# We compile a single regex once and reuse it both for the standard
+# CORSMiddleware AND a fail-safe middleware that GUARANTEES headers are
+# attached to EVERY response, including 5xx errors and crashes — so the
+# browser never sees a CORS error masquerading as a real outage.
+# =============================================================================
+CORS_ORIGIN_RE = re.compile(
+    r'^https?://'
+    r'(localhost(:\d+)?|127\.0\.0\.1(:\d+)?'
+    r'|([a-z0-9-]+\.)*paylionsbit\.es'
+    r'|([a-z0-9-]+\.)*emergent\.host'
+    r'|([a-z0-9-]+\.)*emergentagent\.com)$'
+)
+EXTRA_ORIGINS = [
+    o.strip()
+    for o in (os.environ.get('CORS_ORIGINS') or '').split(',')
+    if o.strip() and o.strip() != '*'
+]
+
+
+def _origin_allowed(origin: str) -> bool:
+    if not origin:
+        return False
+    if origin in EXTRA_ORIGINS:
+        return True
+    return bool(CORS_ORIGIN_RE.match(origin))
+
+
+class CORSFailSafeMiddleware(BaseHTTPMiddleware):
+    """Guarantees CORS headers on EVERY response — including 5xx and crashes.
+
+    The standard Starlette CORSMiddleware ONLY attaches headers to successful
+    responses; if a route raises, the browser sees a bare 500 with no CORS
+    header and reports it as "blocked by CORS policy". This middleware wraps
+    every request and explicitly handles:
+      • OPTIONS preflight  → returns 200 with the proper CORS headers
+      • Successful response → injects/overwrites CORS headers
+      • Uncaught exceptions → returns 500 JSON WITH CORS headers attached
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get('origin', '')
+        allowed = _origin_allowed(origin)
+
+        # Preflight — answer immediately so it always succeeds
+        if request.method == 'OPTIONS' and 'access-control-request-method' in request.headers:
+            return self._preflight_response(origin if allowed else '')
+
+        try:
+            response = await call_next(request)
+        except Exception as exc:  # pragma: no cover
+            logger.exception('Unhandled exception during request: %s', exc)
+            response = JSONResponse(
+                status_code=500,
+                content={'detail': 'Internal server error'},
+            )
+
+        if allowed:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Vary'] = 'Origin'
+        return response
+
+    @staticmethod
+    def _preflight_response(origin: str) -> Response:
+        headers = {
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': '*',
+            'Access-Control-Max-Age': '3600',
+            'Vary': 'Origin',
+        }
+        if origin:
+            headers['Access-Control-Allow-Origin'] = origin
+            headers['Access-Control-Allow-Credentials'] = 'true'
+        return Response(status_code=200, headers=headers)
+
+
+# Order matters: Starlette runs middlewares in REVERSE order they're added.
+# Adding the fail-safe last means it runs FIRST on requests and LAST on
+# responses — exactly where we want to guarantee the headers stick.
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    # CORS spec: `*` is incompatible with allow_credentials=True — browsers
-    # reject that combination. We accept only specific origins (regex covers
-    # paylionsbit.es, every Emergent host, and localhost). The CORS_ORIGINS
-    # env var lets ops add explicit origins; literal "*" is filtered out so
-    # legacy values can't reintroduce the broken combination.
-    allow_origins=[
-        o.strip()
-        for o in (os.environ.get('CORS_ORIGINS') or '').split(',')
-        if o.strip() and o.strip() != '*'
-    ],
-    allow_origin_regex=(
-        r'^https?://'
-        r'(localhost(:\d+)?|127\.0\.0\.1(:\d+)?'
-        r'|([a-z0-9-]+\.)*paylionsbit\.es'
-        r'|([a-z0-9-]+\.)*emergent\.host'
-        r'|([a-z0-9-]+\.)*emergentagent\.com)$'
-    ),
+    allow_origins=EXTRA_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_RE.pattern,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,
 )
+app.add_middleware(CORSFailSafeMiddleware)
 
-# Public healthcheck — no auth, no auth side-effects. Used by the frontend
-# `ConnectionIndicator` widget to detect whether the backend is reachable
-# (CORS, downtime, ingress issues) and switch to mock-data fallback.
+# Public healthcheck — no auth, no DB calls, no side-effects. Designed to
+# answer in <5ms even under heavy load so the frontend ConnectionIndicator
+# always gets a fast, reliable signal.
 @app.get("/api/health")
 async def health_check():
     return {
