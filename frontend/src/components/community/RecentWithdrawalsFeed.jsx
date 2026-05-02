@@ -184,11 +184,13 @@ export const RecentWithdrawalsFeed = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tick]);
 
-    // Auto-rotate every ROTATION_INTERVAL_MS
+    // Auto-rotate every ROTATION_INTERVAL_MS — paused while any card is
+    // expanded so the reader keeps full context until they close the detail.
     useEffect(() => {
+        if (expandedId) return undefined;
         const id = setInterval(() => setTick((t) => t + 1), ROTATION_INTERVAL_MS);
         return () => clearInterval(id);
-    }, []);
+    }, [expandedId]);
 
     const toggle = (id) => setExpandedId((cur) => (cur === id ? null : id));
 
@@ -206,12 +208,22 @@ export const RecentWithdrawalsFeed = () => {
                         Retiros verificados
                     </h3>
                 </div>
-                <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: '#16A34A' }}>
+                <div
+                    className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] transition-colors"
+                    style={{ color: expandedId ? '#6B7280' : '#16A34A' }}
+                    data-testid="recent-withdrawals-live-indicator"
+                    data-paused={expandedId ? 'true' : 'false'}
+                >
                     <span className="relative flex w-1.5 h-1.5">
-                        <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: '#16A34A' }} />
-                        <span className="relative w-1.5 h-1.5 rounded-full" style={{ background: '#16A34A' }} />
+                        {!expandedId && (
+                            <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: '#16A34A' }} />
+                        )}
+                        <span
+                            className="relative w-1.5 h-1.5 rounded-full"
+                            style={{ background: expandedId ? '#9CA3AF' : '#16A34A' }}
+                        />
                     </span>
-                    Live · 12s
+                    {expandedId ? 'En pausa' : 'Live · 12s'}
                 </div>
             </div>
             <div className="p-3">
