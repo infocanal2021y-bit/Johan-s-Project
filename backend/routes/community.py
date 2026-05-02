@@ -92,12 +92,32 @@ def _public_first_name(full_name: str) -> str:
     return f"{parts[0]} {parts[-1][0].upper()}."
 
 
-def _compute_account_status_label(user: dict, withdrawals: list) -> str:
+def _compute_account_status_label(user: dict, withdrawals: list, estado: Optional[str] = None) -> str:
     """Map raw doc fields to one of:
       activo | en_revision | retiro_pendiente | completado
+
+    Priority:
+      1. Hard suspensions always read as `en_revision`.
+      2. The canonical `estado_actual` (when supplied) drives the label so the
+         5-stage state machine and the 4 chip filters stay aligned.
+      3. Legacy fallback derived from the latest withdrawal status.
     """
     if user.get('account_status') in ('suspended', 'rejected', 'blocked'):
         return 'en_revision'
+
+    # Canonical state machine takes precedence — keeps chip filters in sync
+    # with the timeline shown on each card.
+    if estado:
+        if estado in ('impuesto', 'revision'):
+            return 'en_revision'
+        if estado == 'transferencia':
+            return 'retiro_pendiente'
+        if estado in ('retirado', 'completado'):
+            return 'completado'
+        if estado == 'verificacion':
+            return 'activo'
+
+    # Legacy fallback — last withdrawal drives it
     if not withdrawals:
         return 'activo'
     last = withdrawals[0]  # already sorted desc
@@ -285,7 +305,7 @@ async def community_members(
             'deposited_eur':       round(deposited, 2),
             'available_balance_eur': round(bal['available'], 2),
             'withdrawn_eur':       round(withdrawn_eur, 2),
-            'account_status':      _compute_account_status_label(u, wds),
+            'account_status':      _compute_account_status_label(u, wds, estado),
             'progress_step':       step,
             'estado_actual':       estado,
             'progress_pct':        progress_pct,
@@ -315,7 +335,10 @@ async def community_members(
     status_counts = {'activo': 0, 'en_revision': 0, 'retiro_pendiente': 0, 'completado': 0}
     for u in users:
         wds = withdrawals_by_user.get(u['id'], [])
-        lbl = _compute_account_status_label(u, wds)
+        has_completed_wd = any((w.get('status') or '').lower() == 'completed' for w in wds)
+        step = _compute_progress_step(u, wds)
+        estado = _compute_estado_actual(u, step, has_completed_wd)
+        lbl = _compute_account_status_label(u, wds, estado)
         status_counts[lbl] = status_counts.get(lbl, 0) + 1
 
     return {
