@@ -17,6 +17,10 @@ export const LanguageProvider = ({ children }) => {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored && isValidLang(stored)) return stored;
+            // First-visit auto-detect from the browser. We pick the first
+            // 2-letter prefix that matches one of our supported codes.
+            const browser = (navigator?.language || navigator?.userLanguage || '').slice(0, 2).toLowerCase();
+            if (isValidLang(browser)) return browser;
         } catch (e) { /* ignore */ }
         return DEFAULT_LANG;
     });
