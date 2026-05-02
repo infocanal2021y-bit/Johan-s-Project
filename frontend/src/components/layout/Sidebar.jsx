@@ -134,7 +134,7 @@ export const Sidebar = () => {
         { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar clientes' },
         { to: '/admin/client-import/analytics', icon: TrendingUp, label: 'Analytics importación' },
         { to: '/admin/reactivation', icon: Mail, label: 'Reactivación · Overview' },
-        { to: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp · Campaña' },
+        { to: '/admin/email-campaign', icon: Mail, label: 'Email · Campaña' },
     ];
 
     const NavLinks = ({ links }) => (

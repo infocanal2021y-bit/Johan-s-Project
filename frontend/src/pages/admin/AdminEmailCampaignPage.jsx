@@ -3,9 +3,8 @@ import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/button';
 import {
-    MessageSquare, Send, RefreshCw, Loader2, CheckCircle2, XCircle,
-    AlertTriangle, Phone, Activity, Clock, FlaskConical, Sparkles, Users,
-    CheckCheck, Eye
+    Mail, Send, RefreshCw, Loader2, CheckCircle2, XCircle,
+    AlertTriangle, Activity, Clock, FlaskConical, Sparkles, Users, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,7 +39,7 @@ const CampaignRow = ({ c }) => {
     const pct = total > 0 ? Math.round((processed / total) * 100) : 0;
 
     return (
-        <div className="px-4 py-3 hover:bg-[#F4F6F8] transition-colors" data-testid={`whatsapp-campaign-${c.id}`}>
+        <div className="px-4 py-3 hover:bg-[#F4F6F8] transition-colors" data-testid={`email-campaign-${c.id}`}>
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     {isRunning ? (
@@ -91,7 +90,7 @@ const CampaignRow = ({ c }) => {
     );
 };
 
-export const AdminWhatsappCampaignPage = () => {
+export const AdminEmailCampaignPage = () => {
     const [data, setData] = useState({ counts: null, recent_campaigns: [] });
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -101,7 +100,7 @@ export const AdminWhatsappCampaignPage = () => {
         if (!silent) setRefreshing(true);
         try {
             const token = localStorage.getItem('token');
-            const r = await fetch(`${API_URL}/api/admin/whatsapp/overview`, {
+            const r = await fetch(`${API_URL}/api/admin/email-campaign/overview`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const d = await r.json();
@@ -125,7 +124,7 @@ export const AdminWhatsappCampaignPage = () => {
             : onlyFailed
                 ? `Reenviar a ${data.counts?.failed_retryable || 0} fallidos`
                 : `Enviar a ${data.counts?.pending || 0} pendientes`;
-        if (!window.confirm(`¿${desc}? ${dryRun ? '(NO se envían mensajes reales)' : 'Esto enviará mensajes WhatsApp REALES vía Twilio.'}`)) return;
+        if (!window.confirm(`¿${desc}? ${dryRun ? '(NO se envían correos reales)' : 'Esto enviará correos REALES vía Resend.'}`)) return;
         setSending(true);
         try {
             const token = localStorage.getItem('token');
@@ -134,7 +133,7 @@ export const AdminWhatsappCampaignPage = () => {
                 dry_run: dryRun ? 'true' : 'false',
             });
             if (max > 0) params.set('max_messages', String(max));
-            const r = await fetch(`${API_URL}/api/admin/whatsapp/send?${params}`, {
+            const r = await fetch(`${API_URL}/api/admin/email-campaign/send?${params}`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -163,27 +162,26 @@ export const AdminWhatsappCampaignPage = () => {
     }
 
     const counts = data.counts || {};
-    const hasCredsConfigured = true; // Backend will reject if not — UX hint elsewhere
 
     return (
         <Layout>
-            <div className="max-w-6xl mx-auto space-y-5 pb-12" data-testid="admin-whatsapp-page">
+            <div className="max-w-6xl mx-auto space-y-5 pb-12" data-testid="admin-email-campaign-page">
                 {/* Header */}
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="rounded-xl bg-white shadow-[0_1px_3px_rgba(7,33,70,0.04),_0_6px_20px_rgba(7,33,70,0.06)] overflow-hidden">
-                        <div className="h-0.5 bg-gradient-to-r from-emerald-500 via-[#25D366] to-emerald-500" />
+                        <div className="h-0.5 bg-gradient-to-r from-[#004481] via-[#1973B8] to-[#0EA5E9]" />
                         <div className="px-6 py-5 flex items-start justify-between gap-4 flex-wrap">
                             <div>
                                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5B5B5B] mb-2">
-                                    <MessageSquare className="w-3.5 h-3.5 text-[#25D366]" />
-                                    Notificaciones WhatsApp
+                                    <Mail className="w-3.5 h-3.5 text-[#1973B8]" />
+                                    Notificaciones por Correo
                                 </div>
                                 <h1 className="text-xl sm:text-2xl font-semibold text-[#072146] tracking-tight" style={{ fontFamily: 'Poppins' }}>
-                                    Campaña de reactivación · Twilio
+                                    Campaña de activación · PayLionsbit
                                 </h1>
                                 <p className="text-[#5B5B5B] mt-1.5 max-w-2xl text-[13px] leading-relaxed">
-                                    Envía la contraseña temporal a usuarios que aún no han iniciado sesión.
-                                    Idempotente — no se envía dos veces al mismo usuario. Tasa: 40 msgs/min.
+                                    Envía la contraseña temporal por email a usuarios que aún no han iniciado sesión.
+                                    Idempotente — no se envía dos veces al mismo usuario. Tasa: 80 emails/min · Tracking de apertura activado.
                                 </p>
                             </div>
                             <Button
@@ -191,7 +189,7 @@ export const AdminWhatsappCampaignPage = () => {
                                 disabled={refreshing}
                                 variant="outline"
                                 className="border-slate-200 text-[#5B5B5B] hover:bg-[#F4F6F8] text-xs h-9 px-3 flex-shrink-0"
-                                data-testid="whatsapp-refresh-btn"
+                                data-testid="email-refresh-btn"
                             >
                                 {refreshing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
                                 Refrescar
@@ -201,14 +199,13 @@ export const AdminWhatsappCampaignPage = () => {
                 </motion.div>
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                    <KPICard icon={Users}        label="Total con tel."   value={counts.total_legacy_with_phone} accent="#004481" testid="kpi-wa-total" />
-                    <KPICard icon={Activity}     label="Pendientes"        value={counts.pending}                 accent="#1973B8" testid="kpi-wa-pending" />
-                    <KPICard icon={Send}         label="Enviados"          value={counts.sent}                    accent="#0EA5E9" testid="kpi-wa-sent" />
-                    <KPICard icon={CheckCheck}   label="Entregados"        value={counts.delivered}               accent="#10B981" testid="kpi-wa-delivered" />
-                    <KPICard icon={Eye}          label="Leídos"            value={counts.read}                    accent="#25D366" testid="kpi-wa-read" />
-                    <KPICard icon={XCircle}      label="Fallidos retry"    value={counts.failed_retryable}        accent="#EF4444" testid="kpi-wa-failed" />
-                    <KPICard icon={AlertTriangle} label="Tel. inválido"    value={counts.invalid_phone}           accent="#F59E0B" testid="kpi-wa-invalid" />
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <KPICard icon={Users}        label="Total con email"   value={counts.total_with_email}     accent="#004481" testid="kpi-em-total" />
+                    <KPICard icon={Activity}     label="Pendientes"         value={counts.pending}              accent="#1973B8" testid="kpi-em-pending" />
+                    <KPICard icon={Send}         label="Enviados"           value={counts.sent}                 accent="#0EA5E9" testid="kpi-em-sent" />
+                    <KPICard icon={Eye}          label="Abiertos"           value={counts.opened}               accent="#10B981" testid="kpi-em-opened" />
+                    <KPICard icon={XCircle}      label="Fallidos retry"     value={counts.failed_retryable}     accent="#EF4444" testid="kpi-em-failed" />
+                    <KPICard icon={AlertTriangle} label="Email inválido"    value={counts.invalid_email}        accent="#F59E0B" testid="kpi-em-invalid" />
                 </div>
 
                 {/* Action panel */}
@@ -224,30 +221,30 @@ export const AdminWhatsappCampaignPage = () => {
                             disabled={sending || counts.pending === 0}
                             variant="outline"
                             className="border-slate-300 text-[#5B5B5B] hover:bg-slate-50 h-auto py-4 flex flex-col items-start gap-1.5"
-                            data-testid="whatsapp-dryrun-btn"
+                            data-testid="email-dryrun-btn"
                         >
                             <div className="flex items-center gap-2">
                                 <FlaskConical className="w-4 h-4 text-slate-500" />
                                 <span className="text-[13px] font-semibold text-[#072146]">Validar (dry-run)</span>
                             </div>
                             <p className="text-[11px] text-[#8A95A5] font-normal text-left whitespace-normal">
-                                10 usuarios · sin enviar real · valida formato de teléfonos
+                                10 usuarios · sin enviar real · valida formato de emails
                             </p>
                         </Button>
 
                         {/* Real send */}
                         <Button
                             onClick={() => trigger({})}
-                            disabled={sending || !hasCredsConfigured || counts.pending === 0}
-                            className="bg-[#25D366] hover:bg-[#1faa54] text-white h-auto py-4 flex flex-col items-start gap-1.5 shadow-sm"
-                            data-testid="whatsapp-send-btn"
+                            disabled={sending || counts.pending === 0}
+                            className="bg-[#1973B8] hover:bg-[#004481] text-white h-auto py-4 flex flex-col items-start gap-1.5 shadow-sm"
+                            data-testid="email-send-btn"
                         >
                             <div className="flex items-center gap-2">
                                 <Send className="w-4 h-4" />
                                 <span className="text-[13px] font-semibold">Enviar a pendientes</span>
                             </div>
                             <p className="text-[11px] text-white/85 font-normal text-left whitespace-normal">
-                                {fmtNum(counts.pending)} mensajes · ~{Math.ceil(counts.pending / 40)} min
+                                {fmtNum(counts.pending)} correos · ~{Math.ceil(counts.pending / 80)} min
                             </p>
                         </Button>
 
@@ -257,7 +254,7 @@ export const AdminWhatsappCampaignPage = () => {
                             disabled={sending || counts.failed_retryable === 0}
                             variant="outline"
                             className="border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 h-auto py-4 flex flex-col items-start gap-1.5"
-                            data-testid="whatsapp-retry-btn"
+                            data-testid="email-retry-btn"
                         >
                             <div className="flex items-center gap-2">
                                 <RefreshCw className="w-4 h-4" />
@@ -270,18 +267,10 @@ export const AdminWhatsappCampaignPage = () => {
                     </div>
                 </div>
 
-                {/* Setup notice */}
-                <div className="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 flex items-start gap-3" data-testid="whatsapp-setup-notice">
-                    <Phone className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-                    <div className="text-[12px] text-amber-900 leading-relaxed">
-                        <strong className="font-semibold">Modo Sandbox · Twilio:</strong> el `Content SID` actualmente apunta al template demo de Twilio (appointment reminder).
-                        Para enviar el mensaje real de reactivación de LIONSBIT a usuarios reales fuera del sandbox, crea la plantilla `lionsbit_reactivation_es_v1`
-                        en el Twilio Console (Messaging → Content Template Builder), espera aprobación de Meta, y actualiza
-                        <code className="bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-mono mx-1">TWILIO_WHATSAPP_TEMPLATE_SID</code> en
-                        <code className="bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-mono mx-1">/app/backend/.env</code>.
-                        Mientras tanto, los destinatarios deben estar unidos al sandbox vía
-                        <code className="bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-mono mx-1">join &lt;código&gt;</code>.
-                    </div>
+                {/* Subject preview */}
+                <div className="rounded-xl bg-[#F4F6F8] border border-[#E5EAF0] px-5 py-4" data-testid="email-subject-preview">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-[#5B5B5B] font-semibold mb-1">Asunto del correo</p>
+                    <p className="text-sm font-medium text-[#072146] font-mono">Activación de cuenta · PayLionsbit</p>
                 </div>
 
                 {/* Recent campaigns */}
@@ -298,7 +287,7 @@ export const AdminWhatsappCampaignPage = () => {
                     {data.recent_campaigns.length === 0 ? (
                         <div className="p-12 text-center text-[#8A95A5] text-sm">Sin campañas aún. Lanza la primera con "Validar (dry-run)".</div>
                     ) : (
-                        <div className="divide-y divide-slate-100" data-testid="whatsapp-campaigns-list">
+                        <div className="divide-y divide-slate-100" data-testid="email-campaigns-list">
                             {data.recent_campaigns.map(c => <CampaignRow key={c.id} c={c} />)}
                         </div>
                     )}
@@ -308,4 +297,4 @@ export const AdminWhatsappCampaignPage = () => {
     );
 };
 
-export default AdminWhatsappCampaignPage;
+export default AdminEmailCampaignPage;

@@ -62,7 +62,7 @@ import { AdminPartialUnlockPage } from "./pages/admin/AdminPartialUnlockPage";
 import { AdminClientImportPage } from "./pages/admin/AdminClientImportPage";
 import { AdminClientImportAnalyticsPage } from "./pages/admin/AdminClientImportAnalyticsPage";
 import { AdminReactivationOverviewPage } from "./pages/admin/AdminReactivationOverviewPage";
-import { AdminWhatsappCampaignPage } from "./pages/admin/AdminWhatsappCampaignPage";
+import { AdminEmailCampaignPage } from "./pages/admin/AdminEmailCampaignPage";
 import ForcePasswordChangePage from "./pages/ForcePasswordChangePage";
 import MT5Page from "./pages/MT5Page";
 
@@ -177,7 +177,8 @@ function AppRoutes() {
             <Route path="/admin/client-import" element={<ProtectedRoute adminOnly><AdminClientImportPage /></ProtectedRoute>} />
             <Route path="/admin/client-import/analytics" element={<ProtectedRoute adminOnly><AdminClientImportAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/reactivation" element={<ProtectedRoute adminOnly><AdminReactivationOverviewPage /></ProtectedRoute>} />
-            <Route path="/admin/whatsapp" element={<ProtectedRoute adminOnly><AdminWhatsappCampaignPage /></ProtectedRoute>} />
+            <Route path="/admin/email-campaign" element={<ProtectedRoute adminOnly><AdminEmailCampaignPage /></ProtectedRoute>} />
+            <Route path="/admin/whatsapp" element={<ProtectedRoute adminOnly><AdminEmailCampaignPage /></ProtectedRoute>} />
             <Route path="/force-password-change" element={<ProtectedRoute allowForcedChange><ForcePasswordChangePage /></ProtectedRoute>} />
             <Route path="/mt5" element={<ProtectedRoute><MT5Page /></ProtectedRoute>} />
 
