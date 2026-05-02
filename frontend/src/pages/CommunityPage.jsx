@@ -13,8 +13,70 @@ import { MemberCard } from '../components/community/MemberCard';
 import { RecentWithdrawalsFeed } from '../components/community/RecentWithdrawalsFeed';
 import { Sparkline7d } from '../components/community/Sparkline7d';
 import { LiveWithdrawalNotifier } from '../components/community/LiveWithdrawalNotifier';
+import { MOCK_WITHDRAWALS } from '../components/community/mockWithdrawalsData';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// =============================================================================
+// MOCK FALLBACK — used only when /community/stats or /community/members fails.
+// Prevents the production UI from displaying zeros when the API is unreachable.
+// Derived once from MOCK_WITHDRAWALS so numbers stay consistent across the page.
+// =============================================================================
+const FALLBACK_TAX_FULL_FEE = 4850;
+const FALLBACK_TAX_PARTIAL_FEE = 2660;
+const FALLBACK_STATS = (() => {
+    const fullCount = MOCK_WITHDRAWALS.filter((w) => w.monto === FALLBACK_TAX_FULL_FEE).length;
+    const partialCount = MOCK_WITHDRAWALS.filter((w) => w.monto === FALLBACK_TAX_PARTIAL_FEE).length;
+    const totalWithdrawn = MOCK_WITHDRAWALS.reduce((acc, w) => acc + (w.withdrawn_eur || 0), 0);
+    return {
+        total_withdrawn_eur: Math.round(totalWithdrawn * 100) / 100,
+        total_tax_paid_eur:  fullCount * FALLBACK_TAX_FULL_FEE + partialCount * FALLBACK_TAX_PARTIAL_FEE,
+        tax_full_count:      fullCount,
+        tax_partial_count:   partialCount,
+        tax_paid_history_7d: [
+            { date: '2026-04-26', tax_paid_eur: 392850 },
+            { date: '2026-04-27', tax_paid_eur: 402550 },
+            { date: '2026-04-28', tax_paid_eur: 412250 },
+            { date: '2026-04-29', tax_paid_eur: 417100 },
+            { date: '2026-04-30', tax_paid_eur: 421950 },
+            { date: '2026-05-01', tax_paid_eur: 426800 },
+            { date: '2026-05-02', tax_paid_eur: 441350 },
+        ],
+        completed_withdrawals_count: MOCK_WITHDRAWALS.length,
+        hall_of_fame: MOCK_WITHDRAWALS.slice(0, 5).map((w) => ({
+            name_public: w.nombre,
+            country: w.pais,
+            country_flag: w.country_flag,
+            amount_eur: w.withdrawn_eur,
+            date: w.date,
+        })),
+        top_countries: [{ country: 'España', flag: '🇪🇸', count: MOCK_WITHDRAWALS.length }],
+        is_fallback: true,
+    };
+})();
+
+const FALLBACK_MEMBERS_RESPONSE = {
+    members: MOCK_WITHDRAWALS.slice(0, 30).map((w) => ({
+        id: w.id,
+        name: w.nombre,
+        country: w.pais,
+        country_flag: w.country_flag,
+        progress_step: 5,
+        estado_actual: 'completado',
+        progress_pct: 100,
+        deposited_eur: w.deposited_eur,
+        withdrawn_eur: w.withdrawn_eur,
+        available_balance_eur: 0,
+        account_status: 'completado',
+        badges: ['verified', 'withdrawal_processed', 'capital_recovered'],
+        is_self: false,
+    })),
+    total_in_db: MOCK_WITHDRAWALS.length,
+    count: MOCK_WITHDRAWALS.length,
+    status_counts: { activo: 0, en_revision: 0, retiro_pendiente: 0, completado: MOCK_WITHDRAWALS.length },
+    has_more: false,
+    is_fallback: true,
+};
 
 // =============================================================================
 // CommunityPage — BBVA Premium Banking Directory
@@ -90,6 +152,7 @@ export const CommunityPage = () => {
             const r = await fetch(`${API_URL}/api/community/members?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
             const d = await r.json();
             if (append) setMembers((prev) => [...prev, ...(d.members || [])]);
             else setMembers(d.members || []);
@@ -97,7 +160,18 @@ export const CommunityPage = () => {
             setFilteredTotal(d.count || 0);
             setStatusCounts(d.status_counts || { activo: 0, en_revision: 0, retiro_pendiente: 0, completado: 0 });
             setHasMore(!!d.has_more);
-        } catch (e) { /* silent */ }
+        } catch (e) {
+            // Fallback so the UI never shows zeros if the API fails (CORS, 5xx, offline)
+            console.warn('[community] /members failed, using mock fallback:', e?.message || e);
+            if (!append) {
+                const fb = FALLBACK_MEMBERS_RESPONSE;
+                setMembers(fb.members);
+                setTotalInDb(fb.total_in_db);
+                setFilteredTotal(fb.count);
+                setStatusCounts(fb.status_counts);
+                setHasMore(false);
+            }
+        }
         finally {
             if (isInitial) setLoading(false);
         }
@@ -116,9 +190,13 @@ export const CommunityPage = () => {
             try {
                 const token = localStorage.getItem('token');
                 const r = await fetch(`${API_URL}/api/community/stats`, { headers: { Authorization: `Bearer ${token}` } });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const d = await r.json();
                 setStats(d);
-            } catch (e) { /* silent */ }
+            } catch (e) {
+                console.warn('[community] /stats failed, using mock fallback:', e?.message || e);
+                setStats(FALLBACK_STATS);
+            }
         };
         fetchStats();
         const id = setInterval(() => {

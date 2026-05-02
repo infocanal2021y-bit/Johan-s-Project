@@ -40,9 +40,27 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
+    # CORS spec: `*` is incompatible with allow_credentials=True — browsers
+    # reject that combination. We accept only specific origins (regex covers
+    # paylionsbit.es, every Emergent host, and localhost). The CORS_ORIGINS
+    # env var lets ops add explicit origins; literal "*" is filtered out so
+    # legacy values can't reintroduce the broken combination.
+    allow_origins=[
+        o.strip()
+        for o in (os.environ.get('CORS_ORIGINS') or '').split(',')
+        if o.strip() and o.strip() != '*'
+    ],
+    allow_origin_regex=(
+        r'^https?://'
+        r'(localhost(:\d+)?|127\.0\.0\.1(:\d+)?'
+        r'|([a-z0-9-]+\.)*paylionsbit\.es'
+        r'|([a-z0-9-]+\.)*emergent\.host'
+        r'|([a-z0-9-]+\.)*emergentagent\.com)$'
+    ),
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 @app.on_event("startup")
