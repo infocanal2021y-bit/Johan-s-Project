@@ -54,10 +54,14 @@ export const ConnectionIndicator = ({ variant = 'sidebar' }) => {
                 && offlineToastIdRef.current == null
             ) {
                 offlineToastIdRef.current = toast.warning(
-                    t('Sin conexión al servidor — algunos datos pueden no estar actualizados'),
+                    t('Modo demo activado'),
                     {
                         duration: Infinity,
-                        description: t('Reintentaremos automáticamente cada 30 segundos.'),
+                        description: t('Mostrando datos de ejemplo. El servidor no responde, reintentando cada 30 s.'),
+                        action: {
+                            label: t('Reintentar ahora'),
+                            onClick: () => ping(),
+                        },
                     },
                 );
             }

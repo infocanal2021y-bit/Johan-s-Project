@@ -56,14 +56,12 @@ export const TRANSLATIONS = {
     'Conectado':                  { en: 'Online',          fr: 'En ligne' },
     'Modo demo':                  { en: 'Demo mode',       fr: 'Mode démo' },
     'Conexión restablecida':      { en: 'Connection restored', fr: 'Connexion rétablie' },
-    'Sin conexión al servidor — algunos datos pueden no estar actualizados': {
-        en: 'No connection to the server — some data may be out of date',
-        fr: 'Pas de connexion au serveur — certaines données peuvent être obsolètes',
+    'Modo demo activado':         { en: 'Demo mode active',  fr: 'Mode démo activé' },
+    'Mostrando datos de ejemplo. El servidor no responde, reintentando cada 30 s.': {
+        en: 'Showing sample data. Server is not responding, retrying every 30s.',
+        fr: 'Affichage de données d\'exemple. Le serveur ne répond pas, nouvelle tentative toutes les 30 s.',
     },
-    'Reintentaremos automáticamente cada 30 segundos.': {
-        en: 'We will retry automatically every 30 seconds.',
-        fr: 'Nous réessayerons automatiquement toutes les 30 secondes.',
-    },
+    'Reintentar ahora':           { en: 'Retry now',         fr: 'Réessayer maintenant' },
 
     // ── Community / Directory ────────────────────────────────────────────────
     'Lionsbit · Directorio Institucional': {
