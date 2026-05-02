@@ -7,6 +7,7 @@ import { OdometerValue } from '../components/dashboard/OdometerValue';
 import { TransactionChart } from '../components/dashboard/TransactionChart';
 import { UserLevelCard } from '../components/dashboard/UserLevelCard';
 import { MT5SummaryWidget } from '../components/dashboard/MT5SummaryWidget';
+import { WithdrawTypeSuggestionWidget } from '../components/dashboard/WithdrawTypeSuggestionWidget';
 import { accountsAPI, transactionsAPI, kycAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -268,6 +269,9 @@ export const DashboardPage = () => {
                 {/* Status Banners */}
                 {getAccountStatusBanner()}
                 {getKYCBanner()}
+
+                {/* Dashboard next-action nudge — verified users who haven't picked a modality yet */}
+                <WithdrawTypeSuggestionWidget user={kycStatus} />
 
                 {/* LIONSBIT 2.0 Welcome Card */}
                 <AnimatePresence>
