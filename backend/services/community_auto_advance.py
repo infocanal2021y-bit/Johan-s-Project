@@ -28,7 +28,15 @@ from config import db
 logger = logging.getLogger(__name__)
 
 DAILY_AUTO_ADVANCE_COUNT = 2
-DEMO_POOL_BATCH = 'community_in_process_v1'
+# Two demo pools rotate together so the daily promotions draw from any
+# in-process user (steps 1-4) regardless of which batch seeded them.
+#   • community_in_process_v1 → original 35 Spaniards seeded in steps 1-4
+#   • community_impuesto_v1   → 70 named profiles parked at step 2 (Impuesto)
+# Adding more batches here will automatically include them in the rotation.
+DEMO_POOL_BATCHES = [
+    'community_in_process_v1',
+    'community_impuesto_v1',
+]
 
 
 def _today_key() -> str:
@@ -42,10 +50,10 @@ async def _pick_candidates(limit: int) -> list:
     cur = db.users.find(
         {
             'is_demo': True,
-            'demo_seed_batch': DEMO_POOL_BATCH,
+            'demo_seed_batch': {'$in': DEMO_POOL_BATCHES},
             'community_step_override': {'$gte': 1, '$lte': 4},
         },
-        {'_id': 0, 'id': 1, 'name': 1, 'country_flag': 1, 'community_step_override': 1},
+        {'_id': 0, 'id': 1, 'name': 1, 'country_flag': 1, 'community_step_override': 1, 'demo_seed_batch': 1},
     ).sort('community_step_override', -1).limit(limit * 4)
     return await cur.to_list(limit * 4)
 
@@ -195,21 +203,39 @@ async def get_recent_runs(limit: int = 30) -> list:
 
 
 async def get_pool_status() -> dict:
-    """Return current pool size + remaining in-process candidates."""
-    total_in_pool = await db.users.count_documents({
+    """Return current pool size + remaining in-process candidates across
+    every demo batch registered in DEMO_POOL_BATCHES."""
+    base_filter = {
         'is_demo': True,
-        'demo_seed_batch': DEMO_POOL_BATCH,
-    })
+        'demo_seed_batch': {'$in': DEMO_POOL_BATCHES},
+    }
+    total_in_pool = await db.users.count_documents(base_filter)
     remaining = await db.users.count_documents({
-        'is_demo': True,
-        'demo_seed_batch': DEMO_POOL_BATCH,
+        **base_filter,
         'community_step_override': {'$gte': 1, '$lte': 4},
     })
     completed = await db.users.count_documents({
-        'is_demo': True,
-        'demo_seed_batch': DEMO_POOL_BATCH,
+        **base_filter,
         'community_step_override': 5,
     })
+
+    # Per-batch breakdown so the admin panel can show contribution per pool
+    by_batch = {}
+    for batch in DEMO_POOL_BATCHES:
+        by_batch[batch] = {
+            'total':     await db.users.count_documents({'is_demo': True, 'demo_seed_batch': batch}),
+            'remaining': await db.users.count_documents({
+                'is_demo': True,
+                'demo_seed_batch': batch,
+                'community_step_override': {'$gte': 1, '$lte': 4},
+            }),
+            'completed': await db.users.count_documents({
+                'is_demo': True,
+                'demo_seed_batch': batch,
+                'community_step_override': 5,
+            }),
+        }
+
     days_remaining = (
         (remaining + DAILY_AUTO_ADVANCE_COUNT - 1) // DAILY_AUTO_ADVANCE_COUNT
         if remaining > 0 else 0
@@ -220,4 +246,6 @@ async def get_pool_status() -> dict:
         'completed_so_far': completed,
         'daily_count': DAILY_AUTO_ADVANCE_COUNT,
         'days_remaining': days_remaining,
+        'by_batch': by_batch,
+        'batches': DEMO_POOL_BATCHES,
     }
