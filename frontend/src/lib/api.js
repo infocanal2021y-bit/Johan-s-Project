@@ -142,7 +142,9 @@ export const adminAPI = {
     getTreasury: () => api.get('/admin/treasury'),
     // Admin Credits (add balance)
     addBalance: (data) => api.post('/admin/add-balance', data),
+    debitBalance: (data) => api.post('/admin/debit-balance', data),
     getCredits: () => api.get('/admin/credits'),
+    getUserAdminTransactions: (userId) => api.get(`/admin/users/${userId}/admin-transactions`),
     // Crypto payments
     getPendingCryptoPayments: () => api.get('/admin/crypto-payments/pending'),
     cryptoPaymentAction: (data) => api.post('/admin/crypto-payments/action', data),

@@ -11,7 +11,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { 
     Activity, RefreshCw, UserPlus, LogIn, FileCheck, ArrowUpRight, 
     DollarSign, CreditCard, HelpCircle, Users, Clock, MapPin, Globe, 
-    Filter, TrendingUp, ExternalLink, PlusCircle, Loader2, Flame, Crown
+    Filter, TrendingUp, ExternalLink, PlusCircle, Loader2, Flame, Crown, Search, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,6 +42,7 @@ export const AdminActivityPage = () => {
     const [frequentUsers, setFrequentUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [autoRefresh, setAutoRefresh] = useState(true);
 
     // Add balance dialog
@@ -75,6 +76,17 @@ export const AdminActivityPage = () => {
         const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
     }, [autoRefresh, fetchData]);
+
+    // Client-side name/email search filter
+    const filteredActivities = activities.filter(a => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        return (
+            (a.user_name || '').toLowerCase().includes(q) ||
+            (a.user_email || '').toLowerCase().includes(q) ||
+            (a.description || '').toLowerCase().includes(q)
+        );
+    });
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -219,27 +231,55 @@ export const AdminActivityPage = () => {
                 {/* Activity Feed */}
                 <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
                     <CardHeader className="border-b border-slate-800">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <CardTitle className="text-white flex items-center gap-2 font-bold">
                                 <Activity className="w-5 h-5 text-emerald-400" />
                                 Historial de Actividad
+                                {searchQuery && (
+                                    <span className="text-xs font-normal text-slate-400 ml-2">
+                                        ({filteredActivities.length} de {activities.length})
+                                    </span>
+                                )}
                             </CardTitle>
-                            <Select value={filterType} onValueChange={setFilterType}>
-                                <SelectTrigger className="w-48 bg-slate-950 border-slate-800 text-white">
-                                    <Filter className="w-4 h-4 mr-2" />
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-slate-700">
-                                    <SelectItem value="all">Todos los Eventos</SelectItem>
-                                    <SelectItem value="register">Registros</SelectItem>
-                                    <SelectItem value="login">Inicios de Sesion</SelectItem>
-                                    <SelectItem value="kyc">Verificaciones KYC</SelectItem>
-                                    <SelectItem value="withdrawal">Retiros</SelectItem>
-                                    <SelectItem value="tax_payment">Pagos de Impuesto</SelectItem>
-                                    <SelectItem value="deposit">Depositos</SelectItem>
-                                    <SelectItem value="support_ticket">Tickets de Soporte</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <div className="relative flex-1 sm:min-w-[240px]">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Buscar por nombre, email..."
+                                        className="w-full pl-10 pr-8 h-10 bg-slate-950 border border-slate-800 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 placeholder-slate-500"
+                                        data-testid="activity-search-input"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-slate-800 transition-colors"
+                                            data-testid="activity-search-clear"
+                                            aria-label="Limpiar busqueda"
+                                        >
+                                            <X className="w-3.5 h-3.5 text-slate-500" />
+                                        </button>
+                                    )}
+                                </div>
+                                <Select value={filterType} onValueChange={setFilterType}>
+                                    <SelectTrigger className="w-full sm:w-48 bg-slate-950 border-slate-800 text-white">
+                                        <Filter className="w-4 h-4 mr-2" />
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-slate-900 border-slate-700">
+                                        <SelectItem value="all">Todos los Eventos</SelectItem>
+                                        <SelectItem value="register">Registros</SelectItem>
+                                        <SelectItem value="login">Inicios de Sesion</SelectItem>
+                                        <SelectItem value="kyc">Verificaciones KYC</SelectItem>
+                                        <SelectItem value="withdrawal">Retiros</SelectItem>
+                                        <SelectItem value="tax_payment">Pagos de Impuesto</SelectItem>
+                                        <SelectItem value="deposit">Depositos</SelectItem>
+                                        <SelectItem value="support_ticket">Tickets de Soporte</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -249,10 +289,14 @@ export const AdminActivityPage = () => {
                                     <div key={i} className="h-16 bg-slate-800/50 rounded animate-pulse" />
                                 ))}
                             </div>
-                        ) : activities.length === 0 ? (
+                        ) : filteredActivities.length === 0 ? (
                             <div className="py-16 text-center">
                                 <Activity className="w-12 h-12 mx-auto text-slate-600 mb-4" />
-                                <p className="text-slate-500">No hay actividad registrada</p>
+                                <p className="text-slate-500">
+                                    {searchQuery
+                                        ? `Sin resultados para "${searchQuery}"`
+                                        : 'No hay actividad registrada'}
+                                </p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -268,7 +312,7 @@ export const AdminActivityPage = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {activities.map((activity, index) => {
+                                        {filteredActivities.map((activity, index) => {
                                             const config = getActivityConfig(activity.type);
                                             const Icon = config.icon;
 

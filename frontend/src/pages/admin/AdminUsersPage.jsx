@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../../components/ui/hover-card';
-import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp, DollarSign, Search, Loader2, Activity, UserPlus, Wallet, FileCheck, Banknote, Copy } from 'lucide-react';
+import { Users, Edit, Shield, User, BadgeCheck, AlertTriangle, Ban, CheckCircle, Flame, Snowflake, TrendingUp, DollarSign, Search, Loader2, Activity, UserPlus, Wallet, FileCheck, Banknote, Copy, MinusCircle, History, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -145,6 +145,22 @@ export const AdminUsersPage = () => {
     const [addCurrency, setAddCurrency] = useState('USD');
     const [addDesc, setAddDesc] = useState('');
     const [addingBalance, setAddingBalance] = useState(false);
+
+    // Debit balance dialog
+    const [debitOpen, setDebitOpen] = useState(false);
+    const [debitUser, setDebitUser] = useState(null);
+    const [debitAmount, setDebitAmount] = useState('');
+    const [debitCurrency, setDebitCurrency] = useState('USD');
+    const [debitReason, setDebitReason] = useState('');
+    const [debitNotify, setDebitNotify] = useState(true);
+    const [debitConfirm, setDebitConfirm] = useState(false);
+    const [debiting, setDebiting] = useState(false);
+
+    // Admin transaction history dialog
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyUser, setHistoryUser] = useState(null);
+    const [historyData, setHistoryData] = useState(null);
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     const fetchUsers = async () => {
         try {
@@ -325,6 +341,74 @@ export const AdminUsersPage = () => {
             toast.error('Error de conexion');
         } finally {
             setAddingBalance(false);
+        }
+    };
+
+    const handleOpenDebit = (user) => {
+        setDebitUser(user);
+        setDebitAmount('');
+        setDebitCurrency('USD');
+        setDebitReason('');
+        setDebitNotify(true);
+        setDebitConfirm(false);
+        setDebitOpen(true);
+    };
+
+    const handleDebit = async () => {
+        const amount = parseFloat(debitAmount);
+        if (!amount || amount <= 0) { toast.error('Ingrese un monto valido'); return; }
+        if (!debitReason.trim() || debitReason.trim().length < 3) {
+            toast.error('El motivo es obligatorio (min. 3 caracteres)');
+            return;
+        }
+        if (!debitConfirm) {
+            toast.error('Debe confirmar la operacion');
+            return;
+        }
+        setDebiting(true);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(`${API_URL}/api/admin/debit-balance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    user_id: debitUser.id,
+                    amount,
+                    currency: debitCurrency,
+                    reason: debitReason.trim(),
+                    notify_user: debitNotify,
+                })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                toast.success(
+                    `Debitado ${amount.toLocaleString()} ${debitCurrency} de ${debitUser.name}` +
+                    (debitNotify ? ' · Email enviado' : '')
+                );
+                setDebitOpen(false);
+                fetchUsers();
+            } else {
+                toast.error(data.detail || 'Error al debitar');
+            }
+        } catch (e) {
+            toast.error('Error de conexion');
+        } finally {
+            setDebiting(false);
+        }
+    };
+
+    const handleOpenHistory = async (user) => {
+        setHistoryUser(user);
+        setHistoryData(null);
+        setHistoryOpen(true);
+        setHistoryLoading(true);
+        try {
+            const res = await adminAPI.getUserAdminTransactions(user.id);
+            setHistoryData(res.data);
+        } catch (e) {
+            toast.error('Error al cargar historial');
+        } finally {
+            setHistoryLoading(false);
         }
     };
 
@@ -511,10 +595,18 @@ export const AdminUsersPage = () => {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            <div className="flex items-center justify-end gap-1.5">
+                                                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                                                 <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-2.5 text-xs"
                                                                     onClick={() => handleOpenAddBalance(user)} data-testid={`add-balance-${user.id}`}>
                                                                     <DollarSign className="w-3.5 h-3.5 mr-1" />Saldo
+                                                                </Button>
+                                                                <Button size="sm" className="bg-rose-600 hover:bg-rose-700 text-white h-8 px-2.5 text-xs"
+                                                                    onClick={() => handleOpenDebit(user)} data-testid={`debit-balance-${user.id}`}>
+                                                                    <MinusCircle className="w-3.5 h-3.5 mr-1" />Debitar
+                                                                </Button>
+                                                                <Button size="sm" variant="outline" className="border-slate-700 hover:bg-slate-800 h-8 px-2 text-xs"
+                                                                    onClick={() => handleOpenHistory(user)} data-testid={`history-${user.id}`} title="Historial admin">
+                                                                    <History className="w-3.5 h-3.5" />
                                                                 </Button>
                                                                 <Button size="sm" variant="outline" className="border-slate-700 hover:bg-slate-800 h-8 px-2.5 text-xs"
                                                                     onClick={() => handleEditRole(user)} data-testid={`edit-role-${user.id}`}>
@@ -569,11 +661,16 @@ export const AdminUsersPage = () => {
                                                     <div><span className="text-slate-500">USD:</span> <span className="text-emerald-400 ml-1">${checkingAcc?.balance_usd?.toFixed(2) || '0.00'}</span></div>
                                                     <div><span className="text-slate-500">EUR:</span> <span className="text-emerald-400 ml-1">{checkingAcc?.balance_eur?.toFixed(2) || '0.00'}</span></div>
                                                 </div>
-                                                <div className="flex gap-2">
+                                                <div className="flex gap-2 flex-wrap">
                                                     <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9" onClick={() => handleOpenAddBalance(user)}>
-                                                        <DollarSign className="w-3 h-3 mr-1" />Agregar Saldo
+                                                        <DollarSign className="w-3 h-3 mr-1" />Saldo
                                                     </Button>
-                                                    {checkingAcc && <Button size="sm" variant="outline" className="flex-1 border-slate-700 text-xs h-9" onClick={() => handleEditBalance(user, checkingAcc)}><Edit className="w-3 h-3 mr-1" />Editar</Button>}
+                                                    <Button size="sm" className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-xs h-9" onClick={() => handleOpenDebit(user)} data-testid={`mobile-debit-${user.id}`}>
+                                                        <MinusCircle className="w-3 h-3 mr-1" />Debitar
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" className="border-slate-700 text-xs h-9 px-3" onClick={() => handleOpenHistory(user)} title="Historial">
+                                                        <History className="w-3 h-3" />
+                                                    </Button>
                                                     <Button size="sm" variant="outline" className="border-slate-700 text-xs h-9" onClick={() => handleEditRole(user)}><Shield className="w-3 h-3 mr-1" />Rol</Button>
                                                 </div>
                                             </div>
@@ -626,6 +723,194 @@ export const AdminUsersPage = () => {
                                 Agregar Saldo
                             </Button>
                         </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Debit Balance Dialog */}
+                <Dialog open={debitOpen} onOpenChange={setDebitOpen}>
+                    <DialogContent className="bg-slate-900 border-rose-500/30 max-w-md" data-testid="debit-balance-dialog">
+                        <DialogHeader>
+                            <DialogTitle className="text-white flex items-center gap-2">
+                                <MinusCircle className="w-5 h-5 text-rose-400" />
+                                Debitar Saldo - {debitUser?.name}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-xs">
+                                Esta operacion descontara el monto del saldo del usuario y quedara registrada en el historial con el motivo indicado.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 pt-2">
+                            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                                <p className="text-sm text-white font-medium">{debitUser?.email}</p>
+                                {debitUser?.accounts?.find(a => a.account_type === 'checking') && (
+                                    <p className="text-[11px] text-slate-500 font-mono mt-1">
+                                        Saldo actual: ${(debitUser.accounts.find(a => a.account_type === 'checking').balance_usd || 0).toFixed(2)} USD
+                                        {' · '}
+                                        €{(debitUser.accounts.find(a => a.account_type === 'checking').balance_eur || 0).toFixed(2)} EUR
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex gap-2">
+                                <div className="flex-1 space-y-1.5">
+                                    <Label className="text-slate-300 text-sm">Monto a debitar *</Label>
+                                    <Input type="number" step="0.01" min="0" placeholder="0.00" value={debitAmount}
+                                        onChange={(e) => setDebitAmount(e.target.value)}
+                                        className="bg-slate-950 border-rose-500/30 text-white focus-visible:ring-rose-500"
+                                        data-testid="debit-amount" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-slate-300 text-sm">Moneda</Label>
+                                    <select value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}
+                                        className="h-10 bg-slate-950 border border-slate-800 text-white rounded-md px-3 text-sm"
+                                        data-testid="debit-currency">
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label className="text-slate-300 text-sm">Motivo del debito *</Label>
+                                <textarea
+                                    rows={3}
+                                    value={debitReason}
+                                    onChange={(e) => setDebitReason(e.target.value)}
+                                    placeholder="Ej: Ajuste por pago duplicado. Comision de reversion. Correccion operativa..."
+                                    className="w-full bg-slate-950 border border-rose-500/30 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none"
+                                    data-testid="debit-reason"
+                                />
+                                <p className="text-[10px] text-slate-500">
+                                    Este motivo quedara en el historial y sera enviado al usuario por email si la notificacion esta activa.
+                                </p>
+                            </div>
+
+                            <label className="flex items-start gap-2 cursor-pointer text-xs text-slate-300">
+                                <input type="checkbox" checked={debitNotify}
+                                    onChange={(e) => setDebitNotify(e.target.checked)}
+                                    className="mt-0.5 accent-cyan-500"
+                                    data-testid="debit-notify-toggle" />
+                                <span>Notificar al usuario por email con el motivo del debito (Resend)</span>
+                            </label>
+
+                            <label className="flex items-start gap-2 cursor-pointer text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-md p-3">
+                                <input type="checkbox" checked={debitConfirm}
+                                    onChange={(e) => setDebitConfirm(e.target.checked)}
+                                    className="mt-0.5 accent-rose-500"
+                                    data-testid="debit-confirm-toggle" />
+                                <span><strong>Confirmo</strong> que deseo debitar este monto del saldo del usuario. Esta accion queda registrada permanentemente en el ledger administrativo.</span>
+                            </label>
+
+                            <Button onClick={handleDebit} disabled={debiting || !debitConfirm}
+                                className="w-full bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-40"
+                                data-testid="debit-submit">
+                                {debiting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MinusCircle className="w-4 h-4 mr-2" />}
+                                Confirmar debito
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Admin Transaction History Dialog */}
+                <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+                    <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="admin-history-dialog">
+                        <DialogHeader>
+                            <DialogTitle className="text-white flex items-center gap-2">
+                                <History className="w-5 h-5 text-cyan-400" />
+                                Historial administrativo · {historyUser?.name}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-xs">
+                                Ledger de operaciones admin_credit y admin_debit para este usuario.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {historyLoading ? (
+                            <div className="py-12 flex items-center justify-center">
+                                <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                            </div>
+                        ) : historyData ? (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                                        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-300 mb-1">
+                                            <ArrowUpCircle className="w-3.5 h-3.5" />
+                                            Total acreditado
+                                        </div>
+                                        <p className="text-lg font-bold text-emerald-300 font-mono">
+                                            ${historyData.totals?.credit_usd?.toFixed(2) || '0.00'}
+                                        </p>
+                                        <p className="text-[11px] text-emerald-400/70 font-mono">
+                                            €{historyData.totals?.credit_eur?.toFixed(2) || '0.00'}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+                                        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-rose-300 mb-1">
+                                            <ArrowDownCircle className="w-3.5 h-3.5" />
+                                            Total debitado
+                                        </div>
+                                        <p className="text-lg font-bold text-rose-300 font-mono">
+                                            ${historyData.totals?.debit_usd?.toFixed(2) || '0.00'}
+                                        </p>
+                                        <p className="text-[11px] text-rose-400/70 font-mono">
+                                            €{historyData.totals?.debit_eur?.toFixed(2) || '0.00'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {(historyData.transactions || []).length === 0 ? (
+                                    <div className="py-8 text-center text-slate-500 text-sm">
+                                        Sin operaciones administrativas registradas.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                                        {historyData.transactions.map(tx => {
+                                            const isDebit = tx.transaction_type === 'admin_debit';
+                                            return (
+                                                <div key={tx.id}
+                                                    className={`rounded-lg border p-3 ${isDebit ? 'border-rose-500/25 bg-rose-500/5' : 'border-emerald-500/25 bg-emerald-500/5'}`}
+                                                    data-testid={`history-row-${tx.id}`}>
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            {isDebit
+                                                                ? <ArrowDownCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                                                                : <ArrowUpCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                                                            <div className="min-w-0">
+                                                                <p className={`text-sm font-semibold ${isDebit ? 'text-rose-300' : 'text-emerald-300'}`}>
+                                                                    {isDebit ? 'Debito' : 'Credito'} · {isDebit ? '-' : '+'}{tx.amount?.toFixed(2)} {tx.currency}
+                                                                </p>
+                                                                <p className="text-[10px] font-mono text-slate-500 truncate">
+                                                                    Ref: {tx.transaction_reference || tx.id?.slice(0, 8)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">
+                                                            {new Date(tx.created_at).toLocaleString('es-ES', {
+                                                                day: '2-digit', month: 'short', year: '2-digit',
+                                                                hour: '2-digit', minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                    {tx.reason && (
+                                                        <div className="mt-2 pl-6 text-xs text-slate-300 border-l-2 border-rose-500/40 ml-1.5">
+                                                            <span className="text-slate-500 uppercase text-[9px] tracking-wider">Motivo: </span>
+                                                            {tx.reason}
+                                                        </div>
+                                                    )}
+                                                    {!tx.reason && tx.description && (
+                                                        <p className="mt-1.5 pl-6 text-[11px] text-slate-400">{tx.description}</p>
+                                                    )}
+                                                    {tx.admin_name && (
+                                                        <p className="mt-1.5 pl-6 text-[10px] text-slate-500">
+                                                            Admin: <span className="text-cyan-300">{tx.admin_name}</span>
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="py-8 text-center text-slate-500 text-sm">Sin datos</div>
+                        )}
                     </DialogContent>
                 </Dialog>
 

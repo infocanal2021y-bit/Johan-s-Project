@@ -8,7 +8,7 @@ import asyncio
 
 from config import db, TAX_AMOUNT, MIN_TAX_PAYMENT, GOVERNMENT_TREASURY_ID, ADMIN_EMAIL
 from models import (
-    AdminUpdateBalance, AdminAddBalance, AdminUpdateTransactionStatus,
+    AdminUpdateBalance, AdminAddBalance, AdminDebitBalance, AdminUpdateTransactionStatus,
     AdminUpdateUserRole, AdminKYCAction, AdminSuspendUser, AdminForceRelease,
     AdminCryptoPaymentAction, AdminManualTaxPayment, AdminUpdateWithdrawalStatus
 )
@@ -725,6 +725,195 @@ async def admin_get_credits(admin: dict = Depends(get_admin_user)):
     ]).to_list(500)
     
     return credits
+
+@router.post("/admin/debit-balance")
+async def admin_debit_balance(data: AdminDebitBalance, admin: dict = Depends(get_admin_user)):
+    """Debit (deduct) balance from a user's checking account with a mandatory reason.
+    Creates an 'admin_debit' transaction with full audit trail and notifies the user.
+    """
+    # Find user
+    user = await db.users.find_one({'id': data.user_id}, {'_id': 0})
+    if not user:
+        raise HTTPException(status_code=404, detail='Usuario no encontrado')
+
+    reason = (data.reason or '').strip()
+    if len(reason) < 3:
+        raise HTTPException(status_code=400, detail='El motivo es obligatorio (min. 3 caracteres)')
+
+    # Ensure checking account exists
+    from services.accounts_lifecycle import ensure_checking_account
+    account = await ensure_checking_account(data.user_id)
+
+    currency = data.currency.upper()
+    if currency not in ('USD', 'EUR'):
+        raise HTTPException(status_code=400, detail='Moneda invalida. Solo USD o EUR')
+    balance_field = f'balance_{currency.lower()}'
+
+    current_balance = float(account.get(balance_field) or 0)
+    if current_balance < data.amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f'Fondos insuficientes. Saldo actual: {current_balance:,.2f} {currency}'
+        )
+
+    # Deduct balance
+    new_balance = current_balance - data.amount
+    await db.accounts.update_one(
+        {'id': account['id']},
+        {'$set': {balance_field: new_balance}}
+    )
+
+    # Create admin_debit transaction record with reason
+    now = datetime.now(timezone.utc).isoformat()
+    tx_id = str(uuid.uuid4())
+    transaction = {
+        'id': tx_id,
+        'account_id': account['id'],
+        'user_id': data.user_id,
+        'transaction_type': 'admin_debit',
+        'amount': data.amount,
+        'currency': currency,
+        'status': 'completed',
+        'description': f'Débito administrativo: {reason}',
+        'reason': reason,
+        'balance_before': current_balance,
+        'balance_after': new_balance,
+        'recipient_account_id': None,
+        'transaction_reference': generate_transaction_reference(),
+        'admin_id': admin['id'],
+        'admin_name': admin.get('name'),
+        'admin_email': admin.get('email'),
+        'created_at': now
+    }
+    await db.transactions.insert_one(transaction)
+
+    # In-app notification
+    await create_notification(
+        data.user_id,
+        'Débito en su cuenta',
+        f'Se ha debitado {data.amount:,.2f} {currency} de su cuenta. Motivo: {reason}'
+    )
+
+    # Email notification (background, non-blocking) with reason
+    if data.notify_user:
+        currency_symbol = '$' if currency == 'USD' else '€'
+        date_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+        html_content = f"""
+            <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+                Estimado/a <strong style="color: #f59e0b;">{user['name']}</strong>,
+            </p>
+            <p style="color: #e2e8f0; font-size: 15px; line-height: 1.6;">
+                Le informamos que se ha realizado un <strong style="color:#f87171;">débito</strong> sobre su cuenta LIONSBIT VERIFICACION.
+            </p>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+                <tr>
+                    <td style="padding: 25px;">
+                        <p style="color: #94a3b8; font-size: 13px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del débito</p>
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto debitado:</td>
+                                <td style="color: #f87171; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">
+                                    -{currency_symbol}{data.amount:,.2f} {currency}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Fecha:</td>
+                                <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{date_str}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Referencia:</td>
+                                <td style="color: #06b6d4; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: monospace;">{transaction['transaction_reference']}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #94a3b8; padding: 8px 0;">Saldo actual:</td>
+                                <td style="color: #06b6d4; font-weight: bold; text-align: right; padding: 8px 0; font-size: 18px;">{currency_symbol}{new_balance:,.2f} {currency}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 18px; border-radius: 8px; margin: 20px 0;">
+                <p style="color: #fbbf24; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Motivo del débito</p>
+                <p style="color: #fde68a; font-size: 15px; line-height: 1.6; margin: 0;">{reason}</p>
+            </div>
+
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin-top: 24px;">
+                Si usted considera que este débito es incorrecto, por favor contacte inmediatamente a nuestro equipo de soporte respondiendo a este correo o desde la sección <strong>Soporte</strong> de su panel.
+            </p>
+        """
+        html = get_email_template(html_content, "Débito en su cuenta")
+        send_email_background(
+            user['email'],
+            f"Débito realizado: {currency_symbol}{data.amount:,.2f} {currency} - LIONSBIT VERIFICACION",
+            html
+        )
+
+    # Log system activity
+    asyncio.create_task(log_system_activity(
+        activity_type='admin_debit',
+        description=f'Débito admin: {currency} {data.amount:,.2f} a {user["name"]}. Motivo: {reason}',
+        user_id=data.user_id,
+        user_name=user['name'],
+        user_email=user['email'],
+        metadata={
+            'amount': data.amount,
+            'currency': currency,
+            'reason': reason,
+            'admin': admin.get('name'),
+            'balance_before': current_balance,
+            'balance_after': new_balance,
+            'transaction_reference': transaction['transaction_reference'],
+        }
+    ))
+
+    return {
+        'message': 'Débito realizado correctamente',
+        'transaction_id': tx_id,
+        'transaction_reference': transaction['transaction_reference'],
+        'user_id': data.user_id,
+        'amount': data.amount,
+        'currency': currency,
+        'reason': reason,
+        'balance_before': current_balance,
+        'balance_after': new_balance,
+    }
+
+@router.get("/admin/users/{user_id}/admin-transactions")
+async def admin_get_user_admin_transactions(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Get full ledger of admin_credit + admin_debit operations for a given user (audit trail)."""
+    user = await db.users.find_one({'id': user_id}, {'_id': 0, 'password': 0})
+    if not user:
+        raise HTTPException(status_code=404, detail='Usuario no encontrado')
+
+    txs = await db.transactions.find(
+        {
+            'user_id': user_id,
+            'transaction_type': {'$in': ['admin_credit', 'admin_debit']}
+        },
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(500)
+
+    totals = {'credit_usd': 0.0, 'credit_eur': 0.0, 'debit_usd': 0.0, 'debit_eur': 0.0}
+    for tx in txs:
+        bucket = 'credit' if tx.get('transaction_type') == 'admin_credit' else 'debit'
+        cur = (tx.get('currency') or 'USD').lower()
+        key = f'{bucket}_{cur}'
+        if key in totals:
+            totals[key] += float(tx.get('amount') or 0)
+
+    return {
+        'user': {
+            'id': user.get('id'),
+            'name': user.get('name'),
+            'email': user.get('email'),
+        },
+        'transactions': txs,
+        'totals': totals,
+        'count': len(txs),
+    }
+
 
 @router.put("/admin/transaction-status")
 async def admin_update_transaction_status(data: AdminUpdateTransactionStatus, admin: dict = Depends(get_admin_user)):

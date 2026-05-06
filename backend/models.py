@@ -115,6 +115,13 @@ class AdminAddBalance(BaseModel):
     currency: str = Field(default='USD')
     description: Optional[str] = None
 
+class AdminDebitBalance(BaseModel):
+    user_id: str
+    amount: float = Field(..., gt=0)
+    currency: str = Field(default='USD')
+    reason: str = Field(..., min_length=3)  # Motivo obligatorio
+    notify_user: Optional[bool] = True
+
 class CryptoPaymentSubmission(BaseModel):
     transaction_id: str
     crypto_type: str  # BTC, ETH, USDT, LTC
