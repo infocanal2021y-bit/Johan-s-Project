@@ -8,6 +8,7 @@ import { TransactionChart } from '../components/dashboard/TransactionChart';
 import { UserLevelCard } from '../components/dashboard/UserLevelCard';
 import { MT5SummaryWidget } from '../components/dashboard/MT5SummaryWidget';
 import { WithdrawTypeSuggestionWidget } from '../components/dashboard/WithdrawTypeSuggestionWidget';
+import { IncompleteWithdrawBanner } from '../components/dashboard/IncompleteWithdrawBanner';
 import { accountsAPI, transactionsAPI, kycAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -269,6 +270,9 @@ export const DashboardPage = () => {
                 {/* Status Banners */}
                 {getAccountStatusBanner()}
                 {getKYCBanner()}
+
+                {/* Incomplete withdrawal journey banner (auto-hides if not applicable) */}
+                <IncompleteWithdrawBanner />
 
                 {/* Dashboard next-action nudge — verified users who haven't picked a modality yet */}
                 <WithdrawTypeSuggestionWidget user={kycStatus} />

@@ -260,6 +260,18 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Daily reminder for users with incomplete withdrawal journey (>24h with
+    # withdrawal_type set and no completed transaction). Sends at most one email
+    # every 48h per user.
+    from services.withdraw_journey_reminder import run_incomplete_withdraw_reminders
+    scheduler.add_job(
+        run_incomplete_withdraw_reminders,
+        IntervalTrigger(hours=24),
+        id='withdraw_journey_reminder',
+        name='Friendly reminder for users with incomplete withdrawal journey',
+        replace_existing=True
+    )
+
     # Run daily to auto-advance 2 community in-process users to step 5 (Retirado).
     # First fire happens 60s after boot (catch-up), then every 24h. The function
     # itself is idempotent by UTC date so we never double-process a single day.

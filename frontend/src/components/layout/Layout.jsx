@@ -2,6 +2,7 @@ import { Sidebar } from './Sidebar';
 import { AppBackground } from './AppBackground';
 import { ChatBot } from '../ChatBot';
 import { InactivityPrompt } from '../InactivityPrompt';
+import { JourneyToastNotifier } from '../JourneyToastNotifier';
 import { useInactivityDetector } from '../../hooks/useInactivityDetector';
 import { useActivityTracker } from '../../hooks/useActivityTracker';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +24,7 @@ export const Layout = ({ children }) => {
                 </main>
                 <ChatBot />
                 {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
+                {user && <JourneyToastNotifier />}
             </div>
         </div>
     );
