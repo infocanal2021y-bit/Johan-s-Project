@@ -15,6 +15,14 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const DEBIT_REASON_PRESETS = [
+    'Reversión de pago duplicado',
+    'Ajuste operativo',
+    'Comisión de retiro',
+    'Corrección de saldo',
+    'Penalización por incumplimiento',
+];
+
 const HEALTH_STYLES = {
     green:  { dot: 'bg-emerald-400', ring: 'ring-emerald-400/30', glow: 'shadow-[0_0_10px_rgba(52,211,153,0.6)]', label: 'Saludable',  text: 'text-emerald-300' },
     yellow: { dot: 'bg-amber-400',   ring: 'ring-amber-400/30',   glow: 'shadow-[0_0_10px_rgba(251,191,36,0.6)]', label: 'Atencion',   text: 'text-amber-300' },
@@ -771,11 +779,42 @@ export const AdminUsersPage = () => {
 
                             <div className="space-y-1.5">
                                 <Label className="text-slate-300 text-sm">Motivo del debito *</Label>
+                                <div className="flex flex-wrap gap-1.5" data-testid="debit-reason-presets">
+                                    {DEBIT_REASON_PRESETS.map((preset) => {
+                                        const active = debitReason === preset;
+                                        return (
+                                            <button
+                                                key={preset}
+                                                type="button"
+                                                onClick={() => setDebitReason(preset)}
+                                                data-testid={`debit-preset-${preset.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                                                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
+                                                    active
+                                                        ? 'bg-rose-500/20 border-rose-400 text-rose-200 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
+                                                        : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-rose-500/50 hover:text-rose-200'
+                                                }`}
+                                            >
+                                                {preset}
+                                            </button>
+                                        );
+                                    })}
+                                    {debitReason && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDebitReason('')}
+                                            data-testid="debit-preset-clear"
+                                            className="text-[11px] px-2 py-1 rounded-full border border-slate-700 text-slate-500 hover:text-rose-300 hover:border-rose-500/40 transition-colors"
+                                            title="Limpiar motivo"
+                                        >
+                                            Limpiar
+                                        </button>
+                                    )}
+                                </div>
                                 <textarea
                                     rows={3}
                                     value={debitReason}
                                     onChange={(e) => setDebitReason(e.target.value)}
-                                    placeholder="Ej: Ajuste por pago duplicado. Comision de reversion. Correccion operativa..."
+                                    placeholder="Seleccione un motivo o escriba uno personalizado..."
                                     className="w-full bg-slate-950 border border-rose-500/30 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none"
                                     data-testid="debit-reason"
                                 />
