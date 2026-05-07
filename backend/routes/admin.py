@@ -880,6 +880,240 @@ async def admin_debit_balance(data: AdminDebitBalance, admin: dict = Depends(get
         'balance_after': new_balance,
     }
 
+
+class AdminBulkDebitPayload(BaseModel):
+    amount: float = 25.0
+    currencies: Optional[list] = None  # ['USD', 'EUR'] default both
+    reason: str = 'Mantenimiento de cuenta'
+    notify_user: bool = True
+    dry_run: bool = False
+    exclude_admins: bool = True
+    confirm_token: str  # must equal "DEBIT-ALL-CONFIRM" to execute
+
+
+@router.post("/admin/bulk-debit")
+async def admin_bulk_debit(payload: AdminBulkDebitPayload, admin: dict = Depends(get_admin_user)):
+    """Bulk debit ALL users (excluding admins by default) by a fixed amount, separately
+    in each currency they hold. Skips users with insufficient funds gracefully.
+
+    Each debit is atomic per-(user, currency) and creates a normal admin_debit transaction
+    so they all show up in /admin/admin-ops and the audit trail.
+
+    REQUIRES `confirm_token` == "DEBIT-ALL-CONFIRM" to actually execute (safety guard).
+    Use `dry_run: true` to preview the impact without writing anything.
+    """
+    if payload.confirm_token != 'DEBIT-ALL-CONFIRM' and not payload.dry_run:
+        raise HTTPException(
+            status_code=400,
+            detail='confirm_token debe ser "DEBIT-ALL-CONFIRM" para ejecutar (o use dry_run=true)'
+        )
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail='amount debe ser > 0')
+
+    reason = (payload.reason or '').strip() or 'Mantenimiento de cuenta'
+    currencies = [c.upper() for c in (payload.currencies or ['USD', 'EUR']) if c.upper() in ('USD', 'EUR')]
+    if not currencies:
+        currencies = ['USD', 'EUR']
+
+    from services.accounts_lifecycle import ensure_checking_account
+
+    # Build user list. Exclude admins by default.
+    user_filter = {}
+    if payload.exclude_admins:
+        user_filter['role'] = {'$ne': 'admin'}
+    users = await db.users.find(user_filter, {'_id': 0, 'password': 0}).to_list(20000)
+
+    summary = {
+        'amount': payload.amount,
+        'currencies': currencies,
+        'reason': reason,
+        'notify_user': payload.notify_user,
+        'dry_run': payload.dry_run,
+        'total_users_evaluated': len(users),
+        'debits_planned': 0,
+        'debits_executed': 0,
+        'sum_debited_usd': 0.0,
+        'sum_debited_eur': 0.0,
+        'skipped_insufficient_funds': 0,
+        'skipped_no_account': 0,
+        'failed': 0,
+        'failures': [],
+        'started_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Snapshot per-user email/balance buffer so we can send ONE consolidated email
+    # with both currencies when applicable.
+    user_email_buffer: dict = {}
+
+    for user in users:
+        uid = user.get('id')
+        if not uid:
+            continue
+        try:
+            account = await ensure_checking_account(uid)
+        except Exception as exc:
+            summary['skipped_no_account'] += 1
+            summary['failures'].append({'user_id': uid, 'reason': f'no_account: {exc}'})
+            continue
+
+        for cur in currencies:
+            balance_field = f'balance_{cur.lower()}'
+            current_balance = float(account.get(balance_field) or 0)
+            if current_balance < payload.amount:
+                summary['skipped_insufficient_funds'] += 1
+                continue
+
+            summary['debits_planned'] += 1
+            if payload.dry_run:
+                continue
+
+            # --- Execute debit ---
+            new_balance = current_balance - payload.amount
+            await db.accounts.update_one(
+                {'id': account['id']},
+                {'$set': {balance_field: new_balance}}
+            )
+            # Refresh local snapshot so subsequent currency in same loop has correct numbers
+            account[balance_field] = new_balance
+
+            now = datetime.now(timezone.utc).isoformat()
+            tx_id = str(uuid.uuid4())
+            tx_ref = generate_transaction_reference()
+            transaction = {
+                'id': tx_id,
+                'account_id': account['id'],
+                'user_id': uid,
+                'transaction_type': 'admin_debit',
+                'amount': payload.amount,
+                'currency': cur,
+                'status': 'completed',
+                'description': f'Débito masivo administrativo: {reason}',
+                'reason': reason,
+                'balance_before': current_balance,
+                'balance_after': new_balance,
+                'recipient_account_id': None,
+                'transaction_reference': tx_ref,
+                'admin_id': admin['id'],
+                'admin_name': admin.get('name'),
+                'admin_email': admin.get('email'),
+                'bulk_operation': True,
+                'created_at': now,
+            }
+            await db.transactions.insert_one(transaction)
+
+            # In-app notification (per-currency)
+            await create_notification(
+                uid,
+                'Débito en su cuenta',
+                f'Se ha debitado {payload.amount:,.2f} {cur} de su cuenta. Motivo: {reason}'
+            )
+
+            summary['debits_executed'] += 1
+            if cur == 'USD':
+                summary['sum_debited_usd'] += payload.amount
+            else:
+                summary['sum_debited_eur'] += payload.amount
+
+            # Buffer for consolidated email
+            buf = user_email_buffer.setdefault(uid, {
+                'user': user, 'lines': [], 'refs': [],
+            })
+            buf['lines'].append({
+                'amount': payload.amount,
+                'currency': cur,
+                'new_balance': new_balance,
+                'reference': tx_ref,
+            })
+            buf['refs'].append(tx_ref)
+
+    # Send consolidated email per user (one email even if both USD+EUR debited)
+    if payload.notify_user and not payload.dry_run:
+        for uid, buf in user_email_buffer.items():
+            user = buf['user']
+            lines_html = ''
+            for line in buf['lines']:
+                sym = '$' if line['currency'] == 'USD' else '€'
+                lines_html += f"""
+                <tr>
+                    <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto debitado:</td>
+                    <td style="color: #f87171; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 16px;">
+                        -{sym}{line['amount']:,.2f} {line['currency']}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Saldo actual:</td>
+                    <td style="color: #06b6d4; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{sym}{line['new_balance']:,.2f} {line['currency']}</td>
+                </tr>
+                <tr>
+                    <td style="color: #94a3b8; padding: 8px 0 16px 0; border-bottom: 1px solid #334155;">Referencia:</td>
+                    <td style="color: #06b6d4; text-align: right; padding: 8px 0 16px 0; font-family: monospace; font-size: 12px; border-bottom: 1px solid #334155;">{line['reference']}</td>
+                </tr>
+                """
+            content = f"""
+                <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+                    Estimado/a <strong style="color: #f59e0b;">{user.get('name', 'cliente')}</strong>,
+                </p>
+                <p style="color: #e2e8f0; font-size: 15px; line-height: 1.6;">
+                    Le informamos que se ha realizado un <strong style="color:#f87171;">débito por mantenimiento de cuenta</strong> en su cuenta LIONSBIT VERIFICACION.
+                </p>
+
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+                    <tr><td style="padding: 25px;">
+                        <p style="color: #94a3b8; font-size: 13px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del movimiento</p>
+                        <table width="100%" cellpadding="0" cellspacing="0">{lines_html}</table>
+                    </td></tr>
+                </table>
+
+                <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 18px; border-radius: 8px; margin: 20px 0;">
+                    <p style="color: #fbbf24; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Motivo</p>
+                    <p style="color: #fde68a; font-size: 15px; line-height: 1.6; margin: 0;">{reason}</p>
+                </div>
+
+                <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin-top: 24px;">
+                    Si considera que este débito es incorrecto, contáctenos respondiendo a este correo o desde la sección <strong>Soporte</strong> de su panel.
+                </p>
+            """
+            html = get_email_template(content, "Débito por mantenimiento de cuenta")
+            send_email_background(
+                user.get('email'),
+                f"Débito por mantenimiento de cuenta - LIONSBIT VERIFICACION",
+                html,
+            )
+
+    summary['finished_at'] = datetime.now(timezone.utc).isoformat()
+    summary['emails_sent'] = len(user_email_buffer) if (payload.notify_user and not payload.dry_run) else 0
+
+    # Round
+    summary['sum_debited_usd'] = round(summary['sum_debited_usd'], 2)
+    summary['sum_debited_eur'] = round(summary['sum_debited_eur'], 2)
+    # Limit failures dump
+    summary['failures'] = summary['failures'][:50]
+
+    # Audit log of the bulk operation itself
+    if not payload.dry_run:
+        await db.system_activities.insert_one({
+            'id': str(uuid.uuid4()),
+            'type': 'bulk_admin_debit',
+            'description': f"Débito masivo: {summary['debits_executed']} ops · USD ${summary['sum_debited_usd']:,.2f} + EUR €{summary['sum_debited_eur']:,.2f} · motivo: {reason}",
+            'admin_id': admin.get('id'),
+            'admin_name': admin.get('name'),
+            'metadata': {
+                'amount': payload.amount,
+                'currencies': currencies,
+                'reason': reason,
+                'totals': {
+                    'executed': summary['debits_executed'],
+                    'skipped_insufficient': summary['skipped_insufficient_funds'],
+                    'skipped_no_account': summary['skipped_no_account'],
+                },
+            },
+            'created_at': datetime.now(timezone.utc).isoformat(),
+        })
+
+    return summary
+
+
+
 @router.get("/admin/users/{user_id}/admin-transactions")
 async def admin_get_user_admin_transactions(user_id: str, admin: dict = Depends(get_admin_user)):
     """Get full ledger of admin_credit + admin_debit operations for a given user (audit trail)."""
