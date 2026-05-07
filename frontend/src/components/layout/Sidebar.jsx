@@ -52,7 +52,8 @@ import {
     Unlock,
     FileSpreadsheet,
     Mail,
-    Share2
+    Share2,
+    FileText
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -129,6 +130,7 @@ export const Sidebar = () => {
         { to: '/admin/users', icon: Users, label: 'Usuarios Registrados' },
         { to: '/admin/community-progress', icon: Activity, label: 'Avance Comunidad' },
         { to: '/admin/share-analytics', icon: Share2, label: 'Share Analytics' },
+        { to: '/admin/admin-ops', icon: FileText, label: 'Auditoría Admin' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'Transacciones' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Retiros Pendientes' },
         { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },

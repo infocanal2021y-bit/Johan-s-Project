@@ -2013,3 +2013,217 @@ async def admin_health(admin: dict = Depends(get_admin_user)):
 
 
 # ==================== UTILITY ROUTES ====================
+
+
+# ==================== ADMIN OPERATIONS LEDGER (debits + credits with filters + CSV) ====================
+
+import csv
+import io
+from fastapi.responses import StreamingResponse
+
+
+def _build_admin_ops_filter(
+    type_: str,
+    date_from: Optional[str],
+    date_to: Optional[str],
+    admin_id: Optional[str],
+    user_search: Optional[str],
+    currency: Optional[str],
+    min_amount: Optional[float],
+    max_amount: Optional[float],
+    reason_contains: Optional[str],
+):
+    """Build a MongoDB filter dict for admin_credit/admin_debit queries."""
+    if type_ in ('debit', 'admin_debit'):
+        types = ['admin_debit']
+    elif type_ in ('credit', 'admin_credit'):
+        types = ['admin_credit']
+    else:
+        types = ['admin_credit', 'admin_debit']
+
+    flt: dict = {'transaction_type': {'$in': types}}
+
+    if date_from or date_to:
+        date_filter = {}
+        if date_from:
+            date_filter['$gte'] = date_from
+        if date_to:
+            d = date_to
+            if len(d) == 10:
+                d = f'{d}T23:59:59.999999+00:00'
+            date_filter['$lte'] = d
+        flt['created_at'] = date_filter
+
+    if admin_id:
+        flt['admin_id'] = admin_id
+
+    if currency and currency.upper() in ('USD', 'EUR'):
+        flt['currency'] = currency.upper()
+
+    if min_amount is not None:
+        flt.setdefault('amount', {})
+        flt['amount']['$gte'] = float(min_amount)
+    if max_amount is not None:
+        flt.setdefault('amount', {})
+        flt['amount']['$lte'] = float(max_amount)
+
+    if reason_contains:
+        flt['$or'] = [
+            {'reason': {'$regex': reason_contains, '$options': 'i'}},
+            {'description': {'$regex': reason_contains, '$options': 'i'}},
+        ]
+
+    return flt, (user_search or '').strip().lower()
+
+
+async def _query_admin_ops(flt: dict, user_search_lower: str, skip: int = 0, limit: int = 200):
+    """Aggregate transactions joining users, applying user_search post-filter."""
+    pipeline = [
+        {'$match': flt},
+        {'$sort': {'created_at': -1}},
+        {'$lookup': {
+            'from': 'users',
+            'localField': 'user_id',
+            'foreignField': 'id',
+            'as': '_user',
+        }},
+        {'$unwind': {'path': '$_user', 'preserveNullAndEmptyArrays': True}},
+        {'$addFields': {
+            'user_name': '$_user.name',
+            'user_email': '$_user.email',
+        }},
+        {'$project': {'_id': 0, '_user': 0}},
+    ]
+    cursor = db.transactions.aggregate(pipeline)
+    results = await cursor.to_list(length=20000)
+
+    if user_search_lower:
+        results = [
+            r for r in results
+            if user_search_lower in (r.get('user_name') or '').lower()
+            or user_search_lower in (r.get('user_email') or '').lower()
+        ]
+
+    total = len(results)
+    paginated = results[skip: skip + limit]
+    return paginated, total, results
+
+
+@router.get("/admin/admin-ops")
+async def admin_get_admin_ops(
+    admin: dict = Depends(get_admin_user),
+    type: str = Query('all', description="all | debit | credit"),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    admin_id: Optional[str] = Query(None),
+    user_search: Optional[str] = Query(None),
+    currency: Optional[str] = Query(None),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
+    reason_contains: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=1000),
+):
+    flt, user_search_lower = _build_admin_ops_filter(
+        type, date_from, date_to, admin_id, user_search,
+        currency, min_amount, max_amount, reason_contains,
+    )
+    paginated, total, full = await _query_admin_ops(flt, user_search_lower, skip, limit)
+
+    totals = {
+        'count_credit': 0, 'count_debit': 0,
+        'sum_credit_usd': 0.0, 'sum_credit_eur': 0.0,
+        'sum_debit_usd': 0.0, 'sum_debit_eur': 0.0,
+        'net_usd': 0.0, 'net_eur': 0.0,
+    }
+    for r in full:
+        cur = (r.get('currency') or 'USD').lower()
+        amt = float(r.get('amount') or 0)
+        if r.get('transaction_type') == 'admin_debit':
+            totals['count_debit'] += 1
+            totals[f'sum_debit_{cur}'] = totals.get(f'sum_debit_{cur}', 0.0) + amt
+        else:
+            totals['count_credit'] += 1
+            totals[f'sum_credit_{cur}'] = totals.get(f'sum_credit_{cur}', 0.0) + amt
+    totals['net_usd'] = round(totals['sum_credit_usd'] - totals['sum_debit_usd'], 2)
+    totals['net_eur'] = round(totals['sum_credit_eur'] - totals['sum_debit_eur'], 2)
+    for k in ('sum_credit_usd', 'sum_credit_eur', 'sum_debit_usd', 'sum_debit_eur'):
+        totals[k] = round(totals[k], 2)
+
+    admin_options = []
+    seen = set()
+    for r in full:
+        aid = r.get('admin_id')
+        if aid and aid not in seen:
+            seen.add(aid)
+            admin_options.append({
+                'admin_id': aid,
+                'admin_name': r.get('admin_name') or 'Admin',
+                'admin_email': r.get('admin_email') or '',
+            })
+
+    return {
+        'rows': paginated,
+        'total': total,
+        'totals': totals,
+        'admin_options': admin_options,
+        'pagination': {'skip': skip, 'limit': limit, 'has_more': (skip + limit) < total},
+    }
+
+
+@router.get("/admin/admin-ops/export.csv")
+async def admin_export_admin_ops_csv(
+    admin: dict = Depends(get_admin_user),
+    type: str = Query('all'),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    admin_id: Optional[str] = Query(None),
+    user_search: Optional[str] = Query(None),
+    currency: Optional[str] = Query(None),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
+    reason_contains: Optional[str] = Query(None),
+):
+    flt, user_search_lower = _build_admin_ops_filter(
+        type, date_from, date_to, admin_id, user_search,
+        currency, min_amount, max_amount, reason_contains,
+    )
+    _, _, rows = await _query_admin_ops(flt, user_search_lower, skip=0, limit=20000)
+
+    buf = io.StringIO()
+    buf.write('\ufeff')  # UTF-8 BOM for Excel
+    writer = csv.writer(buf, delimiter=',', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+    writer.writerow([
+        'Fecha (UTC)', 'Tipo', 'Usuario', 'Email Usuario', 'Monto', 'Moneda',
+        'Motivo', 'Admin', 'Email Admin', 'Saldo Antes', 'Saldo Despues', 'Referencia',
+    ])
+    for r in rows:
+        is_debit = r.get('transaction_type') == 'admin_debit'
+        signed_amount = -float(r.get('amount') or 0) if is_debit else float(r.get('amount') or 0)
+        writer.writerow([
+            r.get('created_at', ''),
+            'DEBITO' if is_debit else 'CREDITO',
+            r.get('user_name') or '',
+            r.get('user_email') or '',
+            f'{signed_amount:.2f}',
+            r.get('currency') or '',
+            (r.get('reason') or r.get('description') or '').replace('\n', ' ').strip(),
+            r.get('admin_name') or '',
+            r.get('admin_email') or '',
+            f'{float(r.get("balance_before") or 0):.2f}' if r.get('balance_before') is not None else '',
+            f'{float(r.get("balance_after") or 0):.2f}' if r.get('balance_after') is not None else '',
+            r.get('transaction_reference') or '',
+        ])
+
+    csv_bytes = buf.getvalue().encode('utf-8')
+    today = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
+    filename = f'admin_ops_{today}.csv'
+
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type='text/csv; charset=utf-8',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Cache-Control': 'no-store',
+        },
+    )
