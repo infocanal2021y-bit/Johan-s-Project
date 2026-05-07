@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
+import { safeApiCall } from '../../lib/diagnostics';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -375,46 +376,34 @@ export const AdminUsersPage = () => {
             return;
         }
         setDebiting(true);
-        try {
-            const token = localStorage.getItem('token');
-            const resp = await fetch(`${API_URL}/api/admin/debit-balance`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    user_id: debitUser.id,
-                    amount,
-                    currency: debitCurrency,
-                    reason: debitReason.trim(),
-                    notify_user: debitNotify,
-                })
+        const result = await safeApiCall({
+            url: '/api/admin/debit-balance',
+            method: 'POST',
+            body: {
+                user_id: debitUser.id,
+                amount,
+                currency: debitCurrency,
+                reason: debitReason.trim(),
+                notify_user: debitNotify,
+            },
+            timeoutMs: 20000,
+        });
+        setDebiting(false);
+
+        if (result.ok) {
+            toast.success(
+                `Debitado ${amount.toLocaleString()} ${debitCurrency} de ${debitUser.name}` +
+                (debitNotify ? ' · Email enviado' : '') +
+                ` · ${result.elapsed_ms}ms`
+            );
+            setDebitOpen(false);
+            fetchUsers();
+        } else {
+            console.error('[Debit] failed', result);
+            toast.error(result.message, {
+                description: `[${result.kind} · HTTP ${result.status} · ${result.elapsed_ms}ms]`,
+                duration: 8000,
             });
-            // Robust parse: production may return HTML 404/502 if endpoint not deployed
-            let data = null;
-            const ctype = resp.headers.get('content-type') || '';
-            if (ctype.includes('application/json')) {
-                try { data = await resp.json(); } catch (_) { data = null; }
-            } else {
-                const txt = await resp.text();
-                data = { _raw: txt.slice(0, 200) };
-            }
-            if (resp.ok) {
-                toast.success(
-                    `Debitado ${amount.toLocaleString()} ${debitCurrency} de ${debitUser.name}` +
-                    (debitNotify ? ' · Email enviado' : '')
-                );
-                setDebitOpen(false);
-                fetchUsers();
-            } else if (resp.status === 404) {
-                toast.error('Endpoint no disponible en este entorno. Si esto es PRODUCCION, redeploy desde "Save to GitHub → Deploy".');
-            } else if (resp.status === 401 || resp.status === 403) {
-                toast.error('Sesion expirada o sin permisos. Vuelva a iniciar sesion.');
-            } else {
-                toast.error((data && data.detail) || `Error ${resp.status} al debitar`);
-            }
-        } catch (e) {
-            toast.error(`Fallo de red: ${e.message || 'sin detalle'}`);
-        } finally {
-            setDebiting(false);
         }
     };
 
