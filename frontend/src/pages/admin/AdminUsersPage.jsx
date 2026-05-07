@@ -388,7 +388,15 @@ export const AdminUsersPage = () => {
                     notify_user: debitNotify,
                 })
             });
-            const data = await resp.json();
+            // Robust parse: production may return HTML 404/502 if endpoint not deployed
+            let data = null;
+            const ctype = resp.headers.get('content-type') || '';
+            if (ctype.includes('application/json')) {
+                try { data = await resp.json(); } catch (_) { data = null; }
+            } else {
+                const txt = await resp.text();
+                data = { _raw: txt.slice(0, 200) };
+            }
             if (resp.ok) {
                 toast.success(
                     `Debitado ${amount.toLocaleString()} ${debitCurrency} de ${debitUser.name}` +
@@ -396,11 +404,15 @@ export const AdminUsersPage = () => {
                 );
                 setDebitOpen(false);
                 fetchUsers();
+            } else if (resp.status === 404) {
+                toast.error('Endpoint no disponible en este entorno. Si esto es PRODUCCION, redeploy desde "Save to GitHub → Deploy".');
+            } else if (resp.status === 401 || resp.status === 403) {
+                toast.error('Sesion expirada o sin permisos. Vuelva a iniciar sesion.');
             } else {
-                toast.error(data.detail || 'Error al debitar');
+                toast.error((data && data.detail) || `Error ${resp.status} al debitar`);
             }
         } catch (e) {
-            toast.error('Error de conexion');
+            toast.error(`Fallo de red: ${e.message || 'sin detalle'}`);
         } finally {
             setDebiting(false);
         }
