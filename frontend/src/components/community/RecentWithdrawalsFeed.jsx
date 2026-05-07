@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CheckCircle2, ChevronDown, ShieldCheck,
-    TrendingDown, TrendingUp,
+    TrendingDown, TrendingUp, Share2, Copy, Check,
 } from 'lucide-react';
 import { fmtEUR, timeAgo, PROGRESS_STAGES, TIMELINE_PALETTE } from './constants';
 import { MOCK_WITHDRAWALS, pickNonRepeating } from './mockWithdrawalsData';
 import { useT } from '../../i18n/LanguageContext';
+import { toast } from 'sonner';
 
 // How long each set of 3 cards stays before being swapped out (ms).
 const ROTATION_INTERVAL_MS = 12000;
@@ -39,6 +40,133 @@ const StaticTimeline = () => (
         })}
     </div>
 );
+
+const ShareBar = ({ item }) => {
+    const [copied, setCopied] = useState(false);
+
+    // Privacy-safe message — only public fields (name short + country + amount)
+    const message = `🚀 ${item.name_public} (${item.country_flag} ${item.country}) acaba de completar un retiro verificado de ${fmtEUR(item.amount_eur)} en LIONSBIT VERIFICACION.\n\n✅ Proceso 100% completado · Capital recuperado.\n\nÚnete a la comunidad: https://paylionsbit.es`;
+
+    const encoded = encodeURIComponent(message);
+    const shareUrl = 'https://paylionsbit.es';
+
+    const openIntent = (url) => {
+        window.open(url, '_blank', 'noopener,noreferrer,width=600,height=600');
+    };
+
+    const handleNative = async (e) => {
+        e.stopPropagation();
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Retiro verificado · LIONSBIT',
+                    text: message,
+                    url: shareUrl,
+                });
+            } catch (err) {
+                // user cancelled, ignore
+            }
+        } else {
+            // Desktop fallback → copy
+            handleCopy(e);
+        }
+    };
+
+    const handleWhatsApp = (e) => {
+        e.stopPropagation();
+        openIntent(`https://api.whatsapp.com/send?text=${encoded}`);
+    };
+
+    const handleTwitter = (e) => {
+        e.stopPropagation();
+        openIntent(`https://twitter.com/intent/tweet?text=${encoded}`);
+    };
+
+    const handleTelegram = (e) => {
+        e.stopPropagation();
+        openIntent(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encoded}`);
+    };
+
+    const handleCopy = async (e) => {
+        e.stopPropagation();
+        try {
+            await navigator.clipboard.writeText(message);
+            setCopied(true);
+            toast.success('Mensaje copiado al portapapeles');
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            toast.error('No se pudo copiar');
+        }
+    };
+
+    const btnBase = "inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-md text-[11px] font-semibold transition-all border";
+    const isMobile = typeof navigator !== 'undefined' && navigator.share;
+
+    return (
+        <div className="mt-4 pt-3 border-t border-[#F1F4F8]" data-testid={`share-bar-${item.id}`}>
+            <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] uppercase tracking-[0.14em] text-[#6B7280] font-semibold flex items-center gap-1.5">
+                    <Share2 className="w-3 h-3" />
+                    Compartir este logro
+                </p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+                {isMobile && (
+                    <button
+                        type="button"
+                        onClick={handleNative}
+                        className={`${btnBase} bg-[#1E3A8A] border-[#1E3A8A] text-white hover:bg-[#1E40AF] hover:border-[#1E40AF]`}
+                        data-testid={`share-native-${item.id}`}
+                        aria-label="Compartir"
+                    >
+                        <Share2 className="w-3 h-3" />
+                        Compartir
+                    </button>
+                )}
+                <button
+                    type="button"
+                    onClick={handleWhatsApp}
+                    className={`${btnBase} bg-[#25D366]/10 border-[#25D366]/30 text-[#128C4D] hover:bg-[#25D366]/20`}
+                    data-testid={`share-whatsapp-${item.id}`}
+                    aria-label="Compartir por WhatsApp"
+                >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/></svg>
+                    WhatsApp
+                </button>
+                <button
+                    type="button"
+                    onClick={handleTwitter}
+                    className={`${btnBase} bg-black/5 border-black/15 text-black hover:bg-black/10`}
+                    data-testid={`share-twitter-${item.id}`}
+                    aria-label="Compartir en X (Twitter)"
+                >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    X
+                </button>
+                <button
+                    type="button"
+                    onClick={handleTelegram}
+                    className={`${btnBase} bg-[#0088CC]/10 border-[#0088CC]/30 text-[#0088CC] hover:bg-[#0088CC]/20`}
+                    data-testid={`share-telegram-${item.id}`}
+                    aria-label="Compartir en Telegram"
+                >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12s5.374 12 12 12 12-5.373 12-12S18.626 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.054 5.56-5.022c.242-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/></svg>
+                    Telegram
+                </button>
+                <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={`${btnBase} ${copied ? 'bg-[#16A34A]/15 border-[#16A34A]/40 text-[#16A34A]' : 'bg-[#F4F6F8] border-[#E5EAF0] text-[#6B7280] hover:bg-[#EEF1F4]'}`}
+                    data-testid={`share-copy-${item.id}`}
+                    aria-label="Copiar mensaje"
+                >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? 'Copiado' : 'Copiar'}
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const ExpandedDetail = ({ item }) => {
     const ratio = item.deposited_eur > 0 ? (item.total_withdrawn_eur / item.deposited_eur) : 0;
@@ -112,6 +240,9 @@ const ExpandedDetail = ({ item }) => {
                         </span>
                     </div>
                 )}
+
+                {/* Social share bar */}
+                <ShareBar item={item} />
             </div>
         </motion.div>
     );
