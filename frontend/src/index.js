@@ -48,19 +48,43 @@ if (typeof window !== 'undefined') {
     'ResizeObserver loop limit exceeded',
     'ResizeObserver loop completed with undelivered notifications.',
   ];
+
+  // 1) Patch ResizeObserver itself so callbacks are deferred via rAF.
+  // This breaks the synchronous notification loop that triggers the warning.
+  if (typeof window.ResizeObserver !== 'undefined') {
+    const NativeResizeObserver = window.ResizeObserver;
+    window.ResizeObserver = class PatchedResizeObserver extends NativeResizeObserver {
+      constructor(callback) {
+        let rafId = 0;
+        super((entries, observer) => {
+          if (rafId) return;
+          rafId = window.requestAnimationFrame(() => {
+            rafId = 0;
+            try { callback(entries, observer); } catch (_) { /* ignore */ }
+          });
+        });
+      }
+    };
+  }
+
+  // 2) Belt-and-suspenders: also swallow if any leaks through (3rd-party libs
+  // that capture NativeResizeObserver before our patch).
+  const isResizeMsg = (msg) => RESIZE_MSGS.some((m) => msg.includes(m));
+
   window.addEventListener('error', (e) => {
-    if (e && RESIZE_MSGS.includes(e.message)) {
+    if (e && e.message && isResizeMsg(e.message)) {
       e.stopImmediatePropagation();
       e.preventDefault();
+      return false;
     }
-  });
+  }, true); // capture phase to run before react-error-overlay
   window.addEventListener('unhandledrejection', (e) => {
     const msg = e?.reason?.message || '';
-    if (RESIZE_MSGS.includes(msg)) {
+    if (isResizeMsg(msg)) {
       e.stopImmediatePropagation();
       e.preventDefault();
     }
-  });
+  }, true);
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
