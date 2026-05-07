@@ -373,18 +373,25 @@ export const AdminActivityPage = () => {
                                 </p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="border-slate-800 hover:bg-transparent">
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Evento</TableHead>
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Usuario</TableHead>
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Descripcion</TableHead>
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Ubicacion</TableHead>
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Hora</TableHead>
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-center w-32">Acciones</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
+                            <>
+                                {/* Mobile-only scroll hint */}
+                                <div className="md:hidden px-4 pt-3 pb-1 flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-500" data-testid="activity-scroll-hint">
+                                    <span className="inline-block animate-pulse">←</span>
+                                    Desliza horizontalmente para ver todo
+                                    <span className="inline-block animate-pulse">→</span>
+                                </div>
+                                <div className="overflow-x-auto overflow-y-visible -webkit-overflow-scrolling-touch" data-testid="activity-table-scroll">
+                                    <Table className="min-w-[920px] md:min-w-full">
+                                        <TableHeader>
+                                            <TableRow className="border-slate-800 hover:bg-transparent">
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium whitespace-nowrap">Evento</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium whitespace-nowrap">Usuario</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium whitespace-nowrap">Descripcion</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium whitespace-nowrap">Ubicacion</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right whitespace-nowrap">Hora</TableHead>
+                                                <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-center w-32 whitespace-nowrap">Acciones</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                     <TableBody>
                                         {filteredActivities.map((activity, index) => {
                                             const config = getActivityConfig(activity.type);
@@ -398,9 +405,9 @@ export const AdminActivityPage = () => {
                                                     transition={{ delay: index * 0.02 }}
                                                     className="border-slate-800/50 hover:bg-slate-800/30 transition-colors"
                                                 >
-                                                    <TableCell className="py-4">
+                                                    <TableCell className="py-4 whitespace-nowrap">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-10 h-10 rounded-lg ${config.bg} flex items-center justify-center`}>
+                                                            <div className={`w-10 h-10 rounded-lg ${config.bg} flex items-center justify-center flex-shrink-0`}>
                                                                 <Icon className={`w-5 h-5 ${config.color}`} />
                                                             </div>
                                                             <span className={`text-sm font-medium ${config.color}`}>
@@ -408,7 +415,7 @@ export const AdminActivityPage = () => {
                                                             </span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="whitespace-nowrap">
                                                         <div>
                                                             <button
                                                                 onClick={() => openUserProfile(activity.user_id)}
@@ -416,15 +423,17 @@ export const AdminActivityPage = () => {
                                                                 data-testid={`user-link-${activity.id}`}
                                                             >
                                                                 {activity.user_name || 'N/A'}
-                                                                <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                                                                <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                                                             </button>
                                                             <p className="text-xs text-slate-500">{activity.user_email || ''}</p>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <p className="text-slate-300 text-sm max-w-[260px] truncate">{activity.description}</p>
+                                                        <p className="text-slate-300 text-sm min-w-[180px] max-w-[360px] break-words" title={activity.description}>
+                                                            {activity.description}
+                                                        </p>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="whitespace-nowrap">
                                                         <div className="flex items-center gap-2 text-xs">
                                                             {activity.ip_address && (
                                                                 <span className="text-slate-400 px-2 py-1 rounded bg-slate-800 tabular-nums">
@@ -438,12 +447,12 @@ export const AdminActivityPage = () => {
                                                             )}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-right">
+                                                    <TableCell className="text-right whitespace-nowrap">
                                                         <span className="text-slate-400 text-sm tabular-nums">
                                                             <Clock className="w-3 h-3 inline mr-1" />{formatDate(activity.created_at)}
                                                         </span>
                                                     </TableCell>
-                                                    <TableCell className="text-center">
+                                                    <TableCell className="text-center whitespace-nowrap">
                                                         {activity.user_id && (
                                                             <div className="flex items-center justify-center gap-1">
                                                                 <button
@@ -470,7 +479,8 @@ export const AdminActivityPage = () => {
                                         })}
                                     </TableBody>
                                 </Table>
-                            </div>
+                                </div>
+                            </>
                         )}
                     </CardContent>
                 </Card>
