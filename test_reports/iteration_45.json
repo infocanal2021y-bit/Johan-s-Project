@@ -1,0 +1,23 @@
+{
+  "summary": "Re-test of admin debit-balance feature after frontend error-handling improvements (content-type aware JSON parse, 404/401/403 specific messages). All backend pytest cases (10/10) pass on /app/backend/tests/test_admin_debit_balance.py. Frontend verified end-to-end via Playwright on both AdminUsersPage and AdminActivityPage: Debitar button opens dialog with 'Mantenimiento de cuenta' preset preselected in textarea, submit button is disabled until the confirmation toggle is checked, successful submit shows 'Debitado X USD de Test User · Email enviado' toast and closes the dialog, and clearing the reason via 'Limpiar' triggers 'El motivo es obligatorio (min. 3 caracteres)' toast. Audit endpoint /api/admin/users/{uid}/admin-transactions returned both new admin_debit rows (USD 2.50 from Users page and USD 1.25 from Activity page) with reason='Mantenimiento de cuenta' and admin_name='Admin LIONSBIT'. Activity feed live-rendered both new debit entries (visible in screenshot). Improved error handling did NOT regress the happy path.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_admin_debit_balance.py",
+    "/app/test_reports/pytest/iter45_debit.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminUsersPage.jsx and AdminActivityPage.jsx duplicate the entire handleDebit logic (~55 lines each, content-type parsing, 404/401/403 mapping). Extract into a shared hook (e.g. useAdminDebit) or util to keep both call-sites in sync going forward.",
+    "Both pages still call fetch() directly with API_URL/token instead of going through adminAPI.debitBalance — inconsistent with the rest of the admin codebase and makes interceptor-based auth refresh impossible.",
+    "AdminUsersPage.jsx is 1,328 lines; the Debit dialog and History dialog should be split into their own components for maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created via UI during this run on user dea201c1-940b-4ae6-9dc7-403581ebebb9 (Test User): admin_debit USD 2.50 (Users page) and admin_debit USD 1.25 (Activity page), both reason='Mantenimiento de cuenta'. Backend pytest also created its own TEST_ prefixed credit/debit pair.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature 100% green in preview. Reusable regression: pytest /app/backend/tests/test_admin_debit_balance.py (10 tests, ~4s). Test User id=dea201c1-940b-4ae6-9dc7-403581ebebb9. AdminUsersPage debit selectors: data-testid='debit-balance-<user_id>' button → 'debit-balance-dialog' modal → 'debit-confirm-toggle' checkbox → 'debit-submit' button. AdminActivityPage selectors: 'debit-balance-btn-<activity_id>' button → 'activity-debit-confirm' checkbox → 'activity-debit-submit' button. Activity page renders ~100 debit buttons (one per row); the admin/users page renders the Debitar button per-user. NOTE: do NOT use wait_until='networkidle' on these admin pages — long-poll/WebSocket keeps the network busy and goto times out; use 'domcontentloaded' + wait_for_selector for the actual data testid (~20s timeout). The 'Activity success=False' line in the playwright log was a false-negative caused by reading body innerText after toast had auto-dismissed; the audit endpoint and on-screen activity feed both confirmed the debit succeeded.",
+  "rca of the issue": "Original production error 'Error de conexion al debitar saldo' was caused by handleDebit calling response.json() unconditionally — when the production deploy had not yet shipped the new endpoint and CDN/edge returned an HTML 404, JSON.parse threw and the catch branch produced the generic message. Fix in AdminUsersPage.jsx and AdminActivityPage.jsx now: (1) inspects content-type before JSON parse, (2) maps HTTP 404 to a deploy-instruction message, (3) maps 401/403 to session-expired message, (4) surfaces the actual status + detail otherwise. Verified the happy path still works in preview where the endpoint is deployed."
+}
