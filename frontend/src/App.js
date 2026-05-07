@@ -41,6 +41,7 @@ import { AdvisorsPage } from "./pages/AdvisorsPage";
 import { InvestingProPage } from "./pages/InvestingProPage";
 import CommunityPage from "./pages/CommunityPage";
 import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage";
+import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -163,6 +164,7 @@ function AppRoutes() {
             <Route path="/admin/crypto-stats" element={<ProtectedRoute adminOnly><AdminCryptoStatsPage /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>} />
             <Route path="/admin/community-progress" element={<ProtectedRoute adminOnly><AdminCommunityProgressPage /></ProtectedRoute>} />
+            <Route path="/admin/share-analytics" element={<ProtectedRoute adminOnly><AdminShareAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/transactions" element={<ProtectedRoute adminOnly><AdminTransactionsPage /></ProtectedRoute>} />
             <Route path="/admin/withdrawals" element={<ProtectedRoute adminOnly><AdminWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/kyc" element={<ProtectedRoute adminOnly><AdminKYCPage /></ProtectedRoute>} />

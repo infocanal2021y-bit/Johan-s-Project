@@ -804,3 +804,146 @@ async def admin_bootstrap_demo(admin: dict = Depends(get_admin_user)):
     from services.community_demo_bootstrap import bootstrap_community_demo
     result = await bootstrap_community_demo()
     return {'status': 'ok', **result}
+
+
+# ==================== COMMUNITY SHARE EVENTS (anonymous tracking) ====================
+
+from fastapi import Request
+from pydantic import BaseModel
+
+# Allowed share channels (whitelist to avoid garbage in DB)
+_ALLOWED_SHARE_CHANNELS = {'whatsapp', 'twitter', 'telegram', 'native', 'copy'}
+
+
+class ShareEvent(BaseModel):
+    item_id: str
+    channel: str
+    name_public: Optional[str] = None
+    country: Optional[str] = None
+    amount_eur: Optional[float] = 0.0
+    capital_recovered: Optional[bool] = False
+
+
+@router.post("/community/share-event")
+async def community_record_share_event(payload: ShareEvent, request: Request):
+    """Anonymous endpoint. Records that a user clicked a share button on a
+    Recent Withdrawals card. NO authentication required (frontend fires-and-forgets).
+    Used for engagement analytics — what content drives most social proof.
+    """
+    if payload.channel not in _ALLOWED_SHARE_CHANNELS:
+        raise HTTPException(status_code=400, detail=f'Invalid channel. Allowed: {sorted(_ALLOWED_SHARE_CHANNELS)}')
+    if not payload.item_id or len(payload.item_id) > 200:
+        raise HTTPException(status_code=400, detail='Invalid item_id')
+
+    # Capture lightweight context (no PII)
+    ip = request.client.host if request.client else None
+    forwarded = request.headers.get('x-forwarded-for')
+    if forwarded:
+        ip = forwarded.split(',')[0].strip()
+    ua = request.headers.get('user-agent', '')[:300]
+
+    doc = {
+        'id': str(uuid.uuid4()),
+        'item_id': payload.item_id,
+        'channel': payload.channel,
+        'name_public': (payload.name_public or '')[:80],
+        'country': (payload.country or '')[:80],
+        'amount_eur': float(payload.amount_eur or 0.0),
+        'capital_recovered': bool(payload.capital_recovered),
+        'ip': ip,
+        'user_agent': ua,
+        'created_at': datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        await db.community_share_events.insert_one(doc)
+    except Exception as exc:
+        logging.warning(f'[community_share_events] insert failed: {exc}')
+        # Never fail the user-facing share — return ok regardless
+        return {'status': 'logged_locally'}
+
+    return {'status': 'ok', 'event_id': doc['id']}
+
+
+@router.get("/admin/community/share-stats")
+async def admin_community_share_stats(admin: dict = Depends(get_admin_user)):
+    """Engagement analytics for the Recent Withdrawals share buttons.
+    Returns total shares, breakdown by channel, top shared items, country
+    distribution, capital_recovered ratio, and a 14-day daily trend.
+    """
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=14)).isoformat()
+
+    events = await db.community_share_events.find(
+        {},
+        {'_id': 0}
+    ).sort('created_at', -1).to_list(20000)
+
+    total = len(events)
+
+    by_channel: dict = {ch: 0 for ch in _ALLOWED_SHARE_CHANNELS}
+    by_country: dict = {}
+    by_item: dict = {}
+    capital_recovered_count = 0
+    amount_sum = 0.0
+    daily: dict = {}
+
+    for ev in events:
+        ch = ev.get('channel') or 'unknown'
+        by_channel[ch] = by_channel.get(ch, 0) + 1
+
+        country = ev.get('country') or 'Sin país'
+        by_country[country] = by_country.get(country, 0) + 1
+
+        item_id = ev.get('item_id') or 'unknown'
+        if item_id not in by_item:
+            by_item[item_id] = {
+                'item_id': item_id,
+                'name_public': ev.get('name_public') or '',
+                'country': country,
+                'amount_eur': ev.get('amount_eur') or 0.0,
+                'capital_recovered': bool(ev.get('capital_recovered')),
+                'count': 0,
+                'channels': {},
+            }
+        by_item[item_id]['count'] += 1
+        by_item[item_id]['channels'][ch] = by_item[item_id]['channels'].get(ch, 0) + 1
+
+        if ev.get('capital_recovered'):
+            capital_recovered_count += 1
+        amount_sum += float(ev.get('amount_eur') or 0.0)
+
+        # Daily bucket (last 14 days)
+        created = ev.get('created_at', '')
+        if created and created >= since:
+            day_key = created[:10]  # YYYY-MM-DD
+            daily[day_key] = daily.get(day_key, 0) + 1
+
+    # Top 10 items by share count
+    top_items = sorted(by_item.values(), key=lambda x: x['count'], reverse=True)[:10]
+
+    # Top 10 countries
+    top_countries = sorted(
+        [{'country': k, 'count': v} for k, v in by_country.items()],
+        key=lambda x: x['count'], reverse=True
+    )[:10]
+
+    # 14-day series
+    series = []
+    for i in range(14):
+        d = (now - timedelta(days=13 - i)).strftime('%Y-%m-%d')
+        series.append({'date': d, 'count': daily.get(d, 0)})
+
+    capital_recovered_ratio = round((capital_recovered_count / total) * 100, 1) if total else 0
+    avg_amount = round(amount_sum / total, 2) if total else 0
+
+    return {
+        'total': total,
+        'by_channel': by_channel,
+        'top_items': top_items,
+        'top_countries': top_countries,
+        'capital_recovered_count': capital_recovered_count,
+        'capital_recovered_ratio_pct': capital_recovered_ratio,
+        'avg_amount_eur': avg_amount,
+        'daily_14d': series,
+        'last_event_at': events[0].get('created_at') if events else None,
+    }

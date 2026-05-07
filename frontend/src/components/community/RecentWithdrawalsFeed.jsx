@@ -50,12 +50,42 @@ const ShareBar = ({ item }) => {
     const encoded = encodeURIComponent(message);
     const shareUrl = 'https://paylionsbit.es';
 
+    // Anonymous share-event tracking (fire-and-forget, no auth)
+    const trackShare = (channel) => {
+        try {
+            const apiBase = process.env.REACT_APP_BACKEND_URL || '';
+            // Use Beacon API when available so the request survives navigation/popups
+            const url = `${apiBase}/api/community/share-event`;
+            const body = JSON.stringify({
+                item_id: String(item.id),
+                channel,
+                name_public: item.name_public || '',
+                country: item.country || '',
+                amount_eur: Number(item.amount_eur) || 0,
+                capital_recovered: (item.deposited_eur > 0)
+                    ? (item.total_withdrawn_eur / item.deposited_eur) >= 0.65
+                    : false,
+            });
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+            } else {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body,
+                    keepalive: true,
+                }).catch(() => {});
+            }
+        } catch (_) { /* never break the user-facing share */ }
+    };
+
     const openIntent = (url) => {
         window.open(url, '_blank', 'noopener,noreferrer,width=600,height=600');
     };
 
     const handleNative = async (e) => {
         e.stopPropagation();
+        trackShare('native');
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -74,21 +104,25 @@ const ShareBar = ({ item }) => {
 
     const handleWhatsApp = (e) => {
         e.stopPropagation();
+        trackShare('whatsapp');
         openIntent(`https://api.whatsapp.com/send?text=${encoded}`);
     };
 
     const handleTwitter = (e) => {
         e.stopPropagation();
+        trackShare('twitter');
         openIntent(`https://twitter.com/intent/tweet?text=${encoded}`);
     };
 
     const handleTelegram = (e) => {
         e.stopPropagation();
+        trackShare('telegram');
         openIntent(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encoded}`);
     };
 
     const handleCopy = async (e) => {
         e.stopPropagation();
+        trackShare('copy');
         try {
             await navigator.clipboard.writeText(message);
             setCopied(true);
