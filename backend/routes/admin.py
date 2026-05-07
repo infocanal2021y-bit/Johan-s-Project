@@ -2227,3 +2227,40 @@ async def admin_export_admin_ops_csv(
             'Cache-Control': 'no-store',
         },
     )
+
+
+# ==================== MAINTENANCE MODE TOGGLE ====================
+
+from pydantic import BaseModel as _BM
+
+
+class MaintenanceToggle(_BM):
+    enabled: bool
+    message: Optional[str] = None
+    estimated_end: Optional[str] = None
+
+
+@router.post("/admin/maintenance")
+async def admin_set_maintenance(payload: MaintenanceToggle, admin: dict = Depends(get_admin_user)):
+    """Enable / disable platform-wide maintenance mode.
+    When enabled, frontend shows a banner and degrades gracefully.
+    Stored in `system_flags` collection so it survives restarts.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        'key': 'maintenance',
+        'enabled': bool(payload.enabled),
+        'message': (payload.message or '').strip() or 'Mantenimiento programado en curso',
+        'started_at': now if payload.enabled else None,
+        'estimated_end': payload.estimated_end,
+        'toggled_by': admin.get('id'),
+        'toggled_at': now,
+    }
+    await db.system_flags.update_one({'key': 'maintenance'}, {'$set': doc}, upsert=True)
+    return {'status': 'ok', **doc}
+
+
+@router.get("/admin/maintenance")
+async def admin_get_maintenance(admin: dict = Depends(get_admin_user)):
+    doc = await db.system_flags.find_one({'key': 'maintenance'}, {'_id': 0})
+    return doc or {'enabled': False}

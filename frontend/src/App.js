@@ -43,6 +43,9 @@ import CommunityPage from "./pages/CommunityPage";
 import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage";
 import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 import AdminOpsPage from "./pages/admin/AdminOpsPage";
+import { ConnectionIndicator } from "./components/system/ConnectionIndicator";
+import { MaintenanceBanner } from "./components/system/MaintenanceBanner";
+import useTokenHeartbeat from "./hooks/useTokenHeartbeat";
 
 // Admin Pages
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -194,14 +197,26 @@ function AppRoutes() {
     );
 }
 
+function AppShell() {
+    // Auto-validate token every 60s; redirect to /login if expired.
+    useTokenHeartbeat();
+    return (
+        <>
+            <MaintenanceBanner />
+            <AppRoutes />
+            <ConnectionIndicator />
+            <Toaster position="top-right" richColors />
+        </>
+    );
+}
+
 function App() {
     return (
         <div className="App">
             <BrowserRouter>
                 <LanguageProvider>
                     <AuthProvider>
-                        <AppRoutes />
-                        <Toaster position="top-right" richColors />
+                        <AppShell />
                     </AuthProvider>
                 </LanguageProvider>
             </BrowserRouter>

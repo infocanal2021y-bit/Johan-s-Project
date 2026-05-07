@@ -146,6 +146,65 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
+
+# Capture process boot time once for uptime calculation
+_BOOT_TIME = datetime.now(timezone.utc)
+_API_VERSION = "1.5.0"
+
+
+@app.get("/api/health/full")
+async def health_full():
+    """Full diagnostic health check: DB ping, latency, uptime, memory, maintenance flag.
+    Designed to be polled by the admin system-status panel and the resilient frontend.
+    """
+    import time
+    out: dict = {
+        "status": "ok",
+        "service": "lionsbit-api",
+        "version": _API_VERSION,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "uptime_seconds": int((datetime.now(timezone.utc) - _BOOT_TIME).total_seconds()),
+        "boot_at": _BOOT_TIME.isoformat(),
+    }
+
+    # 1. DB ping with latency
+    try:
+        t0 = time.perf_counter()
+        await db.command("ping")
+        out["db"] = {
+            "status": "ok",
+            "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
+        }
+    except Exception as exc:
+        out["status"] = "degraded"
+        out["db"] = {"status": "fail", "error": str(exc)[:200]}
+
+    # 2. Maintenance flag (admin can toggle from /admin/system-status)
+    try:
+        flag_doc = await db.system_flags.find_one({"key": "maintenance"}, {"_id": 0})
+        if flag_doc and flag_doc.get("enabled"):
+            out["maintenance"] = {
+                "enabled": True,
+                "message": flag_doc.get("message") or "Sistema en mantenimiento",
+                "started_at": flag_doc.get("started_at"),
+                "estimated_end": flag_doc.get("estimated_end"),
+            }
+            out["status"] = "maintenance"
+        else:
+            out["maintenance"] = {"enabled": False}
+    except Exception:
+        out["maintenance"] = {"enabled": False}
+
+    # 3. Memory snapshot (best-effort, no hard dep on psutil)
+    try:
+        import resource
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        out["memory"] = {"rss_kb": ru.ru_maxrss}
+    except Exception:
+        pass
+
+    return out
+
 @app.on_event("startup")
 async def startup_event():
     await ensure_government_treasury()

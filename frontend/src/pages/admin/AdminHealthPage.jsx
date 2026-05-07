@@ -4,10 +4,13 @@ import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import api from '../../lib/api';
+import { safeApiCall } from '../../lib/diagnostics';
+import { toast } from 'sonner';
 import {
     Activity, Database, Mail, Clock, Bot, CheckCircle2, AlertTriangle,
-    XCircle, RefreshCw, ArrowLeft, Zap, HeartPulse, Send,
+    XCircle, RefreshCw, ArrowLeft, Zap, HeartPulse, Send, AlertOctagon,
 } from 'lucide-react';
 
 const STATUS_TONE = {
@@ -331,7 +334,148 @@ export const AdminHealthPage = () => {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Maintenance mode toggle */}
+            <MaintenanceCard />
         </Layout>
+    );
+};
+
+const MaintenanceCard = () => {
+    const [data, setData] = useState({ enabled: false, message: '', estimated_end: '' });
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const refresh = async () => {
+        setLoading(true);
+        const r = await safeApiCall({ url: '/api/admin/maintenance', method: 'GET', timeoutMs: 6000 });
+        setLoading(false);
+        if (r.ok) {
+            setData({
+                enabled: !!r.data.enabled,
+                message: r.data.message || '',
+                estimated_end: r.data.estimated_end || '',
+            });
+        }
+    };
+
+    useEffect(() => { refresh(); }, []);
+
+    const save = async (enabled) => {
+        setSaving(true);
+        const r = await safeApiCall({
+            url: '/api/admin/maintenance',
+            method: 'POST',
+            body: {
+                enabled,
+                message: data.message,
+                estimated_end: data.estimated_end || null,
+            },
+            timeoutMs: 8000,
+        });
+        setSaving(false);
+        if (r.ok) {
+            setData({ ...data, enabled });
+            toast.success(enabled ? 'Modo mantenimiento ACTIVADO' : 'Modo mantenimiento desactivado');
+        } else {
+            toast.error(r.message);
+        }
+    };
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
+            <div className={`rounded-2xl border p-5 backdrop-blur-md transition-colors ${
+                data.enabled
+                    ? 'bg-amber-500/10 border-amber-500/40'
+                    : 'bg-slate-900/70 border-slate-800'
+            }`} data-testid="maintenance-card">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                            data.enabled ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                            <AlertOctagon className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-white font-bold text-sm">Modo Mantenimiento</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                Muestra un banner global a todos los usuarios e indica que la plataforma está en mantenimiento.
+                            </p>
+                        </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-wider ${
+                        data.enabled
+                            ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 animate-pulse'
+                            : 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40'
+                    }`}>
+                        {data.enabled ? 'ACTIVO' : 'DESACTIVADO'}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                    <div>
+                        <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1 block">
+                            Mensaje al usuario
+                        </label>
+                        <Input
+                            value={data.message}
+                            onChange={(e) => setData({ ...data, message: e.target.value })}
+                            placeholder="Mantenimiento programado en curso"
+                            className="bg-slate-950 border-slate-800 text-white text-sm"
+                            data-testid="maintenance-message-input"
+                            disabled={loading}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1 block">
+                            Hora estimada de finalización (opcional)
+                        </label>
+                        <Input
+                            value={data.estimated_end}
+                            onChange={(e) => setData({ ...data, estimated_end: e.target.value })}
+                            placeholder="Hoy 22:00 UTC"
+                            className="bg-slate-950 border-slate-800 text-white text-sm"
+                            data-testid="maintenance-end-input"
+                            disabled={loading}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                    {!data.enabled ? (
+                        <Button
+                            onClick={() => save(true)}
+                            disabled={saving}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                            data-testid="maintenance-enable-btn"
+                        >
+                            {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <AlertOctagon className="w-4 h-4 mr-2" />}
+                            Activar Mantenimiento
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={() => save(false)}
+                            disabled={saving}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            data-testid="maintenance-disable-btn"
+                        >
+                            {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                            Desactivar Mantenimiento
+                        </Button>
+                    )}
+                    <Button
+                        onClick={refresh}
+                        variant="outline"
+                        disabled={loading}
+                        className="border-slate-700 hover:bg-slate-800 text-xs"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                        Refrescar
+                    </Button>
+                </div>
+            </div>
+        </motion.div>
     );
 };
 

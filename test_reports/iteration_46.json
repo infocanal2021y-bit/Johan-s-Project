@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 46 — Validated Phase 1 production-stabilization layer (health endpoints + maintenance toggle + ConnectionIndicator + MaintenanceBanner + token heartbeat). 8/8 backend pytest cases pass on /app/backend/tests/test_health_and_maintenance.py. Frontend Playwright run end-to-end clean: ConnectionIndicator stays hidden on /dashboard when healthy, MaintenanceBanner appears with correct message after admin enables maintenance and disappears after disabling, maintenance-card on AdminHealthPage toggles ACTIVO ↔ DESACTIVADO with toast feedback. Maintenance flag was disabled at the end of the run (verified via /api/health/full → status:ok, enabled:false). useTokenHeartbeat hook is wired in App.js line 202, MaintenanceBanner+ConnectionIndicator mounted in AppShell. No regressions on admin/users listing or admin/transactions endpoints.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_health_and_maintenance.py",
+    "/app/test_reports/pytest/iter46_health.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/server.py is 938 lines and mixes app setup, CORS, scheduler, watchdog, email jobs and admin bootstrap — the scheduled jobs (process_*) should be split into /app/backend/jobs/*.py for maintainability (carry-over from earlier iterations).",
+    "MaintenanceBanner polls /api/health/full every 60s but ConnectionIndicator polls /api/health every 25s — consider sharing a single SWR/context so each tab issues at most one health probe regardless of how many widgets consume it.",
+    "/api/admin/maintenance has no body validation when enabled=false (estimated_end / message accepted but ignored) — minor; fine to leave.",
+    "SafeButton is committed but not wired anywhere yet (per request) — consider wrapping admin destructive actions (debit, suspend, force-release, kyc-reject) on next iteration."
+  ],
+  "updated_files": ["/app/backend/tests/test_health_and_maintenance.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Briefly toggled system_flags.maintenance ON with message 'TEST_iter46 maintenance' / 'TEST_iter46 UI maintenance' during pytest + Playwright runs; both turned OFF at the end. No other seed data created.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression: pytest /app/backend/tests/test_health_and_maintenance.py (8 tests, ~13s). The login response uses 'token' (not 'access_token') — keep that in mind for any new pytest fixture. Frontend test selectors confirmed: data-testid='connection-indicator' (hidden when healthy), 'maintenance-banner' (top of viewport when active), 'maintenance-card' / 'maintenance-enable-btn' / 'maintenance-disable-btn' / 'maintenance-message-input' / 'maintenance-end-input' on /admin/health. The MaintenanceBanner polls every 60s; reload the page after a toggle for instant feedback. ConnectionIndicator polls every 25s (ok) / 8s (degraded). Token heartbeat hook is wired in App.js line 202 — full 60s wait wasn't tested but the hook is mounted.",
+  "rca of the issue": "N/A — no bugs found. Initial pytest fixture used response.json()['access_token'] which threw KeyError because the LIONSBIT login endpoint returns {'token': ...}. Fixed in test_health_and_maintenance.py by reading body.get('token') or body.get('access_token')."
+}
