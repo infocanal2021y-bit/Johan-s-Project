@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const DEBIT_REASON_PRESETS = [
+    'Mantenimiento de cuenta',
     'Reversión de pago duplicado',
     'Ajuste operativo',
     'Comisión de retiro',
@@ -156,7 +157,7 @@ export const AdminActivityPage = () => {
         setDebitTarget({ id: userId, name: userName, email: userEmail });
         setDebitAmount('');
         setDebitCurrency('USD');
-        setDebitReason('');
+        setDebitReason('Mantenimiento de cuenta');
         setDebitNotify(true);
         setDebitConfirm(false);
         setDebitDialog(true);
