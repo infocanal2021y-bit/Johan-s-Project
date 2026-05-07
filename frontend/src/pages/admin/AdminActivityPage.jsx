@@ -11,9 +11,19 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { 
     Activity, RefreshCw, UserPlus, LogIn, FileCheck, ArrowUpRight, 
     DollarSign, CreditCard, HelpCircle, Users, Clock, MapPin, Globe, 
-    Filter, TrendingUp, ExternalLink, PlusCircle, Loader2, Flame, Crown, Search, X
+    Filter, TrendingUp, ExternalLink, PlusCircle, Loader2, Flame, Crown, Search, X, MinusCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const DEBIT_REASON_PRESETS = [
+    'Reversión de pago duplicado',
+    'Ajuste operativo',
+    'Comisión de retiro',
+    'Corrección de saldo',
+    'Penalización por incumplimiento',
+];
 
 const activityIcons = {
     register: { icon: UserPlus, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
@@ -51,6 +61,16 @@ export const AdminActivityPage = () => {
     const [balanceAmount, setBalanceAmount] = useState('');
     const [balanceCurrency, setBalanceCurrency] = useState('USD');
     const [addingBalance, setAddingBalance] = useState(false);
+
+    // Debit balance dialog
+    const [debitDialog, setDebitDialog] = useState(false);
+    const [debitTarget, setDebitTarget] = useState(null);
+    const [debitAmount, setDebitAmount] = useState('');
+    const [debitCurrency, setDebitCurrency] = useState('USD');
+    const [debitReason, setDebitReason] = useState('');
+    const [debitNotify, setDebitNotify] = useState(true);
+    const [debitConfirm, setDebitConfirm] = useState(false);
+    const [debiting, setDebiting] = useState(false);
 
     const fetchData = useCallback(async () => {
         try {
@@ -129,6 +149,59 @@ export const AdminActivityPage = () => {
             toast.error(err.response?.data?.detail || 'Error al agregar saldo');
         } finally {
             setAddingBalance(false);
+        }
+    };
+
+    const openDebit = (userId, userName, userEmail) => {
+        setDebitTarget({ id: userId, name: userName, email: userEmail });
+        setDebitAmount('');
+        setDebitCurrency('USD');
+        setDebitReason('');
+        setDebitNotify(true);
+        setDebitConfirm(false);
+        setDebitDialog(true);
+    };
+
+    const handleDebit = async () => {
+        const amount = parseFloat(debitAmount);
+        if (!amount || amount <= 0) { toast.error('Ingrese un monto valido'); return; }
+        if (!debitReason.trim() || debitReason.trim().length < 3) {
+            toast.error('El motivo es obligatorio (min. 3 caracteres)');
+            return;
+        }
+        if (!debitConfirm) {
+            toast.error('Debe confirmar la operacion');
+            return;
+        }
+        setDebiting(true);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(`${API_URL}/api/admin/debit-balance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    user_id: debitTarget.id,
+                    amount,
+                    currency: debitCurrency,
+                    reason: debitReason.trim(),
+                    notify_user: debitNotify,
+                })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                toast.success(
+                    `Debitado ${amount.toLocaleString()} ${debitCurrency} de ${debitTarget.name}` +
+                    (debitNotify ? ' · Email enviado' : '')
+                );
+                setDebitDialog(false);
+                fetchData();
+            } else {
+                toast.error(data.detail || 'Error al debitar');
+            }
+        } catch (e) {
+            toast.error('Error de conexion');
+        } finally {
+            setDebiting(false);
         }
     };
 
@@ -308,7 +381,7 @@ export const AdminActivityPage = () => {
                                             <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Descripcion</TableHead>
                                             <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium">Ubicacion</TableHead>
                                             <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-right">Hora</TableHead>
-                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-center w-24">Acciones</TableHead>
+                                            <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-medium text-center w-32">Acciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -371,14 +444,24 @@ export const AdminActivityPage = () => {
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         {activity.user_id && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); openAddBalance(activity.user_id, activity.user_name, activity.user_email); }}
-                                                                className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
-                                                                title="Agregar saldo"
-                                                                data-testid={`add-balance-btn-${activity.id}`}
-                                                            >
-                                                                <PlusCircle className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); openAddBalance(activity.user_id, activity.user_name, activity.user_email); }}
+                                                                    className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                                                                    title="Agregar saldo"
+                                                                    data-testid={`add-balance-btn-${activity.id}`}
+                                                                >
+                                                                    <PlusCircle className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); openDebit(activity.user_id, activity.user_name, activity.user_email); }}
+                                                                    className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors"
+                                                                    title="Debitar saldo"
+                                                                    data-testid={`debit-balance-btn-${activity.id}`}
+                                                                >
+                                                                    <MinusCircle className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         )}
                                                     </TableCell>
                                                 </motion.tr>
@@ -452,6 +535,116 @@ export const AdminActivityPage = () => {
                                 {addingBalance
                                     ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
                                     : <><DollarSign className="w-4 h-4 mr-2" /> Agregar Saldo</>
+                                }
+                            </Button>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Debit Balance Dialog */}
+            <Dialog open={debitDialog} onOpenChange={setDebitDialog}>
+                <DialogContent className="bg-slate-900 border-rose-500/30 max-w-md" data-testid="activity-debit-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <MinusCircle className="w-5 h-5 text-rose-400" />
+                            Debitar Saldo
+                        </DialogTitle>
+                    </DialogHeader>
+                    {debitTarget && (
+                        <div className="space-y-4 pt-2">
+                            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                                <p className="text-white text-sm font-medium">{debitTarget.name}</p>
+                                <p className="text-slate-500 text-xs">{debitTarget.email}</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <p className="text-slate-300 text-sm font-medium">Monto a debitar *</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number" min="0" step="0.01"
+                                        value={debitAmount}
+                                        onChange={(e) => setDebitAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        className="flex-1 bg-slate-950/50 border border-rose-500/30 rounded-lg text-white text-sm p-3 focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+                                        data-testid="activity-debit-amount"
+                                    />
+                                    <Select value={debitCurrency} onValueChange={setDebitCurrency}>
+                                        <SelectTrigger className="w-24 bg-slate-950 border-slate-800 text-white">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-slate-900 border-slate-700">
+                                            <SelectItem value="USD">USD</SelectItem>
+                                            <SelectItem value="EUR">EUR</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <p className="text-slate-300 text-sm font-medium">Motivo del debito *</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {DEBIT_REASON_PRESETS.map((preset) => {
+                                        const active = debitReason === preset;
+                                        return (
+                                            <button
+                                                key={preset}
+                                                type="button"
+                                                onClick={() => setDebitReason(preset)}
+                                                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
+                                                    active
+                                                        ? 'bg-rose-500/20 border-rose-400 text-rose-200 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
+                                                        : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:border-rose-500/50 hover:text-rose-200'
+                                                }`}
+                                            >
+                                                {preset}
+                                            </button>
+                                        );
+                                    })}
+                                    {debitReason && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDebitReason('')}
+                                            className="text-[11px] px-2 py-1 rounded-full border border-slate-700 text-slate-500 hover:text-rose-300 hover:border-rose-500/40 transition-colors"
+                                        >
+                                            Limpiar
+                                        </button>
+                                    )}
+                                </div>
+                                <textarea
+                                    rows={3}
+                                    value={debitReason}
+                                    onChange={(e) => setDebitReason(e.target.value)}
+                                    placeholder="Seleccione un motivo o escriba uno personalizado..."
+                                    className="w-full bg-slate-950 border border-rose-500/30 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none"
+                                    data-testid="activity-debit-reason"
+                                />
+                            </div>
+
+                            <label className="flex items-start gap-2 cursor-pointer text-xs text-slate-300">
+                                <input type="checkbox" checked={debitNotify}
+                                    onChange={(e) => setDebitNotify(e.target.checked)}
+                                    className="mt-0.5 accent-cyan-500" />
+                                <span>Notificar al usuario por email con el motivo del debito</span>
+                            </label>
+
+                            <label className="flex items-start gap-2 cursor-pointer text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-md p-3">
+                                <input type="checkbox" checked={debitConfirm}
+                                    onChange={(e) => setDebitConfirm(e.target.checked)}
+                                    className="mt-0.5 accent-rose-500"
+                                    data-testid="activity-debit-confirm" />
+                                <span><strong>Confirmo</strong> que deseo debitar este monto del saldo del usuario. Esta accion queda registrada permanentemente en el ledger administrativo.</span>
+                            </label>
+
+                            <Button
+                                onClick={handleDebit}
+                                disabled={debiting || !debitConfirm}
+                                className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 disabled:opacity-40"
+                                data-testid="activity-debit-submit"
+                            >
+                                {debiting
+                                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
+                                    : <><MinusCircle className="w-4 h-4 mr-2" /> Confirmar debito</>
                                 }
                             </Button>
                         </div>
