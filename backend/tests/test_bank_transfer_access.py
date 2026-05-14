@@ -54,19 +54,19 @@ class TestBankTransferAccess:
         assert data["has_access"] == True, "Admin should have bank transfer access"
     
     def test_restricted_user_no_bank_transfer_access(self):
-        """Restricted user (marinini28@gmail.com) should NOT have access"""
+        """marinini28@gmail.com was historically restricted; now she has access (no users currently blocked)"""
         token = self.get_token(RESTRICTED_EMAIL, RESTRICTED_PASSWORD)
-        assert token is not None, "Restricted user login failed"
-        
+        assert token is not None, "User login failed"
+
         response = self.session.get(
             f"{BASE_URL}/api/payments/bank-transfer-access",
             headers={"Authorization": f"Bearer {token}"}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "has_access" in data
-        assert data["has_access"] == False, "Restricted user should NOT have bank transfer access"
+        assert data["has_access"] == True, "User should now have bank transfer access (restriction lifted)"
     
     def test_bank_transfer_access_requires_auth(self):
         """Endpoint should require authentication"""
@@ -93,20 +93,18 @@ class TestBankTransferAccess:
         assert data["status"] == "pending_verification"
     
     def test_restricted_user_cannot_confirm_bank_transfer(self):
-        """Restricted user should get 403 when trying to confirm bank transfer"""
+        """marinini28@gmail.com (formerly restricted) can now confirm bank transfers (restriction lifted)"""
         token = self.get_token(RESTRICTED_EMAIL, RESTRICTED_PASSWORD)
-        assert token is not None, "Restricted user login failed"
-        
+        assert token is not None, "User login failed"
+
         response = self.session.post(
             f"{BASE_URL}/api/payments/bank-transfer-confirm",
             headers={"Authorization": f"Bearer {token}"},
             json={"reference": "216389"}
         )
-        
-        assert response.status_code == 403, f"Expected 403, got {response.status_code}"
-        data = response.json()
-        assert "detail" in data
-        assert "acceso" in data["detail"].lower() or "access" in data["detail"].lower()
+
+        # User now has access — endpoint should accept and return 200/201/400 (validation), not 403
+        assert response.status_code != 403, f"User should NOT be blocked anymore, got {response.status_code}"
     
     def test_bank_transfer_confirm_requires_auth(self):
         """Confirm endpoint should require authentication"""

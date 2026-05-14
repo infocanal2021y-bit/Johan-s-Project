@@ -45,8 +45,8 @@ ADMIN_ACCOUNTS = [
     {'name': 'Admin Backup', 'email': 'admin.backup@paylionsbit.es', 'password': 'LionsBit2026!Backup'},
 ]
 
-# Bank transfer restriction
-RESTRICTED_BANK_TRANSFER_EMAILS = ['marinini28@gmail.com']
+# Bank transfer restriction (whitelist-style: emails here are BLOCKED from seeing bank transfer methods)
+RESTRICTED_BANK_TRANSFER_EMAILS = []
 
 # App base URL
 APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://paylionsbit.es')
