@@ -43,7 +43,6 @@ import CommunityPage from "./pages/CommunityPage";
 import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage";
 import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 import AdminOpsPage from "./pages/admin/AdminOpsPage";
-import { ConnectionIndicator } from "./components/system/ConnectionIndicator";
 import { MaintenanceBanner } from "./components/system/MaintenanceBanner";
 import useTokenHeartbeat from "./hooks/useTokenHeartbeat";
 
@@ -204,7 +203,6 @@ function AppShell() {
         <>
             <MaintenanceBanner />
             <AppRoutes />
-            <ConnectionIndicator />
             <Toaster position="top-right" richColors />
         </>
     );
