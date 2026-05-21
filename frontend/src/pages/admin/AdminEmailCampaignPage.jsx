@@ -105,7 +105,7 @@ export const AdminEmailCampaignPage = () => {
             });
             const d = await r.json();
             setData(d);
-        } catch (e) { /* silent */ }
+        } catch (e) { console.error('[AdminEmailCampaign] silent error', e); }
         finally {
             setLoading(false);
             setRefreshing(false);

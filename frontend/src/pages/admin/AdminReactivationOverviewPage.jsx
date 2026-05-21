@@ -155,7 +155,7 @@ export const AdminReactivationOverviewPage = () => {
             });
             const d = await r.json();
             setData(d);
-        } catch (e) { /* silent */ }
+        } catch (e) { console.error('[AdminReactivationOverview] silent error', e); }
         finally {
             setLoading(false);
             setRefreshing(false);

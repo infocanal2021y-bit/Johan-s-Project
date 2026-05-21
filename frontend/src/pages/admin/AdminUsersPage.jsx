@@ -183,6 +183,8 @@ export const AdminUsersPage = () => {
         }
     };
 
+    // Load users once on mount. Intentionally no deps to avoid refetch loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchUsers(); }, []);
 
     const [healthFilter, setHealthFilter] = useState('all');  // all | green | yellow | red

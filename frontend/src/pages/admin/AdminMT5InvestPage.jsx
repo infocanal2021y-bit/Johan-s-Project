@@ -62,7 +62,9 @@ const CopyHashButton = ({ value }) => {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                     toast.success('Hash copiado');
-                } catch {}
+                } catch (err) {
+                    console.error('[clipboard] copy failed', err);
+                }
             }}
             data-no-hover
             className="inline-flex items-center gap-1 text-slate-300 font-mono text-[11px] hover:text-cyan-300 transition-colors"

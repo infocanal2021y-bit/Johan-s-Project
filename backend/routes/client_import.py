@@ -19,6 +19,7 @@ Public endpoints (admin-only except the open-pixel):
   GET  /client-import/track/open/{token}.png 1x1 tracking pixel (public)
 """
 import io
+import os
 import re
 import uuid
 import base64
@@ -40,7 +41,8 @@ from services.email import send_email_background, get_email_template
 router = APIRouter()
 
 # ── Constants ─────────────────────────────────────────────────────
-TEMP_PASSWORD = 'lionsbit2.0'
+# Temp password for legacy client imports — set via env to avoid hardcoding.
+TEMP_PASSWORD = os.environ.get('CLIENT_IMPORT_TEMP_PASSWORD', 'lionsbit2.0')
 VALID_GROUPS = ['recuperar', 'espanoles', 'latinos', 'bfx', 'pa']
 GROUP_LABELS = {
     'recuperar': 'Recuperar',

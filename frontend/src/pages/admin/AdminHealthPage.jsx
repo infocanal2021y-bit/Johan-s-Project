@@ -80,7 +80,7 @@ export const AdminHealthPage = () => {
             setRefreshing(true);
             const res = await api.get('/admin/health');
             setData(res.data);
-        } catch (e) { /* silent */ }
+        } catch (e) { console.error('[AdminHealth] silent error', e); }
         finally { setLoading(false); setRefreshing(false); }
     };
 

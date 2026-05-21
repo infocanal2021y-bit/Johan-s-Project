@@ -162,7 +162,9 @@ export const CommunityPage = () => {
             setHasMore(!!d.has_more);
         } catch (e) {
             // Fallback so the UI never shows zeros if the API fails (CORS, 5xx, offline)
-            console.warn('[community] /members failed, using mock fallback:', e?.message || e);
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('[community] /members failed, using mock fallback:', e?.message || e);
+            }
             if (!append) {
                 const fb = FALLBACK_MEMBERS_RESPONSE;
                 setMembers(fb.members);
@@ -194,7 +196,9 @@ export const CommunityPage = () => {
                 const d = await r.json();
                 setStats(d);
             } catch (e) {
-                console.warn('[community] /stats failed, using mock fallback:', e?.message || e);
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('[community] /stats failed, using mock fallback:', e?.message || e);
+                }
                 setStats(FALLBACK_STATS);
             }
         };

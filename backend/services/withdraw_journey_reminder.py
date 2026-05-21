@@ -7,6 +7,7 @@ last 48h, sends a friendly guidance email via Resend (no pressure language).
 The function is idempotent — its `journey_email_last_sent_at` flag guarantees
 a user receives at most one reminder every 48 hours.
 """
+import uuid
 from datetime import datetime, timezone, timedelta
 import logging
 
@@ -121,7 +122,7 @@ async def run_incomplete_withdraw_reminders() -> dict:
                 {'$set': {'journey_email_last_sent_at': now.isoformat()}},
             )
             await db.withdraw_journey_events.insert_one({
-                'id': str(__import__('uuid').uuid4()),
+                'id': str(uuid.uuid4()),
                 'user_id': u['id'],
                 'event': 'email_sent',
                 'withdrawal_type': u['withdrawal_type'],

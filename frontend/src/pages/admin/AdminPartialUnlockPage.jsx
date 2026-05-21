@@ -54,7 +54,7 @@ const CopyHash = ({ value }) => {
             type="button"
             onClick={async (e) => {
                 e.stopPropagation();
-                try { await navigator.clipboard.writeText(value); setC(true); setTimeout(() => setC(false), 1500); toast.success('Hash copiado'); } catch {}
+                try { await navigator.clipboard.writeText(value); setC(true); setTimeout(() => setC(false), 1500); toast.success('Hash copiado'); } catch (err) { console.error('[clipboard] copy failed', err); }
             }}
             data-no-hover
             className="inline-flex items-center gap-1 text-slate-300 font-mono text-[11px] hover:text-cyan-300 transition-colors"
