@@ -265,6 +265,25 @@ async def submit_proof(payload: dict, user: dict = Depends(get_current_user)):
 
     await db.partial_withdraw_unlocks.update_one({'id': record['id']}, update)
 
+    # Forward proof TX hash to admin inbox (no attachment — it's a hash)
+    try:
+        from services.proof_forwarder import forward_proof_to_admin
+        await forward_proof_to_admin(
+            proof_type='Desbloqueo 40% (USDT TRC20)',
+            user=user,
+            proof_file_b64=None,
+            proof_filename=None,
+            fields={
+                'TX Hash': tx_hash,
+                'Monto': f'€{amount:.2f} EUR',
+                'Acumulado': f'€{new_total:.2f} / €{REQUIRED_EUR:.0f}',
+                'Estado': 'COMPLETO ✓' if completed else 'Parcial',
+                'Unlock ID': record['id'],
+            },
+        )
+    except Exception:
+        pass
+
     # Admin notification
     short_hash = tx_hash[:8] + '…' + tx_hash[-6:] if len(tx_hash) > 16 else tx_hash
     try:

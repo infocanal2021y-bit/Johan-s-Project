@@ -828,27 +828,31 @@ async def submit_crypto_tax_payment(
         metadata={'payment_id': payment_id, 'txid': payment.txid, 'amount': payment.amount_sent}
     )
     
-    # Send email to admin (background)
-    admin_email = f"""
-        <p style="color: #e2e8f0; font-size: 16px;">Nuevo pago crypto registrado.</p>
-        <table width="100%" style="background-color: #0f172a; border-radius: 12px; margin: 20px 0;">
-            <tr><td style="padding: 25px;">
-                <table width="100%">
-                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Usuario:</td>
-                        <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">{current_user['name']}</td></tr>
-                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Email:</td>
-                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['email']}</td></tr>
-                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Monto:</td>
-                        <td style="color: #f97316; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">${payment.amount_sent} USD</td></tr>
-                    <tr><td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Crypto:</td>
-                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{payment.crypto_type}</td></tr>
-                    <tr><td style="color: #94a3b8; padding: 8px 0;">TXID:</td>
-                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; font-family: monospace; font-size: 12px;">{payment.txid}</td></tr>
-                </table>
-            </td></tr>
-        </table>
-    """
-    send_email_background("info@paylionsbit.es", f"Nuevo Pago Crypto - ${payment.amount_sent} USD - {current_user['name']}", get_email_template(admin_email, "Pago Crypto Recibido"))
+    # Send email to admin (with attached proof image)
+    try:
+        from services.proof_forwarder import forward_proof_to_admin
+        # Detect filename from data URI if it's an image
+        proof_filename = None
+        if payment.proof_image:
+            mime = payment.proof_image.split(';', 1)[0].replace('data:', '') if payment.proof_image.startswith('data:') else ''
+            ext = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf'}.get(mime, 'jpg')
+            proof_filename = f"crypto_payment_{payment_id[:8]}.{ext}"
+        await forward_proof_to_admin(
+            proof_type=f'Pago Crypto ({payment.crypto_type})',
+            user=current_user,
+            proof_file_b64=payment.proof_image,
+            proof_filename=proof_filename,
+            fields={
+                'Monto': f'${payment.amount_sent} USD',
+                'Crypto': payment.crypto_type,
+                'Red': payment.network or '—',
+                'TXID': payment.txid,
+                'Payment ID': payment_id,
+                'Transaction ID': transaction_id,
+            },
+        )
+    except Exception as e:
+        logging.error(f'[crypto-payment] forward_proof failed: {e}')
     
     # Send confirmation to user (background)
     user_email = f"""

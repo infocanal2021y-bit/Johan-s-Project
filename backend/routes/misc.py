@@ -597,51 +597,22 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         await create_notification(admin['id'], 'Nueva Transferencia Bancaria',
             f'{current_user["name"]} ({current_user["email"]}) ha enviado comprobante de transferencia. Referencia: {data.reference}. Monto: 4850 EUR.')
     
-    # ── Email to info@lionbit.es ──
-    admin_email_content = f"""
-        <p style="color:#e2e8f0;font-size:16px;">Se ha recibido un nuevo comprobante de transferencia bancaria.</p>
-        <table width="100%" style="background:#0f172a;border-radius:12px;margin:20px 0;">
-            <tr><td style="padding:25px;">
-                <p style="color:#10b981;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Datos de la Transferencia</p>
-                <table width="100%">
-                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Nombre:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{current_user['name']}</td></tr>
-                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Email:</td><td style="color:#10b981;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{current_user['email']}</td></tr>
-                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Monto:</td><td style="color:#f59e0b;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">4850 EUR</td></tr>
-                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Referencia:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-family:monospace;">{data.reference}</td></tr>
-                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Fecha:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{now_formatted}</td></tr>
-                    <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Comprobante:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;">{'Adjunto' if data.proof_file else 'No proporcionado'}</td></tr>
-                    <tr><td style="color:#94a3b8;padding:8px 0;">Comentario:</td><td style="color:#e2e8f0;text-align:right;padding:8px 0;">{data.comment or 'Sin comentario'}</td></tr>
-                </table>
-            </td></tr>
-        </table>
-    """
-    admin_html = get_email_template(admin_email_content, "Nuevo Comprobante de Transferencia")
-    
-    # Build email params with optional attachment
-    email_params = {
-        "from": f"LIONSBIT VERIFICACION <{SENDER_EMAIL}>",
-        "to": ["info@lionbit.es"],
-        "subject": "Nuevo comprobante de transferencia recibido",
-        "html": admin_html
-    }
-    
-    if data.proof_file and data.proof_filename:
-        import base64 as b64module
-        # Extract raw base64 from data URI
-        raw_b64 = data.proof_file
-        if ',' in raw_b64:
-            raw_b64 = raw_b64.split(',', 1)[1]
-        email_params["attachments"] = [{
-            "filename": data.proof_filename,
-            "content": raw_b64
-        }]
-    
-    if RESEND_API_KEY:
-        try:
-            await asyncio.to_thread(resend.Emails.send, email_params)
-        except Exception as e:
-            logging.error(f"Failed to send admin transfer email: {e}")
-    
+    # ── Email copy to info@paylionsbit.es with attached proof ──
+    from services.proof_forwarder import forward_proof_to_admin
+    await forward_proof_to_admin(
+        proof_type='Transferencia Bancaria',
+        user=current_user,
+        proof_file_b64=data.proof_file,
+        proof_filename=data.proof_filename,
+        fields={
+            'Monto': '4850 EUR',
+            'Referencia': data.reference,
+            'IBAN destino': 'BE73 9053 1376 1560',
+            'ID Comprobante': record_id,
+        },
+        comment=data.comment,
+    )
+
     # ── Confirmation email to user ──
     user_email_content = f"""
         <p style="color:#e2e8f0;font-size:16px;">Hemos recibido tu comprobante de transferencia bancaria.</p>

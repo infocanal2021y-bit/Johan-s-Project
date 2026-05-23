@@ -239,6 +239,30 @@ async def submit_proof(dep_id: str, payload: dict, user: dict = Depends(get_curr
     }
     await db.mt5_invest_deposits.update_one({'id': dep_id}, {'$set': update})
     dep.update(update)
+
+    # Forward proof to admin inbox (info@paylionsbit.es)
+    try:
+        from services.proof_forwarder import forward_proof_to_admin
+        # Detect filename from data URI if it's an image
+        filename = None
+        if proof_url and proof_url.startswith('data:'):
+            mime = proof_url.split(';', 1)[0].replace('data:', '')
+            ext = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf'}.get(mime, 'bin')
+            filename = f"deposit_{dep_id[:8]}.{ext}"
+        await forward_proof_to_admin(
+            proof_type='Depósito MT5 Invest',
+            user=user,
+            proof_file_b64=proof_url if proof_url else None,
+            proof_filename=filename,
+            fields={
+                'Depósito ID': dep_id,
+                'Monto': f"€{dep.get('amount_eur', 0):.2f} EUR",
+                'TX Hash': tx_hash or '(solo imagen)',
+            },
+        )
+    except Exception:
+        pass
+
     return {'ok': True, 'deposit': dep}
 
 
