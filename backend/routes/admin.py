@@ -2498,3 +2498,81 @@ async def admin_set_maintenance(payload: MaintenanceToggle, admin: dict = Depend
 async def admin_get_maintenance(admin: dict = Depends(get_admin_user)):
     doc = await db.system_flags.find_one({'key': 'maintenance'}, {'_id': 0})
     return doc or {'enabled': False}
+
+# ==================== SYSTEM STATUS PANEL ====================
+
+@router.get("/admin/system-status")
+async def admin_system_status(admin: dict = Depends(get_admin_user)):
+    """Aggregated system status for the admin panel."""
+    import time as _ts
+    now = datetime.now(timezone.utc)
+    since_24h = (now - timedelta(hours=24)).isoformat()
+    since_1h = (now - timedelta(hours=1)).isoformat()
+
+    # DB ping
+    t0 = _ts.perf_counter()
+    try:
+        await db.command('ping')
+        db_latency = round((_ts.perf_counter() - t0) * 1000, 2)
+        db_ok = True
+    except Exception as exc:
+        db_latency = -1
+        db_ok = False
+        logging.error(f'[system-status] DB ping failed: {exc}')
+
+    # Maintenance flag
+    maint = await db.system_flags.find_one({'key': 'maintenance'}, {'_id': 0})
+
+    # Admin request logs — recent + counters
+    recent_logs = await db.admin_request_logs.find(
+        {}, {'_id': 0}
+    ).sort('created_at', -1).limit(50).to_list(50)
+
+    errors_24h = await db.admin_request_logs.count_documents({
+        'created_at': {'$gte': since_24h},
+        'status': {'$gte': 500},
+    })
+    requests_1h = await db.admin_request_logs.count_documents({
+        'created_at': {'$gte': since_1h},
+    })
+    requests_24h = await db.admin_request_logs.count_documents({
+        'created_at': {'$gte': since_24h},
+    })
+
+    # Average latency last hour (best-effort aggregation)
+    avg_latency = 0
+    try:
+        pipeline = [
+            {'$match': {'created_at': {'$gte': since_1h}}},
+            {'$group': {'_id': None, 'avg': {'$avg': '$elapsed_ms'}}},
+        ]
+        async for r in db.admin_request_logs.aggregate(pipeline):
+            avg_latency = round(float(r.get('avg') or 0), 1)
+    except Exception:
+        pass
+
+    # Recent client errors (frontend → backend)
+    client_errors = await db.client_errors.find(
+        {}, {'_id': 0}
+    ).sort('created_at', -1).limit(20).to_list(20)
+    client_errors_24h_count = await db.client_errors.count_documents({
+        'created_at': {'$gte': since_24h},
+    })
+
+    return {
+        'timestamp': now.isoformat(),
+        'db': {'ok': db_ok, 'latency_ms': db_latency},
+        'maintenance': maint or {'enabled': False},
+        'admin_requests': {
+            'last_50': recent_logs,
+            'errors_24h': errors_24h,
+            'count_1h': requests_1h,
+            'count_24h': requests_24h,
+            'avg_latency_1h_ms': avg_latency,
+        },
+        'client_errors': {
+            'recent': client_errors,
+            'count_24h': client_errors_24h_count,
+        },
+    }
+

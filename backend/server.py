@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter, Request
 from fastapi.responses import Response, JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+import asyncio
 import re
 import os
 import logging
@@ -11,6 +12,7 @@ import resend
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 import httpx
+import jwt
 
 from config import (
     db, client, RESEND_API_KEY, ADMIN_EMAIL, TAX_AMOUNT,
@@ -134,6 +136,71 @@ app.add_middleware(
     max_age=3600,
 )
 app.add_middleware(CORSFailSafeMiddleware)
+
+
+# =============================================================================
+# Admin Request Logger — captures every admin API call (path, status, ms,
+# admin_id, IP). Used by /admin/system-status panel.
+# =============================================================================
+import time as _t
+
+class AdminRequestLoggerMiddleware(BaseHTTPMiddleware):
+    """Stores a lightweight record of every /api/admin/* request to MongoDB.
+    Skips OPTIONS preflight + the logger's own collection reads.
+    Fire-and-forget — never blocks the request even if DB write fails.
+    """
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        method = request.method
+        is_admin_call = path.startswith('/api/admin/') and method != 'OPTIONS'
+        start = _t.perf_counter()
+        response = None
+        try:
+            response = await call_next(request)
+            status = response.status_code
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if is_admin_call:
+                try:
+                    elapsed_ms = round((_t.perf_counter() - start) * 1000, 1)
+                    ip = request.headers.get('x-forwarded-for', '').split(',')[0].strip() or (
+                        request.client.host if request.client else None
+                    )
+                    admin_id = None
+                    auth = request.headers.get('authorization', '')
+                    if auth.startswith('Bearer '):
+                        try:
+                            from config import JWT_SECRET as _JS
+                            decoded = jwt.decode(auth[7:], _JS, algorithms=['HS256'])
+                            admin_id = decoded.get('user_id') or decoded.get('id')
+                        except Exception:
+                            admin_id = None
+                    doc = {
+                        'id': str(uuid.uuid4()),
+                        'path': path,
+                        'method': method,
+                        'status': status,
+                        'elapsed_ms': elapsed_ms,
+                        'admin_id': admin_id,
+                        'ip': ip,
+                        'created_at': datetime.now(timezone.utc).isoformat(),
+                    }
+                    asyncio.create_task(_safe_insert_admin_log(doc))
+                except Exception:
+                    pass
+        return response
+
+
+async def _safe_insert_admin_log(doc):
+    try:
+        await db.admin_request_logs.insert_one(doc)
+    except Exception:
+        pass
+
+
+app.add_middleware(AdminRequestLoggerMiddleware)
 
 # Public healthcheck — no auth, no DB calls, no side-effects. Designed to
 # answer in <5ms even under heavy load so the frontend ConnectionIndicator
@@ -344,9 +411,46 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Keep-alive self-ping every 4 minutes to prevent cold starts in production.
+    scheduler.add_job(
+        process_self_keepalive,
+        IntervalTrigger(minutes=4),
+        id='self_keepalive',
+        name='Self-ping /api/health to keep instance warm',
+        replace_existing=True,
+    )
+
     
     scheduler.start()
-    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s)")
+    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s), self-keepalive (4min)")
+
+
+async def process_self_keepalive():
+    """Self-ping the public /api/health endpoint every 4 minutes.
+    Prevents cold starts on serverless / spot-instance environments
+    where idle backends get reaped. Also auto-cleans old admin logs.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get('http://localhost:8001/api/health')
+            logging.info(f"[keepalive] self-ping status={r.status_code}")
+    except Exception as exc:
+        logging.warning(f"[keepalive] self-ping failed: {exc}")
+
+    # Trim admin_request_logs older than 14 days to keep collection lean
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        result = await db.admin_request_logs.delete_many({'created_at': {'$lt': cutoff}})
+        if result.deleted_count > 0:
+            logging.info(f"[keepalive] pruned {result.deleted_count} old admin logs (>14d)")
+    except Exception:
+        pass
+    # Also trim client_errors older than 30 days
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        await db.client_errors.delete_many({'created_at': {'$lt': cutoff}})
+    except Exception:
+        pass
 
 
 async def process_daily_admin_summary():

@@ -849,5 +849,47 @@ async def get_all_feedback(admin: dict = Depends(get_admin_user)):
     }
 
 
+# ==================== CLIENT ERROR CAPTURE (anon) ====================
+
+from pydantic import BaseModel as _CEBaseModel
+from fastapi import Request as _CEReq
+
+
+class ClientErrorPayload(_CEBaseModel):
+    message: str
+    stack: str | None = None
+    url: str | None = None
+    user_agent: str | None = None
+    component: str | None = None
+    severity: str | None = 'error'
+
+
+@router.post('/client-errors')
+async def report_client_error(payload: ClientErrorPayload, request: _CEReq):
+    """Receives frontend errors (no auth required — fire-and-forget from browser).
+    Used for Sentry-lite style monitoring. Rate-limited via length caps.
+    """
+    try:
+        ip = request.headers.get('x-forwarded-for', '').split(',')[0].strip() or (
+            request.client.host if request.client else None
+        )
+        doc = {
+            'id': str(uuid.uuid4()),
+            'message': (payload.message or '')[:1000],
+            'stack': (payload.stack or '')[:3000],
+            'url': (payload.url or '')[:500],
+            'user_agent': (payload.user_agent or '')[:300],
+            'component': (payload.component or '')[:120],
+            'severity': payload.severity if payload.severity in ('error', 'warning', 'info') else 'error',
+            'ip': ip,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+        }
+        await db.client_errors.insert_one(doc)
+        return {'status': 'logged'}
+    except Exception as exc:
+        logging.warning(f'[client-errors] insert failed: {exc}')
+        return {'status': 'failed_silently'}
+
+
 # Include the router in the main app
 # register_routes(api_router)  # Disabled: modularization in progress
