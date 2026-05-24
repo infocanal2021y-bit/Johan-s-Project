@@ -1,6 +1,7 @@
 """Utility, market data, Binance, chatbot, and miscellaneous routes"""
 from fastapi import APIRouter, HTTPException, Depends, Query
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 import uuid
 import os
 import logging
@@ -632,6 +633,63 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
     send_email_background(current_user['email'], "Comprobante recibido - LIONSBIT VERIFICACION", user_html)
     
     return {'message': 'Comprobante enviado correctamente. Pendiente de verificacion.', 'id': record_id, 'status': 'pending_verification'}
+
+
+@router.get("/admin/bank-transfer/proof")
+async def admin_get_bank_transfer_proof(
+    reference: Optional[str] = None,
+    payment_id: Optional[str] = None,
+    admin: dict = Depends(get_admin_user),
+):
+    """Locate a bank transfer proof by reference or payment_id. Returns the file
+    as a data URI plus payment metadata so the admin can verify the upload
+    directly from a notification.
+    """
+    if not reference and not payment_id:
+        raise HTTPException(status_code=400, detail='Indique reference o payment_id')
+
+    query = {}
+    if payment_id:
+        query['id'] = payment_id
+    else:
+        query['reference'] = reference.strip()
+
+    payment = await db.bank_transfer_payments.find_one(
+        query,
+        {'_id': 0, 'id': 1, 'user_id': 1, 'user_name': 1, 'user_email': 1,
+         'reference': 1, 'amount': 1, 'currency': 1, 'status': 1,
+         'proof_filename': 1, 'has_proof': 1, 'created_at': 1, 'comment': 1}
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail='Transferencia no encontrada')
+
+    proof = await db.bank_transfer_proofs.find_one(
+        {'payment_id': payment['id']},
+        {'_id': 0, 'data': 1, 'filename': 1}
+    )
+
+    data_uri = None
+    filename = payment.get('proof_filename')
+    if proof and proof.get('data'):
+        filename = proof.get('filename') or filename or 'comprobante.bin'
+        raw = proof['data']
+        if isinstance(raw, str) and raw.startswith('data:'):
+            data_uri = raw
+        else:
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+            mime_map = {
+                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+                'png': 'image/png', 'webp': 'image/webp', 'pdf': 'application/pdf',
+            }
+            mime = mime_map.get(ext, 'application/octet-stream')
+            data_uri = f'data:{mime};base64,{raw}'
+
+    return {
+        'payment': payment,
+        'data_uri': data_uri,
+        'filename': filename,
+        'has_file': bool(data_uri),
+    }
 
 
 # ─── Bitcoin Outputs Verification ───

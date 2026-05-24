@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info, DollarSign, Send } from 'lucide-react';
+import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info, DollarSign, Send, Image as ImageIcon, Download, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -60,6 +60,10 @@ export const NotificationBell = () => {
     const [balanceCurrency, setBalanceCurrency] = useState('USD');
     const [balanceDesc, setBalanceDesc] = useState('');
     const [addingBalance, setAddingBalance] = useState(false);
+    const [proofOpen, setProofOpen] = useState(false);
+    const [proofLoading, setProofLoading] = useState(false);
+    const [proofData, setProofData] = useState(null); // {data_uri, filename, payment, has_file}
+    const [proofError, setProofError] = useState(null);
     const dropdownRef = useRef(null);
 
     const fetchNotifications = async () => {
@@ -101,6 +105,52 @@ export const NotificationBell = () => {
         setSelectedNotif(notification);
         setDetailOpen(true);
         setShowAddBalance(false);
+        setProofOpen(false);
+        setProofData(null);
+        setProofError(null);
+    };
+
+    // Detect bank-transfer admin notification and extract reference
+    const getBankTransferReference = (notif) => {
+        if (!notif || !isAdmin) return null;
+        const title = (notif.title || '').toLowerCase();
+        if (!title.includes('transferencia bancaria')) return null;
+        const m = (notif.message || '').match(/referencia:\s*([\w-]+)/i);
+        return m ? m[1] : null;
+    };
+
+    const handleViewProof = async () => {
+        const reference = getBankTransferReference(selectedNotif);
+        if (!reference) return;
+        setProofOpen(true);
+        setProofLoading(true);
+        setProofError(null);
+        setProofData(null);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(
+                `${API_URL}/api/admin/bank-transfer/proof?reference=${encodeURIComponent(reference)}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!resp.ok) {
+                if (resp.status === 404) {
+                    setProofError('No hay comprobante disponible para esta transferencia.');
+                } else {
+                    const body = await resp.json().catch(() => ({}));
+                    setProofError(body.detail || `Error al cargar (HTTP ${resp.status})`);
+                }
+            } else {
+                const data = await resp.json();
+                setProofData(data);
+                if (!data.has_file) {
+                    setProofError('No hay comprobante disponible para esta transferencia.');
+                }
+            }
+        } catch (e) {
+            setProofError(`Fallo de red: ${e.message}`);
+        } finally {
+            setProofLoading(false);
+        }
     };
 
     const handleMarkAllAsRead = async () => {
@@ -330,6 +380,89 @@ export const NotificationBell = () => {
                                 <Clock className="w-3.5 h-3.5" />
                                 {formatFullDate(selectedNotif.created_at)}
                             </div>
+
+                            {/* Admin: Ver Comprobante (Bank Transfer notifications) */}
+                            {isAdmin && getBankTransferReference(selectedNotif) && !proofOpen && (
+                                <Button
+                                    onClick={handleViewProof}
+                                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                                    data-testid="notif-view-proof-btn"
+                                >
+                                    <ImageIcon className="w-4 h-4 mr-2" /> Ver Comprobante
+                                </Button>
+                            )}
+
+                            {isAdmin && proofOpen && (
+                                <div className="space-y-3 p-3 rounded-xl bg-slate-950/80 border border-cyan-500/30" data-testid="notif-proof-viewer">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-cyan-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                                            <FileCheck className="w-3.5 h-3.5" /> Comprobante de Transferencia
+                                        </p>
+                                        <button
+                                            onClick={() => { setProofOpen(false); setProofData(null); setProofError(null); }}
+                                            className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800"
+                                            data-testid="notif-proof-close"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                    <div className="bg-slate-900 rounded-lg p-2 min-h-[200px] flex items-center justify-center" data-testid="notif-proof-content">
+                                        {proofLoading ? (
+                                            <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                                        ) : proofError ? (
+                                            <p className="text-sm text-amber-300 text-center px-4 py-8" data-testid="notif-proof-empty">
+                                                {proofError}
+                                            </p>
+                                        ) : proofData?.data_uri ? (
+                                            proofData.data_uri.startsWith('data:application/pdf') ? (
+                                                <iframe
+                                                    src={proofData.data_uri}
+                                                    title="comprobante-pdf"
+                                                    className="w-full h-[60vh] bg-white rounded"
+                                                    data-testid="notif-proof-pdf"
+                                                />
+                                            ) : (
+                                                <img
+                                                    src={proofData.data_uri}
+                                                    alt="comprobante"
+                                                    className="max-w-full max-h-[60vh] object-contain rounded"
+                                                    data-testid="notif-proof-image"
+                                                />
+                                            )
+                                        ) : null}
+                                    </div>
+                                    {proofData?.data_uri && (
+                                        <div className="flex items-center gap-2">
+                                            <a
+                                                href={proofData.data_uri}
+                                                download={proofData.filename || 'comprobante'}
+                                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+                                                data-testid="notif-proof-download"
+                                            >
+                                                <Download className="w-3.5 h-3.5" /> Descargar
+                                            </a>
+                                            <a
+                                                href={proofData.data_uri}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+                                                data-testid="notif-proof-open"
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" /> Abrir en pestaña
+                                            </a>
+                                        </div>
+                                    )}
+                                    {proofData?.payment && (
+                                        <div className="text-[10px] text-slate-500 grid grid-cols-2 gap-1 px-1 pt-1 border-t border-slate-800">
+                                            <span>Ref: <span className="font-mono text-slate-400">{proofData.payment.reference}</span></span>
+                                            <span>Monto: <span className="text-slate-400">{proofData.payment.amount} {proofData.payment.currency}</span></span>
+                                            {proofData.payment.user_name && (
+                                                <span className="col-span-2 truncate">Usuario: <span className="text-slate-400">{proofData.payment.user_name}</span></span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Admin: Add Balance inline form */}
                             {isAdmin && !showAddBalance && (
