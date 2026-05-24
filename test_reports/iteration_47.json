@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 47 — Validated NEW Admin Proofs Viewer (visualization only). Backend: 12/12 pytest cases pass on /app/backend/tests/test_admin_proofs.py covering auth gate (401/403 without token), GET /api/admin/proofs?type=all|crypto|bank|mt5|partial-unlock filter integrity, limit param + 422 on out-of-range, GET /api/admin/proofs/{ptype}/{pid}/file 404 'Sin archivo asociado' for existing crypto items without proof_image, 404 'Tipo de comprobante invalido' for unknown ptype, and 404 'Comprobante no encontrado' for unknown id. Frontend Playwright end-to-end clean: /admin/proofs route loads AdminProofsPage with header 'Comprobantes Subidos', 4 KPI cards (Pago Crypto=3, Transferencia Bancaria=0, Depósito MT5=0, Desbloqueo 40%=0 — matches dev DB), Tipo select filter, Search input, Refrescar button, and grid of 3 crypto proof cards. Modal (data-testid=proof-viewer-modal) opens on card click, correctly shows fallback 'Este comprobante no tiene archivo adjunto' for has_file=false items, closes via proof-close-btn. Search filtering works (1 result for 'test.user', empty state for unmatched query). Sidebar admin nav exposes 'Comprobantes' link → /admin/proofs.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_admin_proofs.py",
+    "/app/test_reports/pytest/iter47_admin_proofs.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/routes/admin.py admin_list_proofs() (lines 2583-2721, ~140 lines) repeats almost-identical aggregate→project→loop blocks 4 times — extract a small helper like _build_proof_item(row, type_meta) plus a config dict per type to remove ~80% of duplication and make adding a 5th source trivial.",
+    "MT5 branch uses {'$match': {'proof_url': {'$ne': None}}} but the other three branches do NOT filter on file presence — inconsistent: either all branches should be limited to records with a proof OR none should, so the KPI counts match what the user expects to see in the grid. Currently a crypto_payment with proof_image=null still appears (has_file=false). Decide and align.",
+    "GET /api/admin/proofs/{ptype}/{pid}/file silently does not support 'partial-unlock' type even though the listing returns those items with has_file=false. That is consistent but worth a code comment so future devs don't try to add it.",
+    "Frontend AdminProofsPage.jsx fetches with limit=300 hardcoded — for very busy installs add a 'Cargar más' / pagination control; right now the user has no way to see proofs older than the latest 300.",
+    "AdminProofsPage type-filter select uses the same labels as the KPI card titles ('Transferencias Bancarias' vs 'Transferencia Bancaria') with different pluralization — minor copy inconsistency but harmless.",
+    "Test note: 422 validation on limit>500 works, but there is no explicit validation on the `type` query param — passing type=foo silently returns an empty list rather than 422. Consider adding `Literal['all','crypto','bank','mt5','partial-unlock']` for clearer contract."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_proofs.py"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100%"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used existing dev DB state — 3 crypto_payments (all has_file=false because proof_image is null), 0 bank_transfer_confirmations, 0 mt5 deposits with proof_url, 0 partial_withdraw_unlocks with last_tx_hash.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression: pytest /app/backend/tests/test_admin_proofs.py (12 tests, ~6s). The test loads REACT_APP_BACKEND_URL from /app/frontend/.env if not in env (helper _load_backend_url). Login response key is 'token' (not 'access_token'). Frontend selectors confirmed: data-testid='admin-proofs-page' (root), 'proofs-filter-type' (Select trigger), 'proofs-filter-search' (Input), 'proofs-refresh-btn', 'proofs-grid' (parent of cards), 'proof-card-{type}-{id}', 'proof-viewer-modal', 'proof-close-btn', 'proof-download-btn', 'proof-image'. Type filter SelectItem visible labels: 'Todos los tipos', 'Pagos Crypto', 'Transferencias Bancarias', 'Depósitos MT5', 'Desbloqueos 40%'. KPI card labels (slightly different): 'Pago Crypto', 'Transferencia Bancaria', 'Depósito MT5', 'Desbloqueo 40%'. has_file=false items still appear in listing — clicking opens modal with fallback message and no /file fetch is issued.",
+  "rca of the issue": "N/A — feature works end-to-end. Minor test-script flake observed when clicking the SelectItem 'Transferencias Bancarias' via text= locator (the assertion on empty-state visibility timed out before the re-fetch returned), but the backend pytest case TestProofsListing::test_list_filter_type[bank] proves type=bank filtering is correct on the server."
+}

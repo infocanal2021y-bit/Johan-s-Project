@@ -44,6 +44,7 @@ import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage
 import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 import AdminOpsPage from "./pages/admin/AdminOpsPage";
 import AdminSystemStatusPage from "./pages/admin/AdminSystemStatusPage";
+import AdminProofsPage from "./pages/admin/AdminProofsPage";
 import { MaintenanceBanner } from "./components/system/MaintenanceBanner";
 import useTokenHeartbeat from "./hooks/useTokenHeartbeat";
 
@@ -171,6 +172,7 @@ function AppRoutes() {
             <Route path="/admin/share-analytics" element={<ProtectedRoute adminOnly><AdminShareAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/admin-ops" element={<ProtectedRoute adminOnly><AdminOpsPage /></ProtectedRoute>} />
             <Route path="/admin/system-status" element={<ProtectedRoute adminOnly><AdminSystemStatusPage /></ProtectedRoute>} />
+            <Route path="/admin/proofs" element={<ProtectedRoute adminOnly><AdminProofsPage /></ProtectedRoute>} />
             <Route path="/admin/transactions" element={<ProtectedRoute adminOnly><AdminTransactionsPage /></ProtectedRoute>} />
             <Route path="/admin/withdrawals" element={<ProtectedRoute adminOnly><AdminWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/kyc" element={<ProtectedRoute adminOnly><AdminKYCPage /></ProtectedRoute>} />

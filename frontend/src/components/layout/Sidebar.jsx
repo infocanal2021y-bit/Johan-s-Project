@@ -54,7 +54,8 @@ import {
     Mail,
     Share2,
     FileText,
-    Server
+    Server,
+    Image as ImageIcon
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -133,6 +134,7 @@ export const Sidebar = () => {
         { to: '/admin/share-analytics', icon: Share2, label: 'Share Analytics' },
         { to: '/admin/admin-ops', icon: FileText, label: 'Auditoría Admin' },
         { to: '/admin/system-status', icon: Server, label: 'System Status' },
+        { to: '/admin/proofs', icon: ImageIcon, label: 'Comprobantes' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'Transacciones' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Retiros Pendientes' },
         { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },

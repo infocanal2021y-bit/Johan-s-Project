@@ -2594,9 +2594,18 @@ async def admin_list_proofs(
 
     # Crypto payments
     if type in ('all', 'crypto'):
-        rows = await db.crypto_payments.find(
-            {}, {'_id': 0, 'proof_image': 0}
-        ).sort('created_at', -1).limit(limit).to_list(limit)
+        rows = await db.crypto_payments.aggregate([
+            {'$sort': {'created_at': -1}},
+            {'$limit': limit},
+            {'$project': {
+                '_id': 0, 'id': 1, 'user_id': 1, 'amount_sent': 1, 'crypto_type': 1,
+                'txid': 1, 'status': 1, 'created_at': 1,
+                'has_file': {'$cond': [{'$and': [
+                    {'$ne': [{'$ifNull': ['$proof_image', None]}, None]},
+                    {'$ne': ['$proof_image', '']}
+                ]}, True, False]}
+            }}
+        ]).to_list(limit)
         for r in rows:
             items.append({
                 'id': r.get('id'),
@@ -2607,15 +2616,24 @@ async def admin_list_proofs(
                 'currency': r.get('crypto_type'),
                 'reference': r.get('txid'),
                 'status': r.get('status'),
-                'has_file': bool(r.get('id')),
+                'has_file': bool(r.get('has_file')),
                 'created_at': r.get('created_at'),
             })
 
     # Bank transfer confirmations
     if type in ('all', 'bank'):
-        rows = await db.bank_transfer_confirmations.find(
-            {}, {'_id': 0, 'proof_file': 0}
-        ).sort('created_at', -1).limit(limit).to_list(limit)
+        rows = await db.bank_transfer_confirmations.aggregate([
+            {'$sort': {'created_at': -1}},
+            {'$limit': limit},
+            {'$project': {
+                '_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1,
+                'reference': 1, 'status': 1, 'created_at': 1, 'proof_filename': 1,
+                'has_file': {'$cond': [{'$and': [
+                    {'$ne': [{'$ifNull': ['$proof_file', None]}, None]},
+                    {'$ne': ['$proof_file', '']}
+                ]}, True, False]}
+            }}
+        ]).to_list(limit)
         for r in rows:
             items.append({
                 'id': r.get('id'),
@@ -2626,16 +2644,26 @@ async def admin_list_proofs(
                 'currency': r.get('currency') or 'EUR',
                 'reference': r.get('reference'),
                 'status': r.get('status'),
-                'has_file': bool(r.get('proof_filename')),
+                'has_file': bool(r.get('has_file')),
                 'proof_filename': r.get('proof_filename'),
                 'created_at': r.get('created_at'),
             })
 
     # MT5 invest deposits
     if type in ('all', 'mt5'):
-        rows = await db.mt5_invest_deposits.find(
-            {'proof_url': {'$ne': None}}, {'_id': 0, 'proof_url': 0}
-        ).sort('created_at', -1).limit(limit).to_list(limit)
+        rows = await db.mt5_invest_deposits.aggregate([
+            {'$match': {'proof_url': {'$ne': None}}},
+            {'$sort': {'created_at': -1}},
+            {'$limit': limit},
+            {'$project': {
+                '_id': 0, 'id': 1, 'user_id': 1, 'amount_eur': 1,
+                'tx_hash': 1, 'status': 1, 'created_at': 1,
+                'has_file': {'$cond': [{'$and': [
+                    {'$ne': [{'$ifNull': ['$proof_url', None]}, None]},
+                    {'$ne': ['$proof_url', '']}
+                ]}, True, False]}
+            }}
+        ]).to_list(limit)
         for r in rows:
             items.append({
                 'id': r.get('id'),
@@ -2646,7 +2674,7 @@ async def admin_list_proofs(
                 'currency': 'EUR',
                 'reference': r.get('tx_hash'),
                 'status': r.get('status'),
-                'has_file': True,
+                'has_file': bool(r.get('has_file')),
                 'created_at': r.get('created_at'),
             })
 
@@ -2670,7 +2698,16 @@ async def admin_list_proofs(
             })
 
     # Sort by created_at desc, hydrate user name/email
-    items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    def _sort_key(x):
+        v = x.get('created_at')
+        if v is None:
+            return ''
+        # Datetime objects -> ISO string for stable sorting
+        try:
+            return v.isoformat() if hasattr(v, 'isoformat') else str(v)
+        except Exception:
+            return str(v)
+    items.sort(key=_sort_key, reverse=True)
     items = items[:limit]
 
     user_ids = list({i['user_id'] for i in items if i.get('user_id')})
