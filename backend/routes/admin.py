@@ -2600,6 +2600,8 @@ async def admin_list_proofs(
             {'$project': {
                 '_id': 0, 'id': 1, 'user_id': 1, 'amount_sent': 1, 'crypto_type': 1,
                 'txid': 1, 'status': 1, 'created_at': 1,
+                'admin_reviewed_at': 1, 'admin_reviewed_by_name': 1,
+                'admin_review_action': 1, 'admin_review_note': 1,
                 'has_file': {'$cond': [{'$and': [
                     {'$ne': [{'$ifNull': ['$proof_image', None]}, None]},
                     {'$ne': ['$proof_image', '']}
@@ -2618,6 +2620,10 @@ async def admin_list_proofs(
                 'status': r.get('status'),
                 'has_file': bool(r.get('has_file')),
                 'created_at': r.get('created_at'),
+                'admin_reviewed_at': r.get('admin_reviewed_at'),
+                'admin_reviewed_by_name': r.get('admin_reviewed_by_name'),
+                'admin_review_action': r.get('admin_review_action'),
+                'admin_review_note': r.get('admin_review_note'),
             })
 
     # Bank transfer confirmations
@@ -2628,6 +2634,8 @@ async def admin_list_proofs(
             {'$project': {
                 '_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1,
                 'reference': 1, 'status': 1, 'created_at': 1, 'proof_filename': 1,
+                'admin_reviewed_at': 1, 'admin_reviewed_by_name': 1,
+                'admin_review_action': 1, 'admin_review_note': 1,
                 'has_file': {'$cond': [{'$and': [
                     {'$ne': [{'$ifNull': ['$proof_file', None]}, None]},
                     {'$ne': ['$proof_file', '']}
@@ -2647,6 +2655,10 @@ async def admin_list_proofs(
                 'has_file': bool(r.get('has_file')),
                 'proof_filename': r.get('proof_filename'),
                 'created_at': r.get('created_at'),
+                'admin_reviewed_at': r.get('admin_reviewed_at'),
+                'admin_reviewed_by_name': r.get('admin_reviewed_by_name'),
+                'admin_review_action': r.get('admin_review_action'),
+                'admin_review_note': r.get('admin_review_note'),
             })
 
     # MT5 invest deposits
@@ -2658,6 +2670,8 @@ async def admin_list_proofs(
             {'$project': {
                 '_id': 0, 'id': 1, 'user_id': 1, 'amount_eur': 1,
                 'tx_hash': 1, 'status': 1, 'created_at': 1,
+                'admin_reviewed_at': 1, 'admin_reviewed_by_name': 1,
+                'admin_review_action': 1, 'admin_review_note': 1,
                 'has_file': {'$cond': [{'$and': [
                     {'$ne': [{'$ifNull': ['$proof_url', None]}, None]},
                     {'$ne': ['$proof_url', '']}
@@ -2676,6 +2690,10 @@ async def admin_list_proofs(
                 'status': r.get('status'),
                 'has_file': bool(r.get('has_file')),
                 'created_at': r.get('created_at'),
+                'admin_reviewed_at': r.get('admin_reviewed_at'),
+                'admin_reviewed_by_name': r.get('admin_reviewed_by_name'),
+                'admin_review_action': r.get('admin_review_action'),
+                'admin_review_note': r.get('admin_review_note'),
             })
 
     # Partial unlock TX hashes (no file, just hash)
@@ -2695,6 +2713,10 @@ async def admin_list_proofs(
                 'status': 'completed' if r.get('completed_at') else 'partial',
                 'has_file': False,
                 'created_at': r.get('updated_at') or r.get('created_at'),
+                'admin_reviewed_at': r.get('admin_reviewed_at'),
+                'admin_reviewed_by_name': r.get('admin_reviewed_by_name'),
+                'admin_review_action': r.get('admin_review_action'),
+                'admin_review_note': r.get('admin_review_note'),
             })
 
     # Sort by created_at desc, hydrate user name/email
@@ -2752,3 +2774,152 @@ async def admin_get_proof_file(ptype: str, pid: str, admin: dict = Depends(get_a
 
     return {'data_uri': data_uri, 'filename': doc.get('proof_filename')}
 
+
+
+# ==================== PROOF REVIEW ACTIONS ====================
+
+class AdminProofAction(_BM):
+    action: str  # 'approve' | 'reject' | 'reviewed'
+    note: Optional[str] = None
+
+
+_PROOF_COLLECTION_MAP = {
+    'crypto': 'crypto_payments',
+    'bank': 'bank_transfer_confirmations',
+    'mt5': 'mt5_invest_deposits',
+    'partial-unlock': 'partial_withdraw_unlocks',
+}
+
+
+@router.post("/admin/proofs/{ptype}/{pid}/action")
+async def admin_proof_action(
+    ptype: str,
+    pid: str,
+    payload: AdminProofAction,
+    admin: dict = Depends(get_admin_user),
+):
+    """Lightweight admin marker for a proof: approve / reject / reviewed.
+
+    This endpoint stamps audit fields (admin_reviewed_*) and optionally
+    updates the doc status. It does NOT trigger balance crediting / tax
+    workflows — those remain owned by the dedicated approval queues
+    (/admin/crypto-payments/action, etc.). Use this for triage from the
+    unified Comprobantes viewer.
+    """
+    if ptype not in _PROOF_COLLECTION_MAP:
+        raise HTTPException(status_code=404, detail='Tipo de comprobante invalido')
+    if payload.action not in ('approve', 'reject', 'reviewed'):
+        raise HTTPException(status_code=400, detail='Accion invalida')
+    if payload.action == 'reject' and not (payload.note and payload.note.strip()):
+        raise HTTPException(status_code=400, detail='Motivo requerido para rechazar')
+
+    col = _PROOF_COLLECTION_MAP[ptype]
+    doc = await db[col].find_one({'id': pid}, {'_id': 0, 'id': 1, 'user_id': 1, 'status': 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail='Comprobante no encontrado')
+
+    now = datetime.now(timezone.utc).isoformat()
+    update = {
+        'admin_reviewed_at': now,
+        'admin_reviewed_by': admin.get('id'),
+        'admin_reviewed_by_name': admin.get('name') or admin.get('email'),
+        'admin_review_action': payload.action,
+        'admin_review_note': (payload.note or '').strip() or None,
+    }
+    if payload.action == 'approve':
+        update['status'] = 'approved'
+    elif payload.action == 'reject':
+        update['status'] = 'rejected'
+    # 'reviewed' leaves status untouched
+
+    await db[col].update_one({'id': pid}, {'$set': update})
+
+    # Audit log
+    try:
+        await log_system_activity(
+            'admin_proof_review',
+            f"{payload.action} · {ptype}/{pid}",
+            metadata={
+                'admin_id': admin.get('id'),
+                'admin_email': admin.get('email'),
+                'proof_type': ptype,
+                'proof_id': pid,
+                'target_user_id': doc.get('user_id'),
+                'previous_status': doc.get('status'),
+                'note': update['admin_review_note'],
+            },
+        )
+    except Exception as e:
+        logging.warning(f"Failed to log proof review audit: {e}")
+
+    return {'ok': True, **update, 'id': pid, 'type': ptype}
+
+
+# ==================== PROOFS CSV EXPORT ====================
+
+@router.get("/admin/proofs/export.csv")
+async def admin_proofs_export_csv(
+    admin: dict = Depends(get_admin_user),
+    type: str = Query('all'),
+    limit: int = Query(2000, ge=1, le=10000),
+):
+    """Stream a CSV with every proof matching the filter for compliance reports."""
+    # Re-use listing logic without paginating proof file payloads
+    listing = await admin_list_proofs(admin=admin, type=type, limit=limit)  # type: ignore
+    items = listing.get('items', [])
+
+    buf = io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+    writer.writerow([
+        'fecha', 'tipo', 'usuario', 'email', 'monto', 'moneda', 'referencia',
+        'estado', 'tiene_archivo', 'id', 'revisado_por', 'accion_revision',
+        'fecha_revision', 'nota_revision',
+    ])
+
+    # Hydrate review metadata in batch
+    ids_by_type = {}
+    for i in items:
+        ids_by_type.setdefault(i.get('type'), []).append(i.get('id'))
+    review_map = {}
+    for t, ids in ids_by_type.items():
+        col = _PROOF_COLLECTION_MAP.get(t)
+        if not col or not ids:
+            continue
+        rows = await db[col].find(
+            {'id': {'$in': ids}},
+            {'_id': 0, 'id': 1, 'admin_reviewed_at': 1, 'admin_reviewed_by_name': 1,
+             'admin_review_action': 1, 'admin_review_note': 1}
+        ).to_list(len(ids))
+        for r in rows:
+            review_map[(t, r.get('id'))] = r
+
+    for i in items:
+        rev = review_map.get((i.get('type'), i.get('id')), {})
+        created = i.get('created_at')
+        if hasattr(created, 'isoformat'):
+            created = created.isoformat()
+        writer.writerow([
+            created or '',
+            i.get('type_label') or i.get('type') or '',
+            i.get('user_name') or '',
+            i.get('user_email') or '',
+            i.get('amount') if i.get('amount') is not None else '',
+            i.get('currency') or '',
+            i.get('reference') or '',
+            i.get('status') or '',
+            'si' if i.get('has_file') else 'no',
+            i.get('id') or '',
+            rev.get('admin_reviewed_by_name') or '',
+            rev.get('admin_review_action') or '',
+            rev.get('admin_reviewed_at') or '',
+            (rev.get('admin_review_note') or '').replace('\n', ' '),
+        ])
+
+    buf.seek(0)
+    today = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')
+    filename = f'proofs_{type}_{today}.csv'
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type='text/csv; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )

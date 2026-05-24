@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import {
     Image as ImageIcon, Loader2, RefreshCw, Search, X,
     Bitcoin, Banknote, Landmark, Unlock, FileText, ExternalLink, Download,
+    Check, XCircle, Eye, ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { safeApiCall } from '../../lib/diagnostics';
+import { Textarea } from '../../components/ui/textarea';
 
 const TYPE_META = {
     crypto: {
@@ -57,10 +59,13 @@ const fmtMoney = (amount, currency) => {
     return `${sym}${(Number(amount) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || ''}`.trim();
 };
 
-const ProofViewerModal = ({ item, onClose }) => {
+const ProofViewerModal = ({ item, onClose, onActionComplete }) => {
     const [loading, setLoading] = useState(true);
     const [dataUri, setDataUri] = useState(null);
     const [error, setError] = useState(null);
+    const [actionLoading, setActionLoading] = useState(null); // 'approve' | 'reject' | 'reviewed'
+    const [note, setNote] = useState('');
+    const [confirmReject, setConfirmReject] = useState(false);
 
     useEffect(() => {
         if (!item || !item.has_file) {
@@ -86,8 +91,33 @@ const ProofViewerModal = ({ item, onClose }) => {
         return () => { cancelled = true; };
     }, [item]);
 
+    const doAction = async (action) => {
+        if (action === 'reject' && !note.trim()) {
+            setConfirmReject(true);
+            toast.error('Motivo requerido para rechazar', { duration: 4000 });
+            return;
+        }
+        setActionLoading(action);
+        const result = await safeApiCall({
+            url: `/api/admin/proofs/${item.type}/${item.id}/action`,
+            method: 'POST',
+            body: { action, note: note.trim() || null },
+            timeoutMs: 15000,
+        });
+        setActionLoading(null);
+        if (result.ok) {
+            const labels = { approve: 'Aprobado', reject: 'Rechazado', reviewed: 'Marcado como revisado' };
+            toast.success(labels[action], { duration: 3500 });
+            onActionComplete && onActionComplete({ ...item, ...result.data });
+            onClose();
+        } else {
+            toast.error(result.message, { description: `[HTTP ${result.status}]`, duration: 6000 });
+        }
+    };
+
     if (!item) return null;
     const isPdf = dataUri?.startsWith('data:application/pdf');
+    const alreadyReviewed = item.admin_review_action;
 
     return (
         <AnimatePresence>
@@ -144,6 +174,65 @@ const ProofViewerModal = ({ item, onClose }) => {
                         {item.reference && (
                             <span className="col-span-2 truncate">Ref: <span className="font-mono text-slate-400">{item.reference}</span></span>
                         )}
+                        {alreadyReviewed && (
+                            <span className="col-span-2 mt-1 inline-flex items-center gap-1 text-amber-300">
+                                <ShieldCheck className="w-3 h-3" />
+                                Última acción: <strong className="text-amber-200">{alreadyReviewed}</strong>
+                                {item.admin_reviewed_by_name && <> por <span className="text-slate-400">{item.admin_reviewed_by_name}</span></>}
+                                {item.admin_reviewed_at && <> · {new Date(item.admin_reviewed_at).toLocaleString('es-ES')}</>}
+                                {item.admin_review_note && <span className="block text-slate-400 mt-0.5 italic">"{item.admin_review_note}"</span>}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Action panel */}
+                    <div className="p-4 border-t border-slate-800 bg-slate-950/50 space-y-3" data-testid="proof-action-panel">
+                        <div className="flex items-center justify-between gap-2">
+                            <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                                Nota interna (obligatoria para rechazar)
+                            </label>
+                            <span className="text-[10px] text-slate-600 tabular-nums">{note.length}/300</span>
+                        </div>
+                        <Textarea
+                            value={note}
+                            onChange={(e) => { setNote(e.target.value.slice(0, 300)); if (confirmReject) setConfirmReject(false); }}
+                            placeholder="Ej: TXID no coincide con la blockchain pública. Ref. anti-fraude #..."
+                            className={`bg-slate-900 border-slate-800 text-white text-sm min-h-[60px] resize-none ${confirmReject ? 'border-rose-500/60 ring-1 ring-rose-500/40' : ''}`}
+                            data-testid="proof-action-note"
+                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                onClick={() => doAction('reviewed')}
+                                disabled={!!actionLoading}
+                                variant="outline"
+                                className="border-slate-700 hover:bg-slate-800 text-slate-200"
+                                data-testid="proof-action-reviewed-btn"
+                            >
+                                {actionLoading === 'reviewed' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+                                Marcar revisado
+                            </Button>
+                            <Button
+                                onClick={() => doAction('approve')}
+                                disabled={!!actionLoading}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40"
+                                data-testid="proof-action-approve-btn"
+                            >
+                                {actionLoading === 'approve' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                                Aprobar
+                            </Button>
+                            <Button
+                                onClick={() => doAction('reject')}
+                                disabled={!!actionLoading}
+                                className="bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-40"
+                                data-testid="proof-action-reject-btn"
+                            >
+                                {actionLoading === 'reject' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                                Rechazar
+                            </Button>
+                            <p className="text-[10px] text-slate-500 ml-auto max-w-[260px] text-right">
+                                Aprobar/Rechazar solo cambia el estado y registra audit trail. El crédito de saldo se gestiona desde la cola dedicada.
+                            </p>
+                        </div>
                     </div>
                 </motion.div>
             </motion.div>
@@ -157,6 +246,7 @@ export const AdminProofsPage = () => {
     const [type, setType] = useState('all');
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState(null);
+    const [exporting, setExporting] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -174,6 +264,36 @@ export const AdminProofsPage = () => {
     }, [type]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    const handleExportCsv = async () => {
+        setExporting(true);
+        try {
+            const apiUrl = process.env.REACT_APP_BACKEND_URL || '';
+            const token = localStorage.getItem('token');
+            const resp = await fetch(`${apiUrl}/api/admin/proofs/export.csv?type=${type}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!resp.ok) {
+                toast.error(`Error al exportar (HTTP ${resp.status})`);
+                return;
+            }
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const today = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+            a.download = `comprobantes_${type}_${today}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success(`CSV descargado · ${items.length} comprobantes`);
+        } catch (e) {
+            toast.error(`Fallo al descargar: ${e.message}`);
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const filtered = items.filter((i) => {
         if (!search.trim()) return true;
@@ -206,9 +326,17 @@ export const AdminProofsPage = () => {
                             Vista unificada de pagos crypto, transferencias bancarias, depósitos MT5 y hashes de desbloqueo
                         </p>
                     </div>
-                    <Button onClick={fetchData} variant="outline" className="border-slate-700 hover:bg-slate-800" data-testid="proofs-refresh-btn">
-                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refrescar
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button onClick={handleExportCsv} disabled={exporting || items.length === 0}
+                            className="bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-40"
+                            data-testid="proofs-export-csv-btn">
+                            {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                            Exportar CSV ({items.length})
+                        </Button>
+                        <Button onClick={fetchData} variant="outline" className="border-slate-700 hover:bg-slate-800" data-testid="proofs-refresh-btn">
+                            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refrescar
+                        </Button>
+                    </div>
                 </motion.div>
 
                 {/* Tipo KPI strip */}
@@ -299,6 +427,13 @@ export const AdminProofsPage = () => {
                                                     </span>
                                                 )}
                                             </div>
+                                            {item.admin_review_action && (
+                                                <div className="mb-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[9px] font-bold text-amber-300">
+                                                    <ShieldCheck className="w-2.5 h-2.5" />
+                                                    {item.admin_review_action}
+                                                    {item.admin_reviewed_by_name && <span className="text-amber-400/70 font-normal"> · {item.admin_reviewed_by_name}</span>}
+                                                </div>
+                                            )}
                                             <p className="text-white font-medium text-sm truncate">{item.user_name || '—'}</p>
                                             <p className="text-xs text-slate-500 truncate">{item.user_email || '—'}</p>
                                             <p className="text-amber-300 font-bold text-base tabular-nums mt-2">
@@ -326,7 +461,13 @@ export const AdminProofsPage = () => {
                 </Card>
             </div>
 
-            {selected && <ProofViewerModal item={selected} onClose={() => setSelected(null)} />}
+            {selected && (
+                <ProofViewerModal
+                    item={selected}
+                    onClose={() => setSelected(null)}
+                    onActionComplete={() => { fetchData(); }}
+                />
+            )}
         </Layout>
     );
 };
