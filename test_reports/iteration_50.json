@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 50 - Frontend-only validation of the new 'Comprobante revisado' visual guardrail on the admin NotificationBell modal. Tested 7 scenarios across two Playwright runs against the production preview URL with admin (admi@paylionsbit.es): (1) login OK; (2) POS notif TEST-216389 initial state: notif-view-proof-btn has data-proof-viewed='false' and label 'Ver Comprobante'; notif-add-balance-btn has data-proof-viewed='false' and label 'Agregar Saldo al Usuario' - PASS; (3) After clicking Ver Comprobante and 1x1 PNG renders inside notif-proof-image: notif-add-balance-btn switches to data-proof-viewed='true' with label 'Comprobante revisado . Agregar Saldo' and emerald-glow ring class - PASS; (4) After closing the inline viewer with notif-proof-close: notif-view-proof-btn re-appears with data-proof-viewed='true' and label 'Comprobante revisado . Ver de nuevo' (CheckCheck icon, cyan-700 bg) while notif-add-balance-btn keeps its reviewed state - PASS; (5) CONTROL 'Nuevo Retiro' (TEST-CONTROL): zero notif-view-proof-btn rendered; notif-add-balance-btn present with data-proof-viewed='false' - PASS; (6) State reset on opening a different notif (POS re-opened after reviewing): both buttons reset to data-proof-viewed='false' with default labels - PASS; (7) NEG path (NONEXISTENT-REF-999): backend returns 404, frontend surfaces notif-proof-empty with 'No hay comprobante disponible para esta transferencia.', notif-add-balance-btn remains data-proof-viewed='false' with label 'Agregar Saldo al Usuario' (NO switch to reviewed) - PASS. Regression of the inline 'Agregar Saldo' form (amount, currency, submit) also rendered correctly after toggling. Total: 7/7 scenarios PASS. No backend testing performed (frontend-only request).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/.screenshots/reviewed_state.png",
+    "/app/.screenshots/neg_404.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "NotificationBell.jsx now ~570 lines - approaching the 700-line threshold. With each iteration adding more inline UI (proof viewer, add-balance form, proofViewed state), consider extracting BankTransferProofViewer and AdminAddBalanceForm into dedicated components to keep the bell component focused on list+detail orchestration.",
+    "proofViewed state is bound to the selectedNotif lifecycle but is NOT persisted server-side - if the admin closes the modal and the page reloads, the 'revisado' badge disappears. For a true audit-grade guardrail consider POSTing a 'proof_reviewed_at' marker on the notification or payment record and reading it on render. Without this, the visual hint is only a UX nudge, not a real workflow gate.",
+    "The reviewed style on notif-add-balance-btn (ring + emerald glow) might be perceived by some admins as the action being already completed - the label still says 'Agregar Saldo' so semantics are OK, but a small subtitle like 'Listo para acreditar' could reduce ambiguity. Minor UX.",
+    "Click-outside handler on the dropdown uses 'mousedown' which can fire BEFORE React's click on the notification item if the user mouse-downs slightly outside while moving. Low-priority edge case, but switching to 'click' would be safer."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% (7/7 scenarios)"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026!",
+  "seed_data_creation": "Inserted 1 new admin notification id=7827b02c-6b69-48f6-983a-b58d13897620 title='Nueva Transferencia Bancaria' message containing 'Referencia: NONEXISTENT-REF-999' (negative path for 404 from /api/admin/bank-transfer/proof). The two iter49 seeds (TEST-216389 positive, TEST-CONTROL negative-no-button) were reused.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The admin has 50+ notifications - new test notifs land at the TOP of the dropdown (list ordered by created_at desc). Two notification-bell elements exist on the page (mobile header + sidebar); always filter by .is_visible() before clicking. ESC closes the Dialog cleanly. Reusable selectors: notif-view-proof-btn (with data-proof-viewed attr), notif-add-balance-btn (with data-proof-viewed attr), notif-proof-viewer, notif-proof-image, notif-proof-empty, notif-proof-close. State key insight: proofViewed is reset to false inside handleNotificationClick() on every notification open - this is verified working. Negative path (404) gated by the `if (!data.has_file)` branch in handleViewProof - if backend returns 200 with has_file=false (e.g. proof record exists but is empty), the button would also stay unreviewed - same code path as 404, not retested.",
+  "rca of the issue": "N/A - feature works as specified."
+}

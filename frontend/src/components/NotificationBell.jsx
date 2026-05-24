@@ -64,6 +64,7 @@ export const NotificationBell = () => {
     const [proofLoading, setProofLoading] = useState(false);
     const [proofData, setProofData] = useState(null); // {data_uri, filename, payment, has_file}
     const [proofError, setProofError] = useState(null);
+    const [proofViewed, setProofViewed] = useState(false);
     const dropdownRef = useRef(null);
 
     const fetchNotifications = async () => {
@@ -108,6 +109,7 @@ export const NotificationBell = () => {
         setProofOpen(false);
         setProofData(null);
         setProofError(null);
+        setProofViewed(false);
     };
 
     // Detect bank-transfer admin notification and extract reference
@@ -145,6 +147,8 @@ export const NotificationBell = () => {
                 setProofData(data);
                 if (!data.has_file) {
                     setProofError('No hay comprobante disponible para esta transferencia.');
+                } else {
+                    setProofViewed(true);
                 }
             }
         } catch (e) {
@@ -386,10 +390,24 @@ export const NotificationBell = () => {
                             {isAdmin && getBankTransferReference(selectedNotif) && !proofOpen && (
                                 <Button
                                     onClick={handleViewProof}
-                                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                                    className={
+                                        proofViewed
+                                            ? "w-full bg-cyan-700 hover:bg-cyan-800 text-white border border-emerald-400/50"
+                                            : "w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                                    }
                                     data-testid="notif-view-proof-btn"
+                                    data-proof-viewed={proofViewed ? 'true' : 'false'}
                                 >
-                                    <ImageIcon className="w-4 h-4 mr-2" /> Ver Comprobante
+                                    {proofViewed ? (
+                                        <>
+                                            <CheckCheck className="w-4 h-4 mr-2 text-emerald-300" />
+                                            Comprobante revisado · Ver de nuevo
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ImageIcon className="w-4 h-4 mr-2" /> Ver Comprobante
+                                        </>
+                                    )}
                                 </Button>
                             )}
 
@@ -469,10 +487,24 @@ export const NotificationBell = () => {
                             {isAdmin && !showAddBalance && (
                                 <Button
                                     onClick={() => setShowAddBalance(true)}
-                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    className={
+                                        proofViewed
+                                            ? "w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 ring-1 ring-emerald-300/60 font-semibold"
+                                            : "w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    }
                                     data-testid="notif-add-balance-btn"
+                                    data-proof-viewed={proofViewed ? 'true' : 'false'}
                                 >
-                                    <DollarSign className="w-4 h-4 mr-2" /> Agregar Saldo al Usuario
+                                    {proofViewed ? (
+                                        <>
+                                            <CheckCheck className="w-4 h-4 mr-2" />
+                                            Comprobante revisado · Agregar Saldo
+                                        </>
+                                    ) : (
+                                        <>
+                                            <DollarSign className="w-4 h-4 mr-2" /> Agregar Saldo al Usuario
+                                        </>
+                                    )}
                                 </Button>
                             )}
 
