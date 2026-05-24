@@ -2466,7 +2466,7 @@ async def admin_export_admin_ops_csv(
 
 # ==================== MAINTENANCE MODE TOGGLE ====================
 
-from pydantic import BaseModel as _BM
+from pydantic import BaseModel as _BM, Field
 
 
 class MaintenanceToggle(_BM):
@@ -2780,7 +2780,7 @@ async def admin_get_proof_file(ptype: str, pid: str, admin: dict = Depends(get_a
 
 class AdminProofAction(_BM):
     action: str  # 'approve' | 'reject' | 'reviewed'
-    note: Optional[str] = None
+    note: Optional[str] = Field(default=None, max_length=500)
 
 
 _PROOF_COLLECTION_MAP = {
@@ -2864,7 +2864,7 @@ async def admin_proofs_export_csv(
     limit: int = Query(2000, ge=1, le=10000),
 ):
     """Stream a CSV with every proof matching the filter for compliance reports."""
-    # Re-use listing logic without paginating proof file payloads
+    # Re-use listing logic — items already include admin_review_* fields
     listing = await admin_list_proofs(admin=admin, type=type, limit=limit)  # type: ignore
     items = listing.get('items', [])
 
@@ -2876,28 +2876,13 @@ async def admin_proofs_export_csv(
         'fecha_revision', 'nota_revision',
     ])
 
-    # Hydrate review metadata in batch
-    ids_by_type = {}
     for i in items:
-        ids_by_type.setdefault(i.get('type'), []).append(i.get('id'))
-    review_map = {}
-    for t, ids in ids_by_type.items():
-        col = _PROOF_COLLECTION_MAP.get(t)
-        if not col or not ids:
-            continue
-        rows = await db[col].find(
-            {'id': {'$in': ids}},
-            {'_id': 0, 'id': 1, 'admin_reviewed_at': 1, 'admin_reviewed_by_name': 1,
-             'admin_review_action': 1, 'admin_review_note': 1}
-        ).to_list(len(ids))
-        for r in rows:
-            review_map[(t, r.get('id'))] = r
-
-    for i in items:
-        rev = review_map.get((i.get('type'), i.get('id')), {})
         created = i.get('created_at')
         if hasattr(created, 'isoformat'):
             created = created.isoformat()
+        reviewed_at = i.get('admin_reviewed_at')
+        if hasattr(reviewed_at, 'isoformat'):
+            reviewed_at = reviewed_at.isoformat()
         writer.writerow([
             created or '',
             i.get('type_label') or i.get('type') or '',
@@ -2909,10 +2894,10 @@ async def admin_proofs_export_csv(
             i.get('status') or '',
             'si' if i.get('has_file') else 'no',
             i.get('id') or '',
-            rev.get('admin_reviewed_by_name') or '',
-            rev.get('admin_review_action') or '',
-            rev.get('admin_reviewed_at') or '',
-            (rev.get('admin_review_note') or '').replace('\n', ' '),
+            i.get('admin_reviewed_by_name') or '',
+            i.get('admin_review_action') or '',
+            reviewed_at or '',
+            (i.get('admin_review_note') or '').replace('\n', ' '),
         ])
 
     buf.seek(0)
