@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 import uuid
+import os
 import logging
 import asyncio
 
@@ -485,7 +486,7 @@ async def admin_manual_create_user(data: AdminManualUserCreate, admin: dict = De
 
     user_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
-    raw_password = data.password or 'lionsbit2.0'
+    raw_password = data.password or os.environ.get('DEFAULT_USER_PASSWORD', 'lionsbit2.0')
 
     user_doc = {
         'id': user_id,
