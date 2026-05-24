@@ -114,7 +114,8 @@ export const NotificationBell = () => {
     const getBankTransferReference = (notif) => {
         if (!notif || !isAdmin) return null;
         const title = (notif.title || '').toLowerCase();
-        if (!title.includes('transferencia bancaria')) return null;
+        const isBankTransfer = title.includes('transferencia bancaria') || notif.type === 'bank_transfer';
+        if (!isBankTransfer) return null;
         const m = (notif.message || '').match(/referencia:\s*([\w-]+)/i);
         return m ? m[1] : null;
     };
