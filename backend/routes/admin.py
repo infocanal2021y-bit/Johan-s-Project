@@ -2577,3 +2577,141 @@ async def admin_system_status(admin: dict = Depends(get_admin_user)):
         },
     }
 
+
+# ==================== UNIFIED PROOFS VIEWER ====================
+
+@router.get("/admin/proofs")
+async def admin_list_proofs(
+    admin: dict = Depends(get_admin_user),
+    type: str = Query('all', description="all | crypto | bank | mt5 | partial-unlock"),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Unified listing of every uploaded proof (crypto payments, bank transfers,
+    MT5 deposits, partial unlock TX hashes). Returns lightweight metadata —
+    use GET /api/admin/proofs/{type}/{id} to fetch full base64 file.
+    """
+    items = []
+
+    # Crypto payments
+    if type in ('all', 'crypto'):
+        rows = await db.crypto_payments.find(
+            {}, {'_id': 0, 'proof_image': 0}
+        ).sort('created_at', -1).limit(limit).to_list(limit)
+        for r in rows:
+            items.append({
+                'id': r.get('id'),
+                'type': 'crypto',
+                'type_label': 'Pago Crypto',
+                'user_id': r.get('user_id'),
+                'amount': r.get('amount_sent'),
+                'currency': r.get('crypto_type'),
+                'reference': r.get('txid'),
+                'status': r.get('status'),
+                'has_file': bool(r.get('id')),
+                'created_at': r.get('created_at'),
+            })
+
+    # Bank transfer confirmations
+    if type in ('all', 'bank'):
+        rows = await db.bank_transfer_confirmations.find(
+            {}, {'_id': 0, 'proof_file': 0}
+        ).sort('created_at', -1).limit(limit).to_list(limit)
+        for r in rows:
+            items.append({
+                'id': r.get('id'),
+                'type': 'bank',
+                'type_label': 'Transferencia Bancaria',
+                'user_id': r.get('user_id'),
+                'amount': r.get('amount'),
+                'currency': r.get('currency') or 'EUR',
+                'reference': r.get('reference'),
+                'status': r.get('status'),
+                'has_file': bool(r.get('proof_filename')),
+                'proof_filename': r.get('proof_filename'),
+                'created_at': r.get('created_at'),
+            })
+
+    # MT5 invest deposits
+    if type in ('all', 'mt5'):
+        rows = await db.mt5_invest_deposits.find(
+            {'proof_url': {'$ne': None}}, {'_id': 0, 'proof_url': 0}
+        ).sort('created_at', -1).limit(limit).to_list(limit)
+        for r in rows:
+            items.append({
+                'id': r.get('id'),
+                'type': 'mt5',
+                'type_label': 'Depósito MT5 Invest',
+                'user_id': r.get('user_id'),
+                'amount': r.get('amount_eur'),
+                'currency': 'EUR',
+                'reference': r.get('tx_hash'),
+                'status': r.get('status'),
+                'has_file': True,
+                'created_at': r.get('created_at'),
+            })
+
+    # Partial unlock TX hashes (no file, just hash)
+    if type in ('all', 'partial-unlock'):
+        rows = await db.partial_withdraw_unlocks.find(
+            {'last_tx_hash': {'$exists': True, '$ne': None}}, {'_id': 0}
+        ).sort('updated_at', -1).limit(limit).to_list(limit)
+        for r in rows:
+            items.append({
+                'id': r.get('id'),
+                'type': 'partial-unlock',
+                'type_label': 'Desbloqueo 40% (TX Hash)',
+                'user_id': r.get('user_id'),
+                'amount': r.get('total_paid_eur'),
+                'currency': 'EUR',
+                'reference': r.get('last_tx_hash'),
+                'status': 'completed' if r.get('completed_at') else 'partial',
+                'has_file': False,
+                'created_at': r.get('updated_at') or r.get('created_at'),
+            })
+
+    # Sort by created_at desc, hydrate user name/email
+    items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    items = items[:limit]
+
+    user_ids = list({i['user_id'] for i in items if i.get('user_id')})
+    users = await db.users.find({'id': {'$in': user_ids}}, {'_id': 0, 'id': 1, 'name': 1, 'email': 1}).to_list(2000)
+    umap = {u['id']: u for u in users}
+    for i in items:
+        u = umap.get(i.get('user_id'))
+        i['user_name'] = u.get('name') if u else None
+        i['user_email'] = u.get('email') if u else None
+
+    return {'items': items, 'count': len(items)}
+
+
+@router.get("/admin/proofs/{ptype}/{pid}/file")
+async def admin_get_proof_file(ptype: str, pid: str, admin: dict = Depends(get_admin_user)):
+    """Return the base64 file (data URI) for inline viewing in the admin panel."""
+    collection_map = {
+        'crypto': ('crypto_payments', 'proof_image'),
+        'bank': ('bank_transfer_confirmations', 'proof_file'),
+        'mt5': ('mt5_invest_deposits', 'proof_url'),
+    }
+    if ptype not in collection_map:
+        raise HTTPException(status_code=404, detail='Tipo de comprobante invalido')
+    col_name, field = collection_map[ptype]
+    doc = await db[col_name].find_one({'id': pid}, {'_id': 0, field: 1, 'proof_filename': 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail='Comprobante no encontrado')
+    raw = doc.get(field)
+    if not raw:
+        raise HTTPException(status_code=404, detail='Sin archivo asociado')
+
+    # Already data URI? return as-is. Else build one.
+    if isinstance(raw, str) and raw.startswith('data:'):
+        data_uri = raw
+    else:
+        # Bank transfer stores raw base64 without prefix
+        filename = doc.get('proof_filename') or 'proof.bin'
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+        mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'webp': 'image/webp', 'pdf': 'application/pdf'}
+        mime = mime_map.get(ext, 'application/octet-stream')
+        data_uri = f'data:{mime};base64,{raw}'
+
+    return {'data_uri': data_uri, 'filename': doc.get('proof_filename')}
+

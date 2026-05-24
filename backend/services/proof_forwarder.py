@@ -87,9 +87,17 @@ async def forward_proof_to_admin(
             raw_b64 = proof_file_b64
             if ',' in raw_b64:
                 raw_b64 = raw_b64.split(',', 1)[1]
+            # Resend Python SDK expects raw bytes for `content`, NOT a base64 string.
+            # Decode here so the attachment opens cleanly in every email client.
+            import base64 as _b64
+            try:
+                file_bytes = _b64.b64decode(raw_b64, validate=False)
+            except Exception:
+                # If decoding fails, fall back to raw string (older SDK accepts it)
+                file_bytes = raw_b64
             params['attachments'] = [{
                 'filename': proof_filename,
-                'content': raw_b64,
+                'content': list(file_bytes) if isinstance(file_bytes, (bytes, bytearray)) else file_bytes,
             }]
 
         await asyncio.to_thread(resend.Emails.send, params)
