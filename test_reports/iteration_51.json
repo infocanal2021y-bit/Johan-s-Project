@@ -1,0 +1,28 @@
+{
+  "summary": "Tested both new features end-to-end. Backend: 13/13 pytest cases pass (search-users admin filter, single-user broadcast 400/404/200, all-audience regression, /community/global-transfers shape+auth+demo padding). Frontend: /admin/broadcast 'Un usuario especifico' option opens single-user-picker, typing 'jorg' yields 15 user-result-<id> rows, selection shows selected-user-card with working clear-selected-user-btn. /community renders global-transfers-map with svg (19 arc paths + 16 circles), 18 ticker rows, and active-corridor-banner with rotating transfers (Madrid -> Barcelona etc.).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_broadcast_single_and_global_map.py",
+    "/app/test_reports/pytest/iter51_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Audience option label is 'Un usuario especifico' (missing accent on 'específico') — minor i18n polish, not blocking.",
+    "/admin/broadcast/search-users uses case-insensitive regex without anchors; performance is fine for current DB size but consider an index on users.email/users.name if user count grows beyond ~50k.",
+    "/community/global-transfers picks the destination via random.choice seeded by current hour — within the same hour the active-corridor-banner rotates client-side, which works correctly per the test."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_broadcast_single_and_global_map.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026!",
+  "seed_data_creation": "None — used existing DB users (search 'jorg' returns >=1 match)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter51 features both fully verified: (1) single-user broadcast: backend rejects missing target_user_id with 400, admin/invalid id with 404, valid id creates exactly 1 notification (response.recipients=1, in_app_sent=1). Frontend picker testids (single-user-picker, user-search-input, user-search-results, user-result-<id>, selected-user-card, clear-selected-user-btn) all present and functional. (2) Global transfers map: endpoint pads with is_demo=true when real withdrawals < limit, returns countries [Argentina, Chile, Costa Rica, España, México]. Map renders 19 SVG paths + 16 circles (5 country hubs + transfer nodes), 18 ticker rows, active-corridor-banner overlays with Madrid->Barcelona type entries."
+}

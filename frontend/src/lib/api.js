@@ -154,6 +154,7 @@ export const adminAPI = {
     // Broadcast
     broadcast: (data) => api.post('/admin/broadcast', data),
     getBroadcastHistory: () => api.get('/admin/broadcast/history'),
+    broadcastSearchUsers: (q, limit = 15) => api.get(`/admin/broadcast/search-users`, { params: { q, limit } }),
     // Support tickets
     getAllTickets: () => api.get('/admin/support/tickets'),
     replyToTicket: (id, data) => api.post(`/admin/support/tickets/${id}/reply`, data),

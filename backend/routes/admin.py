@@ -2010,7 +2010,7 @@ async def admin_frequent_users(admin: dict = Depends(get_admin_user)):
 
 @router.post("/admin/broadcast")
 async def admin_broadcast_message(data: dict, admin: dict = Depends(get_admin_user)):
-    """Send an in-app notification and/or email to all registered users (excluding admins).
+    """Send an in-app notification and/or email to users.
 
     Expected payload:
     {
@@ -2018,7 +2018,8 @@ async def admin_broadcast_message(data: dict, admin: dict = Depends(get_admin_us
       "message": str,
       "send_in_app": bool,
       "send_email": bool,
-      "audience": "all" | "kyc_verified" | "withdrawers"  (default "all")
+      "audience": "all" | "kyc_verified" | "withdrawers" | "single"  (default "all")
+      "target_user_id": str  (required when audience == 'single')
     }
     """
     title = (data.get('title') or '').strip()
@@ -2026,6 +2027,7 @@ async def admin_broadcast_message(data: dict, admin: dict = Depends(get_admin_us
     send_in_app = bool(data.get('send_in_app', True))
     send_email_flag = bool(data.get('send_email', False))
     audience = data.get('audience', 'all')
+    target_user_id = (data.get('target_user_id') or '').strip()
 
     if not title or not message:
         raise HTTPException(status_code=400, detail='Titulo y mensaje son obligatorios')
@@ -2035,6 +2037,8 @@ async def admin_broadcast_message(data: dict, admin: dict = Depends(get_admin_us
         raise HTTPException(status_code=400, detail='Mensaje demasiado largo (max 5000)')
     if not send_in_app and not send_email_flag:
         raise HTTPException(status_code=400, detail='Debe seleccionar al menos un canal')
+    if audience == 'single' and not target_user_id:
+        raise HTTPException(status_code=400, detail='Debe seleccionar un usuario para envio individual')
 
     # Build audience query
     query = {'role': {'$ne': 'admin'}}
@@ -2044,8 +2048,13 @@ async def admin_broadcast_message(data: dict, admin: dict = Depends(get_admin_us
         # users who have at least one withdraw transaction
         withdrawer_ids = await db.transactions.distinct('user_id', {'type': 'withdraw'})
         query['id'] = {'$in': withdrawer_ids}
+    elif audience == 'single':
+        query['id'] = target_user_id
 
     users = await db.users.find(query, {'_id': 0, 'id': 1, 'email': 1, 'name': 1}).to_list(100000)
+
+    if audience == 'single' and not users:
+        raise HTTPException(status_code=404, detail='Usuario no encontrado o es admin')
 
     in_app_count = 0
     email_count = 0
@@ -2119,6 +2128,32 @@ async def admin_get_broadcast_history(admin: dict = Depends(get_admin_user)):
         {'_id': 0}
     ).sort('created_at', -1).limit(50).to_list(50)
     return history
+
+
+@router.get("/admin/broadcast/search-users")
+async def admin_broadcast_search_users(
+    q: str = Query('', min_length=0, max_length=200),
+    limit: int = Query(15, ge=1, le=50),
+    admin: dict = Depends(get_admin_user),
+):
+    """Lightweight user search for the single-user broadcast picker.
+    Returns matches by name OR email (case-insensitive contains).
+    """
+    q = (q or '').strip()
+    query = {'role': {'$ne': 'admin'}}
+    if q:
+        # Case-insensitive contains on name or email
+        import re
+        safe = re.escape(q)
+        regex = {'$regex': safe, '$options': 'i'}
+        query['$or'] = [{'name': regex}, {'email': regex}]
+
+    users = await db.users.find(
+        query,
+        {'_id': 0, 'id': 1, 'name': 1, 'email': 1, 'country': 1,
+         'verification_status': 1, 'account_status': 1}
+    ).limit(limit).to_list(limit)
+    return {'users': users, 'count': len(users)}
 
 
 

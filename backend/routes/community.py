@@ -454,6 +454,128 @@ async def community_recent_withdrawals(
     }
 
 
+@router.get("/community/global-transfers")
+async def community_global_transfers(
+    limit: int = Query(20, ge=1, le=80),
+    user: dict = Depends(get_current_user),
+):
+    """Recent verified withdrawals geo-mapped to canonical SWIFT corridors.
+    Returns an array of items with origin city / destination city / amount
+    suitable for an animated world map. The 5 supported countries are
+    España, Chile, México, Costa Rica, Argentina — destinations are picked
+    inside the user's own country (intra-country corridor) to keep the
+    visual consistent with a real SWIFT cross-city remittance map.
+    """
+    # Country → list of (city_name, lat, lng). First entry is the financial hub.
+    COUNTRY_CITIES = {
+        'España':      [('Madrid', 40.4168, -3.7038), ('Barcelona', 41.3851, 2.1734),
+                        ('Valencia', 39.4699, -0.3763), ('Sevilla', 37.3891, -5.9845),
+                        ('Bilbao', 43.2630, -2.9350), ('Málaga', 36.7213, -4.4214)],
+        'Chile':       [('Santiago', -33.4489, -70.6693), ('Valparaíso', -33.0472, -71.6127),
+                        ('Concepción', -36.8201, -73.0444), ('Antofagasta', -23.6509, -70.3975)],
+        'México':      [('Ciudad de México', 19.4326, -99.1332), ('Guadalajara', 20.6597, -103.3496),
+                        ('Monterrey', 25.6866, -100.3161), ('Cancún', 21.1619, -86.8515)],
+        'Costa Rica':  [('San José', 9.9281, -84.0907), ('Alajuela', 10.0162, -84.2117),
+                        ('Cartago', 9.8638, -83.9202), ('Heredia', 9.9981, -84.1167)],
+        'Argentina':   [('Buenos Aires', -34.6037, -58.3816), ('Córdoba', -31.4201, -64.1888),
+                        ('Rosario', -32.9442, -60.6505), ('Mendoza', -32.8895, -68.8458)],
+    }
+    SUPPORTED = set(COUNTRY_CITIES.keys())
+
+    import random
+    # Stable but varied: seed by current hour so the map updates every hour
+    # without flickering on each refresh within the same hour.
+    rng = random.Random(int(datetime.now(timezone.utc).timestamp() // 3600))
+
+    # Pull a wider candidate pool then filter to our 5 supported countries
+    wd_cur = db.transactions.find(
+        {'transaction_type': 'withdraw',
+         'status': {'$in': ['completed', 'in_transfer', 'approved']}},
+        {'_id': 0, 'user_id': 1, 'amount': 1, 'currency': 1, 'status': 1,
+         'created_at': 1, 'completed_at': 1},
+    ).sort('created_at', -1).limit(limit * 6)
+    rows = await wd_cur.to_list(length=limit * 6)
+
+    if not rows:
+        return {'count': 0, 'items': [], 'countries': sorted(list(SUPPORTED)),
+                'updated_at': datetime.now(timezone.utc).isoformat()}
+
+    user_ids = list({r['user_id'] for r in rows})
+    users_cur = db.users.find(
+        {'id': {'$in': user_ids}},
+        {'_id': 0, 'id': 1, 'name': 1, 'country_name': 1, 'country': 1, 'phone': 1},
+    )
+    user_map = {u['id']: u async for u in users_cur}
+
+    items = []
+    for r in rows:
+        u = user_map.get(r['user_id'])
+        if not u:
+            continue
+        country = u.get('country_name') or u.get('country') or _infer_country_from_phone(u.get('phone'))
+        if country not in SUPPORTED:
+            continue
+        cities = COUNTRY_CITIES[country]
+        # Origin = financial hub (cities[0]), destination = any other city in same country
+        origin = cities[0]
+        dest_pool = cities[1:] if len(cities) > 1 else cities
+        dest = rng.choice(dest_pool)
+        amt = float(r.get('amount') or 0)
+        if (r.get('currency') or 'EUR').upper() == 'USD':
+            amt = amt / 1.08
+        items.append({
+            'id': f"{r['user_id'][:8]}-{(r.get('created_at') or '')[-8:]}",
+            'name_public': _public_first_name(u.get('name') or 'Cliente'),
+            'country': country,
+            'country_flag': _flag_for(country),
+            'origin_city': origin[0],
+            'origin_lat': origin[1],
+            'origin_lng': origin[2],
+            'dest_city': dest[0],
+            'dest_lat': dest[1],
+            'dest_lng': dest[2],
+            'amount_eur': round(amt, 2),
+            'status': r.get('status'),
+            'date': r.get('completed_at') or r.get('created_at'),
+        })
+        if len(items) >= limit:
+            break
+
+    # If we ran out of real data, synthesize a few demo corridors so the
+    # map always feels alive (clearly tagged is_demo=true for transparency).
+    if len(items) < limit:
+        sample_names = ['Carlos M.', 'Lucía R.', 'Andrés P.', 'María J.', 'Diego F.',
+                        'Sofía L.', 'Marcos T.', 'Valentina G.', 'Joaquín H.', 'Camila O.']
+        for _ in range(limit - len(items)):
+            country = rng.choice(list(SUPPORTED))
+            cities = COUNTRY_CITIES[country]
+            origin = cities[0]
+            dest = rng.choice(cities[1:] if len(cities) > 1 else cities)
+            items.append({
+                'id': f"demo-{uuid.uuid4().hex[:10]}",
+                'name_public': rng.choice(sample_names),
+                'country': country,
+                'country_flag': _flag_for(country),
+                'origin_city': origin[0],
+                'origin_lat': origin[1],
+                'origin_lng': origin[2],
+                'dest_city': dest[0],
+                'dest_lat': dest[1],
+                'dest_lng': dest[2],
+                'amount_eur': round(rng.uniform(4500, 78000), 2),
+                'status': 'completed',
+                'date': (datetime.now(timezone.utc) - timedelta(minutes=rng.randint(2, 240))).isoformat(),
+                'is_demo': True,
+            })
+
+    return {
+        'count': len(items),
+        'items': items,
+        'countries': sorted(list(SUPPORTED)),
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/community/stats")
 async def community_stats(user: dict = Depends(get_current_user)):
     """Platform-wide aggregates for the community page (animated counter,

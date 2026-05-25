@@ -11,6 +11,7 @@ import { STATUS_LABELS, PROGRESS_STAGES, fmtEUR, timeAgo } from '../components/c
 import { AnimatedCounter } from '../components/community/AnimatedCounter';
 import { MemberCard } from '../components/community/MemberCard';
 import { RecentWithdrawalsFeed } from '../components/community/RecentWithdrawalsFeed';
+import { GlobalTransfersMap } from '../components/community/GlobalTransfersMap';
 import { Sparkline7d } from '../components/community/Sparkline7d';
 import { LiveWithdrawalNotifier } from '../components/community/LiveWithdrawalNotifier';
 import { MOCK_WITHDRAWALS } from '../components/community/mockWithdrawalsData';
@@ -326,6 +327,11 @@ export const CommunityPage = () => {
                         </div>
                     </div>
                 </motion.div>
+
+                {/* ============================================================
+                    GLOBAL TRANSFERS MAP — live SWIFT-style world map
+                    ============================================================ */}
+                <GlobalTransfersMap />
 
                 {/* ============================================================
                     LAYOUT — directory + sidebar

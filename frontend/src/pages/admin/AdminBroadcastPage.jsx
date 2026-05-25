@@ -10,7 +10,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Switch } from '../../components/ui/switch';
-import { Megaphone, Mail, Bell, Users, Send, Loader2, CheckCircle, Clock, AlertTriangle, Sparkles, FileText, ShieldAlert } from 'lucide-react';
+import { Megaphone, Mail, Bell, Users, Send, Loader2, CheckCircle, Clock, AlertTriangle, Sparkles, FileText, ShieldAlert, Search, User as UserIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TEMPLATES = [
@@ -45,6 +45,7 @@ const AUDIENCES = [
     { value: 'all', label: 'Todos los usuarios registrados', desc: 'Excluyendo administradores' },
     { value: 'kyc_verified', label: 'Solo usuarios con KYC aprobado', desc: 'Clientes verificados' },
     { value: 'withdrawers', label: 'Usuarios con al menos un retiro', desc: 'Clientes activos' },
+    { value: 'single', label: 'Un usuario especifico', desc: 'Buscar y enviar solo a una persona' },
 ];
 
 export const AdminBroadcastPage = () => {
@@ -59,6 +60,11 @@ export const AdminBroadcastPage = () => {
     const [lastResult, setLastResult] = useState(null);
     const [history, setHistory] = useState([]);
     const [userCount, setUserCount] = useState(null);
+    // Single-user picker
+    const [userQuery, setUserQuery] = useState('');
+    const [userResults, setUserResults] = useState([]);
+    const [searchingUsers, setSearchingUsers] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
 
     const fetchHistory = async () => {
         try {
@@ -80,6 +86,32 @@ export const AdminBroadcastPage = () => {
         fetchUserCount();
     }, []);
 
+    // Debounced user search for single-user audience
+    useEffect(() => {
+        if (audience !== 'single') {
+            setUserResults([]);
+            return;
+        }
+        const q = userQuery.trim();
+        if (q.length < 2) {
+            setUserResults([]);
+            return;
+        }
+        let cancelled = false;
+        setSearchingUsers(true);
+        const handle = setTimeout(async () => {
+            try {
+                const res = await adminAPI.broadcastSearchUsers(q, 15);
+                if (!cancelled) setUserResults(res.data?.users || []);
+            } catch (e) {
+                if (!cancelled) setUserResults([]);
+            } finally {
+                if (!cancelled) setSearchingUsers(false);
+            }
+        }, 280);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [userQuery, audience]);
+
     const applyTemplate = (id) => {
         const tpl = TEMPLATES.find(t => t.id === id);
         if (!tpl) return;
@@ -92,6 +124,7 @@ export const AdminBroadcastPage = () => {
         if (!title.trim()) { toast.error('Ingrese un titulo'); return false; }
         if (!message.trim()) { toast.error('Ingrese un mensaje'); return false; }
         if (!sendInApp && !sendEmail) { toast.error('Debe seleccionar al menos un canal'); return false; }
+        if (audience === 'single' && !selectedUser?.id) { toast.error('Seleccione un usuario destinatario'); return false; }
         return true;
     };
 
@@ -99,15 +132,18 @@ export const AdminBroadcastPage = () => {
         if (!validate()) return;
         setSending(true);
         try {
-            const res = await adminAPI.broadcast({
+            const payload = {
                 title: title.trim(),
                 message: message.trim(),
                 send_in_app: sendInApp,
                 send_email: sendEmail,
                 audience,
-            });
+            };
+            if (audience === 'single') payload.target_user_id = selectedUser.id;
+            const res = await adminAPI.broadcast(payload);
             setLastResult(res.data);
-            toast.success(`Difusion enviada: ${res.data.recipients} destinatarios`);
+            const label = audience === 'single' ? selectedUser.name || selectedUser.email : `${res.data.recipients} destinatarios`;
+            toast.success(`Difusion enviada: ${label}`);
             setConfirmOpen(false);
             fetchHistory();
         } catch (error) {
@@ -313,6 +349,83 @@ export const AdminBroadcastPage = () => {
                                         </p>
                                     </div>
                                 )}
+
+                                {/* Single-user picker */}
+                                {audience === 'single' && (
+                                    <div className="space-y-2" data-testid="single-user-picker">
+                                        {selectedUser ? (
+                                            <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/30 flex items-center gap-3" data-testid="selected-user-card">
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                                                    {(selectedUser.name || selectedUser.email || '?').charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white text-sm font-medium truncate">{selectedUser.name || '—'}</p>
+                                                    <p className="text-slate-400 text-xs truncate">{selectedUser.email}</p>
+                                                    {selectedUser.country && <p className="text-slate-500 text-[10px] mt-0.5">{selectedUser.country}</p>}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setSelectedUser(null); setUserQuery(''); setUserResults([]); }}
+                                                    className="text-slate-400 hover:text-rose-400 p-1 rounded hover:bg-slate-800"
+                                                    data-testid="clear-selected-user-btn"
+                                                    aria-label="Quitar usuario"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                                                    <Input
+                                                        value={userQuery}
+                                                        onChange={(e) => setUserQuery(e.target.value)}
+                                                        placeholder="Buscar por nombre o email (min. 2 caracteres)"
+                                                        className="bg-slate-950 border-slate-700 text-white pl-9"
+                                                        data-testid="user-search-input"
+                                                        autoComplete="off"
+                                                    />
+                                                    {searchingUsers && (
+                                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />
+                                                    )}
+                                                </div>
+                                                {userQuery.trim().length >= 2 && (
+                                                    <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-700/50 bg-slate-950/60 divide-y divide-slate-800" data-testid="user-search-results">
+                                                        {!searchingUsers && userResults.length === 0 && (
+                                                            <p className="text-slate-500 text-xs p-3 text-center">Sin resultados para "{userQuery}"</p>
+                                                        )}
+                                                        {userResults.map(u => (
+                                                            <button
+                                                                key={u.id}
+                                                                type="button"
+                                                                onClick={() => { setSelectedUser(u); setUserResults([]); }}
+                                                                className="w-full text-left p-2.5 hover:bg-slate-800/60 transition-colors flex items-center gap-2.5"
+                                                                data-testid={`user-result-${u.id}`}
+                                                            >
+                                                                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-300 text-xs font-bold">
+                                                                    {(u.name || u.email || '?').charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-white text-xs font-medium truncate">{u.name || '—'}</p>
+                                                                    <p className="text-slate-500 text-[11px] truncate">{u.email}</p>
+                                                                </div>
+                                                                {u.verification_status === 'verified' && (
+                                                                    <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-bold">KYC</span>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {userQuery.trim().length < 2 && (
+                                                    <p className="text-slate-600 text-[11px] flex items-center gap-1.5 px-1">
+                                                        <UserIcon className="w-3 h-3" />
+                                                        Escriba al menos 2 caracteres para buscar
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -389,7 +502,11 @@ export const AdminBroadcastPage = () => {
                         <div className="space-y-4">
                             <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
                                 <p className="text-slate-300 text-sm leading-relaxed">
-                                    Esta accion enviara el mensaje a <span className="text-white font-bold">{audienceLabel.toLowerCase()}</span> por
+                                    {audience === 'single' ? (
+                                        <>Esta accion enviara el mensaje a <span className="text-white font-bold">{selectedUser?.name || selectedUser?.email}</span> por</>
+                                    ) : (
+                                        <>Esta accion enviara el mensaje a <span className="text-white font-bold">{audienceLabel.toLowerCase()}</span> por</>
+                                    )}
                                     {sendInApp && ' notificacion in-app'}{sendInApp && sendEmail && ' y'}{sendEmail && ' correo electronico'}.
                                     <br/><br/>
                                     <span className="text-amber-400 font-medium">Esta accion no se puede revertir.</span>
