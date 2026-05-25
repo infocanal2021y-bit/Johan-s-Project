@@ -45,7 +45,7 @@ const AUDIENCES = [
     { value: 'all', label: 'Todos los usuarios registrados', desc: 'Excluyendo administradores' },
     { value: 'kyc_verified', label: 'Solo usuarios con KYC aprobado', desc: 'Clientes verificados' },
     { value: 'withdrawers', label: 'Usuarios con al menos un retiro', desc: 'Clientes activos' },
-    { value: 'single', label: 'Un usuario especifico', desc: 'Buscar y enviar solo a una persona' },
+    { value: 'single', label: 'Un usuario específico', desc: 'Buscar y enviar solo a una persona' },
 ];
 
 export const AdminBroadcastPage = () => {
