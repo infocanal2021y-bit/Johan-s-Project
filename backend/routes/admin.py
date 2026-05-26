@@ -3117,11 +3117,14 @@ async def admin_journey_analytics(
     ]
 
     # Safety clamp: enforce monotonic non-increasing funnel even when historical
-    # data is inconsistent. Re-compute dropoff after clamping.
+    # data is inconsistent. When a stage is clamped, also recompute the NEXT
+    # stage's dropoff using the clamped value so the percentage stays accurate.
     for i in range(1, len(stages)):
         if stages[i]['count'] > stages[i - 1]['count']:
             stages[i]['count'] = stages[i - 1]['count']
             stages[i]['dropoff_pct_from_prev'] = 0.0
+            if i + 1 < len(stages):
+                stages[i + 1]['dropoff_pct_from_prev'] = _pct(stages[i + 1]['count'], stages[i]['count'])
 
     def _avg(samples):
         s = [x for x in samples if x is not None and x >= 0]
