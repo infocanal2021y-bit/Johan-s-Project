@@ -259,7 +259,7 @@ const UserRow = ({ row, accent = 'amber', onNudge, nudgedIds }) => {
         rose: { dot: 'bg-rose-400', text: 'text-rose-300' },
     };
     const c = accentMap[accent];
-    const alreadyNudged = nudgedIds?.has(row.user_id);
+    const alreadyNudged = nudgedIds?.has(`${row.user_id}-${row.stage}`);
     return (
         <div className="p-3 hover:bg-slate-900/40 flex items-center gap-3 border-b border-slate-800/60 last:border-0" data-testid={`journey-user-row-${row.user_id}`}>
             <span className={`w-2 h-2 rounded-full ${c.dot} flex-shrink-0`} />
@@ -477,7 +477,7 @@ export const AdminJourneyAnalyticsPage = () => {
                                 <p className="p-6 text-center text-slate-500 text-sm">Sin usuarios atascados en esta ventana. 🎉</p>
                             ) : (
                                 <div className="max-h-[400px] overflow-y-auto">
-                                    {data.stuck_users.map((r) => (<UserRow key={r.user_id} row={r} accent="rose" onNudge={setNudgeTarget} nudgedIds={nudgedIds} />))}
+                                    {data.stuck_users.map((r) => (<UserRow key={`${r.user_id}-${r.stage}`} row={r} accent="rose" onNudge={setNudgeTarget} nudgedIds={nudgedIds} />))}
                                 </div>
                             )}
                         </CardContent>
@@ -495,7 +495,7 @@ export const AdminJourneyAnalyticsPage = () => {
                                 <p className="p-6 text-center text-slate-500 text-sm">Sin candidatos para nudge en este momento.</p>
                             ) : (
                                 <div className="max-h-[400px] overflow-y-auto">
-                                    {data.followup_users.map((r) => (<UserRow key={r.user_id} row={r} accent="amber" onNudge={setNudgeTarget} nudgedIds={nudgedIds} />))}
+                                    {data.followup_users.map((r) => (<UserRow key={`${r.user_id}-${r.stage}`} row={r} accent="amber" onNudge={setNudgeTarget} nudgedIds={nudgedIds} />))}
                                 </div>
                             )}
                         </CardContent>
@@ -583,7 +583,7 @@ export const AdminJourneyAnalyticsPage = () => {
                 <NudgeModal
                     row={nudgeTarget}
                     onClose={() => setNudgeTarget(null)}
-                    onSent={(r) => setNudgedIds((prev) => { const n = new Set(prev); n.add(r.user_id); return n; })}
+                    onSent={(r) => setNudgedIds((prev) => { const n = new Set(prev); n.add(`${r.user_id}-${r.stage}`); return n; })}
                 />
             )}
         </Layout>
