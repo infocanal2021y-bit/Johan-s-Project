@@ -160,6 +160,14 @@ async def start_request(user: dict = Depends(get_current_user)):
     snapshot_max = round(available_eur * (UNLOCK_PCT / 100.0), 2)
     now = _now_iso()
 
+    # Build a unique payment reference per request: R40-{NAMESLUG}-{SHORTID}
+    # — usable as concept/description on bank transfers AND as TXID memo for crypto.
+    import re as _re
+    _name = (user.get('name') or user.get('email') or 'CLIENTE').strip().upper()
+    _name_slug = _re.sub(r'[^A-Z0-9]+', '', _name)[:14] or 'CLIENTE'
+    _short_id = uuid.uuid4().hex[:6].upper()
+    payment_reference = f"R40-{_name_slug}-{_short_id}"
+
     doc = {
         'id': str(uuid.uuid4()),
         'user_id': user['id'],
@@ -170,6 +178,7 @@ async def start_request(user: dict = Depends(get_current_user)):
         'max_withdraw_eur_snapshot': snapshot_max,
         'payment_method': PAYMENT_METHOD['key'],
         'wallet_address': PAYMENT_METHOD['wallet_address'],
+        'payment_reference': payment_reference,
         'tx_hash': None,             # legacy single-payment field (latest payment)
         'proof_uploaded_at': None,   # legacy field (timestamp of latest payment)
         'payments': [],              # NEW: list of partial payments

@@ -17,16 +17,11 @@ const BANK_TRANSFER_DATA = {
     holder: 'Juan Gomez',
     amount: '4850 EUR',
     reference: '216389',
-    iban: 'BE73 9053 1376 1560',
-    swift: 'TRWIBEB1XXX',
-    address: 'Wise, Rue du Trone 100, 3rd floor, Brussels, 1050, Belgium',
+    iban: 'ES22 2100 1935 5701 0100 9946',
+    swift: 'CAIXESBBXXX',
+    bank: 'CaixaBank',
+    role: 'Agente autorizado',
 };
-
-const ONLINE_PAYMENT_LINKS = [
-    { id: 1, label: 'Opcion de Pago 1', url: 'https://wise.com/pay/r/rfpnQQbtekFJtl4' },
-    { id: 2, label: 'Opcion de Pago 2', url: 'https://wise.com/pay/r/Go2syT073Li3q2I' },
-    { id: 3, label: 'Opcion de Pago 3', url: 'https://wise.com/pay/r/HIgKfdc2gMgLwhM' },
-];
 
 const CRYPTO_ICONS = {
     BTC: { color: 'text-orange-400', bg: 'bg-orange-500/15', label: 'Bitcoin' },
@@ -270,7 +265,7 @@ export default function CompleteWithdrawalPage() {
                                 <Banknote className="w-6 h-6 text-emerald-400" />
                             </div>
                             <h3 className="text-white font-semibold text-base mb-1">Transferencia Bancaria</h3>
-                            <p className="text-slate-500 text-sm leading-relaxed">Datos bancarios + opciones de pago en linea via Wise</p>
+                            <p className="text-slate-500 text-sm leading-relaxed">Datos bancarios oficiales del agente autorizado</p>
                             <ChevronRight className="absolute top-1/2 right-4 -translate-y-1/2 w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
                         </button>
 
@@ -312,7 +307,7 @@ export default function CompleteWithdrawalPage() {
                         </button>
                         <div>
                             <h1 className="text-xl sm:text-2xl font-bold text-white">Transferencia Bancaria</h1>
-                            <p className="text-slate-500 text-sm">Agente autorizado por Wise</p>
+                            <p className="text-slate-500 text-sm">{BANK_TRANSFER_DATA.bank} · {BANK_TRANSFER_DATA.role}</p>
                         </div>
                     </div>
 
@@ -328,7 +323,7 @@ export default function CompleteWithdrawalPage() {
                     <div className="space-y-3 mb-6">
                         <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
                             <p className="text-[11px] text-slate-500 uppercase tracking-wider">Titular</p>
-                            <p className="text-white font-medium text-sm mt-1">{BANK_TRANSFER_DATA.holder} <span className="text-slate-400 font-normal">&mdash; Agente autorizado por Wise</span></p>
+                            <p className="text-white font-medium text-sm mt-1">{BANK_TRANSFER_DATA.holder} <span className="text-slate-400 font-normal">&mdash; {BANK_TRANSFER_DATA.role}</span></p>
                         </div>
                         <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
                             <p className="text-[11px] text-slate-500 uppercase tracking-wider">Monto</p>
@@ -341,42 +336,8 @@ export default function CompleteWithdrawalPage() {
                             <p className="text-white font-mono text-sm mt-1">{BANK_TRANSFER_DATA.swift}</p>
                         </div>
                         <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Direccion</p>
-                            <p className="text-slate-300 text-sm mt-1 leading-relaxed">{BANK_TRANSFER_DATA.address}</p>
-                        </div>
-                    </div>
-
-                    {/* Online Payment Options */}
-                    <div className="mb-6" data-testid="online-payment-section">
-                        <div className="flex items-center gap-2.5 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
-                                <CreditCard className="w-4 h-4 text-cyan-400" />
-                            </div>
-                            <h2 className="text-base font-semibold text-white">Opciones de pago en linea</h2>
-                        </div>
-                        <div className="space-y-3">
-                            {ONLINE_PAYMENT_LINKS.map((link) => (
-                                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
-                                    className="group flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-slate-900/80 to-slate-800/40 border border-slate-700/60 hover:border-cyan-500/40 hover:from-cyan-950/30 hover:to-slate-800/50 transition-all duration-200"
-                                    data-testid={`online-pay-${link.id}`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-lg bg-cyan-500/10 group-hover:bg-cyan-500/20 flex items-center justify-center transition-colors">
-                                            <CreditCard className="w-4 h-4 text-cyan-400" />
-                                        </div>
-                                        <div>
-                                            <p className="text-white text-sm font-medium group-hover:text-cyan-300 transition-colors">{link.label}</p>
-                                            <p className="text-slate-500 text-[11px] mt-0.5">Juan Gomez &mdash; Pago seguro via Wise</p>
-                                        </div>
-                                    </div>
-                                    <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-                                </a>
-                            ))}
-                        </div>
-                        <div className="mt-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/40">
-                            <p className="text-slate-400 text-xs leading-relaxed text-center">
-                                Puede utilizar cualquiera de las opciones anteriores para completar su pago de forma segura.
-                            </p>
+                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Banco</p>
+                            <p className="text-slate-300 text-sm mt-1 leading-relaxed">{BANK_TRANSFER_DATA.bank}</p>
                         </div>
                     </div>
 

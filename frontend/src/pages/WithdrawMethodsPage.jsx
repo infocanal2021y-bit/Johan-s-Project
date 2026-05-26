@@ -67,13 +67,6 @@ const PayPalBusinessLogo = () => (
     </svg>
 );
 
-const WiseLogo = () => (
-    <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill="#9FE870" />
-        <text x="390" y="270" textAnchor="middle" dominantBaseline="central" fill="#163300" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="150">Wise</text>
-    </svg>
-);
-
 const SwiftLogo = () => (
     <svg viewBox="0 0 780 500" className="w-full h-full">
         <rect width="780" height="500" rx="40" fill="#E31837" />
@@ -275,9 +268,10 @@ const BANK_TRANSFER_DATA = {
     holder: 'Juan Gomez',
     amount: '4850 EUR',
     reference: '216389',
-    iban: 'BE73 9053 1376 1560',
-    swift: 'TRWIBEB1XXX',
-    address: 'Wise, Rue du Trone 100, 3rd floor, Brussels, 1050, Belgium',
+    iban: 'ES22 2100 1935 5701 0100 9946',
+    swift: 'CAIXESBBXXX',
+    bank: 'CaixaBank',
+    role: 'Agente autorizado',
 };
 
 /* ─── Reusable Card ─── */
@@ -741,8 +735,8 @@ export default function WithdrawMethodsPage() {
                             </div>
 
                             <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Direccion</p>
-                                <p className="text-slate-300 text-sm mt-0.5 leading-relaxed">{BANK_TRANSFER_DATA.address}</p>
+                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Banco</p>
+                                <p className="text-slate-300 text-sm mt-0.5 leading-relaxed">{BANK_TRANSFER_DATA.bank} · {BANK_TRANSFER_DATA.role}</p>
                             </div>
                         </div>
 

@@ -132,6 +132,7 @@ export const PartialUnlockPanel = () => {
     const [txHash, setTxHash] = useState('');
     const [partialAmount, setPartialAmount] = useState('');
     const [supportNote, setSupportNote] = useState('');
+    const [confirmStartOpen, setConfirmStartOpen] = useState(false);
     const [copied, setCopied] = useState(false);
 
     const fetchStatus = useCallback(async (silent = false) => {
@@ -162,6 +163,7 @@ export const PartialUnlockPanel = () => {
         try {
             await api.post('/partial-unlock/start');
             toast.success('Solicitud iniciada · puedes pagar desde 500 EUR por abono');
+            setConfirmStartOpen(false);
             await fetchStatus(true);
         } catch (e) {
             toast.error(e.response?.data?.detail || 'No se pudo iniciar el proceso');
@@ -402,13 +404,13 @@ export const PartialUnlockPanel = () => {
                     {/* CTA strip — context-aware */}
                     {status === 'none' && (
                         <Button
-                            onClick={startProcess}
+                            onClick={() => setConfirmStartOpen(true)}
                             disabled={actionLoading || available_balance_eur <= 0}
                             data-testid="partial-unlock-start-btn"
                             className="w-full h-12 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold tracking-wider shadow-lg shadow-cyan-500/25"
                         >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Unlock className="w-4 h-4 mr-2" />}
-                            Iniciar proceso de desbloqueo
+                            Solicitar retiro parcial del 40%
                             <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     )}
@@ -420,6 +422,7 @@ export const PartialUnlockPanel = () => {
                             remainingEur={remaining}
                             minPartial={minPartial}
                             paid={paid}
+                            paymentReference={active_request?.payment_reference}
                             onCopy={copyAddress}
                             copied={copied}
                             onProof={() => setProofOpen(true)}
@@ -628,6 +631,66 @@ export const PartialUnlockPanel = () => {
 
             {/* ── Modal: support request ── */}
             <AnimatePresence>
+
+                {/* Confirmation modal — required before showing payment data */}
+                {confirmStartOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+                        onClick={() => setConfirmStartOpen(false)}
+                        data-testid="partial-unlock-confirm-modal"
+                    >
+                        <motion.div
+                            initial={{ y: 20, scale: 0.96, opacity: 0 }}
+                            animate={{ y: 0, scale: 1, opacity: 1 }}
+                            exit={{ y: 20, scale: 0.96, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 22, stiffness: 320 }}
+                            className="relative w-full max-w-md bg-gradient-to-br from-[#0a1628] via-slate-950 to-slate-950 ring-1 ring-amber-500/30 rounded-2xl shadow-2xl shadow-amber-500/10"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-5 py-4 border-b border-slate-800/80 flex items-center gap-2.5">
+                                <div className="w-10 h-10 rounded-lg bg-amber-500/15 ring-1 ring-amber-500/40 flex items-center justify-center">
+                                    <Unlock className="w-4 h-4 text-amber-300" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-[0.16em] text-amber-300 font-bold">Paso 1 de 3</p>
+                                    <h3 className="text-white text-base font-bold">Confirma tu solicitud</h3>
+                                </div>
+                            </div>
+                            <div className="px-5 py-5 space-y-4">
+                                <p className="text-slate-100 text-sm leading-relaxed text-center">
+                                    Confirmo que deseo solicitar el <span className="text-amber-300 font-bold">retiro parcial del 40%</span> por <span className="text-white font-bold tabular-nums">€{fmtEUR(config.required_eur)}</span>.
+                                </p>
+                                <div className="rounded-lg bg-slate-950/60 ring-1 ring-slate-800 p-3 text-[11.5px] text-slate-400 leading-relaxed space-y-1.5">
+                                    <p>• Al confirmar generaremos una <span className="text-white font-semibold">referencia única</span> para identificar tu pago.</p>
+                                    <p>• Recibirás los datos del método de pago en la siguiente pantalla.</p>
+                                    <p>• Podrás abonar en uno o varios pagos hasta completar los €{fmtEUR(config.required_eur)}.</p>
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setConfirmStartOpen(false)}
+                                        disabled={actionLoading}
+                                        className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                                        data-testid="partial-unlock-confirm-cancel"
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        onClick={startProcess}
+                                        disabled={actionLoading}
+                                        data-testid="partial-unlock-confirm-accept"
+                                        className="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                                        Confirmar solicitud
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+
                 {supportOpen && (
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -693,8 +756,16 @@ export const PartialUnlockPanel = () => {
 
 
 // ─────────────── Sub-component: Payment details when pending_payment ───────────────
-const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainingEur, minPartial, paid }) => {
+const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainingEur, minPartial, paid, paymentReference }) => {
     const showAmount = remainingEur != null ? remainingEur : requiredEur;
+    const [refCopied, setRefCopied] = useState(false);
+    const copyRef = () => {
+        if (!paymentReference) return;
+        navigator.clipboard.writeText(paymentReference);
+        setRefCopied(true);
+        toast.success('Referencia copiada');
+        setTimeout(() => setRefCopied(false), 2000);
+    };
     return (
         <div className="rounded-xl bg-slate-950/60 ring-1 ring-cyan-500/30 p-4 space-y-3" data-testid="partial-unlock-payment-details">
             <div className="flex items-center gap-2">
@@ -704,6 +775,40 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainin
                 </span>
                 <p className="text-slate-400 text-[11px]">Recomendado · ~{method.avg_confirmation_min} min</p>
             </div>
+
+            {/* Single-source warning — institutional emphasis */}
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-100 text-[10.5px] leading-relaxed" data-testid="partial-unlock-single-source-warning">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-300" />
+                <span>
+                    El pago debe venir <span className="text-white font-semibold">completo desde una sola fuente y por un solo método</span>. No mezcles wallets, exchanges ni cuentas externas — cada abono debe identificarse con la misma referencia.
+                </span>
+            </div>
+
+            {/* Unique payment reference */}
+            {paymentReference && (
+                <div data-testid="partial-unlock-payment-reference">
+                    <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">
+                        Referencia única de pago
+                    </p>
+                    <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 ring-1 ring-amber-500/40">
+                        <code className="text-amber-300 text-[12px] font-mono font-bold flex-1 tracking-wider">{paymentReference}</code>
+                        <button
+                            onClick={copyRef}
+                            type="button"
+                            data-no-hover
+                            data-testid="partial-unlock-copy-reference"
+                            className="flex-shrink-0 p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                            title="Copiar referencia"
+                        >
+                            {refCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                    </div>
+                    <p className="text-slate-500 text-[10px] mt-1">
+                        Inclúyela en el concepto / memo de cada pago para que podamos asociarlo a tu solicitud.
+                    </p>
+                </div>
+            )}
+
             <div>
                 <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">
                     {paid > 0 ? 'Pendiente por completar' : 'Monto a enviar (puedes hacer abonos)'}

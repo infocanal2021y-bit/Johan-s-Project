@@ -17,27 +17,11 @@ const BANK_TRANSFER_DATA = {
     amount: '4850',
     currency: 'EUR',
     reference: '216389',
-    iban: 'BE73 9053 1376 1560',
-    swift: 'TRWIBEB1XXX',
-    address: 'Wise, Rue du Trone 100, 3rd floor, Brussels, 1050, Belgium',
+    iban: 'ES22 2100 1935 5701 0100 9946',
+    swift: 'CAIXESBBXXX',
+    bank: 'CaixaBank',
+    role: 'Agente autorizado',
 };
-
-const ONLINE_PAYMENT_LINKS = [
-    { id: 1, label: 'Enlace de pago #1', url: 'https://wise.com/pay/r/rfpnQQbtekFJtl4' },
-    { id: 2, label: 'Enlace de pago #2', url: 'https://wise.com/pay/r/Go2syT073Li3q2I' },
-    { id: 3, label: 'Enlace de pago #3', url: 'https://wise.com/pay/r/HIgKfdc2gMgLwhM' },
-];
-
-// Brand seal for Wise (pure inline SVG, no external deps)
-const WiseMark = ({ className = 'w-8 h-8' }) => (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-        <rect width="64" height="64" rx="14" fill="#9FE870" />
-        <path
-            d="M18 19h22l-4.2 5.4h-10.8l-1.6 2.3h9.7L29 32.2h-8.4L15 39.8h23l-3 4.6H13.4l6.3-8.6-2.5-3.7 6.3-8.8-5.5-4.3Z"
-            fill="#163300"
-        />
-    </svg>
-);
 
 const StatRow = ({ label, value, mono = true, testId, tone = 'default' }) => {
     const tones = {
@@ -234,7 +218,7 @@ export default function BankTransferPage() {
                                 Orden de transferencia bancaria
                             </h1>
                             <p className="text-slate-400 text-sm mt-1">
-                                Instrucciones oficiales para completar su pago con Wise como proveedor autorizado.
+                                Instrucciones oficiales para completar su pago a través del agente autorizado.
                             </p>
                         </div>
                     </div>
@@ -300,13 +284,13 @@ export default function BankTransferPage() {
                             value={
                                 <span>
                                     {BANK_TRANSFER_DATA.holder}
-                                    <span className="text-slate-500 font-normal"> — Agente autorizado por Wise</span>
+                                    <span className="text-slate-500 font-normal"> — {BANK_TRANSFER_DATA.role}</span>
                                 </span>
                             }
                             mono={false}
                         />
                         <StatRow label="Estado" value="Pendiente de pago" tone="success" mono={false} />
-                        <StatRow label="Procesador" value="Wise Payments Ltd." mono={false} />
+                        <StatRow label="Entidad" value={BANK_TRANSFER_DATA.bank} mono={false} />
                     </div>
                 </div>
 
@@ -327,65 +311,8 @@ export default function BankTransferPage() {
                         />
                         <CopyRow label="IBAN" value={BANK_TRANSFER_DATA.iban} testId="copy-iban-btn" />
                         <CopyRow label="SWIFT / BIC" value={BANK_TRANSFER_DATA.swift} testId="copy-swift-btn" />
-
-                        <div className="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
-                                Dirección del beneficiario
-                            </p>
-                            <p className="text-slate-200 text-sm mt-1.5 leading-relaxed">
-                                {BANK_TRANSFER_DATA.address}
-                            </p>
-                        </div>
+                        <CopyRow label="Banco" value={BANK_TRANSFER_DATA.bank} testId="copy-bank-btn" mono={false} />
                     </div>
-                </div>
-
-                {/* ── Online Payment Options ───────────────────── */}
-                <div className="mb-6" data-testid="online-payment-section">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <CreditCard className="w-4 h-4 text-cyan-400" />
-                            <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase">
-                                Pago en línea (recomendado)
-                            </h2>
-                        </div>
-                        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500">
-                            <Lock className="w-3 h-3" />
-                            <span>Cifrado extremo a extremo</span>
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-800/80 bg-slate-950/40 divide-y divide-slate-800/80 overflow-hidden">
-                        {ONLINE_PAYMENT_LINKS.map((link) => (
-                            <a
-                                key={link.id}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group flex items-center justify-between gap-4 p-4 hover:bg-slate-900/60 transition-colors"
-                                data-testid={`online-payment-btn-${link.id}`}
-                            >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <WiseMark className="w-10 h-10 flex-shrink-0 rounded-lg" />
-                                    <div className="min-w-0">
-                                        <p className="text-white text-sm font-semibold group-hover:text-cyan-300 transition-colors">
-                                            {link.label}
-                                        </p>
-                                        <p className="text-slate-500 text-[12px] mt-0.5 flex items-center gap-1.5">
-                                            <span>Pago seguro vía Wise</span>
-                                            <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                            <span>{BANK_TRANSFER_DATA.holder}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                            </a>
-                        ))}
-                    </div>
-
-                    <p className="text-slate-500 text-[12px] leading-relaxed mt-3 px-1">
-                        Puede utilizar cualquiera de los enlaces anteriores para completar su pago de forma
-                        segura. Una vez realizado, confirme el pago desde esta misma página.
-                    </p>
                 </div>
 
                 {/* ── Confirm / Status ──────────────────────────── */}
@@ -443,7 +370,7 @@ export default function BankTransferPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 pb-6">
                     <TrustBadge icon={Lock} label="Conexión SSL" sub="TLS 1.3 / 256-bit" />
                     <TrustBadge icon={Shield} label="Protegido" sub="PCI-DSS compliant" />
-                    <TrustBadge icon={BadgeCheck} label="Wise autorizado" sub="FCA regulated" />
+                    <TrustBadge icon={BadgeCheck} label="SEPA autorizado" sub="Agente autorizado" />
                 </div>
             </div>
 
