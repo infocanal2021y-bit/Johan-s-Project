@@ -1,0 +1,47 @@
+{
+  "summary": "Re-tested /admin/journey-analytics after iter52 fixes. Funnel is now monotonically non-increasing (2520, 261, 261, 115, 114, 114, 114, 114) — 0 violations. España + Espana merged into single 'España' row with total=268 (was 263+5 duplicate). Empty-branch (country=NonExistentXYZ) now returns 'cutoff'. Frontend renders cleanly, all data-testids present, no 'small-then-jumps-up' visual bug. 24/25 backend tests pass. One residual MINOR bug: dropoff_pct_from_prev for the stage that follows a clamped stage is stale (uses pre-clamp prev count). With dev data: pending_review count is correctly clamped to 114 but its dropoff is 0.9 instead of 0.0 because proof_uploaded was naturally 115 and clamped to 114, yet `_pct(n_pending, n_proof=115)` had already been computed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/journey-analytics",
+        "issue": "Clamp loop fixes stage counts but does NOT recompute dropoff_pct_from_prev for the stage AFTER the clamped one. Dev data: proof_uploaded natural=115 → clamped to 114 (dropoff set to 0.0), but pending_review.dropoff_pct_from_prev = round(100*(115-114)/115, 1) = 0.9 (computed with stale n_proof=115). Expected 0.0 after clamping. Fix: in the safety-clamp loop, when stage i is clamped, recompute stage i+1's dropoff using stages[i]['count'] as the new prev: `if i+1 < len(stages): stages[i+1]['dropoff_pct_from_prev'] = _pct(stages[i+1]['count'], stages[i]['count'])`. This causes 1 test failure (TestFunnel::test_dropoff_formula) and a tiny visual mismatch ('Pendiente revisión ↓ 0.9% 114' should read '↓ 0% 114')."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "AdminJourneyAnalyticsPage funnel-chart",
+        "issues": [
+          "Cosmetic: 'Pendiente revisión' row shows '↓ 0.9% · 114' while the bar is the same length as 'Comprobante subido · 114'. Caused by the stale-dropoff bug described above. Once main agent fixes the recompute, this becomes ↓ 0%."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_journey_analytics.py",
+    "/app/test_reports/pytest/journey_analytics_results.xml"
+  ],
+  "action_items": [
+    "In admin.py safety-clamp loop, also recompute the NEXT stage's dropoff_pct_from_prev using the clamped previous count. Without this, the funnel counts are correct but the displayed drop-off for the post-clamp stage is misleadingly non-zero."
+  ],
+  "critical_code_review_comments": [
+    "Propagation (proof|=completed, pending|=completed, kyc|=completed) + safety clamp is a clean two-layer guard. Good defensive coding.",
+    "_norm_country alias map is hardcoded inside the endpoint; consider moving to module-level constant to avoid rebuilding on every request.",
+    "admin.py still ~3279 lines — consider extracting journey-analytics into routes/admin_journey.py.",
+    "Minor: clamp loop should recompute the next stage's dropoff (see action_items)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_journey_analytics.py"
+  ],
+  "success_rate": {"backend": "96% (24/25)", "frontend": "100% UI render, monotonic funnel visible"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026!",
+  "seed_data_creation": "None — used existing dev DB (2520 non-admin users, 261 logged in, 115 withdraw, 114 completed, 263 España + 5 Espana → merged 268).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests at /app/backend/tests/test_journey_analytics.py — 25 tests. New classes added: TestEmptyBranchAndCountryNorm (cutoff in empty branch, España+Espana merge, México alias) and TestPropagationAndClamp (propagation correctness, 0 violations, completed<=proof/pending/kyc). One failing test (test_dropoff_formula) flags the residual stale-dropoff bug. Run with: REACT_APP_BACKEND_URL=<url> pytest backend/tests/test_journey_analytics.py -v",
+  "rca_of_the_issue": "Stale-dropoff post-clamp RCA: stages array is built with `_pct(curr, prev)` using raw counts. The clamp loop fixes the .count of stage i to <= stage[i-1].count AND zeros stage i's own dropoff, but stage i+1's dropoff_pct_from_prev was pre-computed using the un-clamped stage i count. Reproduction: with dev data n_kyc=114, n_proof=115, n_pending=114, n_completed=114 → proof_uploaded gets clamped (115>114) to 114/0.0, but pending_review.dropoff = round(100*(115-114)/115,1) = 0.9 remains. Mitigation: extend clamp loop to also fix stage[i+1] dropoff. Code patch ready in action_items."
+}

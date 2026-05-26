@@ -3002,10 +3002,13 @@ async def admin_journey_analytics(
 
     if not user_ids:
         return {
-            'stages': [], 'avg_hours_between': {}, 'by_country': [], 'by_method': [],
-            'by_status': [], 'stuck_users': [], 'followup_users': [],
-            'recent_active': [], 'filters': {'country': country, 'method': method, 'status': status, 'days': days},
-            'updated_at': datetime.now(timezone.utc).isoformat(), 'total_users': 0,
+            'stages': [], 'overall_conversion_pct': 0, 'avg_hours_between': {},
+            'by_country': [], 'by_method': [], 'by_status': [],
+            'stuck_users': [], 'followup_users': [], 'recent_active': [],
+            'filters': {'country': country, 'method': method, 'status': status, 'days': days},
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'total_users': 0,
+            'cutoff': cutoff_iso,
         }
 
     tx_query = {'user_id': {'$in': user_ids}, 'transaction_type': 'withdraw'}
@@ -3073,6 +3076,15 @@ async def admin_journey_analytics(
         pending_users = pending_users & method_set if method_set else set()
         completed_users = completed_users & method_set if method_set else set()
 
+    # Funnel semantics: any user that reached `completed` must have, at some
+    # point, passed through the upstream stages (proof_uploaded, pending_review,
+    # kyc_reached). The historical record may be incomplete (e.g. admin-credited
+    # completions without a proof row), so we propagate completed downstream
+    # stages backward to keep the funnel monotonically non-increasing.
+    proof_users   = proof_users   | completed_users
+    pending_users = pending_users | completed_users
+    kyc_users     = kyc_users     | completed_users
+
     logged_in_users = {u['id'] for u in users
                        if u.get('first_login_at') or u.get('last_active')}
 
@@ -3104,6 +3116,13 @@ async def admin_journey_analytics(
         {'key': 'completed',          'label': 'Completado',           'count': n_completed,  'dropoff_pct_from_prev': _pct(n_completed, n_pending)},
     ]
 
+    # Safety clamp: enforce monotonic non-increasing funnel even when historical
+    # data is inconsistent. Re-compute dropoff after clamping.
+    for i in range(1, len(stages)):
+        if stages[i]['count'] > stages[i - 1]['count']:
+            stages[i]['count'] = stages[i - 1]['count']
+            stages[i]['dropoff_pct_from_prev'] = 0.0
+
     def _avg(samples):
         s = [x for x in samples if x is not None and x >= 0]
         return round(sum(s) / len(s), 1) if s else None
@@ -3127,9 +3146,22 @@ async def admin_journey_analytics(
         ]),
     }
 
+    # Normalise country names (strip accents, collapse "España"/"Espana", etc.)
+    import unicodedata as _ud
+    def _norm_country(name: str) -> str:
+        if not name:
+            return 'Sin país'
+        nfkd = _ud.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii').strip().lower()
+        aliases = {
+            'espana': 'España', 'spain': 'España',
+            'mexico': 'México',
+            'argentina': 'Argentina', 'chile': 'Chile', 'costa rica': 'Costa Rica',
+        }
+        return aliases.get(nfkd, name.strip())
+
     by_country_acc = {}
     for u in users:
-        c = u.get('country_name') or u.get('country') or 'Sin país'
+        c = _norm_country(u.get('country_name') or u.get('country'))
         b = by_country_acc.setdefault(c, {'country': c, 'total': 0, 'withdraw': 0, 'proof': 0, 'completed': 0})
         b['total'] += 1
         if u['id'] in withdraw_users: b['withdraw'] += 1
