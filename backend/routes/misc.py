@@ -660,7 +660,8 @@ async def admin_get_bank_transfer_proof(
         query,
         {'_id': 0, 'id': 1, 'user_id': 1, 'user_name': 1, 'user_email': 1,
          'reference': 1, 'amount': 1, 'currency': 1, 'status': 1,
-         'proof_filename': 1, 'has_proof': 1, 'created_at': 1, 'comment': 1}
+         'proof_filename': 1, 'has_proof': 1, 'created_at': 1, 'comment': 1,
+         'proof_reviewed_at': 1, 'proof_reviewed_by': 1, 'proof_reviewed_by_name': 1}
     )
     if not payment:
         raise HTTPException(status_code=404, detail='Transferencia no encontrada')
@@ -692,6 +693,63 @@ async def admin_get_bank_transfer_proof(
         'filename': filename,
         'has_file': bool(data_uri),
     }
+
+
+@router.post("/admin/bank-transfer/proof/mark-viewed")
+async def admin_mark_bank_transfer_proof_viewed(
+    payload: dict,
+    admin: dict = Depends(get_admin_user),
+):
+    """Persist that an admin viewed (reviewed) a bank-transfer proof so the
+    audit trail is real. Idempotent: if already viewed, returns the existing
+    timestamp without overwriting it. Accepts {reference} or {payment_id}.
+    """
+    reference = (payload or {}).get('reference')
+    payment_id = (payload or {}).get('payment_id')
+    if not reference and not payment_id:
+        raise HTTPException(status_code=400, detail='Indique reference o payment_id')
+
+    query = {}
+    if payment_id:
+        query['id'] = payment_id
+    else:
+        query['reference'] = reference.strip()
+
+    payment = await db.bank_transfer_payments.find_one(
+        query, {'_id': 0, 'id': 1, 'proof_reviewed_at': 1, 'proof_reviewed_by': 1, 'proof_reviewed_by_name': 1}
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail='Transferencia no encontrada')
+
+    # Idempotent
+    if payment.get('proof_reviewed_at'):
+        return {
+            'ok': True,
+            'already_reviewed': True,
+            'proof_reviewed_at': payment.get('proof_reviewed_at'),
+            'proof_reviewed_by': payment.get('proof_reviewed_by'),
+            'proof_reviewed_by_name': payment.get('proof_reviewed_by_name'),
+        }
+
+    now = datetime.now(timezone.utc).isoformat()
+    admin_id = admin.get('id')
+    admin_name = admin.get('name') or admin.get('email')
+    await db.bank_transfer_payments.update_one(
+        {'id': payment['id']},
+        {'$set': {
+            'proof_reviewed_at': now,
+            'proof_reviewed_by': admin_id,
+            'proof_reviewed_by_name': admin_name,
+        }}
+    )
+    return {
+        'ok': True,
+        'already_reviewed': False,
+        'proof_reviewed_at': now,
+        'proof_reviewed_by': admin_id,
+        'proof_reviewed_by_name': admin_name,
+    }
+
 
 
 # ─── Bitcoin Outputs Verification ───

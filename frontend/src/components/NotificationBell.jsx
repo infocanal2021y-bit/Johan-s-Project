@@ -149,6 +149,17 @@ export const NotificationBell = () => {
                     setProofError('No hay comprobante disponible para esta transferencia.');
                 } else {
                     setProofViewed(true);
+                    // Persist audit trail server-side (idempotent, fire-and-forget)
+                    try {
+                        fetch(`${API_URL}/api/admin/bank-transfer/proof/mark-viewed`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ reference }),
+                        }).catch(() => {});
+                    } catch (_e) { /* swallow */ }
                 }
             }
         } catch (e) {
@@ -477,6 +488,14 @@ export const NotificationBell = () => {
                                             <span>Monto: <span className="text-slate-400">{proofData.payment.amount} {proofData.payment.currency}</span></span>
                                             {proofData.payment.user_name && (
                                                 <span className="col-span-2 truncate">Usuario: <span className="text-slate-400">{proofData.payment.user_name}</span></span>
+                                            )}
+                                            {proofData.payment.proof_reviewed_at && (
+                                                <span className="col-span-2 text-emerald-400/90 flex items-center gap-1 mt-0.5" data-testid="notif-proof-audit-stamp">
+                                                    <CheckCheck className="w-3 h-3" />
+                                                    <span>Revisado por <strong className="font-semibold">{proofData.payment.proof_reviewed_by_name || '—'}</strong>{' '}
+                                                        <span className="text-slate-600">·</span> {new Date(proofData.payment.proof_reviewed_at).toLocaleString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
+                                                    </span>
+                                                </span>
                                             )}
                                         </div>
                                     )}

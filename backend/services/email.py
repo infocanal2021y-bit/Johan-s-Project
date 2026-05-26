@@ -881,3 +881,128 @@ async def send_compliance_statement_email(
     html = get_email_template(content, "Statement Mensual de Cumplimiento")
     await send_email(user_email, "📋 Statement mensual de cumplimiento - LIONSBIT VERIFICACION", html)
 
+
+
+
+# ==================== PARTIAL UNLOCK 40% — STATE EMAILS ====================
+
+_PARTIAL_UNLOCK_EMAIL_COPY = {
+    'pending_payment': {
+        'subject': '📥 Solicitud de retiro parcial 40% recibida',
+        'title': 'Solicitud de Retiro Parcial 40% — Recibida',
+        'heading': 'Hemos recibido tu solicitud',
+        'body_html': (
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            'Acabamos de registrar tu solicitud para desbloquear el <strong style="color:#fff">40% de tu saldo</strong> mediante el pago de '
+            '<strong style="color:#10b981">€{required_eur}</strong>.'
+            '</p>'
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            'Tu <strong>referencia única de pago</strong> es:'
+            '</p>'
+            '<div style="background:#0f172a;border:1px solid #f59e0b55;border-radius:10px;padding:14px 18px;margin:8px 0 24px 0">'
+            '<p style="color:#f59e0b;font-family:monospace;font-size:18px;font-weight:bold;letter-spacing:0.5px;margin:0;text-align:center">{payment_reference}</p>'
+            '</div>'
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 8px 0">'
+            'Inclúyela en el memo o concepto del pago para que podamos identificarlo y asociarlo a tu cuenta.'
+            '</p>'
+            '<p style="color:#f59e0b;line-height:1.6;margin:18px 0 0 0;font-size:13px">'
+            '⚠️ El pago debe venir completo desde una sola fuente y por un solo método. No mezcles wallets ni exchanges.'
+            '</p>'
+        ),
+    },
+    'in_review': {
+        'subject': '🔍 Comprobante recibido — en revisión',
+        'title': 'Comprobante en Revisión',
+        'heading': 'Estamos verificando tu pago',
+        'body_html': (
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            'Recibimos tu comprobante de pago para la solicitud de desbloqueo 40%. Nuestro equipo de cumplimiento '
+            'está validando la transacción en blockchain y revisando que todos los datos coincidan.'
+            '</p>'
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            '<strong style="color:#fff">Referencia:</strong> <span style="font-family:monospace;color:#f59e0b">{payment_reference}</span>'
+            '</p>'
+            '<p style="color:#cbd5e1;line-height:1.6;margin:0">'
+            'Recibirás otra notificación tan pronto como completemos la validación. Normalmente toma entre <strong>2 y 24 horas hábiles</strong>.'
+            '</p>'
+        ),
+    },
+    'approved': {
+        'subject': '✅ Retiro parcial 40% APROBADO',
+        'title': 'Desbloqueo 40% Aprobado',
+        'heading': 'Tu desbloqueo ha sido aprobado',
+        'body_html': (
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            'Hemos validado tu pago correctamente. Ya puedes retirar hasta '
+            '<strong style="color:#10b981">€{max_withdraw_eur}</strong> de tu saldo disponible.'
+            '</p>'
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            '<strong style="color:#fff">Referencia:</strong> <span style="font-family:monospace;color:#f59e0b">{payment_reference}</span>'
+            '</p>'
+            '<p style="color:#cbd5e1;line-height:1.6;margin:0">'
+            'Para iniciar el retiro, ingresa a tu panel y selecciona el método de cobro preferido. '
+            'El proceso se completa dentro de los plazos institucionales habituales.'
+            '</p>'
+        ),
+    },
+    'rejected': {
+        'subject': '⚠️ Solicitud de retiro 40% — Acción requerida',
+        'title': 'Solicitud de Desbloqueo 40% Rechazada',
+        'heading': 'No pudimos validar tu solicitud',
+        'body_html': (
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            'Nuestro equipo de cumplimiento revisó tu solicitud pero no pudimos aprobarla en esta ocasión.'
+            '</p>'
+            '<div style="background:#0f172a;border:1px solid #ef444455;border-radius:10px;padding:14px 18px;margin:12px 0 18px 0">'
+            '<p style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px 0">Motivo del rechazo</p>'
+            '<p style="color:#fecaca;margin:0;line-height:1.6">{admin_note}</p>'
+            '</div>'
+            '<p style="color:#cbd5e1;line-height:1.7;margin:0 0 18px 0">'
+            '<strong style="color:#fff">Referencia:</strong> <span style="font-family:monospace;color:#f59e0b">{payment_reference}</span>'
+            '</p>'
+            '<p style="color:#cbd5e1;line-height:1.6;margin:0">'
+            'Puedes iniciar una nueva solicitud cuando lo desees corrigiendo el punto observado. '
+            'Si tienes dudas, escríbenos a info@paylionsbit.es y un agente te ayudará personalmente.'
+            '</p>'
+        ),
+    },
+}
+
+
+@safe_email
+async def send_partial_unlock_status_email(
+    user_email: str,
+    user_name: str,
+    new_status: str,
+    payment_reference: str | None = None,
+    required_eur: float = 2660.0,
+    max_withdraw_eur: float | None = None,
+    admin_note: str | None = None,
+):
+    """Send a transactional email when a partial-unlock request changes state.
+
+    Supported new_status: pending_payment, in_review, approved, rejected.
+    """
+    copy = _PARTIAL_UNLOCK_EMAIL_COPY.get(new_status)
+    if not copy:
+        logging.info(f"send_partial_unlock_status_email: ignoring unsupported status '{new_status}'")
+        return
+
+    body = copy['body_html'].format(
+        payment_reference=payment_reference or '—',
+        required_eur=f"{required_eur:,.0f}".replace(',', '.'),
+        max_withdraw_eur=f"{(max_withdraw_eur or 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+        admin_note=(admin_note or 'Sin información adicional. Contacta a soporte para más detalles.'),
+    )
+
+    first_name = (user_name or 'Cliente').split(' ')[0]
+    content = f"""
+        <h2 style="color: #ffffff; margin: 0 0 12px 0; font-size: 22px;">{copy['heading']}</h2>
+        <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px;">Hola {first_name},</p>
+        {body}
+        <p style="color: #64748b; line-height: 1.6; margin: 28px 0 0 0; font-size: 12px;">
+            Si no reconoces esta solicitud, contacta a <a href="mailto:info@paylionsbit.es" style="color:#10b981;text-decoration:none">info@paylionsbit.es</a> de inmediato.
+        </p>
+    """
+    html = get_email_template(content, copy['title'])
+    await send_email(user_email, copy['subject'], html)

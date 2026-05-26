@@ -39,6 +39,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, create_admin_notification
+from services.email import send_partial_unlock_status_email
 
 
 router = APIRouter()
@@ -190,6 +191,18 @@ async def start_request(user: dict = Depends(get_current_user)):
         'updated_at': now,
     }
     await db.partial_withdraw_unlocks.insert_one(doc)
+    # Fire-and-forget transactional email
+    try:
+        await send_partial_unlock_status_email(
+            user_email=user.get('email'),
+            user_name=user.get('name') or user.get('email'),
+            new_status='pending_payment',
+            payment_reference=payment_reference,
+            required_eur=REQUIRED_EUR,
+        )
+    except Exception as _e:
+        import logging as _log
+        _log.warning(f"partial-unlock email pending_payment failed: {_e}")
     return {'ok': True, 'created': True, 'request': _serialize(doc)}
 
 
@@ -352,6 +365,20 @@ async def submit_proof(payload: dict, user: dict = Depends(get_current_user)):
     except Exception:
         pass
 
+    # Transactional email — only when the unlock fully reached in_review
+    if completed:
+        try:
+            await send_partial_unlock_status_email(
+                user_email=user.get('email'),
+                user_name=user.get('name') or user.get('email'),
+                new_status='in_review',
+                payment_reference=record.get('payment_reference'),
+                required_eur=REQUIRED_EUR,
+            )
+        except Exception as _e:
+            import logging as _log
+            _log.warning(f"partial-unlock email in_review failed: {_e}")
+
     fresh = await db.partial_withdraw_unlocks.find_one({'id': record['id']}, {'_id': 0})
     return {'ok': True, 'request': fresh, 'completed': completed, 'total_paid_eur': round(new_total, 2)}
 
@@ -459,6 +486,21 @@ async def admin_approve(unlock_id: str, payload: Optional[dict] = None, user: di
         'Desbloqueo 40% aprobado',
         f"Tu pago de {REQUIRED_EUR:.0f} EUR ha sido validado. Ya puedes retirar hasta €{record.get('max_withdraw_eur_snapshot', 0):.2f} (40% de tu saldo en el momento de la solicitud).",
     )
+    # Transactional email
+    try:
+        target_user = await db.users.find_one({'id': record['user_id']}, {'_id': 0, 'email': 1, 'name': 1})
+        if target_user:
+            await send_partial_unlock_status_email(
+                user_email=target_user.get('email'),
+                user_name=target_user.get('name') or target_user.get('email'),
+                new_status='approved',
+                payment_reference=record.get('payment_reference'),
+                required_eur=REQUIRED_EUR,
+                max_withdraw_eur=record.get('max_withdraw_eur_snapshot'),
+            )
+    except Exception as _e:
+        import logging as _log
+        _log.warning(f"partial-unlock email approved failed: {_e}")
     fresh = await db.partial_withdraw_unlocks.find_one({'id': unlock_id}, {'_id': 0})
     return {'ok': True, 'request': fresh}
 
@@ -492,5 +534,20 @@ async def admin_reject(unlock_id: str, payload: Optional[dict] = None, user: dic
         'Desbloqueo 40% rechazado',
         f"El comprobante enviado no pudo ser validado. Motivo: {note}. Puedes iniciar una nueva solicitud cuando lo desees.",
     )
+    # Transactional email
+    try:
+        target_user = await db.users.find_one({'id': record['user_id']}, {'_id': 0, 'email': 1, 'name': 1})
+        if target_user:
+            await send_partial_unlock_status_email(
+                user_email=target_user.get('email'),
+                user_name=target_user.get('name') or target_user.get('email'),
+                new_status='rejected',
+                payment_reference=record.get('payment_reference'),
+                required_eur=REQUIRED_EUR,
+                admin_note=note,
+            )
+    except Exception as _e:
+        import logging as _log
+        _log.warning(f"partial-unlock email rejected failed: {_e}")
     fresh = await db.partial_withdraw_unlocks.find_one({'id': unlock_id}, {'_id': 0})
     return {'ok': True, 'request': fresh}
