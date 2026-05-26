@@ -187,3 +187,102 @@ class TestGlobalTransfers:
         assert r.status_code == 200
         data = r.json()
         assert data['count'] == target_limit, f"expected {target_limit} items, got {data['count']}"
+
+
+# ---------- iter56: cross-border corridors ----------
+
+CROSS_CORRIDORS = {
+    'España': {'Argentina', 'México', 'Chile', 'Costa Rica'},
+    'Argentina': {'España', 'México', 'Chile'},
+    'Chile': {'España', 'Argentina'},
+    'México': {'España', 'Costa Rica'},
+    'Costa Rica': {'España', 'México'},
+}
+
+# Financial-hub city of each dest country (first entry of COUNTRY_CITIES)
+FINANCIAL_HUBS = {
+    'España': 'Madrid',
+    'Argentina': 'Buenos Aires',
+    'Chile': 'Santiago',
+    'México': 'Ciudad de México',
+    'Costa Rica': 'San José',
+}
+
+
+class TestGlobalTransfersCrossBorder:
+    def test_items_have_cross_border_fields(self, admin_headers):
+        r = requests.get(f"{API}/community/global-transfers",
+                         params={'limit': 20}, headers=admin_headers, timeout=20)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert 'cross_border_count' in data
+        assert isinstance(data['cross_border_count'], int)
+        assert len(data['items']) >= 1
+        for item in data['items']:
+            for f in ('dest_country', 'dest_country_flag', 'is_cross_border'):
+                assert f in item, f'Missing {f} in item {item}'
+            assert isinstance(item['is_cross_border'], bool)
+            # baseline existing fields still present (regression)
+            for f in ('origin_city', 'origin_lat', 'origin_lng',
+                      'dest_city', 'dest_lat', 'dest_lng',
+                      'amount_eur', 'status', 'date',
+                      'name_public', 'country_flag'):
+                assert f in item
+
+    def test_cross_border_count_matches_items(self, admin_headers):
+        r = requests.get(f"{API}/community/global-transfers",
+                         params={'limit': 20}, headers=admin_headers, timeout=20)
+        assert r.status_code == 200
+        data = r.json()
+        manual = sum(1 for i in data['items'] if i.get('is_cross_border'))
+        assert data['cross_border_count'] == manual, (
+            f"top-level cross_border_count={data['cross_border_count']} "
+            f"!= count of is_cross_border True items ({manual})"
+        )
+
+    def test_cross_border_items_use_corridor_map_and_hubs(self, admin_headers):
+        r = requests.get(f"{API}/community/global-transfers",
+                         params={'limit': 20}, headers=admin_headers, timeout=20)
+        assert r.status_code == 200
+        data = r.json()
+        cross_items = [i for i in data['items'] if i.get('is_cross_border')]
+        for it in cross_items:
+            origin = it['country']
+            dest = it['dest_country']
+            assert dest != origin, f'cross-border item has same country: {it}'
+            assert origin in CROSS_CORRIDORS, f'origin {origin} not in CROSS_CORRIDORS'
+            assert dest in CROSS_CORRIDORS[origin], (
+                f'corridor {origin}->{dest} not allowed by CROSS_CORRIDORS'
+            )
+            # dest city must be the financial hub of dest_country
+            assert it['dest_city'] == FINANCIAL_HUBS[dest], (
+                f"dest_city={it['dest_city']} expected hub={FINANCIAL_HUBS[dest]} for {dest}"
+            )
+            # dest_country_flag must be a non-empty string
+            assert isinstance(it['dest_country_flag'], str) and len(it['dest_country_flag']) >= 1
+
+    def test_intra_country_items_have_same_country(self, admin_headers):
+        r = requests.get(f"{API}/community/global-transfers",
+                         params={'limit': 20}, headers=admin_headers, timeout=20)
+        assert r.status_code == 200
+        data = r.json()
+        intra = [i for i in data['items'] if not i.get('is_cross_border')]
+        for it in intra:
+            assert it['dest_country'] == it['country'], (
+                f"intra item country mismatch: {it}"
+            )
+
+    def test_cross_border_ratio_in_expected_range(self, admin_headers):
+        # CROSS_RATIO=0.35; allow 15-55% with sample of 20
+        r = requests.get(f"{API}/community/global-transfers",
+                         params={'limit': 20}, headers=admin_headers, timeout=20)
+        assert r.status_code == 200
+        data = r.json()
+        n = len(data['items'])
+        assert n == 20
+        ratio = data['cross_border_count'] / n
+        # Probabilistic ~0.35 — allow generous band per spec
+        assert 0.05 <= ratio <= 0.75, (
+            f"cross-border ratio {ratio:.0%} out of expected range "
+            f"(count={data['cross_border_count']}/{n})"
+        )

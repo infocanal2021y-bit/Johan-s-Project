@@ -120,6 +120,11 @@ export const GlobalTransfersMap = () => {
         return m;
     }, [items]);
 
+    const crossCount = useMemo(
+        () => items.filter((i) => i.is_cross_border).length,
+        [items]
+    );
+
     return (
         <div className="bg-[#0B1A2D] rounded-2xl border border-[#1973B8]/20 overflow-hidden shadow-2xl shadow-[#072146]/40" data-testid="global-transfers-map">
             {/* Header */}
@@ -133,12 +138,21 @@ export const GlobalTransfersMap = () => {
                         <p className="text-[#7CB1E5]/70 text-xs">Red SWIFT institucional · 5 corredores activos</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-emerald-300 text-[11px] font-bold uppercase tracking-wider">{items.length} transacciones</span>
+                <div className="flex items-center gap-2">
+                    {crossCount > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30">
+                            <span className="text-amber-300 text-[11px] font-bold uppercase tracking-wider" data-testid="cross-border-pill">
+                                {crossCount} INTL
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-emerald-300 text-[11px] font-bold uppercase tracking-wider">{items.length} transacciones</span>
+                    </div>
                 </div>
             </div>
 
@@ -170,6 +184,10 @@ export const GlobalTransfersMap = () => {
                                     <stop offset="0%" stopColor="#10B981" />
                                     <stop offset="100%" stopColor="#7CB1E5" />
                                 </linearGradient>
+                                <linearGradient id="gtm-arc-cross" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#FBBF24" stopOpacity="0.85" />
+                                    <stop offset="100%" stopColor="#F97316" stopOpacity="0.9" />
+                                </linearGradient>
                                 <pattern id="gtm-grid" width="40" height="40" patternUnits="userSpaceOnUse">
                                     <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1973B8" strokeOpacity="0.04" strokeWidth="1" />
                                 </pattern>
@@ -198,14 +216,20 @@ export const GlobalTransfersMap = () => {
                                     const p1 = project(tx.origin_lat, tx.origin_lng);
                                     const p2 = project(tx.dest_lat, tx.dest_lng);
                                     const isActive = active?.id === tx.id;
+                                    const cross = tx.is_cross_border;
                                     return (
                                         <g key={tx.id}>
                                             <motion.path
                                                 d={arcPath(p1, p2)}
                                                 fill="none"
-                                                stroke={isActive ? 'url(#gtm-arc-active)' : 'url(#gtm-arc)'}
-                                                strokeWidth={isActive ? 2.2 : 1.1}
-                                                strokeOpacity={isActive ? 1 : 0.4}
+                                                stroke={isActive
+                                                    ? 'url(#gtm-arc-active)'
+                                                    : cross
+                                                        ? 'url(#gtm-arc-cross)'
+                                                        : 'url(#gtm-arc)'}
+                                                strokeWidth={isActive ? 2.4 : cross ? 1.4 : 1.1}
+                                                strokeOpacity={isActive ? 1 : cross ? 0.55 : 0.4}
+                                                strokeDasharray={cross && !isActive ? '4 3' : undefined}
                                                 initial={{ pathLength: 0 }}
                                                 animate={{ pathLength: 1 }}
                                                 transition={{ duration: 1.2, delay: idx * 0.05, ease: 'easeOut' }}
@@ -270,15 +294,19 @@ export const GlobalTransfersMap = () => {
                                 <div className="flex items-center gap-2 mb-1">
                                     <Radio className="w-3 h-3 text-emerald-400" />
                                     <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Transferencia verificada</span>
+                                    {active.is_cross_border && (
+                                        <span className="text-amber-300 text-[9px] font-bold uppercase tracking-widest bg-amber-500/15 px-1.5 py-0.5 rounded">SWIFT INTL</span>
+                                    )}
                                 </div>
                                 <p className="text-white text-sm font-semibold flex items-center gap-1.5 flex-wrap">
                                     <span>{active.country_flag}</span>
                                     <span>{active.origin_city}</span>
                                     <ArrowRight className="w-3.5 h-3.5 text-[#7CB1E5]" />
+                                    {active.is_cross_border && active.dest_country_flag && <span>{active.dest_country_flag}</span>}
                                     <span>{active.dest_city}</span>
                                     <span className="text-emerald-300 font-bold tabular-nums ml-auto">{fmtEUR(active.amount_eur)}</span>
                                 </p>
-                                <p className="text-slate-500 text-[10px] mt-0.5">{active.name_public} · {timeAgo(active.date)}</p>
+                                <p className="text-slate-500 text-[10px] mt-0.5">{active.name_public} · {timeAgo(active.date)}{active.is_cross_border && active.dest_country ? ` · destino: ${active.dest_country}` : ''}</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -305,11 +333,21 @@ export const GlobalTransfersMap = () => {
                                     <div className="flex items-center justify-between gap-2">
                                         <p className="text-white text-xs font-medium flex items-center gap-1 truncate">
                                             <span>{tx.country_flag}</span>
-                                            <span className="truncate">{tx.origin_city} → {tx.dest_city}</span>
+                                            <span className="truncate">{tx.origin_city}</span>
+                                            <span className="text-slate-600">→</span>
+                                            {tx.is_cross_border && tx.dest_country_flag && <span>{tx.dest_country_flag}</span>}
+                                            <span className="truncate">{tx.dest_city}</span>
                                         </p>
                                         <span className="text-emerald-300 text-xs font-bold tabular-nums whitespace-nowrap">{fmtEUR(tx.amount_eur)}</span>
                                     </div>
-                                    <p className="text-slate-500 text-[10px] mt-0.5">{tx.name_public} · {timeAgo(tx.date)}</p>
+                                    <p className="text-slate-500 text-[10px] mt-0.5 flex items-center gap-1.5">
+                                        <span>{tx.name_public}</span>
+                                        <span>·</span>
+                                        <span>{timeAgo(tx.date)}</span>
+                                        {tx.is_cross_border && (
+                                            <span className="ml-auto text-amber-300 font-bold uppercase tracking-wider text-[9px]">INTL</span>
+                                        )}
+                                    </p>
                                 </button>
                             );
                         })}

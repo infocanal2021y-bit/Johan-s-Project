@@ -74,6 +74,7 @@ export const AdminPartialUnlockPage = () => {
     const [filter, setFilter] = useState('in_review');
     const [busyId, setBusyId] = useState(null);
     const [rejectFor, setRejectFor] = useState(null); // { id, note }
+    const [search, setSearch] = useState('');
 
     const load = useCallback(async (silent = false) => {
         try {
@@ -171,6 +172,16 @@ export const AdminPartialUnlockPage = () => {
                             }`}
                         >{f.label}</button>
                     ))}
+                    <div className="flex-1 min-w-[180px] sm:max-w-xs ml-auto">
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Buscar email · R40-... · TX hash"
+                            className="w-full px-3 py-1.5 rounded-lg bg-slate-950 ring-1 ring-slate-800 focus:ring-cyan-500/40 text-[11.5px] text-white placeholder:text-slate-600 outline-none transition-all"
+                            data-testid="admin-unlock-search"
+                        />
+                    </div>
                 </div>
 
                 {/* Warning banner */}
@@ -202,7 +213,18 @@ export const AdminPartialUnlockPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {items.map((it) => {
+                                    {items
+                                        .filter((it) => {
+                                            if (!search.trim()) return true;
+                                            const q = search.trim().toLowerCase();
+                                            return (
+                                                (it.user_email || '').toLowerCase().includes(q) ||
+                                                (it.payment_reference || '').toLowerCase().includes(q) ||
+                                                (it.tx_hash || '').toLowerCase().includes(q) ||
+                                                (it.id || '').toLowerCase().includes(q)
+                                            );
+                                        })
+                                        .map((it) => {
                                         const s = STATUS[it.status] || STATUS.pending_payment;
                                         const SI = s.Icon;
                                         const canAct = it.status === 'in_review' || it.status === 'pending_payment';
@@ -214,6 +236,11 @@ export const AdminPartialUnlockPage = () => {
                                                 <td className="py-2.5 px-3">
                                                     <p className="text-white font-semibold text-[12.5px]">{it.user_email}</p>
                                                     <p className="text-slate-600 text-[10px] font-mono">{it.id.slice(0, 8)}</p>
+                                                    {it.payment_reference && (
+                                                        <p className="text-amber-300/90 text-[10px] font-mono mt-0.5 tracking-wider" data-testid={`admin-unlock-ref-${it.id}`}>
+                                                            {it.payment_reference}
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="py-2.5 px-3 text-right">
                                                     <p className="text-cyan-300 font-mono tabular-nums font-bold">€{fmtEUR(it.max_withdraw_eur_snapshot)}</p>

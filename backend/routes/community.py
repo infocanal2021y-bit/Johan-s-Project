@@ -498,6 +498,7 @@ async def community_global_transfers(
 
     if not rows:
         return {'count': 0, 'items': [], 'countries': sorted(list(SUPPORTED)),
+                'cross_border_count': 0,
                 'updated_at': datetime.now(timezone.utc).isoformat()}
 
     user_ids = list({r['user_id'] for r in rows})
@@ -508,6 +509,32 @@ async def community_global_transfers(
     user_map = {u['id']: u async for u in users_cur}
 
     items = []
+
+    # Cross-country corridor matrix — emulates real SWIFT remittance lanes.
+    # Each origin country has a list of preferred international destinations.
+    # When a corridor is "cross", the destination hub is picked from another
+    # supported country's financial hub.
+    CROSS_CORRIDORS = {
+        'España':     ['Argentina', 'México', 'Chile', 'Costa Rica'],
+        'Argentina':  ['España', 'México', 'Chile'],
+        'Chile':      ['España', 'Argentina'],
+        'México':     ['España', 'Costa Rica'],
+        'Costa Rica': ['España', 'México'],
+    }
+    # Probability that any given transfer is cross-country instead of intra
+    CROSS_RATIO = 0.35
+
+    def _pick_destination(origin_country, rng_obj):
+        """Returns (dest_country, (city, lat, lng)). Cross-country with probability
+        CROSS_RATIO when supported, otherwise an intra-country secondary city."""
+        if (rng_obj.random() < CROSS_RATIO
+                and origin_country in CROSS_CORRIDORS):
+            dest_country = rng_obj.choice(CROSS_CORRIDORS[origin_country])
+            return dest_country, COUNTRY_CITIES[dest_country][0]
+        cities = COUNTRY_CITIES[origin_country]
+        pool = cities[1:] if len(cities) > 1 else cities
+        return origin_country, rng_obj.choice(pool)
+
     for r in rows:
         u = user_map.get(r['user_id'])
         if not u:
@@ -516,10 +543,8 @@ async def community_global_transfers(
         if country not in SUPPORTED:
             continue
         cities = COUNTRY_CITIES[country]
-        # Origin = financial hub (cities[0]), destination = any other city in same country
         origin = cities[0]
-        dest_pool = cities[1:] if len(cities) > 1 else cities
-        dest = rng.choice(dest_pool)
+        dest_country, dest = _pick_destination(country, rng)
         amt = float(r.get('amount') or 0)
         if (r.get('currency') or 'EUR').upper() == 'USD':
             amt = amt / 1.08
@@ -534,6 +559,9 @@ async def community_global_transfers(
             'dest_city': dest[0],
             'dest_lat': dest[1],
             'dest_lng': dest[2],
+            'dest_country': dest_country,
+            'dest_country_flag': _flag_for(dest_country),
+            'is_cross_border': dest_country != country,
             'amount_eur': round(amt, 2),
             'status': r.get('status'),
             'date': r.get('completed_at') or r.get('created_at'),
@@ -541,8 +569,6 @@ async def community_global_transfers(
         if len(items) >= limit:
             break
 
-    # If we ran out of real data, synthesize a few demo corridors so the
-    # map always feels alive (clearly tagged is_demo=true for transparency).
     if len(items) < limit:
         sample_names = ['Carlos M.', 'Lucía R.', 'Andrés P.', 'María J.', 'Diego F.',
                         'Sofía L.', 'Marcos T.', 'Valentina G.', 'Joaquín H.', 'Camila O.']
@@ -550,7 +576,7 @@ async def community_global_transfers(
             country = rng.choice(list(SUPPORTED))
             cities = COUNTRY_CITIES[country]
             origin = cities[0]
-            dest = rng.choice(cities[1:] if len(cities) > 1 else cities)
+            dest_country, dest = _pick_destination(country, rng)
             items.append({
                 'id': f"demo-{uuid.uuid4().hex[:10]}",
                 'name_public': rng.choice(sample_names),
@@ -562,6 +588,9 @@ async def community_global_transfers(
                 'dest_city': dest[0],
                 'dest_lat': dest[1],
                 'dest_lng': dest[2],
+                'dest_country': dest_country,
+                'dest_country_flag': _flag_for(dest_country),
+                'is_cross_border': dest_country != country,
                 'amount_eur': round(rng.uniform(4500, 78000), 2),
                 'status': 'completed',
                 'date': (datetime.now(timezone.utc) - timedelta(minutes=rng.randint(2, 240))).isoformat(),
@@ -572,6 +601,7 @@ async def community_global_transfers(
         'count': len(items),
         'items': items,
         'countries': sorted(list(SUPPORTED)),
+        'cross_border_count': sum(1 for i in items if i.get('is_cross_border')),
         'updated_at': datetime.now(timezone.utc).isoformat(),
     }
 
