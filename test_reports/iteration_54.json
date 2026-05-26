@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend-only UI testing for the Nudge feature on /admin/journey-analytics. Seeded a withdraw transaction (created_at = 36h ago, status=pending) for an existing non-admin user (jorgeantequera9@gmail.com) so the followup_users table renders two rows (one per stage: pending_review and withdraw_initiated). Ran 9 UI tests covering modal open, stage-specific templates, name+hours interpolation, both validation paths, X-close, backdrop-close, successful send (network captured + button → 'Enviado' disabled), no-op click on disabled state, and funnel/refresh regression. All 9 tests passed. Seed transaction cleaned up after testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "UserRow (followup-users-table)",
+        "issue": "React console warning: 'Encountered two children with the same key' — when a user appears in followup_users for multiple stages (e.g. pending_review AND withdraw_initiated for the same user_id), the table uses key={r.user_id} which is duplicate. Also causes 'Enviado' state to apply to ALL rows of that user after one send (because nudgedIds tracks user_id only, not user_id+stage). Functional impact is minor but UX is inconsistent if admin wanted to nudge both stages.",
+        "selector": "[data-testid^='journey-user-row-']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_54.json"
+  ],
+  "action_items": [
+    "Optional: use composite key `${user_id}-${stage}` in UserRow.map and track nudgedIds as Set of `${user_id}-${stage}` so per-row nudge state is independent when same user appears in multiple stages.",
+    "Optional (backend): deduplicate followup_users to one row per user_id (pick highest hours_in_stage) to avoid duplicate UI rows."
+  ],
+  "critical_code_review_comments": [
+    "AdminJourneyAnalyticsPage.jsx duplicate React key warning when same user appears in multiple stages — both rows share the same key=user_id (real warning emitted in console).",
+    "nudgedIds is a Set<user_id> — collides with the duplicate-row case above; sending one nudge marks both rows as Enviado. Consider keying by user_id+stage.",
+    "Toast for empty-title and no-channel cases fires twice in succession (T2 toast contained the message duplicated) — minor duplicate toast on rapid validation; not blocking.",
+    "NudgedIds is in-memory only (resets on refresh) — confirmed intentional per request."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested (frontend-only request)",
+    "frontend": "100% (9/9 UI tests passed)"
+  },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026!",
+  "seed_data_creation": "Inserted one transaction (id prefix TEST_NUDGE_, description='TEST seed for nudge testing', transaction_type=withdraw, status=pending, user_id=84cae6aa-43ef-4430-96bb-2d87e4d8cdbd jorgeantequera9@gmail.com, created_at=now-36h) so that followup_users surfaces 2 rows (pending_review + withdraw_initiated). DELETED after testing — DB is back to its prior 0/0 state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To re-test, re-seed using /tmp/seed_nudge.py (still on disk). Admin journey-analytics page must be loaded with days>=2 to surface 36h-old seeded tx. Network capture confirmed POST /api/admin/broadcast body contains {audience:'single', target_user_id, title, message, send_in_app, send_email} — backend integration works end-to-end. Console emits duplicate-key React warning when same user appears in two stages; consider this when fixing.",
+  "rca of the issue": "Duplicate React key warning RCA: backend /api/admin/journey-analytics returns followup_users with one entry per (user_id, stage) tuple. Frontend UserRow.map uses key={r.user_id}, which is non-unique when a user falls into 2 stages (e.g. has a tx in pending_review AND withdraw_initiated). Reproduction: seed a single pending withdraw tx 36h old → response returns 2 rows for same user_id. Mitigation (frontend): change key to `${r.user_id}-${r.stage}` and change nudgedIds to track `${user_id}-${stage}`. Mitigation (backend, alt): collapse followup_users to one row per user_id picking the most advanced stage."
+}

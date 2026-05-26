@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Textarea } from '../../components/ui/textarea';
+import { Checkbox } from '../../components/ui/checkbox';
 import {
     Activity, Users, ArrowDown, Clock, AlertTriangle, BellRing, MapPin,
-    Loader2, RefreshCw, TrendingDown, CheckCircle, Filter, Mail,
+    Loader2, RefreshCw, TrendingDown, CheckCircle, Filter, Mail, Send, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { safeApiCall } from '../../lib/diagnostics';
@@ -53,6 +55,156 @@ const fmtDateTime = (iso) => {
     try {
         return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     } catch { return iso; }
+};
+
+// Pre-built templates by stage. The placeholders {name}, {hours}, {hours_short}
+// are interpolated when the modal opens.
+const NUDGE_TEMPLATES = {
+    pending_review: {
+        title: 'Tu retiro está siendo revisado',
+        message:
+            'Hola {name},\n\n' +
+            'Vemos que tu solicitud de retiro está pendiente de revisión desde hace {hours_short}. ' +
+            'Nuestro equipo de cumplimiento la está procesando y muy pronto recibirás novedades.\n\n' +
+            'Si tienes alguna duda o información adicional para acelerar el proceso, ' +
+            'responde a este mensaje o contáctanos en info@paylionsbit.es.\n\n' +
+            'Gracias por tu paciencia.\n\nEquipo LIONSBIT',
+    },
+    withdraw_initiated: {
+        title: 'Falta un paso para completar tu retiro',
+        message:
+            'Hola {name},\n\n' +
+            'Notamos que iniciaste un retiro hace {hours_short} pero todavía no hemos recibido tu comprobante. ' +
+            'Para procesarlo necesitamos que subas el justificante de pago correspondiente.\n\n' +
+            'Ingresa a tu panel y completa el último paso. Si tienes problemas con la subida, ' +
+            'escríbenos a info@paylionsbit.es y te ayudamos al instante.\n\n' +
+            'Equipo LIONSBIT',
+    },
+};
+
+const _interp = (text, row) => {
+    const hours = row?.hours_in_stage ?? 0;
+    const hours_short = hours < 24
+        ? `${Math.round(hours)} horas`
+        : `${(hours / 24).toFixed(1)} días`;
+    return (text || '')
+        .replace(/\{name\}/g, (row?.name || 'cliente').split(' ')[0])
+        .replace(/\{hours_short\}/g, hours_short)
+        .replace(/\{hours\}/g, String(Math.round(hours)));
+};
+
+const NudgeModal = ({ row, onClose, onSent }) => {
+    const tpl = NUDGE_TEMPLATES[row?.stage] || NUDGE_TEMPLATES.withdraw_initiated;
+    const [title, setTitle] = useState(_interp(tpl.title, row));
+    const [message, setMessage] = useState(_interp(tpl.message, row));
+    const [sendInApp, setSendInApp] = useState(true);
+    const [sendEmail, setSendEmail] = useState(true);
+    const [sending, setSending] = useState(false);
+
+    const doSend = async () => {
+        if (!title.trim() || !message.trim()) {
+            toast.error('Título y mensaje son obligatorios');
+            return;
+        }
+        if (!sendInApp && !sendEmail) {
+            toast.error('Selecciona al menos un canal');
+            return;
+        }
+        setSending(true);
+        const result = await safeApiCall({
+            url: '/api/admin/broadcast',
+            method: 'POST',
+            body: {
+                title: title.trim(),
+                message: message.trim(),
+                send_in_app: sendInApp,
+                send_email: sendEmail,
+                audience: 'single',
+                target_user_id: row.user_id,
+            },
+            timeoutMs: 20000,
+        });
+        setSending(false);
+        if (result.ok) {
+            toast.success(`Nudge enviado a ${row.name || row.email}`);
+            onSent && onSent(row);
+            onClose();
+        } else {
+            toast.error(result.message, { description: `[HTTP ${result.status}]`, duration: 6000 });
+        }
+    };
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                data-testid="nudge-modal"
+            >
+                <motion.div
+                    initial={{ scale: 0.95, opacity: 0, y: 8 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.95, opacity: 0, y: 8 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-slate-900 border border-amber-500/30 rounded-xl max-w-lg w-full overflow-hidden shadow-2xl shadow-amber-500/10"
+                >
+                    <div className="px-5 py-4 border-b border-slate-800 bg-gradient-to-r from-amber-500/5 to-transparent flex items-center justify-between">
+                        <div className="min-w-0">
+                            <h3 className="text-white font-bold text-base flex items-center gap-2">
+                                <Send className="w-4 h-4 text-amber-400" /> Enviar nudge a {row.name || 'usuario'}
+                            </h3>
+                            <p className="text-slate-500 text-xs truncate mt-0.5">{row.email} · {row.stage} · {Math.round(row.hours_in_stage)}h</p>
+                        </div>
+                        <button onClick={onClose} className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800" data-testid="nudge-close-btn">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div className="p-5 space-y-3">
+                        <div>
+                            <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">Título</label>
+                            <Input
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value.slice(0, 200))}
+                                className="bg-slate-950 border-slate-700 text-white"
+                                data-testid="nudge-title-input"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">Mensaje</label>
+                            <Textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value.slice(0, 5000))}
+                                rows={9}
+                                className="bg-slate-950 border-slate-700 text-white text-sm resize-none"
+                                data-testid="nudge-message-input"
+                            />
+                            <p className="text-[10px] text-slate-600 mt-1 text-right tabular-nums">{message.length}/5000</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 pt-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-slate-300 text-sm" data-testid="nudge-channel-inapp">
+                                <Checkbox checked={sendInApp} onCheckedChange={setSendInApp} />
+                                <span>Notificación in-app</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer text-slate-300 text-sm" data-testid="nudge-channel-email">
+                                <Checkbox checked={sendEmail} onCheckedChange={setSendEmail} />
+                                <span>Email</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="px-5 py-3 border-t border-slate-800 bg-slate-950/40 flex items-center justify-end gap-2">
+                        <Button variant="outline" onClick={onClose} disabled={sending} className="border-slate-700 hover:bg-slate-800">Cancelar</Button>
+                        <Button onClick={doSend} disabled={sending} className="bg-amber-600 hover:bg-amber-700 text-white" data-testid="nudge-send-btn">
+                            {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                            Enviar nudge
+                        </Button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
 };
 
 const FunnelBar = ({ stage, max, isBiggestDrop }) => {
@@ -101,12 +253,13 @@ const StageGapCard = ({ icon: Icon, label, value, color = 'text-amber-300' }) =>
     </div>
 );
 
-const UserRow = ({ row, accent = 'amber' }) => {
+const UserRow = ({ row, accent = 'amber', onNudge, nudgedIds }) => {
     const accentMap = {
         amber: { dot: 'bg-amber-400', text: 'text-amber-300' },
         rose: { dot: 'bg-rose-400', text: 'text-rose-300' },
     };
     const c = accentMap[accent];
+    const alreadyNudged = nudgedIds?.has(row.user_id);
     return (
         <div className="p-3 hover:bg-slate-900/40 flex items-center gap-3 border-b border-slate-800/60 last:border-0" data-testid={`journey-user-row-${row.user_id}`}>
             <span className={`w-2 h-2 rounded-full ${c.dot} flex-shrink-0`} />
@@ -114,7 +267,7 @@ const UserRow = ({ row, accent = 'amber' }) => {
                 <p className="text-white text-sm font-medium truncate">{row.name || '—'}</p>
                 <p className="text-slate-500 text-xs truncate">{row.email}</p>
             </div>
-            <div className="text-right hidden sm:block">
+            <div className="text-right hidden lg:block">
                 <p className="text-slate-400 text-xs">{row.country || '—'}</p>
                 <p className={`${c.text} text-[10px] font-bold uppercase tracking-wider`}>{row.stage}</p>
             </div>
@@ -122,6 +275,24 @@ const UserRow = ({ row, accent = 'amber' }) => {
                 <p className={`${c.text} text-sm font-bold tabular-nums`}>{fmtHours(row.hours_in_stage)}</p>
                 <p className="text-slate-600 text-[10px]">en esta etapa</p>
             </div>
+            <button
+                type="button"
+                onClick={() => onNudge && onNudge(row)}
+                disabled={alreadyNudged}
+                className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
+                    alreadyNudged
+                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 cursor-default'
+                        : 'bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25'
+                }`}
+                data-testid={`nudge-btn-${row.user_id}`}
+                aria-label={alreadyNudged ? 'Nudge enviado' : 'Enviar nudge'}
+            >
+                {alreadyNudged ? (
+                    <><CheckCircle className="w-3 h-3" /> Enviado</>
+                ) : (
+                    <><Send className="w-3 h-3" /> Nudge</>
+                )}
+            </button>
         </div>
     );
 };
@@ -133,6 +304,8 @@ export const AdminJourneyAnalyticsPage = () => {
     const [method, setMethod] = useState('all');
     const [status, setStatus] = useState('all');
     const [days, setDays] = useState(30);
+    const [nudgeTarget, setNudgeTarget] = useState(null);
+    const [nudgedIds, setNudgedIds] = useState(() => new Set());
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -304,7 +477,7 @@ export const AdminJourneyAnalyticsPage = () => {
                                 <p className="p-6 text-center text-slate-500 text-sm">Sin usuarios atascados en esta ventana. 🎉</p>
                             ) : (
                                 <div className="max-h-[400px] overflow-y-auto">
-                                    {data.stuck_users.map((r) => (<UserRow key={r.user_id} row={r} accent="rose" />))}
+                                    {data.stuck_users.map((r) => (<UserRow key={r.user_id} row={r} accent="rose" onNudge={setNudgeTarget} nudgedIds={nudgedIds} />))}
                                 </div>
                             )}
                         </CardContent>
@@ -322,7 +495,7 @@ export const AdminJourneyAnalyticsPage = () => {
                                 <p className="p-6 text-center text-slate-500 text-sm">Sin candidatos para nudge en este momento.</p>
                             ) : (
                                 <div className="max-h-[400px] overflow-y-auto">
-                                    {data.followup_users.map((r) => (<UserRow key={r.user_id} row={r} accent="amber" />))}
+                                    {data.followup_users.map((r) => (<UserRow key={r.user_id} row={r} accent="amber" onNudge={setNudgeTarget} nudgedIds={nudgedIds} />))}
                                 </div>
                             )}
                         </CardContent>
@@ -405,6 +578,14 @@ export const AdminJourneyAnalyticsPage = () => {
                     <span>Filtros aplicados: {JSON.stringify(data?.filters || {})}</span>
                 </div>
             </div>
+
+            {nudgeTarget && (
+                <NudgeModal
+                    row={nudgeTarget}
+                    onClose={() => setNudgeTarget(null)}
+                    onSent={(r) => setNudgedIds((prev) => { const n = new Set(prev); n.add(r.user_id); return n; })}
+                />
+            )}
         </Layout>
     );
 };
