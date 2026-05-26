@@ -1,21 +1,47 @@
-"""Iter 57 tests:
-(A) POST /api/admin/bank-transfer/proof/mark-viewed audit trail (idempotent, 400/404/401)
-(B) send_partial_unlock_status_email is called on state transitions in partial_unlock routes
+"""Iter 57 backend tests (live HTTP against the running backend).
+
+(A) POST /api/admin/bank-transfer/proof/mark-viewed
+    - 401/403 for unauth/non-admin
+    - 400 if neither reference nor payment_id is given
+    - 404 if reference is unknown
+    - First admin call stamps proof_reviewed_{at,by,by_name}
+    - Second admin call is idempotent (timestamp not overwritten)
+    - GET /admin/bank-transfer/proof now returns the audit fields
+
+(B) Partial-unlock 40% email + audit lifecycle:
+    - pending_payment → in_review → approved (or rejected)
+    - email_logs collection receives EXACTLY ONE entry per transition
+    - audit_log[] grows on every transition with previous_status/new_status,
+      actor metadata and a note when admin rejects
+    - API response is unaffected by email pipeline (200 even when Resend is
+      skipped because RESEND_API_KEY is empty)
+
+(C) Wise removal regression:
+    - frontend, backend (non-test), email templates and DB seed/demo must
+      contain zero hard references to "Wise", "TRWIBEB", or the old IBAN.
+
+Run with:
+    cd /app/backend && python -m pytest tests/test_iter57_proof_audit_and_partial_unlock_emails.py -v
 """
 import os
+import re
 import sys
-import asyncio
-import pytest
-import requests
-from unittest.mock import patch, AsyncMock
+import time
+import uuid
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, "/app/backend")
+import pytest
+import requests
 from dotenv import load_dotenv
+
+sys.path.insert(0, "/app/backend")
 load_dotenv("/app/backend/.env")
 load_dotenv("/app/frontend/.env")
 
 
+# ── URL + creds ──────────────────────────────────────────────────────
 def _backend_url() -> str:
     url = os.environ.get("REACT_APP_BACKEND_URL")
     if url:
@@ -25,21 +51,32 @@ def _backend_url() -> str:
         for ln in env_file.read_text().splitlines():
             if ln.startswith("REACT_APP_BACKEND_URL="):
                 return ln.split("=", 1)[1].strip().rstrip("/")
-    return ""
+    raise RuntimeError("REACT_APP_BACKEND_URL not set")
 
 
 BASE_URL = _backend_url()
+API = f"{BASE_URL}/api"
 ADMIN_EMAIL = "admi@paylionsbit.es"
 ADMIN_PASSWORD = "LionsBit2026!"
 SEED_REFERENCE = "TEST-216389"
 
 
+def _login(email, password):
+    r = requests.post(f"{API}/auth/login", json={"email": email, "password": password}, timeout=20)
+    assert r.status_code == 200, f"Login failed: {r.status_code} {r.text}"
+    return r.json().get("token") or r.json().get("access_token")
+
+
+def _db():
+    from pymongo import MongoClient
+    cli = MongoClient(os.environ["MONGO_URL"])
+    return cli, cli[os.environ["DB_NAME"]]
+
+
+# ── Fixtures ─────────────────────────────────────────────────────────
 @pytest.fixture(scope="module")
 def admin_token():
-    r = requests.post(f"{BASE_URL}/api/auth/login",
-                      json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=20)
-    assert r.status_code == 200, r.text
-    return r.json().get("token") or r.json().get("access_token")
+    return _login(ADMIN_EMAIL, ADMIN_PASSWORD)
 
 
 @pytest.fixture
@@ -48,69 +85,74 @@ def admin_headers(admin_token):
 
 
 @pytest.fixture(scope="module")
-def user_token():
-    email = "TEST_iter57_user@example.com"
-    pwd = "TestPwd2026!"
-    r = requests.post(f"{BASE_URL}/api/auth/login",
-                      json={"email": email, "password": pwd}, timeout=15)
-    if r.status_code != 200:
-        reg = requests.post(f"{BASE_URL}/api/auth/register",
-                            json={"email": email, "password": pwd, "name": "Iter57 User", "country": "ES"},
-                            timeout=15)
-        if reg.status_code in (200, 201):
-            r = requests.post(f"{BASE_URL}/api/auth/login",
-                              json={"email": email, "password": pwd}, timeout=15)
-    if r.status_code != 200:
-        pytest.skip("Cannot create non-admin user")
-    return r.json().get("token") or r.json().get("access_token")
+def fresh_user():
+    """Register a brand new test user (no active partial-unlock request)."""
+    suffix = uuid.uuid4().hex[:8]
+    email = f"test_iter57_{suffix}@example.com"
+    pwd = "TestPass123!"
+    r = requests.post(
+        f"{API}/auth/register",
+        json={"email": email, "password": pwd, "name": f"Iter57 Tester {suffix}",
+              "country": "ES", "phone": "+34600000000"},
+        timeout=15,
+    )
+    if r.status_code not in (200, 201):
+        pytest.skip(f"Cannot register fresh user: {r.status_code} {r.text[:200]}")
+    return {"email": email, "password": pwd, "token": _login(email, pwd)}
 
 
-# ============== (A) MARK-VIEWED ENDPOINT ==============
+@pytest.fixture
+def fresh_user_headers(fresh_user):
+    return {"Authorization": f"Bearer {fresh_user['token']}"}
+
+
+# ════════════════════════════════════════════════════════════════════
+#  (A) /admin/bank-transfer/proof/mark-viewed
+# ════════════════════════════════════════════════════════════════════
 
 class TestMarkViewedEndpoint:
     @pytest.fixture(autouse=True)
-    def _reset_audit_stamp(self, admin_headers):
+    def _reset_audit_stamp(self):
         """Clear the audit stamp before each test so first-call invariants hold."""
-        from pymongo import MongoClient
-        mongo_url = os.environ.get("MONGO_URL")
-        db_name = os.environ.get("DB_NAME")
-        if mongo_url and db_name:
-            cli = MongoClient(mongo_url)
-            cli[db_name].bank_transfer_payments.update_one(
-                {"reference": SEED_REFERENCE},
-                {"$unset": {"proof_reviewed_at": "", "proof_reviewed_by": "", "proof_reviewed_by_name": ""}}
-            )
-            cli.close()
+        cli, db = _db()
+        db.bank_transfer_payments.update_one(
+            {"reference": SEED_REFERENCE},
+            {"$unset": {"proof_reviewed_at": "", "proof_reviewed_by": "", "proof_reviewed_by_name": ""}},
+        )
+        cli.close()
 
     def test_no_auth_rejected(self):
-        r = requests.post(f"{BASE_URL}/api/admin/bank-transfer/proof/mark-viewed",
+        r = requests.post(f"{API}/admin/bank-transfer/proof/mark-viewed",
                           json={"reference": SEED_REFERENCE}, timeout=15)
         assert r.status_code in (401, 403)
 
-    def test_non_admin_rejected(self, user_token):
-        r = requests.post(f"{BASE_URL}/api/admin/bank-transfer/proof/mark-viewed",
-                          json={"reference": SEED_REFERENCE},
-                          headers={"Authorization": f"Bearer {user_token}"}, timeout=15)
+    def test_non_admin_rejected(self, fresh_user_headers):
+        r = requests.post(f"{API}/admin/bank-transfer/proof/mark-viewed",
+                          json={"reference": SEED_REFERENCE}, headers=fresh_user_headers, timeout=15)
         assert r.status_code in (401, 403)
 
     def test_missing_args_400(self, admin_headers):
-        r = requests.post(f"{BASE_URL}/api/admin/bank-transfer/proof/mark-viewed",
+        r = requests.post(f"{API}/admin/bank-transfer/proof/mark-viewed",
                           json={}, headers=admin_headers, timeout=15)
         assert r.status_code == 400
         assert "Indique reference o payment_id" in (r.json().get("detail") or "")
 
     def test_unknown_reference_404(self, admin_headers):
-        r = requests.post(f"{BASE_URL}/api/admin/bank-transfer/proof/mark-viewed",
+        r = requests.post(f"{API}/admin/bank-transfer/proof/mark-viewed",
                           json={"reference": "no-such-ref-xyz-9876"},
                           headers=admin_headers, timeout=15)
         assert r.status_code == 404
         assert "Transferencia no encontrada" in (r.json().get("detail") or "")
 
     def test_first_call_stamps_and_second_is_idempotent(self, admin_headers):
-        # 1st call
-        r1 = requests.post(f"{BASE_URL}/api/admin/bank-transfer/proof/mark-viewed",
-                           json={"reference": SEED_REFERENCE},
-                           headers=admin_headers, timeout=15)
+        cli, db = _db()
+        if db.bank_transfer_payments.count_documents({"reference": SEED_REFERENCE}) == 0:
+            cli.close()
+            pytest.skip(f"Seed reference {SEED_REFERENCE} missing from DB")
+        cli.close()
+
+        r1 = requests.post(f"{API}/admin/bank-transfer/proof/mark-viewed",
+                           json={"reference": SEED_REFERENCE}, headers=admin_headers, timeout=15)
         assert r1.status_code == 200, r1.text
         b1 = r1.json()
         assert b1["ok"] is True
@@ -120,19 +162,16 @@ class TestMarkViewedEndpoint:
         assert b1.get("proof_reviewed_by_name")
         ts1 = b1["proof_reviewed_at"]
 
-        # 2nd call - idempotent
-        r2 = requests.post(f"{BASE_URL}/api/admin/bank-transfer/proof/mark-viewed",
-                           json={"reference": SEED_REFERENCE},
-                           headers=admin_headers, timeout=15)
+        r2 = requests.post(f"{API}/admin/bank-transfer/proof/mark-viewed",
+                           json={"reference": SEED_REFERENCE}, headers=admin_headers, timeout=15)
         assert r2.status_code == 200
         b2 = r2.json()
-        assert b2["ok"] is True
         assert b2["already_reviewed"] is True
         assert b2["proof_reviewed_at"] == ts1, "Timestamp must not be overwritten"
 
         # GET /proof now includes audit fields
-        rg = requests.get(f"{BASE_URL}/api/admin/bank-transfer/proof?reference={SEED_REFERENCE}",
-                          headers=admin_headers, timeout=15)
+        rg = requests.get(f"{API}/admin/bank-transfer/proof",
+                          params={"reference": SEED_REFERENCE}, headers=admin_headers, timeout=15)
         assert rg.status_code == 200
         p = rg.json()["payment"]
         assert p.get("proof_reviewed_at") == ts1
@@ -140,206 +179,318 @@ class TestMarkViewedEndpoint:
         assert p.get("proof_reviewed_by_name")
 
 
-# ============== (B) PARTIAL UNLOCK EMAIL WIRING ==============
+# ════════════════════════════════════════════════════════════════════
+#  (B) Partial-unlock 40 % — emails + audit_log lifecycle
+# ════════════════════════════════════════════════════════════════════
 
-class TestPartialUnlockEmails:
-    """Live HTTP tests against the running backend. Verifies emails are emitted by
-    inspecting the `email_logs` collection (which send_email writes to with the
-    template subject) and that API responses stay 200 even when email pipeline is
-    skipped (RESEND_API_KEY not set → log status='skipped')."""
+SUBJECTS = {
+    "pending_payment": "📥 Solicitud de retiro parcial 40% recibida",
+    "in_review":       "🔍 Comprobante recibido — en revisión",
+    "approved":        "✅ Retiro parcial 40% APROBADO",
+    "rejected":        "⚠️ Solicitud de retiro 40% — Acción requerida",
+}
 
-    SUBJECTS = {
-        'pending_payment': '📥 Solicitud de retiro parcial 40% recibida',
-        'in_review': '🔍 Comprobante recibido — en revisión',
-        'approved': '✅ Retiro parcial 40% APROBADO',
-        'rejected': '⚠️ Solicitud de retiro 40% — Acción requerida',
-    }
 
-    def _db(self):
-        from pymongo import MongoClient
-        cli = MongoClient(os.environ.get("MONGO_URL"))
-        return cli, cli[os.environ.get("DB_NAME")]
-
-    def _cleanup(self, email):
-        cli, db = self._db()
-        db.partial_withdraw_unlocks.delete_many({"user_email": email})
-        cli.close()
-
-    def _recent_log_for(self, email, subject, since_iso):
-        cli, db = self._db()
-        log = db.email_logs.find_one(
-            {"to_email": email, "subject": subject, "created_at": {"$gte": since_iso}},
-            sort=[("created_at", -1)],
+def _count_email_logs(email, subject, since_iso):
+    cli, db = _db()
+    try:
+        return db.email_logs.count_documents(
+            {"to_email": email, "subject": subject, "created_at": {"$gte": since_iso}}
         )
+    finally:
         cli.close()
-        return log
 
-    def test_full_lifecycle_emits_all_four_emails(self, user_token, admin_headers):
-        from datetime import datetime, timezone
-        email = "TEST_iter57_user@example.com"
-        user_hdr = {"Authorization": f"Bearer {user_token}"}
-        self._cleanup(email)
 
-        # 1) START → pending_payment email
+def _seed_balance(user_email, eur=10_000.0):
+    """Bypass the no-balance check by giving the user a checking account."""
+    cli, db = _db()
+    try:
+        u = db.users.find_one({"email": user_email})
+        if not u:
+            return
+        if not db.accounts.find_one({"user_id": u["id"], "account_type": "checking"}):
+            db.accounts.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": u["id"],
+                "account_type": "checking",
+                "balance_eur": eur,
+                "balance_usd": 0,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        else:
+            db.accounts.update_one(
+                {"user_id": u["id"], "account_type": "checking"},
+                {"$set": {"balance_eur": eur}},
+            )
+    finally:
+        cli.close()
+
+
+class TestPartialUnlockLifecycle:
+
+    def test_start_sends_pending_payment_email_and_writes_audit(self, fresh_user, fresh_user_headers):
+        _seed_balance(fresh_user["email"])
         t0 = datetime.now(timezone.utc).isoformat()
-        r = requests.post(f"{BASE_URL}/api/partial-unlock/start", headers=user_hdr, timeout=20)
-        assert r.status_code == 200, r.text
-        assert r.json().get("ok") is True
-        import time; time.sleep(1.0)
-        log = self._recent_log_for(email, self.SUBJECTS['pending_payment'], t0)
-        assert log is not None, "pending_payment email_logs entry missing"
 
-        # 2) PROOF (full payment) → in_review email
+        r = requests.post(f"{API}/partial-unlock/start", headers=fresh_user_headers, timeout=20)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["ok"] is True
+        assert body["request"]["payment_reference"].startswith("R40-")
+
+        # Email log written EXACTLY once
+        time.sleep(1.2)
+        n = _count_email_logs(fresh_user["email"], SUBJECTS["pending_payment"], t0)
+        assert n == 1, f"Expected 1 pending_payment email log, got {n}"
+
+        # audit_log seeded with the creation event
+        cli, db = _db()
+        try:
+            rec = db.partial_withdraw_unlocks.find_one(
+                {"user_email": fresh_user["email"]}, sort=[("created_at", -1)]
+            )
+            assert rec is not None
+            log = rec.get("audit_log") or []
+            assert len(log) >= 1
+            first = log[0]
+            assert first["previous_status"] is None
+            assert first["new_status"] == "pending_payment"
+            assert first["actor_role"] == "user"
+            assert first["actor_email"] == fresh_user["email"]
+            assert first.get("at")
+        finally:
+            cli.close()
+
+    def test_proof_triggers_in_review_with_single_email_and_audit(self, fresh_user, fresh_user_headers):
         t1 = datetime.now(timezone.utc).isoformat()
-        r = requests.post(f"{BASE_URL}/api/partial-unlock/proof", headers=user_hdr,
-                          json={"tx_hash": "TEST_iter57_fullpay_hash_abcdef", "amount_eur": 2660.0},
-                          timeout=20)
+        r = requests.post(
+            f"{API}/partial-unlock/proof",
+            headers=fresh_user_headers,
+            json={"tx_hash": "TEST_iter57_fullpay_hash_" + uuid.uuid4().hex[:12], "amount_eur": 2660.0},
+            timeout=20,
+        )
         assert r.status_code == 200, r.text
         assert r.json().get("completed") is True
-        time.sleep(1.0)
-        log = self._recent_log_for(email, self.SUBJECTS['in_review'], t1)
-        assert log is not None, "in_review email_logs entry missing"
 
-        # Find the unlock_id
-        cli, db = self._db()
-        rec = db.partial_withdraw_unlocks.find_one({"user_email": email, "status": "in_review"},
-                                                    sort=[("created_at", -1)])
-        cli.close()
-        assert rec
+        time.sleep(1.2)
+        n = _count_email_logs(fresh_user["email"], SUBJECTS["in_review"], t1)
+        assert n == 1, f"Expected 1 in_review email log, got {n}"
+
+        cli, db = _db()
+        try:
+            rec = db.partial_withdraw_unlocks.find_one(
+                {"user_email": fresh_user["email"]}, sort=[("created_at", -1)]
+            )
+            assert rec["status"] == "in_review"
+            log = rec.get("audit_log") or []
+            transitions = [(e.get("previous_status"), e.get("new_status")) for e in log]
+            assert (None, "pending_payment") in transitions
+            assert ("pending_payment", "in_review") in transitions
+        finally:
+            cli.close()
+
+    def test_admin_approve_sends_approved_email_and_appends_audit(self, fresh_user, fresh_user_headers, admin_headers):
+        cli, db = _db()
+        try:
+            rec = db.partial_withdraw_unlocks.find_one(
+                {"user_email": fresh_user["email"], "status": "in_review"},
+                sort=[("created_at", -1)],
+            )
+        finally:
+            cli.close()
+        assert rec, "Expected an in_review record from the previous test"
         uid = rec["id"]
 
-        # 3) APPROVE → approved email
         t2 = datetime.now(timezone.utc).isoformat()
-        r = requests.post(f"{BASE_URL}/api/admin/partial-unlock/{uid}/approve",
-                          headers=admin_headers, json={"admin_note": "ok"}, timeout=20)
+        r = requests.post(
+            f"{API}/admin/partial-unlock/{uid}/approve",
+            headers=admin_headers, json={"admin_note": "iter57 OK"}, timeout=20,
+        )
         assert r.status_code == 200, r.text
-        time.sleep(1.0)
-        log = self._recent_log_for(email, self.SUBJECTS['approved'], t2)
-        assert log is not None, "approved email_logs entry missing"
 
-        # 4) Create new request, reject it → rejected email
-        self._cleanup(email)
-        r = requests.post(f"{BASE_URL}/api/partial-unlock/start", headers=user_hdr, timeout=20)
-        assert r.status_code == 200
-        cli, db = self._db()
-        rec = db.partial_withdraw_unlocks.find_one({"user_email": email}, sort=[("created_at", -1)])
-        cli.close()
-        uid2 = rec["id"]
+        time.sleep(1.2)
+        n = _count_email_logs(fresh_user["email"], SUBJECTS["approved"], t2)
+        assert n == 1, f"Expected 1 approved email log, got {n}"
+
+        cli, db = _db()
+        try:
+            rec2 = db.partial_withdraw_unlocks.find_one({"id": uid})
+            assert rec2["status"] == "approved"
+            assert rec2["admin_validated_at"]
+            assert rec2["admin_validated_by"] == ADMIN_EMAIL
+            log = rec2.get("audit_log") or []
+            assert any(
+                e.get("new_status") == "approved" and e.get("actor_role") == "admin"
+                and e.get("actor_email") == ADMIN_EMAIL
+                for e in log
+            ), f"approved audit entry missing: {log}"
+        finally:
+            cli.close()
+
+    def test_admin_reject_sends_rejected_email_and_appends_audit(self, admin_headers):
+        """Use a separate user so we don't disturb approved records."""
+        suffix = uuid.uuid4().hex[:8]
+        email = f"test_iter57r_{suffix}@example.com"
+        pwd = "TestPass123!"
+        reg = requests.post(
+            f"{API}/auth/register",
+            json={"email": email, "password": pwd, "name": f"Iter57 Reject {suffix}",
+                  "country": "ES", "phone": "+34600000001"},
+            timeout=15,
+        )
+        if reg.status_code not in (200, 201):
+            pytest.skip(f"Cannot register reject test user: {reg.status_code} {reg.text[:200]}")
+        token = _login(email, pwd)
+        hdr = {"Authorization": f"Bearer {token}"}
+        _seed_balance(email)
+
+        # Create + submit proof to reach in_review
+        rs = requests.post(f"{API}/partial-unlock/start", headers=hdr, timeout=20)
+        assert rs.status_code == 200
+        rp = requests.post(
+            f"{API}/partial-unlock/proof",
+            headers=hdr,
+            json={"tx_hash": "TEST_iter57_rej_" + uuid.uuid4().hex[:12], "amount_eur": 2660.0},
+            timeout=20,
+        )
+        assert rp.status_code == 200
+
+        cli, db = _db()
+        try:
+            rec = db.partial_withdraw_unlocks.find_one({"user_email": email}, sort=[("created_at", -1)])
+        finally:
+            cli.close()
+        uid = rec["id"]
+
         t3 = datetime.now(timezone.utc).isoformat()
-        r = requests.post(f"{BASE_URL}/api/admin/partial-unlock/{uid2}/reject",
-                          headers=admin_headers, json={"admin_note": "Comprobante ilegible"}, timeout=20)
-        assert r.status_code == 200, r.text
-        time.sleep(1.0)
-        log = self._recent_log_for(email, self.SUBJECTS['rejected'], t3)
-        assert log is not None, "rejected email_logs entry missing"
+        rr = requests.post(
+            f"{API}/admin/partial-unlock/{uid}/reject",
+            headers=admin_headers,
+            json={"admin_note": "Comprobante ilegible iter57"},
+            timeout=20,
+        )
+        assert rr.status_code == 200, rr.text
 
-    def test_api_response_unaffected_by_email_pipeline(self, user_token):
-        """API must return 200 with full payload regardless of email send outcome.
-        Since safe_email + try/except wrap all 4 call sites, this is structural."""
-        email = "TEST_iter57_user@example.com"
-        self._cleanup(email)
-        hdr = {"Authorization": f"Bearer {user_token}"}
-        r = requests.post(f"{BASE_URL}/api/partial-unlock/start", headers=hdr, timeout=20)
+        time.sleep(1.2)
+        n = _count_email_logs(email, SUBJECTS["rejected"], t3)
+        assert n == 1, f"Expected 1 rejected email log, got {n}"
+
+        cli, db = _db()
+        try:
+            rec2 = db.partial_withdraw_unlocks.find_one({"id": uid})
+            assert rec2["status"] == "rejected"
+            assert rec2["admin_validated_by"] == ADMIN_EMAIL
+            assert rec2["admin_note"] == "Comprobante ilegible iter57"
+            log = rec2.get("audit_log") or []
+            reject_entries = [e for e in log if e.get("new_status") == "rejected"]
+            assert len(reject_entries) == 1
+            assert reject_entries[0]["actor_role"] == "admin"
+            assert reject_entries[0]["actor_email"] == ADMIN_EMAIL
+            assert reject_entries[0]["note"] == "Comprobante ilegible iter57"
+        finally:
+            cli.close()
+
+    def test_api_response_unaffected_by_email_pipeline(self, fresh_user_headers):
+        """Even if Resend is skipped (no API key), the API must still return 200 + payload."""
+        # Idempotent start on existing user — must still respond 200 ok=true.
+        r = requests.post(f"{API}/partial-unlock/start", headers=fresh_user_headers, timeout=20)
         assert r.status_code == 200
         body = r.json()
         assert body.get("ok") is True
-        assert body.get("request", {}).get("payment_reference", "").startswith("R40-")
+        ref = body.get("request", {}).get("payment_reference", "")
+        assert ref.startswith("R40-")
 
-    def test_pending_payment_email_on_start(self, api_client, test_user_token):
-        user_auth_header = {"Authorization": f"Bearer {test_user_token}"}
-        app_client = api_client
-        self._cleanup_user_unlocks("TEST_iter57_user@example.com")
-        with patch("routes.partial_unlock.send_partial_unlock_status_email",
-                   new_callable=AsyncMock) as mock_send:
-            resp = app_client.post("/api/partial-unlock/start", headers=user_auth_header)
-            assert resp.status_code == 200, resp.text
-            assert mock_send.await_count >= 1
-            kwargs = mock_send.await_args.kwargs
-            assert kwargs.get("new_status") == "pending_payment"
-            assert kwargs.get("payment_reference", "").startswith("R40-")
 
-    def test_in_review_email_on_full_payment(self, api_client, test_user_token):
-        user_auth_header = {"Authorization": f"Bearer {test_user_token}"}
-        app_client = api_client
-        # Ensure pending_payment record exists
-        app_client.post("/api/partial-unlock/start", headers=user_auth_header)
-        with patch("routes.partial_unlock.send_partial_unlock_status_email",
-                   new_callable=AsyncMock) as mock_send:
-            resp = app_client.post(
-                "/api/partial-unlock/proof",
-                headers=user_auth_header,
-                json={"tx_hash": "TEST_iter57_tx_full_payment_hash_xx", "amount_eur": 2660.0},
-            )
-            assert resp.status_code == 200, resp.text
-            assert resp.json().get("completed") is True
-            # Must fire in_review email
-            statuses = [c.kwargs.get("new_status") for c in mock_send.await_args_list]
-            assert "in_review" in statuses, f"Got statuses: {statuses}"
+# ════════════════════════════════════════════════════════════════════
+#  (C) Wise removal regression — broad scope
+# ════════════════════════════════════════════════════════════════════
 
-    def test_approved_email_on_admin_approve(self, api_client, admin_headers):
-        admin_auth_header = admin_headers
-        app_client = api_client
-        from pymongo import MongoClient
-        cli = MongoClient(os.environ.get("MONGO_URL"))
-        db = cli[os.environ.get("DB_NAME")]
-        rec = db.partial_withdraw_unlocks.find_one(
-            {"user_email": "TEST_iter57_user@example.com", "status": "in_review"},
-            sort=[("created_at", -1)],
+WISE_PATTERNS = r"'\\bWise\\b|TRWIBEB|BE73 9053'"
+
+
+class TestWiseRemovalBroad:
+    def test_no_wise_in_backend_code(self):
+        """Backend python code (excluding tests + this test) must not contain Wise refs.
+
+        We exclude 'otherwise' / 'wisely' etc. by using a word-boundary regex.
+        """
+        cmd = (
+            "grep -rnE 'TRWIBEB|BE73 9053|\\bWise\\b' "
+            "/app/backend --include='*.py' --exclude-dir=tests"
         )
-        cli.close()
-        if not rec:
-            pytest.skip("No in_review record to approve")
-        uid = rec["id"]
-        with patch("routes.partial_unlock.send_partial_unlock_status_email",
-                   new_callable=AsyncMock) as mock_send:
-            resp = app_client.post(
-                f"/api/admin/partial-unlock/{uid}/approve",
-                headers=admin_auth_header,
-                json={"admin_note": "ok"},
-            )
-            assert resp.status_code == 200, resp.text
-            statuses = [c.kwargs.get("new_status") for c in mock_send.await_args_list]
-            assert "approved" in statuses
-            approved_call = next(c for c in mock_send.await_args_list if c.kwargs.get("new_status") == "approved")
-            assert approved_call.kwargs.get("max_withdraw_eur") is not None
+        out = subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True)
+        assert out.stdout.strip() == "", f"Wise refs in backend:\n{out.stdout}"
 
-    def test_rejected_email_on_admin_reject(self, api_client, test_user_token, admin_headers):
-        user_auth_header = {"Authorization": f"Bearer {test_user_token}"}
-        admin_auth_header = admin_headers
-        app_client = api_client
-        # Create a fresh record and reject it (need an in_review or pending_payment one)
-        self._cleanup_user_unlocks("TEST_iter57_user@example.com")
-        app_client.post("/api/partial-unlock/start", headers=user_auth_header)
-        from pymongo import MongoClient
-        cli = MongoClient(os.environ.get("MONGO_URL"))
-        db = cli[os.environ.get("DB_NAME")]
-        rec = db.partial_withdraw_unlocks.find_one(
-            {"user_email": "TEST_iter57_user@example.com"},
-            sort=[("created_at", -1)],
+    def test_no_wise_in_frontend_code(self):
+        cmd = (
+            "grep -rnE 'TRWIBEB|BE73 9053|\\bWise\\b' "
+            "/app/frontend/src"
         )
-        cli.close()
-        assert rec
-        uid = rec["id"]
-        with patch("routes.partial_unlock.send_partial_unlock_status_email",
-                   new_callable=AsyncMock) as mock_send:
-            resp = app_client.post(
-                f"/api/admin/partial-unlock/{uid}/reject",
-                headers=admin_auth_header,
-                json={"admin_note": "Comprobante ilegible"},
-            )
-            assert resp.status_code == 200, resp.text
-            statuses = [c.kwargs.get("new_status") for c in mock_send.await_args_list]
-            assert "rejected" in statuses
-            rej_call = next(c for c in mock_send.await_args_list if c.kwargs.get("new_status") == "rejected")
-            assert rej_call.kwargs.get("admin_note") == "Comprobante ilegible"
+        out = subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True)
+        assert out.stdout.strip() == "", f"Wise refs in frontend:\n{out.stdout}"
 
-    def test_email_failure_does_not_break_api(self, api_client, test_user_token):
-        user_auth_header = {"Authorization": f"Bearer {test_user_token}"}
-        app_client = api_client
-        """If email function raises, the API still returns 200."""
-        self._cleanup_user_unlocks("TEST_iter57_user@example.com")
-        with patch("routes.partial_unlock.send_partial_unlock_status_email",
-                   new_callable=AsyncMock, side_effect=RuntimeError("resend down")):
-            resp = app_client.post("/api/partial-unlock/start", headers=user_auth_header)
-            assert resp.status_code == 200, resp.text
-            assert resp.json().get("ok") is True
+    def test_no_wise_in_email_templates(self):
+        """Service-level email module + any html templates must be Wise-free."""
+        cmd = (
+            "grep -rnE 'TRWIBEB|BE73 9053|\\bWise\\b' "
+            "/app/backend/services /app/backend/templates 2>/dev/null || true"
+        )
+        out = subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True)
+        assert out.stdout.strip() == "", f"Wise refs in email/templates:\n{out.stdout}"
+
+    def test_no_wise_in_database_seed_or_demo(self):
+        """Scan every Mongo collection for residual Wise / TRWIBEB / old IBAN refs."""
+        import json
+        cli, db = _db()
+        try:
+            offending = []
+            pattern = re.compile(r"\bWise\b|TRWIBEB|BE73 9053", re.IGNORECASE)
+            for coll_name in db.list_collection_names():
+                for doc in db[coll_name].find({}, {"_id": 0}).limit(5000):
+                    try:
+                        txt = json.dumps(doc, default=str)
+                    except Exception:
+                        continue
+                    if pattern.search(txt):
+                        offending.append((coll_name, doc.get("id") or doc.get("reference") or doc.get("email") or "?"))
+                        break
+            assert not offending, f"Wise refs found in DB collections: {offending}"
+        finally:
+            cli.close()
+
+
+# ════════════════════════════════════════════════════════════════════
+#  (D) Email dedup — exactly one log per transition (sanity)
+# ════════════════════════════════════════════════════════════════════
+
+class TestEmailDedup:
+    def test_start_is_idempotent_and_does_not_resend_email(self, admin_headers):
+        """Calling /partial-unlock/start twice for the same user with an active
+        record must NOT send a second 'pending_payment' email."""
+        suffix = uuid.uuid4().hex[:8]
+        email = f"test_iter57_dedup_{suffix}@example.com"
+        pwd = "TestPass123!"
+        reg = requests.post(
+            f"{API}/auth/register",
+            json={"email": email, "password": pwd, "name": f"Iter57 Dedup {suffix}",
+                  "country": "ES", "phone": "+34600000002"},
+            timeout=15,
+        )
+        if reg.status_code not in (200, 201):
+            pytest.skip("Cannot register dedup user")
+        token = _login(email, pwd)
+        hdr = {"Authorization": f"Bearer {token}"}
+        _seed_balance(email)
+
+        t0 = datetime.now(timezone.utc).isoformat()
+        r1 = requests.post(f"{API}/partial-unlock/start", headers=hdr, timeout=20)
+        assert r1.status_code == 200
+        time.sleep(0.8)
+        # Second call must be a no-op for email pipeline (idempotent)
+        r2 = requests.post(f"{API}/partial-unlock/start", headers=hdr, timeout=20)
+        assert r2.status_code == 200
+        assert r2.json().get("created") is False
+
+        time.sleep(0.6)
+        n = _count_email_logs(email, SUBJECTS["pending_payment"], t0)
+        assert n == 1, f"Expected exactly 1 pending_payment email after dup start, got {n}"

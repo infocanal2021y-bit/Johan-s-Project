@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
     Unlock, CheckCircle2, XCircle, Clock, Loader2, ExternalLink,
     AlertTriangle, RefreshCw, ShieldCheck, Hash, Copy, Check,
-    Filter, Mail,
+    Filter, Mail, History,
 } from 'lucide-react';
 
 const fmtEUR = (n) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -63,6 +63,86 @@ const CopyHash = ({ value }) => {
             {value.slice(0, 6)}…{value.slice(-6)}
             {c ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 opacity-60" />}
         </button>
+    );
+};
+
+
+const AuditHistoryButton = ({ item }) => {
+    const [open, setOpen] = useState(false);
+    const log = Array.isArray(item.audit_log) ? item.audit_log : [];
+    if (log.length === 0) return null;
+    return (
+        <>
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+                className="ml-1.5 inline-flex items-center gap-1 text-[9.5px] text-cyan-400/80 hover:text-cyan-300 underline decoration-dotted"
+                data-testid={`admin-unlock-history-btn-${item.id}`}
+                title="Ver historial de cambios"
+            >
+                <History className="w-3 h-3" /> {log.length}
+            </button>
+            {open && (
+                <div
+                    className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+                    onClick={() => setOpen(false)}
+                    data-testid={`admin-unlock-history-modal-${item.id}`}
+                >
+                    <div
+                        className="w-full max-w-lg bg-gradient-to-br from-[#0a1628] via-slate-950 to-slate-950 ring-1 ring-cyan-500/30 rounded-2xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider text-cyan-300 font-bold">Historial de cambios</p>
+                                <h3 className="text-white text-base font-bold mt-0.5">{item.user_email}</h3>
+                                <p className="text-amber-300/90 text-[10px] font-mono mt-0.5">{item.payment_reference || item.id.slice(0, 8)}</p>
+                            </div>
+                            <button
+                                onClick={() => setOpen(false)}
+                                className="text-slate-400 hover:text-white p-1"
+                                aria-label="Cerrar"
+                            >
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="px-5 py-4 max-h-[60vh] overflow-y-auto space-y-2.5">
+                            {log.slice().reverse().map((row, i) => (
+                                <div
+                                    key={i}
+                                    className="bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2.5"
+                                    data-testid={`admin-unlock-history-row-${item.id}-${log.length - 1 - i}`}
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-[10px] font-mono text-slate-500">{fmtDate(row.at)}</p>
+                                        <span className={`text-[9.5px] px-1.5 py-0.5 rounded ring-1 font-bold uppercase ${
+                                            row.actor_role === 'admin'
+                                                ? 'bg-cyan-500/15 ring-cyan-500/30 text-cyan-300'
+                                                : 'bg-slate-500/15 ring-slate-500/30 text-slate-300'
+                                        }`}>
+                                            {row.actor_role}
+                                        </span>
+                                    </div>
+                                    <p className="text-white text-[12px] mt-1">
+                                        <span className="text-slate-500">{row.previous_status || '—'}</span>
+                                        <span className="text-slate-600 mx-1.5">→</span>
+                                        <span className="font-bold">{row.new_status}</span>
+                                    </p>
+                                    <p className="text-slate-400 text-[10.5px] mt-0.5">
+                                        Por <span className="text-slate-200">{row.actor_name || row.actor_email || '—'}</span>
+                                    </p>
+                                    {row.note && (
+                                        <p className="text-slate-300 text-[10.5px] mt-1 italic border-l-2 border-cyan-500/40 pl-2">
+                                            “{row.note}”
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 
@@ -268,6 +348,7 @@ export const AdminPartialUnlockPage = () => {
                                                         <SI className={`w-3 h-3 ${it.status === 'in_review' ? 'animate-spin' : ''}`} />
                                                         {s.label}
                                                     </span>
+                                                    <AuditHistoryButton item={it} />
                                                     {it.admin_note && it.status === 'rejected' && (
                                                         <p className="text-rose-400/80 text-[9.5px] mt-1 italic max-w-[220px] truncate" title={it.admin_note}>
                                                             “{it.admin_note}”

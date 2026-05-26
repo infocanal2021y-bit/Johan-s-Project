@@ -1,5 +1,22 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 57 (Feb 26, 2026) — Audit log + Wise removal verification
+
+**Backend (`routes/partial_unlock.py`)**: añadido helper `_audit_entry()` que construye filas de auditoría con `previous_status`, `new_status`, `at` (ISO UTC), `actor_role` (`user` | `admin` | `system`), `actor_id/email/name`, `note` y `extra` opcional (`payment_reference`, `tx_hash`, `amount_eur`, `priority_rank`, `max_withdraw_eur`). Cada `partial_withdraw_unlocks` doc ahora persiste el array `audit_log[]` en los 4 puntos de transición: creación (`/start` → `(None → pending_payment)` con nota "Solicitud creada"), pago completado (`/proof` → `(pending_payment → in_review)` con tx_hash + monto + priority_rank), aprobación admin (`/admin/.../approve` → `(in_review → approved)` con max_withdraw_eur + nota admin), rechazo admin (`/admin/.../reject` → `(in_review|pending_payment → rejected)` con nota obligatoria). Bug fix adicional: `GET /admin/partial-unlock/queue?status=all` ya no devolvía todos los registros (caía al else por la lógica `if status and status != 'all'`); corregido con `if status == 'all': pass`. Verificado vía curl (`all=7`, `in_review=0`).
+
+**Frontend (`AdminPartialUnlockPage.jsx`)**: nuevo componente `AuditHistoryButton` inline en la columna ESTADO que muestra `<History/> N` (N = longitud del audit_log) en cyan dotted-underline. Click abre modal "HISTORIAL DE CAMBIOS" con: email, payment_reference, lista cronológica (reverse) de filas en cards slate-900 con fecha es-ES, badge USER/ADMIN, transición `previous → new_status`, "Por X", y note en italic con borde cyan. testids: `admin-unlock-history-btn-<id>`, `admin-unlock-history-modal-<id>`, `admin-unlock-history-row-<id>-<n>`. Convierte la operativa "no veo qué pasó con esta solicitud" en "un solo click muestra toda la trazabilidad".
+
+**Tests (`tests/test_iter57_proof_audit_and_partial_unlock_emails.py`)**: archivo previamente roto (`MissingSchema: Invalid URL`) re-escrito de cero usando el patrón live-HTTP de iter55. **15/15 pytest verde** en 39s. 4 clases: `TestMarkViewedEndpoint` (5 tests: 401/403/400/404 + idempotencia con verificación de timestamp no-overwrite + GET retorna audit fields), `TestPartialUnlockLifecycle` (5 tests: start envía pending_payment email + audit_log row creado | proof completado envía in_review email + audit transitions correctas | admin approve envía approved email + audit row con actor_role=admin + admin_email | admin reject envía rejected email + audit con note obligatoria | API responde 200 incluso sin Resend), `TestWiseRemovalBroad` (4 tests: backend code grep | frontend code grep | services/templates grep | escaneo Mongo de TODAS las colecciones con regex `\bWise\b|TRWIBEB|BE73 9053`), `TestEmailDedup` (1 test: 2 llamadas a `/start` idempotentes → solo 1 email log de pending_payment). Iter55 tests siguen verdes (6/6) → 0 regresión.
+
+**Cobertura de los 5 requisitos del usuario**:
+1. ✅ No quedan refs a Wise — verificado por `TestWiseRemovalBroad` (4 escopos: frontend, backend, templates, DB)
+2. ✅ Regresión automática anti-Wise — la misma clase falla si reaparece la palabra
+3. ✅ Cada transición 40%: timestamp + admin responsable + email una sola vez — `TestPartialUnlockLifecycle` verifica `_count_email_logs == 1` después de cada transición
+4. ✅ Audit logs (prev_state/new_state/datetime/admin/reason) — `_audit_entry()` los persiste y los tests asertan su presencia
+5. ✅ Panel admin muestra: comprobante subido (vía AdminProofsPage existente) · fecha de revisión (proof_uploaded_at) · estado actual (badge) · historial de cambios (nuevo modal)
+
+---
+
 ## Original Problem Statement
 Professional financial information and verification platform. Informational tools only.
 The platform features KYC verification, an Admin Panel, a complex withdrawal system with mandatory cryptocurrency tax payments, simulated financial dashboards, gamification, an integrated support system, internal investment wallets, and strict informational disclaimers.

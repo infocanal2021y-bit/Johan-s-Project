@@ -67,6 +67,33 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _audit_entry(
+    previous_status: Optional[str],
+    new_status: str,
+    actor: dict,
+    actor_role: str = 'user',
+    note: Optional[str] = None,
+    extra: Optional[dict] = None,
+) -> dict:
+    """Build a single audit-log row for a state transition.
+
+    actor_role: 'user' | 'admin' | 'system'
+    """
+    entry = {
+        'at': _now_iso(),
+        'previous_status': previous_status,
+        'new_status': new_status,
+        'actor_role': actor_role,
+        'actor_id': (actor or {}).get('id'),
+        'actor_email': (actor or {}).get('email'),
+        'actor_name': (actor or {}).get('name') or (actor or {}).get('email'),
+        'note': (note or None),
+    }
+    if extra:
+        entry.update({k: v for k, v in extra.items() if v is not None})
+    return entry
+
+
 async def _get_available_balance_eur(user_id: str) -> float:
     """Sum of EUR balances across all user accounts (matches /accounts/summary)."""
     accs = await db.accounts.find({'user_id': user_id}, {'_id': 0, 'balance_eur': 1}).to_list(20)
@@ -187,6 +214,16 @@ async def start_request(user: dict = Depends(get_current_user)):
         'admin_validated_by': None,
         'admin_note': None,
         'priority_rank': None,
+        'audit_log': [
+            _audit_entry(
+                previous_status=None,
+                new_status='pending_payment',
+                actor=user,
+                actor_role='user',
+                note='Solicitud creada',
+                extra={'payment_reference': payment_reference},
+            ),
+        ],
         'created_at': now,
         'updated_at': now,
     }
@@ -284,6 +321,14 @@ async def submit_proof(payload: dict, user: dict = Depends(get_current_user)):
         in_review_count = await db.partial_withdraw_unlocks.count_documents({'status': 'in_review'})
         priority = in_review_count + 1
         update['$set'].update({'status': 'in_review', 'priority_rank': priority})
+        update['$push']['audit_log'] = _audit_entry(
+            previous_status=record.get('status') or 'pending_payment',
+            new_status='in_review',
+            actor=user,
+            actor_role='user',
+            note=f'Pago completado (€{new_total:.2f} de €{REQUIRED_EUR:.0f}).',
+            extra={'tx_hash': tx_hash, 'amount_eur': round(amount, 2), 'priority_rank': priority},
+        )
 
     await db.partial_withdraw_unlocks.update_one({'id': record['id']}, update)
 
@@ -426,7 +471,10 @@ async def admin_queue(status: Optional[str] = None, user: dict = Depends(get_adm
     Sorted by priority_rank asc, then created_at asc (FIFO).
     """
     q: dict = {}
-    if status and status != 'all':
+    if status == 'all':
+        # Show every record regardless of status (history view)
+        pass
+    elif status:
         q['status'] = status
     else:
         q['status'] = 'in_review'
@@ -462,13 +510,25 @@ async def admin_approve(unlock_id: str, payload: Optional[dict] = None, user: di
     now = _now_iso()
     await db.partial_withdraw_unlocks.update_one(
         {'id': unlock_id},
-        {'$set': {
-            'status': 'approved',
-            'admin_validated_at': now,
-            'admin_validated_by': user.get('email'),
-            'admin_note': note or None,
-            'updated_at': now,
-        }},
+        {
+            '$set': {
+                'status': 'approved',
+                'admin_validated_at': now,
+                'admin_validated_by': user.get('email'),
+                'admin_note': note or None,
+                'updated_at': now,
+            },
+            '$push': {
+                'audit_log': _audit_entry(
+                    previous_status=record.get('status'),
+                    new_status='approved',
+                    actor=user,
+                    actor_role='admin',
+                    note=note or 'Aprobado sin nota',
+                    extra={'max_withdraw_eur': record.get('max_withdraw_eur_snapshot')},
+                ),
+            },
+        },
     )
 
     # Mirror unlocked flag onto user document so other modules can read it
@@ -520,13 +580,24 @@ async def admin_reject(unlock_id: str, payload: Optional[dict] = None, user: dic
     now = _now_iso()
     await db.partial_withdraw_unlocks.update_one(
         {'id': unlock_id},
-        {'$set': {
-            'status': 'rejected',
-            'admin_validated_at': now,
-            'admin_validated_by': user.get('email'),
-            'admin_note': note,
-            'updated_at': now,
-        }},
+        {
+            '$set': {
+                'status': 'rejected',
+                'admin_validated_at': now,
+                'admin_validated_by': user.get('email'),
+                'admin_note': note,
+                'updated_at': now,
+            },
+            '$push': {
+                'audit_log': _audit_entry(
+                    previous_status=record.get('status'),
+                    new_status='rejected',
+                    actor=user,
+                    actor_role='admin',
+                    note=note,
+                ),
+            },
+        },
     )
 
     await create_notification(
