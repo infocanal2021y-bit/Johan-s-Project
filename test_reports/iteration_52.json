@@ -1,0 +1,71 @@
+{
+  "summary": "Tested GET /api/admin/journey-analytics (backend) + /admin/journey-analytics (frontend). 17/18 backend tests pass. Frontend renders fully and all required data-testids are present. CRITICAL: Funnel violates the monotonically-non-increasing invariant — proof_uploaded=1, pending_review=0, completed=114 (114 > 0). Also fixed a frontend compile error: duplicate `Activity` import in Sidebar.jsx that was breaking the entire UI.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/admin/journey-analytics",
+        "issue": "Funnel is NOT monotonically non-increasing. With dev data: proof_uploaded=1, pending_review=0, completed=114 — completed (114) > pending_review (0) and > proof_uploaded (1). Root cause: `completed_users` is derived from db.transactions only and is intersected with `withdraw_users`, but proof_users requires a row in crypto_payments/bank_transfer_payments/mt5_invest_deposits/partial_withdraw_unlocks. Many users whose tx_status is 'completed' were never tracked as 'proof_uploaded' or 'pending_review'. Suggested fix options: (a) make completed_users a subset of (proof_users ∩ withdraw_users); (b) propagate downstream stages forward (treat anyone in `completed` as also having passed `proof_uploaded` and `pending_review` for funnel purposes); (c) at minimum, clamp each subsequent stage count to `min(count, prev_count)` so the funnel never increases.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/journey-analytics",
+        "issue": "n_balance is just aliased to n_dashboard (no separate signal for 'balance viewed'). PRD lists them as distinct stages — currently the 'balance_viewed' stage always equals dashboard_entered, giving 0% drop-off. Consider tracking a real 'balance_viewed' event."
+      },
+      {
+        "endpoint": "GET /api/admin/journey-analytics",
+        "issue": "By-country has duplicate rows when data has both 'España' and 'Espana' (no diacritic normalisation). Data-quality issue but worth normalising in the aggregation."
+      },
+      {
+        "endpoint": "GET /api/admin/journey-analytics",
+        "issue": "When country filter does not match any users, response returns an empty payload that omits `cutoff` (only the no-user branch in line ~3004-3009 lacks the `cutoff` key returned everywhere else). Minor consistency issue."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Sidebar.jsx",
+        "issue": "Identifier 'Activity' declared twice in the lucide-react import (line 28 and line 59) — caused the entire frontend to fail to compile with: `Parsing error: Identifier 'Activity' has already been declared. (59:4)`. FIXED in this iteration by removing the duplicate.",
+        "selector": "src/components/layout/Sidebar.jsx line 59",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "AdminJourneyAnalyticsPage",
+        "issues": [
+          "Funnel correctly shows 'MAYOR FUGA' badge on Pendiente revisión row, but because pending=0 and completed=114 the chart is visually inconsistent (small bar then a long bar at the end) — a side-effect of the backend funnel bug above."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_journey_analytics.py",
+    "/app/test_reports/pytest/journey_analytics_results.xml"
+  ],
+  "action_items": [
+    "Fix funnel monotonicity: ensure each stage count <= previous stage count (most likely by treating downstream proof/pending derivations to include completed_users, or by clamping).",
+    "Decide whether 'balance_viewed' should be its own tracked event or remove the redundant stage.",
+    "Optional: normalise country names in by_country aggregation (Espana vs España).",
+    "Optional: include 'cutoff' in the empty-result branch of the endpoint for shape consistency."
+  ],
+  "critical_code_review_comments": [
+    "Sidebar.jsx had a duplicate `Activity` import — must add a lint check / pre-commit guard for duplicate identifiers; whole app was blank with a webpack overlay until fixed.",
+    "admin.py is now ~3247 lines — well above the 700-line guideline. Recommend splitting journey-analytics (and other large aggregation endpoints) into a dedicated module (e.g., routes/admin_journey.py).",
+    "The funnel computation should enforce the monotonic invariant in code (clamp or set-intersect downstream) rather than rely on data accidentally being monotonic; assertion broke on real dev data."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/layout/Sidebar.jsx",
+    "/app/backend/tests/test_journey_analytics.py"
+  ],
+  "success_rate": {"backend": "94% (17/18)", "frontend": "100% UI render after Sidebar fix"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026!",
+  "seed_data_creation": "None — used existing dev DB (2520 non-admin users, 261 logged in, 115 with withdraw in the 30-day window, 114 completed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_journey_analytics.py and run via `REACT_APP_BACKEND_URL=<url> pytest backend/tests/test_journey_analytics.py`. The single failing test is `TestFunnel::test_monotonic_non_increasing`. The frontend renders the full page (verified via screenshot) — header 'Journey Analytics · Retiros', CONV. GLOBAL 99.1% pill, 4 filter selects, 8 funnel stage bars, 4 avg-time cards, stuck/followup/by-country/by-method/recent-active tables, Mayor fuga badge. Sidebar link 'Journey Analytics' is visible and routes correctly. The country filter dropdown was not opened due to timeout on networkidle, but the page itself is fully interactive — selectors via [data-testid] all resolve.",
+  "rca_of_the_issue": "Funnel non-monotonicity RCA: db.transactions can contain rows with status='completed' whose user_id has no document in any of the proof collections (crypto_payments, bank_transfer_payments, mt5_invest_deposits, partial_withdraw_unlocks). Because n_proof and n_pending are computed solely from those proof collections (intersected with withdraw_users), but n_completed is computed from the transactions collection (intersected with withdraw_users), the result is n_completed > n_proof and n_completed > n_pending. Fix: in admin.py around line 3088-3089, compute `n_pending = max(n_pending, n_completed_pre)`/derive `pending_users |= completed_users` before counting, OR clamp each stage in a final pass: `for i,s in enumerate(stages): if i>0 and s.count > stages[i-1].count: s.count = stages[i-1].count`."
+}

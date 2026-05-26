@@ -2943,3 +2943,304 @@ async def admin_proofs_export_csv(
         media_type='text/csv; charset=utf-8',
         headers={'Content-Disposition': f'attachment; filename="{filename}"'},
     )
+
+# ==================== JOURNEY ANALYTICS ====================
+# Comprehensive withdrawal funnel analytics endpoint.
+
+def _parse_dt(value):
+    """Parse a timestamp that may be stored as datetime or ISO string."""
+    if value is None:
+        return None
+    if hasattr(value, 'isoformat'):
+        return value
+    if isinstance(value, str):
+        try:
+            v = value.replace('Z', '+00:00')
+            return datetime.fromisoformat(v)
+        except Exception:
+            return None
+    return None
+
+
+def _hours_between(a, b):
+    a = _parse_dt(a)
+    b = _parse_dt(b)
+    if not a or not b:
+        return None
+    if a.tzinfo is None:
+        a = a.replace(tzinfo=timezone.utc)
+    if b.tzinfo is None:
+        b = b.replace(tzinfo=timezone.utc)
+    delta = (b - a).total_seconds() / 3600.0
+    return delta if delta >= 0 else None
+
+
+@router.get("/admin/journey-analytics")
+async def admin_journey_analytics(
+    admin: dict = Depends(get_admin_user),
+    country: Optional[str] = Query(None),
+    method: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    days: int = Query(30, ge=1, le=365),
+):
+    """Build the withdrawal journey funnel for the dashboard."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff_iso = cutoff.isoformat()
+
+    user_query = {'role': {'$ne': 'admin'}}
+    if country:
+        user_query['$or'] = [{'country': country}, {'country_name': country}]
+
+    users = await db.users.find(
+        user_query,
+        {'_id': 0, 'id': 1, 'name': 1, 'email': 1, 'country': 1, 'country_name': 1,
+         'created_at': 1, 'first_login_at': 1, 'last_active': 1,
+         'verification_status': 1, 'kyc_status': 1, 'account_status': 1}
+    ).to_list(length=100000)
+    user_ids = [u['id'] for u in users]
+    user_map = {u['id']: u for u in users}
+
+    if not user_ids:
+        return {
+            'stages': [], 'avg_hours_between': {}, 'by_country': [], 'by_method': [],
+            'by_status': [], 'stuck_users': [], 'followup_users': [],
+            'recent_active': [], 'filters': {'country': country, 'method': method, 'status': status, 'days': days},
+            'updated_at': datetime.now(timezone.utc).isoformat(), 'total_users': 0,
+        }
+
+    tx_query = {'user_id': {'$in': user_ids}, 'transaction_type': 'withdraw'}
+    if status:
+        tx_query['status'] = status
+    tx_rows = await db.transactions.find(
+        tx_query,
+        {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1, 'status': 1,
+         'created_at': 1, 'completed_at': 1, 'payment_method': 1}
+    ).to_list(length=200000)
+
+    withdraw_users = set()
+    first_withdraw_at = {}
+    completed_users = set()
+    first_completed_at = {}
+    pending_users = set()
+    for t in tx_rows:
+        uid = t['user_id']
+        withdraw_users.add(uid)
+        ts = t.get('created_at')
+        if ts and (uid not in first_withdraw_at or ts < first_withdraw_at[uid]):
+            first_withdraw_at[uid] = ts
+        st = t.get('status')
+        if st == 'completed':
+            completed_users.add(uid)
+            cts = t.get('completed_at') or t.get('created_at')
+            if cts and (uid not in first_completed_at or cts < first_completed_at[uid]):
+                first_completed_at[uid] = cts
+        elif st in ('pending', 'under_review', 'in_transfer', 'approved'):
+            pending_users.add(uid)
+
+    kyc_users = {u['id'] for u in users
+                 if u.get('kyc_status') and u.get('kyc_status') != 'not_started'}
+
+    proof_users = set()
+    first_proof_at = {}
+    method_users = {'crypto': set(), 'bank': set(), 'mt5': set(), 'partial-unlock': set()}
+
+    async def _scan(collection, mkey, field, ts_field='created_at'):
+        q = {'user_id': {'$in': user_ids}}
+        if field:
+            q[field] = {'$ne': None}
+        rows = await db[collection].find(
+            q, {'_id': 0, 'user_id': 1, ts_field: 1}
+        ).to_list(length=200000)
+        for r in rows:
+            uid = r.get('user_id')
+            if not uid:
+                continue
+            proof_users.add(uid)
+            method_users[mkey].add(uid)
+            ts = r.get(ts_field)
+            if ts and (uid not in first_proof_at or ts < first_proof_at[uid]):
+                first_proof_at[uid] = ts
+
+    await _scan('crypto_payments', 'crypto', None)
+    await _scan('bank_transfer_payments', 'bank', None)
+    await _scan('mt5_invest_deposits', 'mt5', 'proof_url')
+    await _scan('partial_withdraw_unlocks', 'partial-unlock', 'last_tx_hash', 'updated_at')
+
+    if method:
+        method_set = method_users.get(method, set())
+        withdraw_users = withdraw_users & method_set if method_set else set()
+        proof_users = proof_users & method_set if method_set else set()
+        pending_users = pending_users & method_set if method_set else set()
+        completed_users = completed_users & method_set if method_set else set()
+
+    logged_in_users = {u['id'] for u in users
+                       if u.get('first_login_at') or u.get('last_active')}
+
+    n_registered   = len(user_ids)
+    n_dashboard    = len(logged_in_users)
+    n_balance      = n_dashboard
+    n_withdraw     = len(withdraw_users)
+    # From here, stages are intersected with withdraw_users to keep the
+    # funnel monotonically decreasing (these stages only make sense for
+    # users who already initiated a withdraw).
+    n_kyc          = len(kyc_users & withdraw_users)
+    n_proof        = len(proof_users & withdraw_users)
+    n_pending      = len(pending_users & withdraw_users)
+    n_completed    = len(completed_users & withdraw_users)
+
+    def _pct(curr, prev):
+        if not prev:
+            return None
+        return round(100.0 * (prev - curr) / prev, 1)
+
+    stages = [
+        {'key': 'registered',         'label': 'Registrados',          'count': n_registered, 'dropoff_pct_from_prev': None},
+        {'key': 'dashboard_entered',  'label': 'Dashboard accedido',   'count': n_dashboard,  'dropoff_pct_from_prev': _pct(n_dashboard, n_registered)},
+        {'key': 'balance_viewed',     'label': 'Balance visto',        'count': n_balance,    'dropoff_pct_from_prev': _pct(n_balance, n_dashboard)},
+        {'key': 'withdraw_initiated', 'label': 'Retiro iniciado',      'count': n_withdraw,   'dropoff_pct_from_prev': _pct(n_withdraw, n_balance)},
+        {'key': 'kyc_reached',        'label': 'KYC alcanzado',        'count': n_kyc,        'dropoff_pct_from_prev': _pct(n_kyc, n_withdraw)},
+        {'key': 'proof_uploaded',     'label': 'Comprobante subido',   'count': n_proof,      'dropoff_pct_from_prev': _pct(n_proof, n_kyc)},
+        {'key': 'pending_review',     'label': 'Pendiente revisión',   'count': n_pending,    'dropoff_pct_from_prev': _pct(n_pending, n_proof)},
+        {'key': 'completed',          'label': 'Completado',           'count': n_completed,  'dropoff_pct_from_prev': _pct(n_completed, n_pending)},
+    ]
+
+    def _avg(samples):
+        s = [x for x in samples if x is not None and x >= 0]
+        return round(sum(s) / len(s), 1) if s else None
+
+    avg_hours_between = {
+        'registered_to_first_login': _avg([
+            _hours_between(user_map[uid].get('created_at'), user_map[uid].get('first_login_at'))
+            for uid in logged_in_users if user_map.get(uid)
+        ]),
+        'dashboard_to_withdraw': _avg([
+            _hours_between(user_map[uid].get('first_login_at'), first_withdraw_at.get(uid))
+            for uid in withdraw_users if user_map.get(uid)
+        ]),
+        'withdraw_to_proof': _avg([
+            _hours_between(first_withdraw_at.get(uid), first_proof_at.get(uid))
+            for uid in (withdraw_users & proof_users)
+        ]),
+        'proof_to_completed': _avg([
+            _hours_between(first_proof_at.get(uid), first_completed_at.get(uid))
+            for uid in (proof_users & completed_users)
+        ]),
+    }
+
+    by_country_acc = {}
+    for u in users:
+        c = u.get('country_name') or u.get('country') or 'Sin país'
+        b = by_country_acc.setdefault(c, {'country': c, 'total': 0, 'withdraw': 0, 'proof': 0, 'completed': 0})
+        b['total'] += 1
+        if u['id'] in withdraw_users: b['withdraw'] += 1
+        if u['id'] in proof_users: b['proof'] += 1
+        if u['id'] in completed_users: b['completed'] += 1
+    by_country = sorted(by_country_acc.values(), key=lambda x: x['total'], reverse=True)[:15]
+
+    by_method = []
+    for mkey, mset in method_users.items():
+        completed_in_method = len(mset & completed_users)
+        by_method.append({
+            'method': mkey,
+            'users': len(mset),
+            'completed': completed_in_method,
+            'completion_pct': round(100.0 * completed_in_method / len(mset), 1) if mset else 0,
+        })
+
+    by_status_acc = {}
+    for t in tx_rows:
+        s = t.get('status') or 'unknown'
+        by_status_acc[s] = by_status_acc.get(s, 0) + 1
+    by_status = [{'status': k, 'count': v} for k, v in sorted(by_status_acc.items(), key=lambda x: x[1], reverse=True)]
+
+    now_utc = datetime.now(timezone.utc)
+    stuck = []
+    followup = []
+    for uid in pending_users:
+        if uid in completed_users:
+            continue
+        u = user_map.get(uid)
+        if not u:
+            continue
+        last_proof = first_proof_at.get(uid) or first_withdraw_at.get(uid)
+        ts = _parse_dt(last_proof)
+        if not ts:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        hours = (now_utc - ts).total_seconds() / 3600.0
+        entry = {
+            'user_id': uid,
+            'name': u.get('name'),
+            'email': u.get('email'),
+            'country': u.get('country_name') or u.get('country'),
+            'stage': 'pending_review',
+            'hours_in_stage': round(hours, 1),
+            'last_event': last_proof,
+            'has_proof': uid in proof_users,
+            'kyc_status': u.get('kyc_status') or u.get('verification_status'),
+        }
+        if hours > 72:
+            stuck.append(entry)
+        elif 24 <= hours <= 72:
+            followup.append(entry)
+    for uid in withdraw_users - proof_users - completed_users:
+        u = user_map.get(uid)
+        if not u:
+            continue
+        ts = _parse_dt(first_withdraw_at.get(uid))
+        if not ts:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        hours = (now_utc - ts).total_seconds() / 3600.0
+        if 24 <= hours <= 168:
+            followup.append({
+                'user_id': uid,
+                'name': u.get('name'),
+                'email': u.get('email'),
+                'country': u.get('country_name') or u.get('country'),
+                'stage': 'withdraw_initiated',
+                'hours_in_stage': round(hours, 1),
+                'last_event': first_withdraw_at.get(uid),
+                'has_proof': False,
+                'kyc_status': u.get('kyc_status') or u.get('verification_status'),
+            })
+
+    stuck.sort(key=lambda x: x['hours_in_stage'], reverse=True)
+    followup.sort(key=lambda x: x['hours_in_stage'], reverse=True)
+    stuck = stuck[:25]
+    followup = followup[:25]
+
+    recent_active = []
+    for u in users:
+        la = _parse_dt(u.get('last_active'))
+        if la and la >= cutoff:
+            recent_active.append({
+                'user_id': u['id'],
+                'name': u.get('name'),
+                'email': u.get('email'),
+                'country': u.get('country_name') or u.get('country'),
+                'last_active': u.get('last_active'),
+                'has_withdraw': u['id'] in withdraw_users,
+                'completed': u['id'] in completed_users,
+            })
+    recent_active.sort(key=lambda x: x['last_active'] or '', reverse=True)
+    recent_active = recent_active[:25]
+
+    return {
+        'stages': stages,
+        'overall_conversion_pct': round(100.0 * n_completed / n_withdraw, 1) if n_withdraw else 0,
+        'avg_hours_between': avg_hours_between,
+        'by_country': by_country,
+        'by_method': by_method,
+        'by_status': by_status,
+        'stuck_users': stuck,
+        'followup_users': followup,
+        'recent_active': recent_active,
+        'filters': {'country': country, 'method': method, 'status': status, 'days': days},
+        'updated_at': now_utc.isoformat(),
+        'total_users': len(user_ids),
+        'cutoff': cutoff_iso,
+    }
+

@@ -135,6 +135,7 @@ export const Sidebar = () => {
         { to: '/admin/admin-ops', icon: FileText, label: 'Auditoría Admin' },
         { to: '/admin/system-status', icon: Server, label: 'System Status' },
         { to: '/admin/proofs', icon: ImageIcon, label: 'Comprobantes' },
+        { to: '/admin/journey-analytics', icon: Activity, label: 'Journey Analytics' },
         { to: '/admin/transactions', icon: ClipboardList, label: 'Transacciones' },
         { to: '/admin/withdrawals', icon: Upload, label: 'Retiros Pendientes' },
         { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },
