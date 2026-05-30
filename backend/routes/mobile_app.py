@@ -9,6 +9,7 @@ Collection: `mobile_app_waitlist`
     { id, user_id, email, name, source, notify_email, notify_push, ip,
       created_at, updated_at }
 """
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -21,8 +22,26 @@ from services.auth import get_current_user, get_admin_user
 router = APIRouter()
 
 
+# Social-proof baseline so the counter is credible from day 1 (campaign seed).
+# Configurable per environment without redeploys.
+WAITLIST_BASELINE = int(os.environ.get("MOBILE_APP_WAITLIST_BASELINE", "1247"))
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+@router.get("/mobile-app/waitlist/count")
+async def waitlist_count(user: dict = Depends(get_current_user)):
+    """Public-ish count for social proof. Returns `{total, real, baseline}`.
+
+    `total = real + baseline` — the baseline is a campaign seed so the number
+    looks credible from day one; tweak via `MOBILE_APP_WAITLIST_BASELINE` env.
+    No personal data exposed.
+    """
+    real = await db.mobile_app_waitlist.count_documents({})
+    total = real + WAITLIST_BASELINE
+    return {"total": total, "real": real, "baseline": WAITLIST_BASELINE}
 
 
 @router.get("/mobile-app/waitlist/status")
@@ -78,12 +97,14 @@ async def register_waitlist(payload: dict, request: Request, user: dict = Depend
         upsert=True,
     )
 
+    real = await db.mobile_app_waitlist.count_documents({})
     return {
         "ok": True,
         "registered": True,
         "since": created_at,
         "source": source,
         "already_registered": bool(existing),
+        "total": real + WAITLIST_BASELINE,
     }
 
 

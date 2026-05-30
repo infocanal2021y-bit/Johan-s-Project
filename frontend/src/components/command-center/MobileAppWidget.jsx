@@ -8,6 +8,7 @@ import {
     Smartphone, Apple, BellRing, CheckCircle2, Loader2, ChevronRight,
     TrendingUp, Wallet, FolderKanban,
 } from 'lucide-react';
+import { WaitlistCounter } from '../dashboard/WaitlistCounter';
 
 
 // Compact premium widget for the right column of /command-center
@@ -15,6 +16,7 @@ export const MobileAppWidget = () => {
     const [status, setStatus] = useState({ registered: false, since: null });
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [justJoined, setJustJoined] = useState(false);
 
     useEffect(() => {
         let alive = true;
@@ -31,6 +33,7 @@ export const MobileAppWidget = () => {
         try {
             const r = await api.post('/mobile-app/waitlist/register', { source: 'command_center' });
             setStatus({ registered: true, since: r.data.since });
+            if (!r.data.already_registered) setJustJoined(true);
             toast.success(r.data.already_registered
                 ? 'Ya estabas en la lista de espera'
                 : '¡Te avisaremos cuando esté disponible!');
@@ -146,6 +149,16 @@ export const MobileAppWidget = () => {
                     >
                         Conocer más detalles <ChevronRight className="w-3 h-3" />
                     </Link>
+                </div>
+
+                {/* Social proof */}
+                <div className="mt-3 pt-3 border-t border-white/5">
+                    <WaitlistCounter
+                        variant="dark"
+                        size="sm"
+                        boost={justJoined ? 1 : 0}
+                        testid="cc-mobile-waitlist-counter"
+                    />
                 </div>
             </div>
         </Card>

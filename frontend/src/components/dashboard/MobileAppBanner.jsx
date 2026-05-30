@@ -4,6 +4,7 @@ import {
     Smartphone, Apple, ChevronRight, TrendingUp, Wallet, Bell,
     Sparkles, ShieldCheck, BarChart3,
 } from 'lucide-react';
+import { WaitlistCounter } from './WaitlistCounter';
 
 
 // Compact phone mockup tuned for a horizontal banner (smaller than the dedicated /mobile-app page).
@@ -197,6 +198,16 @@ export const MobileAppBanner = () => {
                         >
                             Más info <ChevronRight className="w-4 h-4" />
                         </Link>
+                    </motion.div>
+
+                    {/* Social proof */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.45 }}
+                        className="mt-4"
+                    >
+                        <WaitlistCounter variant="dark" size="md" testid="banner-waitlist-counter" />
                     </motion.div>
                 </div>
 
