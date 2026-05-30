@@ -1,5 +1,37 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 65 (May 30, 2026) — Phase 6 polish · Live FX rates + Vault history + Mobile App page
+
+**Live exchange rates API** (`services/exchange_rates_live.py`, ~150 líneas):
+- Provider: `open.er-api.com` (gratis, sin key, 160+ monedas, soporta DOP/MXN/COP)
+- Cache MongoDB collection `exchange_rates_live` con TTL 30 min, refresh automático en cada call a `/rates` si expiró
+- Resolution order: `admin override` → `live cache` → `fallback` hard-coded
+- Endpoints nuevos:
+  - `GET /api/multi-currency/rates` ahora devuelve `sources{cur:live|admin|fallback}`, `updated_at_per_currency`, `live_provider`, `next_refresh_at`
+  - `POST /api/multi-currency/rates/refresh` fuerza refresh
+- Frontend `RatesStrip` muestra badge **Live · open.er-api.com**, badge por moneda (Live/Admin/Default), timestamp relativo ("hace 5 min") y botón "Refrescar tasas"
+
+**Vault document history** (`routes/vault.py` extendido):
+- Nueva colección `vault_document_events` (no-blocking inserts)
+- Helper `_record_event(doc_id, type, actor, actor_name, note)`
+- Eventos auto-registrados: `created`, `certified`, `rejected`, `verified`, `downloaded`
+- Nuevo endpoint `GET /api/vault/documents/{doc_id}/history` → `{document, events[], count}` (asc por timestamp)
+- Frontend: botón "Historial" en cada DocCard + modal timeline con iconos coloreados (EVENT_META) y línea vertical estilo audit-trail
+
+**Mobile App "Coming Soon" page** (`pages/MobileAppPage.jsx`, ~290 líneas):
+- Ruta `/mobile-app` + entry en Sidebar
+- Hero gradient navy/cyan con pill "Próximamente · Q2 2026" y title "Tu banca **institucional**, en tu bolsillo"
+- **PhoneMockup**: réplica de un iPhone con notch, faux UI PayLionsBit (balance €48.250, quick-actions, chart svg, notification card)
+- **StoreBadges no-clickeables** estilo App Store + Google Play con badge "Próximamente" en esquina (`cursor-not-allowed`)
+- 6 **FeatureCards**: Gestión inversiones · Seguimiento expedientes · Conversión divisas · Alertas tiempo real · Acceso rápido · Seguridad banca privada
+- **Roadmap strip** con 4 etapas (Diseño ✓ · Desarrollo ✓ · Beta · Lanzamiento)
+- **Waitlist** con input email + estado de confirmación
+- Removida la `MobileAppSection` del Vault (ahora vive en su propia página)
+
+**Tests** (`tests/test_iter65_phase6.py`): **8/8 verde**
+- Verificación frontend: **12/12 selectores OK**
+
+
 ## Iteration 64 (May 30, 2026) — Fase 7 · Onboarding Tour Interactivo
 
 **Backend** (`routes/onboarding.py`, 5 endpoints, ~60 líneas): tracking server-side del progreso del tour para que sobreviva a logout/cambio de dispositivo.
