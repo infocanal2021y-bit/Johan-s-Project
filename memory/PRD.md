@@ -1,5 +1,41 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 58 (May 30, 2026) — Fase 1 · Cuenta Multidivisa + Conversor + Tasas Admin
+
+**Backend** (`routes/multicurrency.py`, 7 endpoints, ~330 líneas): nuevo módulo con wallet multi-divisa idempotente para 7 monedas (EUR, USD, GBP, DOP, MXN, COP, BTC). Modelo: `multi_currency_wallets {id, user_id, balances{...}, pending{...}, last_movement_at, created_at, updated_at}`. Auto-seed con el saldo EUR del checking actual del usuario al crear el wallet. Endpoints user:
+- `GET /multi-currency/accounts` — wallet enriquecido con metadata (símbolo, bandera, color, decimales) + `last_movement_at` por moneda
+- `GET /multi-currency/rates` — tabla en vivo `{base:'EUR', rates:{USD:1.08,...}, fee_pct_default:0.5, meta:{...}}` con overrides admin
+- `POST /multi-currency/preview {from_currency, to_currency, amount}` — devuelve `{rate, fee_pct, fee_amount, gross_out, amount_out, rate_at}` sin tocar saldos
+- `POST /multi-currency/convert` — ejecuta atómicamente con guardrail `$inc` condicional (rechaza 409 si el saldo cambió entre lectura y escritura), persiste fila en `currency_conversions` con referencia `CONV-YYMMDD-XXXXXX`, dispara notificación in-app + email transactional con tabla institucional BBVA-style
+- `GET /multi-currency/conversions?limit=50` — historial del usuario
+
+Endpoints admin:
+- `GET /admin/multi-currency/rates` — lista todas las monedas con `{currency, pair, rate, default_rate, is_override, updated_at, updated_by}`
+- `PUT /admin/multi-currency/rates/{currency} {rate}` — override manual (upsert en `exchange_rates_admin`)
+- `DELETE /admin/multi-currency/rates/{currency}` — reset a default
+- `GET /admin/multi-currency/conversions?limit=100` — log global de conversiones
+- `POST /admin/multi-currency/credit {user_id, currency, amount, note?}` — credit/debit manual con audit en `currency_conversions` (kind=`admin_credit|admin_debit`)
+
+Tasas por defecto (1 EUR =): USD 1.08 · GBP 0.85 · DOP 68.50 · MXN 22.10 · COP 4500 · BTC 0.000015. Comisión default 0.5% sobre el gross_out. Conversión via pivote EUR (`rate(A→B) = rate_to_eur(B) / rate_to_eur(A)`).
+
+**Frontend** 2 páginas nuevas:
+- `pages/MultiCurrencyWalletPage.jsx` (~370 líneas, ruta `/wallet/multi-currency`) — diseño Revolut/N26 style con: header navy + portfolio total estimado en EUR (suma de saldos convertidos), strip de tasas en vivo (6 cards con bandera + rate), grid responsive 1→4 columnas de `CurrencyCard` blanca (top accent bar color-coded, bandera + nombre + símbolo, status badge ACTIVA, saldo en 3xl tabular-nums, pendiente con icono Clock, último movimiento, botones `Convertir` cyan + `Retirar` outline disabled con tooltip "Próximamente Fase 2"). `ConvertModal` con preview debounced 350ms (`useDebounced`): selector de divisa destino, input monto con símbolo prefix, panel de preview que muestra monto/tasa/comisión/total a recibir en card slate-50 con borde, banner rose si saldo insuficiente, botones Cancelar + Confirmar con loader. Tabla de historial con todas las columnas (fecha es-ES, origen/destino con monto+moneda, tasa 6 decimales, comisión, recibido bold emerald, status badge, referencia con CopyRef button).
+- `pages/admin/AdminExchangeRatesPage.jsx` (~225 líneas, ruta `/admin/exchange-rates`) — tabla editable de 6 monedas con: input inline para cambiar la tasa (autoFocus + ring [#1973B8]), badge MANUAL/DEFAULT, mostrado de "updated_by", botones Editar/Guardar/Cancelar inline + Reset (window.confirm) cuando is_override=true. Sección inferior con log global de conversiones + filter dropdown por moneda. Refrescar manual + auto-refetch tras edit/reset.
+
+**Sidebar**: 2 enlaces nuevos en `Sidebar.jsx`:
+- "Cuenta Multidivisa" (icono Wallet) entre Wallet/Activos y Achievements
+- "Tasas Multidivisa" (icono RefreshCw) en bloque admin tras Desbloqueos 40%
+
+**Tests** (`tests/test_iter58_multicurrency.py`): **16/16 pytest verde** en 8.87s. 2 clases:
+- `TestUserWallet` (9 tests): auto-creación con 7 monedas · rates devuelve base EUR + 7 keys · preview math EUR→DOP exacta · rechazo same-currency · rechazo currency desconocida · rechazo amount≤0 · convert con saldo insuficiente · convert happy-path (deduct + credit + history) · atomic no-double-spend (2 calls de 80 EUR con 100 disponible → 1 ok + 1 error)
+- `TestAdminRates` (7 tests): list rates es admin-only (403 para users) · 6 monedas devueltas · PUT rate persiste override · PUT rechaza inválido (0/-1/string) · PUT rechaza EUR (base) · DELETE resetea a default · admin global conversion log
+
+**Regresión**: 37/37 verde combinado (iter55 + iter57 + iter58 en 27.23s).
+
+**Pendiente · Fase 2** (próxima iteración): Retiro a banco local con conversión + Timeline visual 5 etapas + Wizard 3 pasos (datos bancarios → resumen → confirmación con código email) + Admin cola de aprobación.
+
+---
+
 ## Iteration 57 (Feb 26, 2026) — Audit log + Wise removal verification
 
 **Backend (`routes/partial_unlock.py`)**: añadido helper `_audit_entry()` que construye filas de auditoría con `previous_status`, `new_status`, `at` (ISO UTC), `actor_role` (`user` | `admin` | `system`), `actor_id/email/name`, `note` y `extra` opcional (`payment_reference`, `tx_hash`, `amount_eur`, `priority_rank`, `max_withdraw_eur`). Cada `partial_withdraw_unlocks` doc ahora persiste el array `audit_log[]` en los 4 puntos de transición: creación (`/start` → `(None → pending_payment)` con nota "Solicitud creada"), pago completado (`/proof` → `(pending_payment → in_review)` con tx_hash + monto + priority_rank), aprobación admin (`/admin/.../approve` → `(in_review → approved)` con max_withdraw_eur + nota admin), rechazo admin (`/admin/.../reject` → `(in_review|pending_payment → rejected)` con nota obligatoria). Bug fix adicional: `GET /admin/partial-unlock/queue?status=all` ya no devolvía todos los registros (caía al else por la lógica `if status and status != 'all'`); corregido con `if status == 'all': pass`. Verificado vía curl (`all=7`, `in_review=0`).
