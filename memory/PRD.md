@@ -1,5 +1,31 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 67 (May 30, 2026) — Branding centralization
+
+**Backend single source** (`/app/backend/config.py`):
+```python
+SUPPORT_EMAIL    = env('SUPPORT_EMAIL',    'info@paylionsbit.es')
+SUPPORT_PHONE    = env('SUPPORT_PHONE',    '+447400757168')
+SUPPORT_WHATSAPP = env('SUPPORT_WHATSAPP', 'https://wa.me/447400757168')
+COMPANY_NAME     = env('COMPANY_NAME',     'PayLionsBit')
+COMPANY_WEBSITE  = env('COMPANY_WEBSITE',  'https://paylionsbit.es')
+BRANDING = {...}  # dict aggregator
+```
+Todas las constantes son configurables vía env sin redeploy.
+
+**Frontend single source** (`/app/frontend/src/config/branding.js`):
+- Exports: `SUPPORT_EMAIL`, `SUPPORT_PHONE`, `SUPPORT_WHATSAPP`, `COMPANY_NAME`, `COMPANY_WEBSITE`, `BRANDING`, `supportMailto(subject)`, `useBranding()`
+- Hook `useBranding()` hidrata desde `GET /api/branding` con fallback inmediato a defaults (sin Suspense/flicker)
+
+**Endpoint público** (`routes/branding.py`): `GET /api/branding` (sin auth) → permite cambiar contactos sin redeploy del bundle React.
+
+**Archivos refactorizados** (10 total):
+- Backend: `ai_assistant.py`, `mt5_coach.py`, `support.py`, `services/email.py`, `services/proof_forwarder.py`
+- Frontend: `ChatBot.jsx`, `OnboardingTour.jsx`, `AIAssistantWidget.jsx`, `MT5CoachWidget.jsx`, `CryptoPaymentSection.jsx`, `AdminJourneyAnalyticsPage.jsx`, `ForgotPasswordPage.jsx`
+
+**Reporte de validación**: ✅ 0 referencias obsoletas (`admi@`, `soporte@`, `support@`), ✅ 0 hardcodes restantes de `info@paylionsbit.es`, ✅ 0 hardcodes de teléfono. Preservados intencionalmente: ADMIN_ACCOUNTS seed (cuenta de login admin), tests fixtures, script `apply_real_deposits.py`.
+
+
 ## Iteration 66 (May 30, 2026) — Mobile launch promo · Dashboard banner + Command Center widget + Waitlist API
 
 **Banner Dashboard** (`components/dashboard/MobileAppBanner.jsx`, ~180 líneas):

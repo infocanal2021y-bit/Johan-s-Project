@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { safeApiCall } from '../../lib/diagnostics';
+import { SUPPORT_EMAIL } from '../../config/branding';
 
 const STAGE_COLORS = {
     registered:         'from-slate-600 to-slate-500',
@@ -67,7 +68,7 @@ const NUDGE_TEMPLATES = {
             'Vemos que tu solicitud de retiro está pendiente de revisión desde hace {hours_short}. ' +
             'Nuestro equipo de cumplimiento la está procesando y muy pronto recibirás novedades.\n\n' +
             'Si tienes alguna duda o información adicional para acelerar el proceso, ' +
-            'responde a este mensaje o contáctanos en info@paylionsbit.es.\n\n' +
+            `responde a este mensaje o contáctanos en ${SUPPORT_EMAIL}.\n\n` +
             'Gracias por tu paciencia.\n\nEquipo LIONSBIT',
     },
     withdraw_initiated: {
@@ -77,7 +78,7 @@ const NUDGE_TEMPLATES = {
             'Notamos que iniciaste un retiro hace {hours_short} pero todavía no hemos recibido tu comprobante. ' +
             'Para procesarlo necesitamos que subas el justificante de pago correspondiente.\n\n' +
             'Ingresa a tu panel y completa el último paso. Si tienes problemas con la subida, ' +
-            'escríbenos a info@paylionsbit.es y te ayudamos al instante.\n\n' +
+            `escríbenos a ${SUPPORT_EMAIL} y te ayudamos al instante.\n\n` +
             'Equipo LIONSBIT',
     },
 };

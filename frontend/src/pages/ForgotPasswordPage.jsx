@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Mail, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { AuthBackground } from '../components/auth/AuthBackground';
 import { AuthLogo } from '../components/auth/AuthLogo';
+import { SUPPORT_EMAIL } from '../config/branding';
 
 export const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
@@ -153,7 +154,7 @@ export const ForgotPasswordPage = () => {
                 </Card>
 
                 <p className="text-center text-slate-500 text-sm mt-6" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>
-                    ¿Necesitas ayuda? Contacta info@paylionsbit.es
+                    ¿Necesitas ayuda? Contacta {SUPPORT_EMAIL}
                 </p>
             </motion.div>
         </div>

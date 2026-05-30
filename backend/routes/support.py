@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import uuid
 import logging
 
-from config import db, SUPPORT_EMAILS
+from config import db, SUPPORT_EMAILS, SUPPORT_EMAIL
 from models import SupportTicket, PaymentIssueReport, TicketReply, KYCSubmission
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, create_admin_notification, log_system_activity
@@ -98,7 +98,7 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
             </tr>
         </table>
     """
-    send_email_background("info@paylionsbit.es", f"Nuevo Ticket de Soporte #{ticket_number} - {ticket.subject}", get_email_template(admin_email_content, "Nuevo Mensaje de Soporte"))
+    send_email_background(SUPPORT_EMAIL, f"Nuevo Ticket de Soporte #{ticket_number} - {ticket.subject}", get_email_template(admin_email_content, "Nuevo Mensaje de Soporte"))
     send_email_background("info@lionbit.es", f"Nuevo Ticket de Soporte #{ticket_number} - {ticket.subject}", get_email_template(admin_email_content, "Nuevo Mensaje de Soporte"))
     
     # Send confirmation email to user (background)
@@ -147,7 +147,7 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
             </tr>
         </table>
         <p style="color: #94a3b8; font-size: 14px;">Puede revisar el estado de su ticket desde la seccion de Soporte en la plataforma.</p>
-        <p style="color: #64748b; font-size: 12px;">Correos de soporte: info@lionbit.es | info@paylionsbit.es</p>
+        <p style="color: #64748b; font-size: 12px;">Correos de soporte: info@lionbit.es | {SUPPORT_EMAIL}</p>
     """
     send_email_background(current_user['email'], f"Solicitud recibida - Ticket #{ticket_number}", get_email_template(user_confirm_content, "Solicitud de Soporte Recibida"))
     
@@ -248,7 +248,7 @@ ID de Usuario: {current_user['id']}
         <p style="color:#e2e8f0;font-size:16px;">Estimado/a <strong style="color:#10b981;">{current_user['name']}</strong>,</p>
         <p style="color:#e2e8f0;">Su reporte de problema con pago ha sido recibido. Nuestro equipo de soporte se pondra en contacto con usted.</p>
         <p style="color:#94a3b8;font-size:14px;">Ticket: <strong style="color:#f59e0b;">{ticket_number}</strong></p>
-        <p style="color:#64748b;font-size:12px;">Correos de soporte: info@lionbit.es | info@paylionsbit.es</p>
+        <p style="color:#64748b;font-size:12px;">Correos de soporte: info@lionbit.es | {SUPPORT_EMAIL}</p>
     """, "Reporte de Pago Recibido"))
     
     return {'message': 'Su reporte ha sido enviado. La transaccion ha sido marcada como En Revision.', 'ticket_number': ticket_number}

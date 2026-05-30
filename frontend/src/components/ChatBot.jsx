@@ -3,9 +3,9 @@ import { MessageCircle, X, Send, Bot, User, Ticket, ArrowLeft, Loader2, Phone } 
 import { Button } from './ui/button';
 import { supportAPI } from '../lib/api';
 import { toast } from 'sonner';
+import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_WHATSAPP } from '../config/branding';
 
-const SUPPORT_PHONE = '+447400757168';
-const WHATSAPP_LINK = `https://wa.me/447400757168`;
+const WHATSAPP_LINK = SUPPORT_WHATSAPP;
 
 const FAQ_SUGGESTIONS = [
   '¿Cómo retiro mi dinero?',
@@ -44,7 +44,7 @@ const FAQ_RESPONSES = {
   },
   'soporte': {
     keywords: ['soporte', 'ayuda', 'contactar', 'problema', 'ticket', 'contacto', 'telefono', 'whatsapp', 'llamar', 'numero'],
-    answer: 'Puede contactarnos por estos medios:\n\n**WhatsApp/Teléfono:** +447400757168\n\n**Ticket de soporte:** Cree uno desde este chat o vaya a **Support** en el menú\n\n**Email:** info@paylionsbit.es\n\nNuestro equipo responderá lo antes posible.',
+    answer: `Puede contactarnos por estos medios:\n\n**WhatsApp/Teléfono:** ${SUPPORT_PHONE}\n\n**Ticket de soporte:** Cree uno desde este chat o vaya a **Support** en el menú\n\n**Email:** ${SUPPORT_EMAIL}\n\nNuestro equipo responderá lo antes posible.`,
     showContact: true
   },
   'transferencia': {
@@ -78,7 +78,7 @@ function findResponse(message) {
     return { text: bestMatch.answer, matched: true, showContact: !!bestMatch.showContact };
   }
   return {
-    text: 'No he encontrado una respuesta exacta a su pregunta. Puede crear un **ticket de soporte** o contactarnos por **WhatsApp** al +447400757168 para recibir atención personalizada.',
+    text: `No he encontrado una respuesta exacta a su pregunta. Puede crear un **ticket de soporte** o contactarnos por **WhatsApp** al ${SUPPORT_PHONE} para recibir atención personalizada.`,
     matched: false,
     showContact: true
   };

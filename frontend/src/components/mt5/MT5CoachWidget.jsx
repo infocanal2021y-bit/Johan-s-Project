@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../lib/api';
 import { Button } from '../ui/button';
 import { Sparkles, Send, X, Loader2, Bot, RotateCcw, MessageCircle } from 'lucide-react';
+import { SUPPORT_EMAIL } from '../../config/branding';
 
 const SUGGESTIONS = [
     '¿Por qué tarda mi depósito?',
@@ -77,7 +78,7 @@ export const MT5CoachWidget = () => {
         } catch (e) {
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                text: 'Disculpe, no he podido procesar su mensaje. Por favor inténtelo de nuevo o contacte a soporte info@paylionsbit.es',
+                text: `Disculpe, no he podido procesar su mensaje. Por favor inténtelo de nuevo o contacte a soporte ${SUPPORT_EMAIL}`,
             }]);
         } finally {
             setLoading(false);

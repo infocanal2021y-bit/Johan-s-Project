@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import resend
 import httpx
 
-from config import RESEND_API_KEY, SENDER_EMAIL, APP_BASE_URL, db
+from config import RESEND_API_KEY, SENDER_EMAIL, APP_BASE_URL, SUPPORT_EMAIL, db
 
 resend.api_key = RESEND_API_KEY
 
@@ -962,7 +962,7 @@ _PARTIAL_UNLOCK_EMAIL_COPY = {
             '</p>'
             '<p style="color:#cbd5e1;line-height:1.6;margin:0">'
             'Puedes iniciar una nueva solicitud cuando lo desees corrigiendo el punto observado. '
-            'Si tienes dudas, escríbenos a info@paylionsbit.es y un agente te ayudará personalmente.'
+            'Si tienes dudas, escríbenos a ' + SUPPORT_EMAIL + ' y un agente te ayudará personalmente.'
             '</p>'
         ),
     },
@@ -1001,7 +1001,7 @@ async def send_partial_unlock_status_email(
         <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px;">Hola {first_name},</p>
         {body}
         <p style="color: #64748b; line-height: 1.6; margin: 28px 0 0 0; font-size: 12px;">
-            Si no reconoces esta solicitud, contacta a <a href="mailto:info@paylionsbit.es" style="color:#10b981;text-decoration:none">info@paylionsbit.es</a> de inmediato.
+            Si no reconoces esta solicitud, contacta a <a href="mailto:{SUPPORT_EMAIL}" style="color:#10b981;text-decoration:none">{SUPPORT_EMAIL}</a> de inmediato.
         </p>
     """
     html = get_email_template(content, copy['title'])

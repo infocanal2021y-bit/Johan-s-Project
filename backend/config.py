@@ -20,6 +20,25 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@paylionsbit.es')
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'info@paylionsbit.es')
 
+# ═══════════════════════════════════════════════════════════════════
+#  CORPORATE BRANDING — single source of truth for user-facing info
+# ═══════════════════════════════════════════════════════════════════
+# Override any of these via environment variables in production
+# without touching the codebase.
+SUPPORT_EMAIL    = os.environ.get('SUPPORT_EMAIL',    'info@paylionsbit.es')
+SUPPORT_PHONE    = os.environ.get('SUPPORT_PHONE',    '+447400757168')
+SUPPORT_WHATSAPP = os.environ.get('SUPPORT_WHATSAPP', 'https://wa.me/447400757168')
+COMPANY_NAME     = os.environ.get('COMPANY_NAME',     'PayLionsBit')
+COMPANY_WEBSITE  = os.environ.get('COMPANY_WEBSITE',  'https://paylionsbit.es')
+
+BRANDING = {
+    'support_email':    SUPPORT_EMAIL,
+    'support_phone':    SUPPORT_PHONE,
+    'support_whatsapp': SUPPORT_WHATSAPP,
+    'company_name':     COMPANY_NAME,
+    'company_website':  COMPANY_WEBSITE,
+}
+
 # JWT Configuration
 JWT_SECRET = os.environ.get('JWT_SECRET', 'super-secret-banking-key-change-in-production')
 JWT_ALGORITHM = 'HS256'
@@ -51,11 +70,8 @@ RESTRICTED_BANK_TRANSFER_EMAILS = []
 # App base URL
 APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://paylionsbit.es')
 
-# Support emails
-SUPPORT_EMAILS = ['info@lionbit.es', 'info@paylionsbit.es']
-
-# Support phone (WhatsApp)
-SUPPORT_PHONE = '+447400757168'
+# Support emails (legacy aliases — prefer BRANDING['support_email'])
+SUPPORT_EMAILS = ['info@lionbit.es', SUPPORT_EMAIL]
 
 # Corporate Crypto Wallets (Fixed addresses for tax payments)
 CRYPTO_WALLETS = {
@@ -115,7 +131,7 @@ CHATBOT_FAQ = {
     },
     'soporte': {
         'keywords': ['soporte', 'ayuda', 'contactar', 'problema', 'ticket', 'telefono', 'whatsapp', 'llamar', 'numero'],
-        'answer': 'Puede contactarnos por estos medios:\n\n1) **WhatsApp/Telefono:** +447400757168\n2) **Ticket de soporte:** Cree uno desde este chat o en la seccion Support del menu\n3) **Email:** info@paylionsbit.es\n\nNuestro equipo respondera lo antes posible.'
+        'answer': f'Puede contactarnos por estos medios:\n\n1) **WhatsApp/Telefono:** {SUPPORT_PHONE}\n2) **Ticket de soporte:** Cree uno desde este chat o en la seccion Support del menu\n3) **Email:** {SUPPORT_EMAIL}\n\nNuestro equipo respondera lo antes posible.'
     }
 }
 

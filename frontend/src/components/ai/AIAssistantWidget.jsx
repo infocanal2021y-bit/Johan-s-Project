@@ -8,6 +8,7 @@ import {
     MessageCircle, X, Send, Sparkles, Loader2, RefreshCw, Plus,
     Bot, User as UserIcon, Trash2, ChevronLeft,
 } from 'lucide-react';
+import { SUPPORT_EMAIL } from '../../config/branding';
 
 const fmtTime = (iso) => !iso ? '' : new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -363,7 +364,7 @@ export const AIAssistantWidget = () => {
                                         </Button>
                                     </div>
                                     <p className="text-[9.5px] text-slate-600 mt-1.5 px-1">
-                                        ⚠ Información orientativa. Para casos críticos contacta a info@paylionsbit.es.
+                                        ⚠ Información orientativa. Para casos críticos contacta a {SUPPORT_EMAIL}.
                                     </p>
                                 </div>
                             </>

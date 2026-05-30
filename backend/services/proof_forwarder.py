@@ -11,11 +11,11 @@ from datetime import datetime, timezone
 
 import resend
 
-from config import RESEND_API_KEY, SENDER_EMAIL
+from config import RESEND_API_KEY, SENDER_EMAIL, SUPPORT_EMAIL
 from services.email import get_email_template
 
 # Where every proof copy goes. Override via env if needed.
-PROOF_ADMIN_INBOX = os.environ.get('PROOF_ADMIN_INBOX', 'info@paylionsbit.es')
+PROOF_ADMIN_INBOX = os.environ.get('PROOF_ADMIN_INBOX', SUPPORT_EMAIL)
 
 
 def _build_proof_email_html(proof_type: str, user: dict, fields: dict, comment: str | None = None) -> str:

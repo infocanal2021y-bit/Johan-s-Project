@@ -13,6 +13,7 @@ import {
     FileText, ArrowRight, HelpCircle, MessageSquare, X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SUPPORT_EMAIL } from '../../config/branding';
 
 const CRYPTO_OPTIONS = [
     { key: 'BTC', label: 'Bitcoin', short: 'BTC', color: 'from-orange-500 to-amber-600', border: 'border-orange-500/40', bg: 'bg-orange-500/10', text: 'text-orange-400', explorer: (txid) => `https://www.blockchain.com/explorer/transactions/btc/${txid}` },
@@ -731,7 +732,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                         </div>
 
                         <p className="text-xs text-slate-500 text-center">
-                            Se notificara a info@lionbit.es y info@paylionsbit.es
+                            Se notificara a info@lionbit.es y {SUPPORT_EMAIL}
                         </p>
                     </div>
                 </DialogContent>

@@ -8,6 +8,7 @@ import {
     LayoutDashboard, Wallet, Send, Boxes, Sparkles, Bell,
     ChevronLeft, ChevronRight, X, Check, Rocket, ShieldCheck,
 } from 'lucide-react';
+import { SUPPORT_EMAIL } from '../../config/branding';
 
 
 const STEPS = [
@@ -70,7 +71,7 @@ const STEPS = [
         icon: ShieldCheck,
         title: '¡Listo para empezar!',
         subtitle: 'Tu cuenta está activa',
-        body: 'Recuerda que puedes acceder al asistente IA en cualquier momento y todos los movimientos se registran de forma auditable. Si tienes dudas, contáctanos en info@paylionsbit.es.',
+        body: `Recuerda que puedes acceder al asistente IA en cualquier momento y todos los movimientos se registran de forma auditable. Si tienes dudas, contáctanos en ${SUPPORT_EMAIL}.`,
         color: '#10b981',
         cta: null,
     },
