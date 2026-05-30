@@ -363,7 +363,7 @@ export const AIAssistantWidget = () => {
                                         </Button>
                                     </div>
                                     <p className="text-[9.5px] text-slate-600 mt-1.5 px-1">
-                                        ⚠ Información orientativa. Para casos críticos contacta a admi@paylionsbit.es.
+                                        ⚠ Información orientativa. Para casos críticos contacta a info@paylionsbit.es.
                                     </p>
                                 </div>
                             </>

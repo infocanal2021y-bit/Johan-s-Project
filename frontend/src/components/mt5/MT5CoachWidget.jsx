@@ -77,7 +77,7 @@ export const MT5CoachWidget = () => {
         } catch (e) {
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                text: 'Disculpe, no he podido procesar su mensaje. Por favor inténtelo de nuevo o contacte a soporte@paylionsbit.es',
+                text: 'Disculpe, no he podido procesar su mensaje. Por favor inténtelo de nuevo o contacte a soporte info@paylionsbit.es',
             }]);
         } finally {
             setLoading(false);

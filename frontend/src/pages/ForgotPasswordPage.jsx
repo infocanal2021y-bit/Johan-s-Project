@@ -153,7 +153,7 @@ export const ForgotPasswordPage = () => {
                 </Card>
 
                 <p className="text-center text-slate-500 text-sm mt-6" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>
-                    ¿Necesitas ayuda? Contacta support@paylionsbit.es
+                    ¿Necesitas ayuda? Contacta info@paylionsbit.es
                 </p>
             </motion.div>
         </div>

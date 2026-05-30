@@ -70,7 +70,7 @@ const STEPS = [
         icon: ShieldCheck,
         title: '¡Listo para empezar!',
         subtitle: 'Tu cuenta está activa',
-        body: 'Recuerda que puedes acceder al asistente IA en cualquier momento y todos los movimientos se registran de forma auditable. Si tienes dudas, contáctanos en admi@paylionsbit.es.',
+        body: 'Recuerda que puedes acceder al asistente IA en cualquier momento y todos los movimientos se registran de forma auditable. Si tienes dudas, contáctanos en info@paylionsbit.es.',
         color: '#10b981',
         cta: null,
     },
