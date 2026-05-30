@@ -1,5 +1,52 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 61 (May 30, 2026) — Fase 4 · Vault Blockchain + App móvil próximamente
+
+**Backend** (`routes/vault.py`, 9 endpoints, ~260 líneas): módulo de custodia de documentos con cadena criptográfica de integridad SHA-256 simulada (lista para anclar a blockchain real en el futuro: Ethereum/Polygon/Hedera).
+
+Modelo `vault_documents`: `{id, user_id, user_email, user_name, name (≤200), category, mime, size_bytes, content_b64, sha256, chain_prev_hash, chain_index, status (pending|certified|rejected), certified_at, certified_by, certified_by_name, admin_note, created_at}`. 6 categorías soportadas: kyc, contract, proof, invoice, statement, other.
+
+**Cadena criptográfica**: cada doc nuevo se enlaza al anterior via `chain_prev_hash = SHA256(prev_chain_prev_hash + prev_sha256)`. El primer doc (genesis) usa `0...0` (64 ceros). Esto crea un Merkle-chain lineal donde cualquier modificación retro-activa del histórico se detecta automáticamente.
+
+Endpoints user:
+- `POST /vault/documents/upload {name, category, mime, content_b64}` — acepta raw base64 o data URI, max 8MB, recalcula SHA-256 server-side, devuelve `{document}` sin `content_b64`
+- `GET /vault/documents` — lista del usuario sin content (con `sha256_short` formateado)
+- `GET /vault/documents/{id}` — meta single
+- `GET /vault/documents/{id}/verify` — **detección de tampering**: recalcula SHA-256 del content_b64 almacenado y compara con `stored_hash`. Devuelve `{integrity_ok, computed_hash, stored_hash, chain_prev_hash, chain_index, certified_at, certified_by, verified_at}`
+- `GET /vault/documents/{id}/download` — devuelve data URI completo para preview/descarga
+- `GET /vault/chain/audit` — chain pública del usuario (sin content) en orden por `chain_index` ascendente
+
+Endpoints admin:
+- `GET /admin/vault/documents?status=...` — cola con counts por estado
+- `POST /admin/vault/documents/{id}/certify {note?}` — marca certified, notifica al user
+- `POST /admin/vault/documents/{id}/reject {note}` — note obligatoria, notifica al user
+
+**Frontend** (`pages/VaultBlockchainPage.jsx`, ~420 líneas, ruta `/wallet/vault`):
+
+Sección Vault: header con icon `Boxes` cyan + 4 KPIs (Total docs · Certificados · Pendientes · Eslabones cadena). Grid responsive 1→3 columnas de `DocCard` con avatar FileText + nombre/categoría/size/`#chain_index`, status badge color-coded, **HashChip copyable** (SHA-256 short + Eslabón anterior + fechas), botones inline Verificar + Ver/Descargar. Empty state con CTA. Upload modal con FileReader→base64, validación 8MB, selector de categoría, banner explicativo sobre SHA-256 + timestamp UTC inmutable.
+
+**Modal de verificación**: recalcula hash y muestra:
+- Banner emerald "Integridad verificada ✓" si match → "El documento no ha sido alterado"
+- Banner rose "⚠ Manipulación detectada" si no match → "El documento ha sido manipulado"
+- HashChip almacenado vs recalculado lado a lado
+- Eslabón cadena + timestamp verificación
+
+Sección **Aplicación móvil PRÓXIMAMENTE**: 3 cards con icons distintos (Apple white, Smartphone emerald, Bell amber), glow effect circular en hover, badges "PRÓXIMAMENTE" con icon Clock, taglines "App Store · iOS 16+", "Google Play · Android 10+", "Alertas en tiempo real".
+
+**Tests** (`tests/test_iter61_vault_blockchain.py`): **21/21 verde** en 33s. 6 clases:
+- `TestUploadValidation` (6): auth required, missing name, invalid category, empty/bad base64, >8MB rejected
+- `TestUploadAndChain` (3): SHA-256 correcto, acepta data URI, chain_prev_hash linkea correctamente
+- `TestVerify` (2): integrity_ok=true para limpio, **detecta tampering** después de modificar `content_b64` directamente en MongoDB
+- `TestListDownloadAudit` (3): list sin content_b64, download data URI roundtrip, chain audit ordenado
+- `TestAdmin` (6): admin-only, list con counts, certify marca campos, certify duplicada=400, reject sin note=400, reject con note persiste
+- `TestIsolation` (1): user B no puede acceder a docs de user A (404 en get/verify/download)
+
+**Regresión**: backend tests anteriores siguen verdes.
+
+**Pendiente · Fase 5** (última iteración): Financial Command Center (dashboard agregador unificado con multidivisa + documentos + expedientes + recordatorios + calendario + mensajes + IA + últimos movimientos + estado retiros).
+
+---
+
 ## Iteration 60 (May 30, 2026) — Fase 3 · Asistente IA 24/7 (Claude Sonnet 4.6)
 
 **Backend** (`routes/ai_assistant.py`, 5 endpoints, ~250 líneas) usando **Claude Sonnet 4.6** (`claude-sonnet-4-6` de Anthropic) vía Emergent Universal Key con la librería `emergentintegrations.llm.chat.LlmChat`.

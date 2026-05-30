@@ -75,6 +75,7 @@ import ForcePasswordChangePage from "./pages/ForcePasswordChangePage";
 import MT5Page from "./pages/MT5Page";
 import MultiCurrencyWalletPage from "./pages/MultiCurrencyWalletPage";
 import BankWithdrawalPage from "./pages/BankWithdrawalPage";
+import VaultBlockchainPage from "./pages/VaultBlockchainPage";
 import AdminExchangeRatesPage from "./pages/admin/AdminExchangeRatesPage";
 import AdminBankWithdrawalsPage from "./pages/admin/AdminBankWithdrawalsPage";
 
@@ -168,6 +169,7 @@ function AppRoutes() {
             <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
             <Route path="/wallet/multi-currency" element={<ProtectedRoute><MultiCurrencyWalletPage /></ProtectedRoute>} />
             <Route path="/wallet/bank-withdrawal" element={<ProtectedRoute><BankWithdrawalPage /></ProtectedRoute>} />
+            <Route path="/wallet/vault" element={<ProtectedRoute><VaultBlockchainPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
