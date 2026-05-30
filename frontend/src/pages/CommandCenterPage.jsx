@@ -12,6 +12,7 @@ import {
     TrendingUp, FileText, AlertCircle, Unlock, ArrowUpRight, ArrowRight,
     Loader2, Activity, Globe,
 } from 'lucide-react';
+import { MobileAppWidget } from '../components/command-center/MobileAppWidget';
 
 const fmt = (n, d = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtDate = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', {
@@ -526,6 +527,7 @@ const CommandCenterPage = () => {
                     {/* Right col: notifications + KYC + activity + quick links */}
                     <div className="space-y-4">
                         <NotificationsWidget data={data.notifications} />
+                        <MobileAppWidget />
                         <KYCWidget user={data.user} />
                         <Activity24h activity={data.activity_24h} />
                         <QuickLinks />

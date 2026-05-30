@@ -1,5 +1,32 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 66 (May 30, 2026) — Mobile launch promo · Dashboard banner + Command Center widget + Waitlist API
+
+**Banner Dashboard** (`components/dashboard/MobileAppBanner.jsx`, ~180 líneas):
+- Wide horizontal banner inyectado en `DashboardPage.jsx` justo después de los banners de estado (cuenta/KYC)
+- Hero: pill "Próximamente · Q2 2026", título grande con degradado cyan→emerald
+- Phone mockup compacto (180×360) con: balance €48.250, quick-actions, gráfico SVG, 3 mini-cards multidivisa (USD/GBP/MXN), notificación "Conversión USD→EUR ✓"
+- 4 feature pills + 2 store badges no clickeables + CTA "Más info →" → `/mobile-app`
+
+**Widget compacto Command Center** (`components/command-center/MobileAppWidget.jsx`, ~150 líneas):
+- Ubicado en columna derecha del `/command-center` entre Notifications y KYC
+- Card oscura premium con blobs cyan/emerald, header con icon Smartphone + pill "Próximamente"
+- 4 features con checkmarks + iconos por color: Inversiones (verde) · Multidivisa (cyan) · Alertas Push (amber) · Seguimiento expedientes (violeta)
+- 2 store badges (App Store + Google Play) en estado "Coming Soon" no clickeables
+- CTA "Notifícame cuando esté disponible" → POST `/api/mobile-app/waitlist/register`
+- Estado "Ya estás en la lista" (verde, CheckCircle2) si ya registrado · auto-detectado vía `GET /status` en mount
+- Link inferior "Conocer más detalles →" a `/mobile-app`
+
+**Waitlist API** (`routes/mobile_app.py`, ~100 líneas):
+- Colección: `mobile_app_waitlist` { id, user_id, email, name, source, notify_email, notify_push, ip, created_at, updated_at }
+- `GET /api/mobile-app/waitlist/status` → `{registered, since, source, notify_email, notify_push}`
+- `POST /api/mobile-app/waitlist/register` → idempotente (upsert por user_id, preserva `created_at` original). Body `{source, notify_email?, notify_push?}`. Email/nombre tomados del JWT del usuario (no se confía en el body)
+- `DELETE /api/mobile-app/waitlist/register` → permite desuscribir
+- `GET /api/admin/mobile-app/waitlist` → lista admin con count + total para gestionar el lanzamiento
+
+**Smoke tests curl**: status (empty) → register → already_registered=true en segundo POST → admin list devuelve 1 entry → delete OK. Frontend Playwright: widget renderiza, click en notify cambia a estado confirmado.
+
+
 ## Iteration 65 (May 30, 2026) — Phase 6 polish · Live FX rates + Vault history + Mobile App page
 
 **Live exchange rates API** (`services/exchange_rates_live.py`, ~150 líneas):
