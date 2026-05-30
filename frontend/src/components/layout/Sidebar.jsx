@@ -107,6 +107,7 @@ export const Sidebar = () => {
         { to: '/wallet/multi-currency', icon: Wallet, label: 'Cuenta Multidivisa' },
         { to: '/wallet/bank-withdrawal', icon: Send, label: 'Retiro a Banco' },
         { to: '/wallet/vault', icon: Boxes, label: 'Vault Blockchain' },
+        { to: '/notifications', icon: Bell, label: 'Centro de Notificaciones' },
         { to: '/achievements', icon: Trophy, label: 'Logros' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
         { to: '/support', icon: HeadphonesIcon, label: 'Support' },

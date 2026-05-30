@@ -1,5 +1,70 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 63 (May 30, 2026) — Fase 6 · Banking Experience Premium
+
+**Centro de Notificaciones dedicado** (`/notifications`) era el único hueco real de la lista del usuario. Implementado + polish premium sobre módulos previos.
+
+### Backend (`routes/notifications.py` extendido, +120 líneas)
+
+Nuevo endpoint `GET /notifications/center` con auto-categorización heurística por keywords:
+- `transactions` (verde): retiro, withdraw, transferencia, conversión, R40
+- `documents` (cyan): documento, vault, certificado, hash, KYC
+- `messages` (violeta): mensaje, difusión, broadcast
+- `expediente` (ámbar): expediente, verificación, estado, aprobado, rechazado
+- `system` (gris): fallback
+
+Soporta filtros `category`, `unread_only`, paginación `limit/offset`. Devuelve **payload enriquecido**: `{items, grouped_by_day, counts_by_category, total, unread_total, category_meta, category_filter}`. El grouping usa key `YYYY-MM-DD UTC` ordenado DESC.
+
+Otros endpoints añadidos/mejorados:
+- `PUT /notifications/read-all` ahora devuelve `{updated: count}` para feedback al usuario
+- `DELETE /notifications/{id}` — elimina notificación individual (404 si no es del user)
+- `PUT /notifications/{id}/read` ahora es **idempotente** (200 si ya estaba leída en lugar de 404)
+
+### Frontend
+
+**`pages/NotificationsCenterPage.jsx`** (~250 líneas) — ruta `/notifications`. Header con stats live ("548 totales · 290 sin leer" o "Todo al día ✓"), 3 botones acción (toggle unread-only, refrescar, marcar todas), barra de filtros tab con icon Filter + counts inline, agrupamiento "Hoy"/"Ayer"/fecha completa con divider cyan vertical, list de notificaciones con:
+- Avatar color-coded por categoría (40px ring + bg con alpha 20)
+- Title bold para no leídas + message en slate-400
+- Pill badge a la derecha con categoría + timestamp HH:mm
+- Hover muestra botones inline: marcar leída (emerald CheckCheck) + eliminar (rose Trash2)
+- Punto cyan pulsante visible solo para no leídas
+- Empty state con icon Inbox + mensaje contextual según filtros activos
+
+**Bell dropdown actualizado**: footer ahora muestra link "Ver todas →" que navega al Centro completo. useNavigate import añadido.
+
+**Sidebar**: nuevo enlace "Centro de Notificaciones" (icon Bell) en bloque user después de Vault Blockchain.
+
+### Polish premium sobre módulos previos
+
+**`MultiCurrencyWalletPage.jsx`** — añadido componente `Sparkline` SVG inline (80x22px) en cada `CurrencyCard`. Pseudo-random determinístico por seed=currency code para que cada moneda tenga su "personalidad gráfica" consistente. Path con stroke 1.5px + fill gradient con stopOpacity 0.4→0. Color matches el accent de cada divisa. Look idéntico a Revolut/N26.
+
+### Tests (`tests/test_iter63_notifications_center.py`): **11/11 verde** en 14.88s
+
+- `TestNotificationsCenter` (6): auth required, shape del payload, categorización correcta (cada keyword mapea a su categoría), filter por category, filter unread_only con delta-counts (cuenta auto-welcome notif), grouped_by_day con detección del grupo "today"
+- `TestActions` (4): mark-all-read devuelve `updated` count, delete individual cascada, delete unknown=404, mark-read **idempotente** (segunda llamada también 200)
+- `TestIsolation` (1): user B no ve la notificación "Private" de user A
+
+### Verificación visual
+
+Screenshots confirman:
+- Centro de Notificaciones renderiza 548 totales + 290 sin leer + filtros con counts (2 transactions, 198 system, etc) + agrupamiento "HOY · 199" + iconos color-coded + hover actions
+- Cuenta Multidivisa con **sparklines color-coded** en cada una de las 7 tarjetas (EUR azul, USD verde, GBP violeta, DOP ámbar, MXN rojo, COP cyan, BTC naranja)
+
+### Acumulado de las 6 fases
+
+| Iter | Fase | Tests | Estado |
+|---|---|---|---|
+| 58 | Multidivisa + Conversor | 16 ✅ | Operativo |
+| 59 | Retiro a Banco + Timeline | 19 ✅ | Operativo |
+| 60 | Asistente IA Claude 4.6 | 14 ✅ | Operativo |
+| 61 | Vault Blockchain | 21 ✅ | Operativo |
+| 62 | Financial Command Center | 12 ✅ | Operativo |
+| 63 | Banking Premium + Centro Notif | 11 ✅ | Operativo |
+
+**Total: 93 tests añadidos · 0 regresiones en código existente.**
+
+---
+
 ## Iteration 62 (May 30, 2026) — Fase 5 · Financial Command Center [ÚLTIMA FASE COMPLETA]
 
 **Backend** (`routes/command_center.py`, 1 endpoint agregador, ~160 líneas): `GET /command-center/overview` consolida **9 secciones en una sola llamada** evitando waterfalls de N+1 requests al frontend.

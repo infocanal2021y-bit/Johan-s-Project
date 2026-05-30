@@ -21,6 +21,34 @@ const fmtDate = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', {
 });
 
 
+// ─── Mini sparkline (24h pseudo-trend visualization) ────────────
+const Sparkline = ({ seed, accent }) => {
+    // Deterministic pseudo-random pattern from seed (currency code) so each
+    // card has a consistent unique-looking shape. Pure visual polish.
+    const pts = [];
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff;
+    for (let i = 0; i < 20; i++) {
+        h = (h * 1103515245 + 12345) & 0x7fffffff;
+        pts.push(0.3 + (h % 1000) / 1000 * 0.6);
+    }
+    const w = 80, height = 22;
+    const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i / (pts.length - 1)) * w},${height - p * height}`).join(' ');
+    return (
+        <svg width={w} height={height} className="opacity-60">
+            <defs>
+                <linearGradient id={`spark-${seed}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor={accent} stopOpacity="0.4" />
+                    <stop offset="100%" stopColor={accent} stopOpacity="0" />
+                </linearGradient>
+            </defs>
+            <path d={`${path} L${w},${height} L0,${height} Z`} fill={`url(#spark-${seed})`} />
+            <path d={path} fill="none" stroke={accent} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    );
+};
+
+
 // ─── Currency Card (Revolut/N26-style) ────────────────────────────
 const CurrencyCard = ({ account, onConvert, onWithdraw }) => {
     const accent = account.color || '#1973B8';
@@ -58,7 +86,10 @@ const CurrencyCard = ({ account, onConvert, onWithdraw }) => {
                 </div>
 
                 <div>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Saldo disponible</p>
+                    <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Saldo disponible</p>
+                        <Sparkline seed={account.currency} accent={accent} />
+                    </div>
                     <p className="text-3xl font-bold tabular-nums tracking-tight mt-1" style={{ color: '#072146' }}>
                         {account.symbol}{fmt(account.balance, account.currency, account.decimals)}
                     </p>

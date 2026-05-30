@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info, DollarSign, Send, Image as ImageIcon, Download, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info, DollarSign, Send, Image as ImageIcon, Download, ExternalLink, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -48,6 +49,7 @@ const formatFullDate = (dateString) => {
 
 export const NotificationBell = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const isAdmin = user?.role === 'admin';
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -366,10 +368,17 @@ export const NotificationBell = () => {
 
                         {/* Footer */}
                         {notifications.length > 0 && (
-                            <div className="p-2.5 border-t border-slate-700 bg-slate-800/30">
-                                <p className="text-[11px] text-slate-600 text-center">
-                                    Ultimas {notifications.length} notificaciones
+                            <div className="p-2.5 border-t border-slate-700 bg-slate-800/30 flex items-center justify-between gap-2">
+                                <p className="text-[11px] text-slate-500">
+                                    Últimas {notifications.length}
                                 </p>
+                                <button
+                                    onClick={() => { setIsOpen(false); navigate('/notifications'); }}
+                                    className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                                    data-testid="notif-bell-view-all"
+                                >
+                                    Ver todas <ChevronRight className="w-3 h-3" />
+                                </button>
                             </div>
                         )}
                     </motion.div>
