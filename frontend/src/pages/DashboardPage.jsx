@@ -18,6 +18,7 @@ import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, Trend
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/LiveWithdrawals';
+import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -270,6 +271,9 @@ export const DashboardPage = () => {
                 {/* Status Banners */}
                 {getAccountStatusBanner()}
                 {getKYCBanner()}
+
+                {/* Mobile App "Coming Soon" promotional banner */}
+                <MobileAppBanner />
 
                 {/* Incomplete withdrawal journey banner (auto-hides if not applicable) */}
                 <IncompleteWithdrawBanner />
