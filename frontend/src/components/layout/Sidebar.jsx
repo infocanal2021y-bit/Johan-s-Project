@@ -54,6 +54,7 @@ import {
     Mail,
     Send,
     Boxes,
+    Sparkles,
     Share2,
     FileText,
     Server,
@@ -332,6 +333,20 @@ export const Sidebar = () => {
                 <div className="mb-2.5">
                     <LanguageSwitcher variant="sidebar" />
                 </div>
+                <Button
+                    variant="ghost"
+                    className="w-full justify-start text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 mb-1"
+                    onClick={async () => {
+                        try {
+                            const mod = await import('../onboarding/OnboardingTour');
+                            mod.triggerOnboardingTour();
+                        } catch (e) { /* silent */ }
+                    }}
+                    data-testid="retake-tour-btn"
+                >
+                    <Sparkles className="w-4 h-4 mr-2.5" />
+                    <span className="text-[12px]">Volver a ver el tour</span>
+                </Button>
                 <Button
                     variant="ghost"
                     className="w-full justify-start text-slate-300 hover:text-rose-300 hover:bg-rose-500/10"

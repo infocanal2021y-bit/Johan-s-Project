@@ -25,6 +25,7 @@ from routes.bank_withdrawals import router as bank_withdrawals_router
 from routes.ai_assistant import router as ai_assistant_router
 from routes.vault import router as vault_router
 from routes.command_center import router as command_center_router
+from routes.onboarding import router as onboarding_router
 
 
 def register_routes(api_router: APIRouter):
@@ -53,3 +54,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(ai_assistant_router, tags=["ai-assistant"])
     api_router.include_router(vault_router, tags=["vault"])
     api_router.include_router(command_center_router, tags=["command-center"])
+    api_router.include_router(onboarding_router, tags=["onboarding"])

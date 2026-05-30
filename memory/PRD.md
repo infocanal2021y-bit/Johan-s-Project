@@ -1,5 +1,64 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 64 (May 30, 2026) — Fase 7 · Onboarding Tour Interactivo
+
+**Backend** (`routes/onboarding.py`, 5 endpoints, ~60 líneas): tracking server-side del progreso del tour para que sobreviva a logout/cambio de dispositivo.
+
+Campos añadidos al doc `users`: `onboarding_completed_at` (ISO), `onboarding_dismissed` (bool), `onboarding_last_step` (int 0-50).
+
+Endpoints:
+- `GET /user/onboarding/status` — devuelve `{completed, dismissed, last_step, completed_at}`
+- `POST /user/onboarding/progress {step}` — persiste paso actual con clamping defensivo a [0, 50] e ignora input no-numérico
+- `POST /user/onboarding/complete` — marca completed_at
+- `POST /user/onboarding/dismiss` — marca dismissed (no auto-show pero sí mostrable manualmente)
+- `POST /user/onboarding/reset` — limpia los 3 campos (para "Volver a ver el tour")
+
+**Frontend** (`components/onboarding/OnboardingTour.jsx`, ~250 líneas): widget global montado en `Layout.jsx` para todo usuario autenticado.
+
+**Auto-show lógica**: en mount, llama a `/user/onboarding/status`. Si `!completed && !dismissed` → abre el modal en el `last_step` guardado. No molesta a usuarios que ya completaron o desestimaron.
+
+**7 pasos con iconos coloreados**:
+1. 🚀 **¡Bienvenido a LIONSBIT!** (Rocket cyan) — intro general
+2. 📊 **Financial Command Center** (LayoutDashboard cyan) — CTA "Abrir Command Center"
+3. 💼 **Cuenta multidivisa** (Wallet azul) — CTA "Ver mis divisas"
+4. 📤 **Retiro a banco local** (Send verde) — CTA "Iniciar retiro"
+5. 📦 **Vault Blockchain** (Boxes cyan) — CTA "Abrir Vault"
+6. ✨ **LIONS Assistant 24/7** (Sparkles violeta) — explica icon flotante
+7. 🛡️ **¡Listo para empezar!** (ShieldCheck verde) — outro con contacto admin
+
+**UI**: modal 400px gradient navy + ring cyan, blob de color difuso (de cada paso) en esquina, icon 64px con boxShadow del color del paso, subtitle uppercase tracking-wider, title 2xl bold, body 13px slate-300, CTA opcional outline cyan que cierra el tour y navega. Step indicators inferiores (dots que crecen al active 1.5px→6px, hover en pasos futuros, **clickeables** para saltar). Footer con "Saltar" (dismiss) + Atrás (si step>0) + Siguiente/Finalizar.
+
+**Atajos**:
+- `data-testid` en cada paso para QA
+- `triggerOnboardingTour()` helper exportado que hace reset + dispatch CustomEvent global → permite que **cualquier componente** invoque el tour
+- Sidebar agrega botón **"Volver a ver el tour"** (con icon Sparkles cyan) justo arriba de Logout — usa el helper
+
+**Animaciones**: backdrop fade, modal spring (damping 22, stiffness 260), icon scale-bounce al cambio de paso. Auto-cierre suave al completar.
+
+**Tests** (`tests/test_iter64_onboarding.py`): **9/9 verde** en 14.8s
+- `TestOnboarding`: auth required (4 endpoints), initial status, save progress + status update, clamping [0,50], handling bad input ("not-a-number" → 0), complete persiste completed_at, dismiss marca dismissed sin tocar completed, reset limpia los 3 campos, **full user journey end-to-end** (progreso 0→4 + complete)
+
+**Verificación visual**: tour disparado en sesión de admin via `window.dispatchEvent` muestra 3 capturas:
+- Step 1 "¡Bienvenido a LIONSBIT!" con Rocket + dot 1/7 + Siguiente (sin Atrás)
+- Step 3 "Cuenta multidivisa" con Wallet + CTA "Ver mis divisas →" + dots 3/7 + Atrás/Siguiente
+- Step 6 "LIONS Assistant 24/7" con Sparkles violeta + dots 6/7
+
+### Acumulado de las 7 fases
+
+| Iter | Fase | Tests |
+|---|---|---|
+| 58 | Multidivisa + Conversor | 16 ✅ |
+| 59 | Retiro Banco + Timeline | 19 ✅ |
+| 60 | IA Claude Sonnet 4.6 | 14 ✅ |
+| 61 | Vault Blockchain | 21 ✅ |
+| 62 | Command Center | 12 ✅ |
+| 63 | Banking Premium + Centro Notif | 11 ✅ |
+| 64 | Onboarding Tour | 9 ✅ |
+
+**Total: 102 tests · 0 regresiones · módulo bancario completo end-to-end con tour de bienvenida.**
+
+---
+
 ## Iteration 63 (May 30, 2026) — Fase 6 · Banking Experience Premium
 
 **Centro de Notificaciones dedicado** (`/notifications`) era el único hueco real de la lista del usuario. Implementado + polish premium sobre módulos previos.
