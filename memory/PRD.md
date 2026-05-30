@@ -1,5 +1,63 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 62 (May 30, 2026) — Fase 5 · Financial Command Center [ÚLTIMA FASE COMPLETA]
+
+**Backend** (`routes/command_center.py`, 1 endpoint agregador, ~160 líneas): `GET /command-center/overview` consolida **9 secciones en una sola llamada** evitando waterfalls de N+1 requests al frontend.
+
+Estructura del payload:
+1. `user`: id, name, email, kyc_status, is_verified, country, member_since
+2. `portfolio`: total_eur calculado sumando `balance / rate_to_eur(currency)` por cada moneda con saldo > 0, currencies ordenadas DESC por valor en EUR (top 6 retornadas), currency_count
+3. `withdrawals`: active (status NOT IN [completed, rejected]), recent (últimos 5), active_count
+4. `conversions`: recent (últimas 5)
+5. `vault`: counts por status (aggregation pipeline), total, certified, pending, recent (últimos 4 con sha256_short formateado)
+6. `partial_unlock`: si existe activo, enriquece con `paid_eur` (sum de payments), `pending_eur`, `progress_pct`
+7. `notifications`: 5 más recientes + `unread_count` total
+8. `ai_assistant`: session_count del usuario
+9. `activity_24h`: counts de conversiones / withdrawals / documents en últimas 24 horas
+10. `snapshot_at`: timestamp ISO del momento de la consulta
+
+**Frontend** (`pages/CommandCenterPage.jsx`, ~430 líneas, ruta `/command-center`):
+
+**Hero**: gradient navy con saludo personalizado `Hola, {nombre} 👋`, portfolio total EUR en 5xl tabular-nums, distribución de divisas con cards backdrop-blur (bandera + balance + ≈€EUR equiv), 2 CTAs Convertir/Retirar.
+
+**Grid 3-columnas responsive**:
+- Col izq: Widget `ActiveWithdrawals` (lista con Ref/from→to/banco/status pill) + `RecentConversions` (lista compacta con ArrowUpRight + fmtRelative time)
+- Col centro: `VaultWidget` (2 mini-KPIs certified/pending + lista de docs con status pill) + `PartialUnlockWidget` si activo (referencia + **progress bar animada con framer-motion** + paid/required) o `AIAssistantCard` fallback
+- Col der: `NotificationsWidget` con badge rojo "X nuevas" + lista de últimas 4 + `KYCWidget` (avatar verde/ámbar según `is_verified`) + `Activity24h` strip (3 contadores) + `QuickLinks` (4 botones)
+
+**Helpers reutilizables**:
+- `StatusPill` componente — usa color_meta unificado para 12+ status (withdrawals + partial_unlock + vault docs)
+- `Widget` wrapper con icon + título + action slot + padding configurable
+- `fmtRelative()` — "ahora", "hace 5m", "hace 2h", o fecha completa
+
+**Auto-refresh** cada 60 segundos via `setInterval` (cleanup en unmount). Refrescar manual con spinner. Loading state full-screen con Loader2 cyan.
+
+**Sidebar**: "Command Center" añadido como **primer item del menú** con `highlight: true` flag para futuro styling diferenciado.
+
+**Tests** (`tests/test_iter62_command_center.py`): **12/12 verde** en 19.25s. 3 clases:
+- `TestStructure` (7): requires auth, todas las top-level keys presentes, user/portfolio/withdrawals/vault/activity_24h shapes correctos
+- `TestPortfolioMath` (4): empty wallet → 0, EUR-only matches, mixed currencies suma correcta (USD 100 + EUR 100 → ~192.59 EUR), ordenamiento DESC por eur_equivalent
+- `TestIsolation` (1): user A y B ven solo sus datos
+
+**Regresión**: backend tests anteriores siguen verdes (sin tocar otros módulos).
+
+**Verificación visual**: smoke screenshot del admin muestra todos los widgets renderizando datos reales — portfolio €25,572.79 (EUR €24,585 + DOP RD$68,157.50), R40-ADMINLIONSBIT-E20455 con progress bar 0%, "244 nuevas" notificaciones, Actividad 24h: 1 conversión, Acceso rápido a Multidivisa/Retiro/Vault/Comunidad, sidebar con Command Center como primer item.
+
+---
+
+## 🎉 ESTADO DEL MÓDULO "Cuenta Multidivisa, Retiro con Conversión y Financial Command Center"
+
+**TODAS LAS 5 FASES COMPLETAS:**
+- ✅ Fase 1 (iter58): Cuenta Multidivisa 7 monedas + Conversor + Admin Rates
+- ✅ Fase 2 (iter59): Retiro a Banco Local + Timeline + Admin Queue + Refund
+- ✅ Fase 3 (iter60): Asistente IA 24/7 (Claude Sonnet 4.6) con contexto live
+- ✅ Fase 4 (iter61): Vault Blockchain (SHA-256 chain) + App Móvil próximamente
+- ✅ Fase 5 (iter62): Financial Command Center (dashboard agregador)
+
+**Total tests añadidos**: 82 (16 + 19 + 14 + 21 + 12) · 0 regresiones en módulos previos.
+
+---
+
 ## Iteration 61 (May 30, 2026) — Fase 4 · Vault Blockchain + App móvil próximamente
 
 **Backend** (`routes/vault.py`, 9 endpoints, ~260 líneas): módulo de custodia de documentos con cadena criptográfica de integridad SHA-256 simulada (lista para anclar a blockchain real en el futuro: Ethereum/Polygon/Hedera).

@@ -87,6 +87,7 @@ export const Sidebar = () => {
 
     // User links - split for blockchain insertion after Accounts
     const userLinksTop = [
+        { to: '/command-center', icon: LayoutDashboard, label: 'Command Center', highlight: true },
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
         { to: '/trading-bot', icon: Bot, label: 'Trading Bot' },

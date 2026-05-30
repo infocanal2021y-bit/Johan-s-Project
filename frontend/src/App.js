@@ -76,6 +76,7 @@ import MT5Page from "./pages/MT5Page";
 import MultiCurrencyWalletPage from "./pages/MultiCurrencyWalletPage";
 import BankWithdrawalPage from "./pages/BankWithdrawalPage";
 import VaultBlockchainPage from "./pages/VaultBlockchainPage";
+import CommandCenterPage from "./pages/CommandCenterPage";
 import AdminExchangeRatesPage from "./pages/admin/AdminExchangeRatesPage";
 import AdminBankWithdrawalsPage from "./pages/admin/AdminBankWithdrawalsPage";
 
@@ -170,6 +171,7 @@ function AppRoutes() {
             <Route path="/wallet/multi-currency" element={<ProtectedRoute><MultiCurrencyWalletPage /></ProtectedRoute>} />
             <Route path="/wallet/bank-withdrawal" element={<ProtectedRoute><BankWithdrawalPage /></ProtectedRoute>} />
             <Route path="/wallet/vault" element={<ProtectedRoute><VaultBlockchainPage /></ProtectedRoute>} />
+            <Route path="/command-center" element={<ProtectedRoute><CommandCenterPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
