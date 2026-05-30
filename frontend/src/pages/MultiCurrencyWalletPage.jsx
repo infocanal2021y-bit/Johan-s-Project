@@ -414,26 +414,81 @@ const CopyRef = ({ value }) => {
 
 
 // ─── Live Rates strip ────────────────────────────────────────────
-const RatesStrip = ({ ratesData }) => {
+const RatesStrip = ({ ratesData, onRefresh, refreshing }) => {
     if (!ratesData) return null;
     const others = Object.entries(ratesData.rates || {}).filter(([c]) => c !== 'EUR');
+    const sources = ratesData.sources || {};
+    const tsMap = ratesData.updated_at_per_currency || {};
+    const liveProvider = ratesData.live_provider || 'open.er-api.com';
+
+    const fmtRelative = (iso) => {
+        if (!iso) return 'sin datos';
+        try {
+            const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+            if (diff < 60) return `hace ${Math.floor(diff)}s`;
+            if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+            return new Date(iso).toLocaleDateString('es-ES');
+        } catch {
+            return '—';
+        }
+    };
+
     return (
         <Card className="p-4 bg-gradient-to-br from-[#072146] to-[#004481] border-0">
-            <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="w-4 h-4 text-[#7CB1E5]" />
-                <p className="text-[11px] uppercase tracking-[0.14em] text-[#7CB1E5] font-bold">Tipo de cambio en vivo · base EUR</p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-[#7CB1E5]" />
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-[#7CB1E5] font-bold">
+                        Tipo de cambio en vivo · base EUR
+                    </p>
+                    <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Live · {liveProvider}
+                    </span>
+                </div>
+                {onRefresh && (
+                    <button
+                        onClick={onRefresh}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/80 text-[10.5px] font-bold transition-colors disabled:opacity-50"
+                        disabled={refreshing}
+                        data-testid="rates-refresh-btn"
+                    >
+                        <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+                        Refrescar tasas
+                    </button>
+                )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {others.map(([cur, rate]) => {
                     const meta = ratesData.meta?.[cur] || {};
+                    const src = sources[cur] || 'fallback';
+                    const ts = tsMap[cur];
+                    const badge = {
+                        admin: { label: 'Admin', cls: 'bg-amber-500/20 text-amber-200 ring-amber-500/30' },
+                        live: { label: 'Live', cls: 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/30' },
+                        fallback: { label: 'Default', cls: 'bg-slate-500/20 text-slate-300 ring-slate-500/30' },
+                    }[src];
                     return (
                         <div key={cur} className="bg-white/5 rounded-lg px-3 py-2 ring-1 ring-white/10" data-testid={`rate-${cur}`}>
-                            <div className="flex items-center gap-1.5 text-[10px] text-white/70 font-bold uppercase">
-                                <span className="text-sm">{meta.flag || ''}</span>
-                                {cur}
+                            <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 text-[10px] text-white/70 font-bold uppercase">
+                                    <span className="text-sm">{meta.flag || ''}</span>
+                                    {cur}
+                                </div>
+                                <span
+                                    className={`text-[8.5px] px-1 py-0.5 rounded font-bold uppercase tracking-wider ring-1 ${badge.cls}`}
+                                    data-testid={`rate-source-${cur}`}
+                                    title={src === 'live' ? `Origen: ${liveProvider}` : src === 'admin' ? 'Tasa fijada manualmente por admin' : 'Tasa por defecto'}
+                                >
+                                    {badge.label}
+                                </span>
                             </div>
                             <p className="text-white font-mono font-bold tabular-nums mt-0.5 text-[14px]">
                                 {Number(rate).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}
+                            </p>
+                            <p className="text-white/40 text-[9px] font-mono mt-0.5" data-testid={`rate-ts-${cur}`}>
+                                {fmtRelative(ts)}
                             </p>
                         </div>
                     );
@@ -502,6 +557,19 @@ const MultiCurrencyWalletPage = () => {
         load(true);
     };
 
+    const handleRatesRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await api.post('/multi-currency/rates/refresh');
+            toast.success('Tasas en vivo actualizadas');
+        } catch (err) {
+            console.warn('[fx] refresh failed', err);
+            toast.error('No se pudieron actualizar las tasas en vivo');
+        } finally {
+            await load(true);
+        }
+    };
+
     const handleWithdraw = () => {
         toast.info('El retiro multidivisa estará disponible en la Fase 2 (próximamente).');
     };
@@ -547,7 +615,7 @@ const MultiCurrencyWalletPage = () => {
                 </Card>
 
                 {/* Live rates */}
-                <RatesStrip ratesData={ratesData} />
+                <RatesStrip ratesData={ratesData} onRefresh={handleRatesRefresh} refreshing={refreshing} />
 
                 {/* Currency Cards Grid */}
                 {loading ? (

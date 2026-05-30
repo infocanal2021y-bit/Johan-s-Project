@@ -1,13 +1,13 @@
-"""Vault Blockchain · Fase 4.
+"""Vault Blockchain · Fase 4 (+ historial de eventos · Fase 6 ajuste).
 
 Simulated blockchain certification for user documents. Each upload generates
 an immutable SHA-256 hash + timestamp + an audit chain that links to the
 previous document via `chain_prev_hash`, creating a tamper-evident ledger.
 
-In production this would be anchored to a real blockchain (Ethereum, Polygon,
-Hedera Hashgraph). For now, the audit chain proves integrity locally:
-recomputing the hash of any record's content + prev_hash and comparing to
-the stored value detects any tampering.
+Architecture is prepared for a future real-blockchain integration (Ethereum,
+Polygon, Hedera). All certifications already produce SHA-256 + chain links;
+adding an on-chain anchor would simply require persisting a TX hash on the
+`vault_documents` row alongside the existing `sha256` field.
 
 Status flow: `pending → certified | rejected` (admin-controlled).
 
@@ -15,6 +15,8 @@ Collections:
 - vault_documents: {id, user_id, name, category, mime, size_bytes,
   content_b64, sha256, chain_prev_hash, chain_index, status, certified_at,
   certified_by, admin_note, created_at}
+- vault_document_events: per-document timeline {doc_id, type, at, actor,
+  actor_name, note}
 """
 import base64
 import hashlib
@@ -45,6 +47,22 @@ def _now_iso():
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+async def _record_event(doc_id: str, event_type: str, actor_email: str, actor_name: str, note: str = None):
+    """Append an event row to the per-document audit trail."""
+    try:
+        await db.vault_document_events.insert_one({
+            'id': str(uuid.uuid4()),
+            'doc_id': doc_id,
+            'type': event_type,        # created · certified · rejected · verified · downloaded
+            'at': _now_iso(),
+            'actor': actor_email,
+            'actor_name': actor_name,
+            'note': (note or None),
+        })
+    except Exception as e:
+        log.warning("[vault] failed to log event %s on %s: %s", event_type, doc_id, e)
 
 
 def _decode_b64(b64: str) -> bytes:
@@ -128,6 +146,12 @@ async def upload_document(payload: dict, user: dict = Depends(get_current_user))
     }
     await db.vault_documents.insert_one(doc)
 
+    await _record_event(
+        doc['id'], 'created',
+        user.get('email'), user.get('name') or user.get('email'),
+        note=f"Documento '{name}' subido al Vault · SHA-256 generado",
+    )
+
     # Return without content for lightweight responses
     response_doc = {k: v for k, v in doc.items() if k != 'content_b64'}
     response_doc.pop('_id', None)
@@ -173,8 +197,14 @@ async def verify_document(doc_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(404, 'Documento no encontrado')
     raw = base64.b64decode(doc['content_b64'])
     computed = _sha256(raw)
+    integrity_ok = computed == doc['sha256']
+    await _record_event(
+        doc_id, 'verified',
+        user.get('email'), user.get('name') or user.get('email'),
+        note='Integridad verificada ✓' if integrity_ok else 'Integridad NO coincide ⚠',
+    )
     return {
-        'integrity_ok': computed == doc['sha256'],
+        'integrity_ok': integrity_ok,
         'computed_hash': computed,
         'stored_hash': doc['sha256'],
         'chain_prev_hash': doc.get('chain_prev_hash'),
@@ -191,11 +221,43 @@ async def download_document(doc_id: str, user: dict = Depends(get_current_user))
     doc = await db.vault_documents.find_one({'id': doc_id, 'user_id': user['id']})
     if not doc:
         raise HTTPException(404, 'Documento no encontrado')
+    await _record_event(
+        doc_id, 'downloaded',
+        user.get('email'), user.get('name') or user.get('email'),
+        note='Documento descargado por el usuario',
+    )
     return {
         'name': doc['name'],
         'mime': doc['mime'],
         'data_uri': f"data:{doc['mime']};base64,{doc['content_b64']}",
         'size_bytes': doc['size_bytes'],
+    }
+
+
+@router.get("/vault/documents/{doc_id}/history")
+async def document_history(doc_id: str, user: dict = Depends(get_current_user)):
+    """Returns the full audit trail (events) for a single document, oldest first.
+
+    Each entry: `{type, at, actor, actor_name, note}`. Only the document owner
+    (or any future admin extension) can view this.
+    """
+    doc = await db.vault_documents.find_one(
+        {'id': doc_id, 'user_id': user['id']},
+        {'_id': 0, 'id': 1, 'name': 1, 'status': 1, 'sha256': 1,
+         'chain_index': 1, 'created_at': 1, 'certified_at': 1, 'certified_by': 1},
+    )
+    if not doc:
+        raise HTTPException(404, 'Documento no encontrado')
+
+    cur = db.vault_document_events.find(
+        {'doc_id': doc_id},
+        {'_id': 0},
+    ).sort('at', 1)
+    events = await cur.to_list(length=200)
+    return {
+        'document': doc,
+        'events': events,
+        'count': len(events),
     }
 
 
@@ -242,6 +304,11 @@ async def admin_certify(doc_id: str, payload: dict, admin: dict = Depends(get_ad
             'admin_note': note,
         }},
     )
+    await _record_event(
+        doc_id, 'certified',
+        admin.get('email'), admin.get('name') or admin.get('email'),
+        note=note or 'Documento certificado e inmutabilizado en el Vault',
+    )
 
     try:
         await create_notification(
@@ -276,6 +343,11 @@ async def admin_reject(doc_id: str, payload: dict, admin: dict = Depends(get_adm
             'certified_by': admin.get('email'),
             'admin_note': note,
         }},
+    )
+    await _record_event(
+        doc_id, 'rejected',
+        admin.get('email'), admin.get('name') or admin.get('email'),
+        note=note,
     )
     try:
         await create_notification(

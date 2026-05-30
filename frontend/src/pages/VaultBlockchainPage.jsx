@@ -7,8 +7,8 @@ import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import {
     ShieldCheck, Upload, FileText, Hash, Clock, CheckCircle2, XCircle,
-    Loader2, AlertTriangle, Copy, Check, Eye, Smartphone, Apple, Bell,
-    Lock, Link2, RefreshCw, Boxes,
+    Loader2, AlertTriangle, Copy, Check, Eye, History,
+    Lock, RefreshCw, Boxes, FileClock, Download as DownloadIcon, Pencil,
 } from 'lucide-react';
 
 
@@ -34,6 +34,15 @@ const STATUS_META = {
     pending:   { label: 'Pendiente certificación', color: '#f59e0b', icon: Clock },
     certified: { label: 'Certificado',              color: '#10b981', icon: CheckCircle2 },
     rejected:  { label: 'Rechazado',                color: '#ef4444', icon: XCircle },
+};
+
+const EVENT_META = {
+    created:    { label: 'Documento subido',    color: '#06b6d4', icon: Upload },
+    certified:  { label: 'Certificado por Admin', color: '#10b981', icon: ShieldCheck },
+    rejected:   { label: 'Rechazado por Admin', color: '#ef4444', icon: XCircle },
+    verified:   { label: 'Integridad verificada', color: '#a855f7', icon: CheckCircle2 },
+    downloaded: { label: 'Documento descargado', color: '#f59e0b', icon: DownloadIcon },
+    updated:    { label: 'Metadatos actualizados', color: '#94a3b8', icon: Pencil },
 };
 
 
@@ -203,7 +212,7 @@ const UploadModal = ({ onClose, onUploaded }) => {
 
 
 // ─── Document Card ───────────────────────────────────────────────
-const DocCard = ({ doc, onVerify, onDownload }) => {
+const DocCard = ({ doc, onVerify, onDownload, onHistory }) => {
     const meta = STATUS_META[doc.status] || STATUS_META.pending;
     const SI = meta.icon;
     return (
@@ -270,11 +279,20 @@ const DocCard = ({ doc, onVerify, onDownload }) => {
                 <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => onHistory(doc)}
+                    className="h-7 px-2 text-[10.5px] flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                    data-testid={`vault-history-${doc.id}`}
+                >
+                    <FileClock className="w-3 h-3 mr-1" /> Historial
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => onDownload(doc)}
                     className="h-7 px-2 text-[10.5px] flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
                     data-testid={`vault-download-${doc.id}`}
                 >
-                    <Eye className="w-3 h-3 mr-1" /> Ver / Descargar
+                    <Eye className="w-3 h-3 mr-1" /> Ver
                 </Button>
             </div>
         </motion.div>
@@ -282,46 +300,7 @@ const DocCard = ({ doc, onVerify, onDownload }) => {
 };
 
 
-// ─── Mobile app coming-soon cards ────────────────────────────────
-const MobileAppSection = () => {
-    const cards = [
-        { icon: Apple, name: 'iPhone & iPad', tag: 'App Store · iOS 16+', color: '#ffffff' },
-        { icon: Smartphone, name: 'Android', tag: 'Google Play · Android 10+', color: '#10b981' },
-        { icon: Bell, name: 'Notificaciones Push', tag: 'Alertas en tiempo real', color: '#f59e0b' },
-    ];
-    return (
-        <div>
-            <div className="flex items-center justify-between mb-3">
-                <h2 className="text-white text-lg font-bold flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-cyan-300" />
-                    Aplicación móvil <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold uppercase tracking-wider">Próximamente</span>
-                </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {cards.map((c, i) => (
-                    <motion.div
-                        key={c.name}
-                        initial={{ opacity: 0, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/80 to-slate-950 ring-1 ring-slate-800 hover:ring-cyan-500/40 p-5 transition-all group"
-                        data-testid={`mobile-card-${c.name.toLowerCase().split(' ')[0]}`}
-                    >
-                        <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-10 blur-2xl transition-opacity group-hover:opacity-30" style={{ background: c.color }} />
-                        <div className="relative">
-                            <c.icon className="w-9 h-9 mb-3" style={{ color: c.color }} />
-                            <p className="text-white font-bold text-[15px]">{c.name}</p>
-                            <p className="text-slate-400 text-[11.5px] mt-1">{c.tag}</p>
-                            <div className="mt-4 inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800/80 text-slate-300 text-[10px] font-bold uppercase tracking-wider">
-                                <Clock className="w-2.5 h-2.5" /> Próximamente
-                            </div>
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
-        </div>
-    );
-};
+// ─── Mobile app section has moved to a dedicated page: /mobile-app
 
 
 // ─── Main Page ────────────────────────────────────────────────────
@@ -331,6 +310,7 @@ const VaultBlockchainPage = () => {
     const [loading, setLoading] = useState(true);
     const [showUpload, setShowUpload] = useState(false);
     const [verifyFor, setVerifyFor] = useState(null);
+    const [historyFor, setHistoryFor] = useState(null);
 
     const load = useCallback(async () => {
         try {
@@ -371,6 +351,17 @@ const VaultBlockchainPage = () => {
             a.click();
         } catch (err) {
             toast.error('No se pudo descargar');
+        }
+    };
+
+    const handleHistory = async (doc) => {
+        setHistoryFor({ doc, events: null, loading: true });
+        try {
+            const r = await api.get(`/vault/documents/${doc.id}/history`);
+            setHistoryFor({ doc: r.data.document, events: r.data.events, loading: false });
+        } catch (err) {
+            toast.error('No se pudo cargar el historial');
+            setHistoryFor(null);
         }
     };
 
@@ -443,13 +434,12 @@ const VaultBlockchainPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="vault-docs-grid">
                         {docs.map(d => (
-                            <DocCard key={d.id} doc={d} onVerify={handleVerify} onDownload={handleDownload} />
+                            <DocCard key={d.id} doc={d} onVerify={handleVerify} onDownload={handleDownload} onHistory={handleHistory} />
                         ))}
                     </div>
                 )}
 
-                {/* Mobile app section */}
-                <MobileAppSection />
+                {/* Mobile app section moved to dedicated /mobile-app page */}
             </div>
 
             {showUpload && <UploadModal onClose={() => setShowUpload(false)} onUploaded={load} />}
@@ -511,6 +501,65 @@ const VaultBlockchainPage = () => {
                                 </>
                             )}
                             <Button onClick={() => setVerifyFor(null)} className="w-full bg-slate-800 hover:bg-slate-700 text-white">
+                                Cerrar
+                            </Button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* History timeline modal */}
+            {historyFor && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setHistoryFor(null)} data-testid="vault-history-modal">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="w-full max-w-lg bg-gradient-to-br from-[#0a1628] via-slate-950 to-slate-950 rounded-2xl ring-1 ring-cyan-500/30 shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-5 py-4 border-b border-slate-800 bg-gradient-to-r from-[#072146] to-[#004481]">
+                            <p className="text-[10px] uppercase tracking-wider text-cyan-300 font-bold">Historial del documento</p>
+                            <h3 className="text-white text-base font-bold mt-0.5 truncate">{historyFor.doc.name}</h3>
+                            <p className="text-slate-300 text-[10.5px] font-mono mt-0.5">
+                                #{historyFor.doc.chain_index} · {historyFor.doc.sha256?.slice(0, 12)}…
+                            </p>
+                        </div>
+                        <div className="p-5 max-h-[60vh] overflow-y-auto">
+                            {historyFor.loading ? (
+                                <div className="text-center py-8 text-slate-400"><Loader2 className="w-6 h-6 mx-auto animate-spin" /></div>
+                            ) : !historyFor.events || historyFor.events.length === 0 ? (
+                                <p className="text-center text-slate-400 text-sm py-6">Sin eventos registrados todavía.</p>
+                            ) : (
+                                <ol className="relative border-l-2 border-slate-800 ml-2 space-y-4">
+                                    {historyFor.events.map((ev) => {
+                                        const meta = EVENT_META[ev.type] || EVENT_META.created;
+                                        const EI = meta.icon;
+                                        return (
+                                            <li key={ev.id} className="ml-4 pl-2" data-testid={`vault-history-event-${ev.type}`}>
+                                                <span
+                                                    className="absolute -left-3 w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-slate-950"
+                                                    style={{ background: meta.color + '25' }}
+                                                >
+                                                    <EI className="w-3 h-3" style={{ color: meta.color }} />
+                                                </span>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="font-bold text-[12.5px]" style={{ color: meta.color }}>{meta.label}</p>
+                                                    <span className="text-slate-500 text-[10px] font-mono">{fmtDate(ev.at)}</span>
+                                                </div>
+                                                <p className="text-slate-300 text-[11.5px] mt-0.5">
+                                                    {ev.actor_name || ev.actor || 'Sistema'}
+                                                </p>
+                                                {ev.note && (
+                                                    <p className="text-slate-400 text-[10.5px] italic mt-1 border-l-2 border-slate-800 pl-2">
+                                                        "{ev.note}"
+                                                    </p>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
+                            )}
+                            <Button onClick={() => setHistoryFor(null)} className="w-full mt-5 bg-slate-800 hover:bg-slate-700 text-white">
                                 Cerrar
                             </Button>
                         </div>

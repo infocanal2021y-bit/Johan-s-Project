@@ -78,6 +78,7 @@ import BankWithdrawalPage from "./pages/BankWithdrawalPage";
 import VaultBlockchainPage from "./pages/VaultBlockchainPage";
 import CommandCenterPage from "./pages/CommandCenterPage";
 import NotificationsCenterPage from "./pages/NotificationsCenterPage";
+import MobileAppPage from "./pages/MobileAppPage";
 import AdminExchangeRatesPage from "./pages/admin/AdminExchangeRatesPage";
 import AdminBankWithdrawalsPage from "./pages/admin/AdminBankWithdrawalsPage";
 
@@ -174,6 +175,7 @@ function AppRoutes() {
             <Route path="/wallet/vault" element={<ProtectedRoute><VaultBlockchainPage /></ProtectedRoute>} />
             <Route path="/command-center" element={<ProtectedRoute><CommandCenterPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsCenterPage /></ProtectedRoute>} />
+            <Route path="/mobile-app" element={<ProtectedRoute><MobileAppPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />

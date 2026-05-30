@@ -24,6 +24,13 @@ from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
 from services.email import send_email_background, get_email_template
+from services.exchange_rates_live import (
+    get_live_rate,
+    get_all_live_rates,
+    refresh_live_rates,
+    LIVE_CURRENCIES,
+    LIVE_API_NAME,
+)
 
 
 router = APIRouter()
@@ -66,14 +73,53 @@ def _round(amount: float, currency: str) -> float:
 
 
 async def _get_rate_to_eur(currency: str) -> float:
-    """Returns how many `currency` units equal 1 EUR. Admin overrides win."""
+    """Returns how many `currency` units equal 1 EUR.
+    Resolution order: admin override → live API cache → hard-coded fallback.
+    """
     if currency == 'EUR':
         return 1.0
     pair = f'EUR_{currency}'
     doc = await db.exchange_rates_admin.find_one({'pair': pair}, {'_id': 0, 'rate': 1})
     if doc and doc.get('rate') and doc['rate'] > 0:
         return float(doc['rate'])
+    # Try live rates (cached, refreshed every 30 min)
+    if currency in LIVE_CURRENCIES:
+        live = await get_live_rate(currency)
+        if live and live.get('rate') and live['rate'] > 0:
+            return float(live['rate'])
     return float(DEFAULT_RATE_TO_EUR.get(currency, 1.0))
+
+
+async def _resolve_rate_with_meta(currency: str) -> dict:
+    """Like _get_rate_to_eur, but also returns the source + timestamp.
+
+    Returns: `{rate, source: 'admin'|'live'|'fallback', fetched_at, updated_by?}`
+    """
+    if currency == 'EUR':
+        return {'rate': 1.0, 'source': 'live', 'fetched_at': _now_iso()}
+    pair = f'EUR_{currency}'
+    doc = await db.exchange_rates_admin.find_one({'pair': pair}, {'_id': 0})
+    if doc and doc.get('rate') and doc['rate'] > 0:
+        return {
+            'rate': float(doc['rate']),
+            'source': 'admin',
+            'fetched_at': doc.get('updated_at'),
+            'updated_by': doc.get('updated_by'),
+        }
+    if currency in LIVE_CURRENCIES:
+        live = await get_live_rate(currency)
+        if live and live.get('rate') and live['rate'] > 0:
+            return {
+                'rate': float(live['rate']),
+                'source': 'live',
+                'fetched_at': live.get('fetched_at'),
+                'provider': live.get('source') or LIVE_API_NAME,
+            }
+    return {
+        'rate': float(DEFAULT_RATE_TO_EUR.get(currency, 1.0)),
+        'source': 'fallback',
+        'fetched_at': None,
+    }
 
 
 async def _convert_rate(from_cur: str, to_cur: str) -> float:
@@ -180,32 +226,60 @@ async def get_accounts(user: dict = Depends(get_current_user)):
 
 @router.get("/multi-currency/rates")
 async def get_rates(user: dict = Depends(get_current_user)):
-    """Live rates table (admin overrides win). Always relative to EUR=1.0.
-    Returned shape: `{rates: {USD: 1.08, ...}, updated_at_per_currency: {...}}`.
+    """Live rates table with provenance per currency.
+
+    Each entry contains: `{rate, source, fetched_at}` where source ∈
+    `'admin'` (manual override) · `'live'` (open.er-api.com cache) ·
+    `'fallback'` (hard-coded). Triggers a best-effort refresh of the live
+    cache if it has expired.
     """
-    out_rates = {}
-    overrides_ts = {}
-    docs = await db.exchange_rates_admin.find({}, {'_id': 0}).to_list(50)
-    by_pair = {d['pair']: d for d in docs if d.get('pair')}
+    # Best-effort refresh; non-blocking on failure
+    try:
+        await refresh_live_rates(force=False)
+    except Exception:
+        pass
+
+    out_rates: dict = {}
+    sources: dict = {}
+    overrides_ts: dict = {}
+    providers: dict = {}
+
     for c in SUPPORTED_CURRENCIES:
-        if c == 'EUR':
-            out_rates[c] = 1.0
-            continue
-        pair = f'EUR_{c}'
-        d = by_pair.get(pair)
-        if d and d.get('rate') and d['rate'] > 0:
-            out_rates[c] = float(d['rate'])
-            overrides_ts[c] = d.get('updated_at')
-        else:
-            out_rates[c] = float(DEFAULT_RATE_TO_EUR[c])
+        meta = await _resolve_rate_with_meta(c)
+        out_rates[c] = meta['rate']
+        sources[c] = meta['source']
+        if meta.get('fetched_at'):
+            overrides_ts[c] = meta['fetched_at']
+        if meta.get('provider'):
+            providers[c] = meta['provider']
+
+    # Find next refresh ETA (min expires_at across live cache)
+    next_refresh = None
+    live_rows = await db.exchange_rates_live.find(
+        {}, {'_id': 0, 'expires_at': 1}
+    ).sort('expires_at', 1).limit(1).to_list(1)
+    if live_rows:
+        next_refresh = live_rows[0].get('expires_at')
+
     return {
         'base': 'EUR',
         'rates': out_rates,
+        'sources': sources,
         'updated_at_per_currency': overrides_ts,
+        'providers': providers,
+        'live_provider': LIVE_API_NAME,
+        'next_refresh_at': next_refresh,
         'fee_pct_default': DEFAULT_FEE_PCT,
         'currencies': SUPPORTED_CURRENCIES,
         'meta': CURRENCY_META,
     }
+
+
+@router.post("/multi-currency/rates/refresh")
+async def refresh_rates(user: dict = Depends(get_current_user)):
+    """Force-refresh live FX cache. Throttled by upstream API; returns status."""
+    result = await refresh_live_rates(force=True)
+    return result
 
 
 @router.post("/multi-currency/preview")
