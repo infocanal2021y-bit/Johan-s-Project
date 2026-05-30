@@ -74,7 +74,9 @@ import { AdminEmailCampaignPage } from "./pages/admin/AdminEmailCampaignPage";
 import ForcePasswordChangePage from "./pages/ForcePasswordChangePage";
 import MT5Page from "./pages/MT5Page";
 import MultiCurrencyWalletPage from "./pages/MultiCurrencyWalletPage";
+import BankWithdrawalPage from "./pages/BankWithdrawalPage";
 import AdminExchangeRatesPage from "./pages/admin/AdminExchangeRatesPage";
+import AdminBankWithdrawalsPage from "./pages/admin/AdminBankWithdrawalsPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false, allowForcedChange = false }) => {
@@ -165,6 +167,7 @@ function AppRoutes() {
             <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
             <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
             <Route path="/wallet/multi-currency" element={<ProtectedRoute><MultiCurrencyWalletPage /></ProtectedRoute>} />
+            <Route path="/wallet/bank-withdrawal" element={<ProtectedRoute><BankWithdrawalPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />
@@ -191,6 +194,7 @@ function AppRoutes() {
             <Route path="/admin/mt5-invest" element={<ProtectedRoute adminOnly><AdminMT5InvestPage /></ProtectedRoute>} />
             <Route path="/admin/partial-unlock" element={<ProtectedRoute adminOnly><AdminPartialUnlockPage /></ProtectedRoute>} />
             <Route path="/admin/exchange-rates" element={<ProtectedRoute adminOnly><AdminExchangeRatesPage /></ProtectedRoute>} />
+            <Route path="/admin/bank-withdrawals" element={<ProtectedRoute adminOnly><AdminBankWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/client-import" element={<ProtectedRoute adminOnly><AdminClientImportPage /></ProtectedRoute>} />
             <Route path="/admin/client-import/analytics" element={<ProtectedRoute adminOnly><AdminClientImportAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/reactivation" element={<ProtectedRoute adminOnly><AdminReactivationOverviewPage /></ProtectedRoute>} />

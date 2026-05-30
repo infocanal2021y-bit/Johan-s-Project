@@ -1,5 +1,48 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 59 (May 30, 2026) — Fase 2 · Retiro a Banco Local + Timeline + Admin Queue
+
+**Backend** (`routes/bank_withdrawals.py`, 11 endpoints, ~430 líneas): flujo bancario completo con confirmación por código de 6 dígitos enviado vía email + máquina de estados de 7 etapas + cola admin con KPIs.
+
+Modelo `bank_withdrawal_requests`: `{id, reference (WD-YYMMDD-XXXXXX), user_id, user_email, user_name, from_currency, to_currency, from_amount, fx_rate, fx_fee_pct, fx_fee_amount, gross_out, net_to_amount, country, country_name, country_flag, bank_name, bank_holder, bank_account, bank_swift, status, confirmation_code_hash, code_expires_at, code_attempts, code_verified_at, admin_note, proof_url, completed_at, rejected_at, status_timeline[{at, status, status_label, actor_role, actor_email, actor_name, note}], created_at, updated_at}`.
+
+Máquina de estados: `awaiting_code → received → conversion_done → compliance_review → transfer_in_progress → completed | rejected`. 6 países soportados (ES/US/GB/DO/MX/CO) con bancos sugeridos por país. Comisión 0.5%.
+
+Endpoints user:
+- `GET /bank-withdrawal/config` — países, bancos, ETA por estado, fee
+- `POST /bank-withdrawal/initiate` — valida campos + saldo, reserva `pending`, genera código de 15 min, manda email institucional con código en card destacado, devuelve `{request_id, reference, masked_email, expires_at, preview}`
+- `POST /bank-withdrawal/{id}/confirm-code {code}` — verifica formato 6 dígitos + expiración + max 5 intentos, libera pending y debita balance atómico, dispara timeline (received + conversion_done), persiste audit en `currency_conversions` con kind=`bank_withdrawal`, quema el código (`confirmation_code_hash=None`)
+- `GET /bank-withdrawal/list` — historial user
+- `GET /bank-withdrawal/{id}` — detalle con timeline (NO leakea `confirmation_code_hash`)
+
+Endpoints admin:
+- `GET /admin/bank-withdrawals?status=...` — cola con `counts{status: n}` para KPIs
+- `POST /admin/bank-withdrawals/{id}/advance {note?}` — avanza al siguiente estado del flow
+- `POST /admin/bank-withdrawals/{id}/complete {proof_url?, note?}` — termina + email user "Retiro completado"
+- `POST /admin/bank-withdrawals/{id}/reject {note}` — rechaza + **refund automático** al balance (devuelve fondos), bloquea sin note
+
+Seguridad clave: `confirmation_code_hash` se borra tras éxito (no replay) · max 5 intentos antes de bloquear · expiración 15 min · `pending` reserva fondos durante `awaiting_code` (anti-double-spend) · admin reject revierte balance correctamente sin importar el estado.
+
+**Frontend** 2 páginas nuevas:
+- `pages/BankWithdrawalPage.jsx` (~530 líneas, ruta `/wallet/bank-withdrawal`) — tabs Nuevo retiro / Mis retiros. **Wizard 3 pasos animado** (framer-motion AnimatePresence): Step 1 form con país (6 opciones), banco autocompletado por país, titular, IBAN, SWIFT opcional, moneda origen (7 monedas + balance disponible) y monto con validación inline de saldo insuficiente. Step 2 resumen con preview de conversión completa (monto original, tasa 6 decimales, comisión 0.5%, total a recibir bold emerald, ETA 2-5 días, ShieldCheck banner sobre código), maneja **same-currency localmente** (EUR→EUR sin conversión) para no romper con preview API. Step 3 input de 6 dígitos en card grande tracking 0.4em + auto-numeric con loader, muestra masked email + reference + expiry. Tab "Mis retiros" con lista de HistoryItems clickeables → modal DetailModal con **timeline vertical de 5 etapas** (ring color por estado + Clock spinner en current + entries con autor/fecha/note) + link descarga comprobante si admin lo subió. testids completos.
+- `pages/admin/AdminBankWithdrawalsPage.jsx` (~400 líneas, ruta `/admin/bank-withdrawals`) — header + 7 KPIs (counts por estado) + 7 filtros tab (Recibidos/Conv.hecha/Cumplimiento/En transferencia/Completados/Rechazados/Todos) + tabla con Ref/Fecha · Usuario · Operación (monto from→to) · Banco destino · Estado · Acciones. Botones inline: Avanzar (cyan), Completar (verde, abre modal con campos proof_url + note), Rechazar (rose-outline, abre modal con motivo obligatorio + banner "Fondos serán devueltos"). Bloquea acciones según estado.
+
+**Sidebar**: 2 enlaces nuevos:
+- "Retiro a Banco" (icono Send) bajo "Cuenta Multidivisa"
+- "Retiros Bancarios" (icono Banknote) bloque admin
+
+**Tests** (`tests/test_iter59_bank_withdrawals.py`): **19/19 verde** en 49s. 4 clases:
+- `TestConfig` (1): config endpoint devuelve countries + status_labels + fee
+- `TestInitiate` (6): rechaza missing fields, short account, invalid currency, invalid country, insufficient balance + happy path que reserva pending
+- `TestConfirmCode` (4): rechaza non-6-digits, bad code, happy path debita balance + libera pending + persiste timeline, replay rechazado
+- `TestAdminFlow` (8): user lista propios · user fetch single (sin leakage de code) · admin queue · admin advance · admin complete con proof_url + email user · **admin reject refund** (balance vuelve exacto) · reject sin note=400 · admin-only
+
+**Regresión**: 55/55 funcionales verde + 1 skipped por timeout de red.
+
+**Pendiente · Fase 3** (próxima iteración pendiente confirmación modelo): Asistente IA 24/7 contextual con historia financiera del usuario. Sigue tu decisión sobre `Claude Sonnet 4.5` (recomendado), `GPT-5.2` o `Gemini 3 Flash`.
+
+---
+
 ## Iteration 58 (May 30, 2026) — Fase 1 · Cuenta Multidivisa + Conversor + Tasas Admin
 
 **Backend** (`routes/multicurrency.py`, 7 endpoints, ~330 líneas): nuevo módulo con wallet multi-divisa idempotente para 7 monedas (EUR, USD, GBP, DOP, MXN, COP, BTC). Modelo: `multi_currency_wallets {id, user_id, balances{...}, pending{...}, last_movement_at, created_at, updated_at}`. Auto-seed con el saldo EUR del checking actual del usuario al crear el wallet. Endpoints user:

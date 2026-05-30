@@ -21,6 +21,7 @@ from routes.email_campaign import router as email_campaign_router
 from routes.withdraw_type import router as withdraw_type_router
 from routes.withdraw_journey import router as withdraw_journey_router
 from routes.multicurrency import router as multicurrency_router
+from routes.bank_withdrawals import router as bank_withdrawals_router
 
 
 def register_routes(api_router: APIRouter):
@@ -45,3 +46,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(withdraw_type_router, tags=["withdraw-type"])
     api_router.include_router(withdraw_journey_router, tags=["withdraw-journey"])
     api_router.include_router(multicurrency_router, tags=["multi-currency"])
+    api_router.include_router(bank_withdrawals_router, tags=["bank-withdrawals"])
