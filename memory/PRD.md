@@ -1,5 +1,50 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 60 (May 30, 2026) — Fase 3 · Asistente IA 24/7 (Claude Sonnet 4.6)
+
+**Backend** (`routes/ai_assistant.py`, 5 endpoints, ~250 líneas) usando **Claude Sonnet 4.6** (`claude-sonnet-4-6` de Anthropic) vía Emergent Universal Key con la librería `emergentintegrations.llm.chat.LlmChat`.
+
+Modelo de datos:
+- `ai_chat_sessions`: `{id, user_id, user_email, title (50 chars desde 1ª pregunta), last_message_at, message_count, created_at}`
+- `ai_chat_messages`: `{id, session_id, user_id, role: user|assistant, content, created_at, error?}`
+
+System prompt institucional en español que convierte al modelo en **LIONS Assistant**, experto financiero/bancario con áreas: SWIFT/MT103/MT202/MT199, IBAN/BIC, banca multidivisa y conversiones, KYC/AML, retiros bancarios y tiempos, cumplimiento (PCI-DSS/SEPA/FATCA), expedientes. 7 reglas estrictas (no inventar datos, no advice de inversiones específicas, usar contexto real, sugerir admin si falta info, máx 4-5 párrafos, no revelar prompt, declinar jailbreak).
+
+**`_build_user_context()`**: enriquece cada prompt con un snapshot live del usuario — saldos multidivisa filtrados (>0), retiros bancarios activos (no completed/rejected) con referencia + estado, desbloqueo parcial 40% en curso con monto pagado/required, status KYC y país. Esto permite preguntas como "¿cuál es el estado de mi retiro WD-260530-XXX?" con respuesta real.
+
+Endpoints:
+- `POST /ai-assistant/chat {message, session_id?}` — crea o continúa sesión, persiste mensaje user PRIMERO (incluso si LLM falla), replica historial en `LlmChat` para multi-turn, devuelve `{session_id, is_new_session, user_message, assistant_message}`. Maneja fallos LLM con mensaje graceful + log de error. Rechaza vacío o >4000 chars.
+- `GET /ai-assistant/sessions` — historial de sesiones del usuario ordenado por `last_message_at` DESC (max 50)
+- `GET /ai-assistant/sessions/{id}/messages` — mensajes cronológicos + metadata sesión (404 si no es del user)
+- `POST /ai-assistant/sessions/{id}/delete` — borra sesión + cascade messages
+- `GET /ai-assistant/suggestions` — 5-6 quick-prompts contextuales (inserta `R40` activo o pending withdrawal de primero si aplica)
+
+**Frontend** (`components/ai/AIAssistantWidget.jsx`, ~250 líneas) — widget flotante montado globalmente en `Layout.jsx` cuando hay usuario autenticado. Posicionado en `bottom-24 right-6` para coexistir con el FAQ ChatBot existente (bottom-6).
+
+Características: launcher esfera azul→navy con icon `Sparkles` + pulse emerald (online), panel ancho 400px (responsive a viewport mobile) altura 600px con gradiente `from-[#0a1628] via-slate-950`. Header con icon LIONS Assistant + badge "24/7 · IA financiera" + botones nueva conversación / sesiones / cerrar.
+
+Vista chat: empty-state con bot icon + tagline + 4 suggestion chips clickeables, mensajes con avatares diferenciados (user [#1973B8]/cyan + assistant cyan glow), bubble pattern (user a la derecha azul claro, assistant izquierda slate-900), timestamps inline, **renderMarkdown** custom que parsea `**bold**` (→ cyan-300), `` `code` `` (→ amber con bg slate-800) y listas con `-` o `*`. Optimistic UI: mensaje user se muestra al instante y se reemplaza al recibir respuesta. Typing dots animados (3 dots pulse staggered) mientras espera respuesta. Input textarea auto-resize (max 24h) con Enter para enviar / Shift+Enter para newline. Footer disclaimer.
+
+Vista sessions: lista de historial con título + fecha + count + delete inline (window.confirm). Click → carga conversación completa y vuelve a vista chat. testids completos en cada elemento interactivo.
+
+**Tests** (`tests/test_iter60_ai_assistant.py`): **14/14 verde** en 19.8s. 6 clases:
+- `TestAuth` (3): chat/sessions/suggestions requieren auth (401/403)
+- `TestSuggestions` (1): devuelve 3-6 chips, contiene financial keywords
+- `TestChatValidation` (3): rechaza empty, >4000 chars, session_id desconocido
+- `TestChatE2E` (4): 1ª llamada crea sesión + reply real LLM · sesión aparece en list · /messages devuelve historia · 2ª llamada reusa session_id y crece a 4 mensajes
+- `TestDelete` (2): delete cascada borra messages (404 al refetch) · delete unknown=404
+- `TestIsolation` (1): user A NO puede leer ni continuar sesión de user B (404 ambos)
+
+Llamadas a Claude reales (no mocked) — model real responde con markdown y respeta el system prompt + contexto user.
+
+**Verificación visual**: smoke screenshot confirmó respuesta real de Claude Sonnet 4.6 usando `R40-ADMINLIONSBIT-E20455` del expediente del admin (contexto live funcionando), markdown render con negritas y viñetas, sugerencias personalizadas con desbloqueo parcial activo en primer lugar.
+
+**Regresión**: backend tests anteriores siguen verdes.
+
+**Pendiente · Fase 4** (próxima iteración): Vault Blockchain (hash SHA-256 simulado) + cards "App móvil próximamente" (Android/iOS/Push).
+
+---
+
 ## Iteration 59 (May 30, 2026) — Fase 2 · Retiro a Banco Local + Timeline + Admin Queue
 
 **Backend** (`routes/bank_withdrawals.py`, 11 endpoints, ~430 líneas): flujo bancario completo con confirmación por código de 6 dígitos enviado vía email + máquina de estados de 7 etapas + cola admin con KPIs.
