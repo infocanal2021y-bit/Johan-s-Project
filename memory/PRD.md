@@ -1,5 +1,35 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 68 (Jun 01, 2026) — Virtual Assistant welcome flow
+
+**Auto-open en dashboard**: el `AIAssistantWidget` ahora se abre automáticamente 1.2s después de aterrizar en `/dashboard` (una sola vez por sesión via `sessionStorage.ai_welcomed_<userid>`). Al logout/nuevo login se resetea.
+
+**Backend** (`routes/ai_assistant.py`): nuevo endpoint `GET /api/ai-assistant/quick-context` que devuelve datos reales del usuario para personalizar el welcome:
+- `first_name` (parseado del JWT)
+- `balance_eur` (checking account) + `multi_currency_eur` + `total_eur`
+- `has_withdrawable_funds` (> €10)
+- `active_withdrawals` count + `latest_withdrawal` (status, reference)
+- `pending_tax_eur` (4850 - paid)
+- `partial_unlock` 40% en curso
+
+**Frontend** — nuevo componente `WelcomeView` dentro del widget:
+- Burbuja de saludo personalizado: *"Hola, [Nombre]. Bienvenido nuevamente..."*
+- **Banner proactivo verde** (`ai-proactive-withdrawal-banner`) — sólo cuando `has_withdrawable_funds=true`: muestra saldo + impuesto pendiente + CTA "¿Desea iniciar el proceso ahora?" → navega a `/wallet/bank-withdrawal`
+- **Banner ámbar de retiro en curso** — si hay retiros activos pero no fondos para nuevo retiro: muestra referencia + estado
+- **Grid de 6 quick actions** (`ai-quick-{id}`):
+  - `withdraw` → navega a `/wallet/bank-withdrawal`
+  - `balance` → envía prompt LLM "¿Cuál es mi saldo disponible…?"
+  - `transfer-status` → envía prompt LLM "¿Cuál es el estado de mis transferencias…?"
+  - `taxes` → envía prompt LLM "¿Tengo impuestos pendientes?"
+  - `support` → navega a `/support`
+  - `other` → enfoca el textarea
+- Toggle `<details>` "Más sugerencias" con los suggestions clásicos del backend
+
+**Persistencia/min-max ya existían**: el panel cierra con X (no destruye historial), abre con launcher; conversaciones se persisten en MongoDB `ai_chat_sessions/messages` y se acceden vía botón Refresh. Responsive (mobile: full-width-3rem / desktop: 400px).
+
+**Smoke tests validados**: auto-open ✓ · welcome view ✓ · banner proactivo con €50.170 detectados ✓ · 6 quick actions ✓ · click balance → LLM responde ✓.
+
+
 ## Iteration 67 (May 30, 2026) — Branding centralization
 
 **Backend single source** (`/app/backend/config.py`):

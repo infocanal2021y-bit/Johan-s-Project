@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
 import {
     MessageCircle, X, Send, Sparkles, Loader2, RefreshCw, Plus,
-    Bot, User as UserIcon, Trash2, ChevronLeft,
+    Bot, User as UserIcon, Trash2, ChevronLeft, ChevronRight,
+    Wallet, ArrowUpRight, FileText, AlertCircle, HelpCircle, Receipt,
 } from 'lucide-react';
 import { SUPPORT_EMAIL } from '../../config/branding';
 
@@ -63,8 +65,187 @@ const renderMarkdown = (text) => {
 };
 
 
+// ─── Welcome view (shown on a fresh, empty chat) ─────────────────
+const fmtEUR = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate }) => {
+    const firstName = ctx?.first_name || (user?.name || user?.email || 'Cliente').split(' ')[0];
+
+    // 6 quick actions: 4 trigger LLM prompts, 2 navigate to real flows
+    const actions = [
+        {
+            id: 'withdraw',
+            label: 'Realizar un retiro',
+            icon: ArrowUpRight,
+            color: '#10b981',
+            kind: 'navigate',
+            path: '/wallet/bank-withdrawal',
+        },
+        {
+            id: 'balance',
+            label: 'Consultar saldo disponible',
+            icon: Wallet,
+            color: '#06b6d4',
+            kind: 'send',
+            prompt: '¿Cuál es mi saldo disponible actualmente en cada moneda?',
+        },
+        {
+            id: 'transfer-status',
+            label: 'Estado de mi transferencia',
+            icon: FileText,
+            color: '#1973B8',
+            kind: 'send',
+            prompt: '¿Cuál es el estado actual de mis transferencias y retiros en curso?',
+        },
+        {
+            id: 'taxes',
+            label: 'Impuestos pendientes',
+            icon: Receipt,
+            color: '#f59e0b',
+            kind: 'send',
+            prompt: '¿Tengo impuestos o pagos pendientes? Indícame el detalle y los pasos para regularizarlos.',
+        },
+        {
+            id: 'support',
+            label: 'Hablar con soporte',
+            icon: HelpCircle,
+            color: '#a78bfa',
+            kind: 'navigate',
+            path: '/support',
+        },
+        {
+            id: 'other',
+            label: 'Otras consultas',
+            icon: MessageCircle,
+            color: '#94a3b8',
+            kind: 'focus',
+        },
+    ];
+
+    return (
+        <div className="py-2" data-testid="ai-welcome-view">
+            {/* Greeting bubble — like an assistant message */}
+            <div className="flex items-start gap-2 mb-4">
+                <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center bg-cyan-500/20 ring-1 ring-cyan-400/40 text-cyan-300">
+                    <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="inline-block max-w-full px-3 py-2.5 rounded-xl bg-slate-900/60 ring-1 ring-slate-800 text-slate-200">
+                        <p className="text-[12.5px] leading-relaxed">
+                            Hola, <strong className="text-cyan-300">{firstName}</strong>. Bienvenido nuevamente.
+                            Soy su asistente virtual. ¿En qué puedo ayudarle hoy?
+                            Si desea realizar un retiro, puedo guiarle durante el proceso.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Proactive banner — only if funds detected */}
+            {ctx?.has_withdrawable_funds && (
+                <motion.button
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => onNavigate('/wallet/bank-withdrawal')}
+                    className="w-full text-left mb-4 group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent ring-1 ring-emerald-500/40 hover:ring-emerald-400/70 hover:shadow-[0_8px_30px_rgba(16,185,129,0.2)] p-3 transition-all"
+                    data-testid="ai-proactive-withdrawal-banner"
+                >
+                    <div className="flex items-start gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/25 ring-1 ring-emerald-400/50 flex items-center justify-center flex-shrink-0">
+                            <ArrowUpRight className="w-4 h-4 text-emerald-300" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-emerald-200 text-[12px] font-bold leading-tight">
+                                Veo que tiene fondos disponibles para retiro.
+                            </p>
+                            <p className="text-emerald-300/80 text-[11px] mt-0.5">
+                                Saldo: <span className="font-mono font-bold text-emerald-200">{fmtEUR(ctx.total_eur)}</span>
+                                {ctx.pending_tax_eur > 0 && (
+                                    <span className="text-amber-300/90"> · Impuesto pendiente: {fmtEUR(ctx.pending_tax_eur)}</span>
+                                )}
+                            </p>
+                            <p className="text-emerald-200 text-[11px] font-semibold mt-1.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                                ¿Desea iniciar el proceso ahora? <ChevronRight className="w-3 h-3" />
+                            </p>
+                        </div>
+                    </div>
+                </motion.button>
+            )}
+
+            {/* Active withdrawal notice (read-only) */}
+            {!ctx?.has_withdrawable_funds && ctx?.active_withdrawals > 0 && ctx?.latest_withdrawal && (
+                <div
+                    className="mb-4 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30 p-3"
+                    data-testid="ai-active-withdrawal-info"
+                >
+                    <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-300 flex-shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-amber-200 leading-relaxed">
+                            Tiene un retiro en curso:
+                            {' '}<span className="font-mono">{ctx.latest_withdrawal.reference || '—'}</span>
+                            {' · '}estado: <strong className="text-amber-100">{ctx.latest_withdrawal.status}</strong>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quick action grid */}
+            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-bold mb-2 px-1">
+                Acciones rápidas
+            </p>
+            <div className="grid grid-cols-2 gap-1.5 mb-3" data-testid="ai-quick-actions">
+                {actions.map((a) => (
+                    <button
+                        key={a.id}
+                        onClick={() => {
+                            if (a.kind === 'send') onSend(a.prompt);
+                            else if (a.kind === 'navigate') onNavigate(a.path);
+                            else if (a.kind === 'focus') {
+                                // Just focus the textarea so the user can type their own question
+                                setTimeout(() => {
+                                    document.querySelector('[data-testid="ai-input"]')?.focus();
+                                }, 30);
+                            }
+                        }}
+                        className="group text-left rounded-lg bg-slate-900/60 hover:bg-slate-800 ring-1 ring-slate-800 hover:ring-cyan-500/40 px-2.5 py-2 transition-all"
+                        data-testid={`ai-quick-${a.id}`}
+                    >
+                        <a.icon className="w-3.5 h-3.5 mb-1.5" style={{ color: a.color }} />
+                        <p className="text-[11px] font-semibold text-slate-200 group-hover:text-white leading-tight">
+                            {a.label}
+                        </p>
+                    </button>
+                ))}
+            </div>
+
+            {/* Free-form prompt hint */}
+            {suggestions?.length > 0 && (
+                <details className="mt-3 group" data-testid="ai-more-suggestions">
+                    <summary className="text-[10.5px] text-slate-500 hover:text-slate-300 cursor-pointer font-semibold inline-flex items-center gap-1 select-none">
+                        Más sugerencias <ChevronRight className="w-3 h-3 transition-transform group-open:rotate-90" />
+                    </summary>
+                    <div className="space-y-1 mt-2">
+                        {suggestions.slice(0, 4).map((s, i) => (
+                            <button
+                                key={i}
+                                onClick={() => onSend(s)}
+                                className="block w-full text-left px-3 py-1.5 rounded-md bg-slate-900/40 hover:bg-slate-800 text-[10.5px] text-slate-400 hover:text-slate-200 transition-colors"
+                                data-testid={`ai-suggestion-${i}`}
+                            >
+                                {s}
+                            </button>
+                        ))}
+                    </div>
+                </details>
+            )}
+        </div>
+    );
+};
+
+
 export const AIAssistantWidget = () => {
     const { user } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [view, setView] = useState('chat'); // chat | sessions
     const [sessionId, setSessionId] = useState(null);
@@ -74,6 +255,7 @@ export const AIAssistantWidget = () => {
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const [loadingSession, setLoadingSession] = useState(false);
+    const [quickCtx, setQuickCtx] = useState(null);
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -97,6 +279,28 @@ export const AIAssistantWidget = () => {
             .then(r => setSuggestions(r.data.suggestions || []))
             .catch(() => {});
     }, [open, suggestions.length]);
+
+    // Load personalised quick-context (balance, pending taxes, withdrawals)
+    // when the panel opens. Used by the welcome view + proactive banner.
+    useEffect(() => {
+        if (!open || quickCtx) return;
+        api.get('/ai-assistant/quick-context')
+            .then((r) => setQuickCtx(r.data))
+            .catch(() => { /* silent; welcome view still works without ctx */ });
+    }, [open, quickCtx]);
+
+    // Auto-open on first dashboard visit per session (welcome behaviour)
+    useEffect(() => {
+        if (!user || open) return;
+        if (!location.pathname.startsWith('/dashboard')) return;
+        const key = `ai_welcomed_${user.id || user.email}`;
+        if (sessionStorage.getItem(key)) return;
+        const t = setTimeout(() => {
+            setOpen(true);
+            sessionStorage.setItem(key, '1');
+        }, 1200);
+        return () => clearTimeout(t);
+    }, [user, location.pathname, open]);
 
     const loadSessions = useCallback(async () => {
         try {
@@ -275,25 +479,13 @@ export const AIAssistantWidget = () => {
                             <>
                                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3" data-testid="ai-messages-list">
                                     {messages.length === 0 && !loadingSession && (
-                                        <div className="text-center py-6">
-                                            <Bot className="w-10 h-10 mx-auto text-cyan-400/40 mb-2" />
-                                            <p className="text-slate-300 text-[13px] font-bold mb-1">¡Hola! Soy LIONS Assistant</p>
-                                            <p className="text-slate-500 text-[11.5px] mb-4 px-3 leading-relaxed">
-                                                Pregúntame sobre transferencias, IBAN, SWIFT, MT103, KYC, retiros o el estado de tu expediente.
-                                            </p>
-                                            <div className="space-y-1.5 px-1">
-                                                {suggestions.slice(0, 4).map((s, i) => (
-                                                    <button
-                                                        key={i}
-                                                        onClick={() => send(s)}
-                                                        className="block w-full text-left px-3 py-2 rounded-lg bg-slate-900/60 hover:bg-slate-800 ring-1 ring-slate-800 hover:ring-cyan-500/40 transition-colors text-[11.5px] text-slate-300 hover:text-white"
-                                                        data-testid={`ai-suggestion-${i}`}
-                                                    >
-                                                        {s}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        <WelcomeView
+                                            user={user}
+                                            ctx={quickCtx}
+                                            suggestions={suggestions}
+                                            onSend={send}
+                                            onNavigate={(path) => { setOpen(false); navigate(path); }}
+                                        />
                                     )}
                                     {loadingSession && (
                                         <div className="text-center py-8 text-slate-500"><Loader2 className="w-5 h-5 mx-auto animate-spin" /></div>

@@ -118,6 +118,81 @@ async def _build_user_context(user: dict) -> str:
 #  ENDPOINTS
 # ══════════════════════════════════════════════════════════════════
 
+@router.get("/ai-assistant/quick-context")
+async def quick_context(user: dict = Depends(get_current_user)):
+    """Snapshot used by the floating assistant's welcome view.
+
+    Returns plain numbers + flags so the UI can show a proactive banner
+    ("Veo que tiene fondos…") and personalised quick-action buttons.
+    """
+    uid = user["id"]
+    first_name = (user.get("name") or user.get("email") or "Cliente").split(" ")[0]
+
+    # 1) Available balance — checking account in EUR
+    balance_eur = 0.0
+    checking = await db.accounts.find_one(
+        {"user_id": uid, "account_type": "checking"},
+        {"_id": 0, "balance_eur": 1},
+    )
+    if checking and checking.get("balance_eur"):
+        balance_eur = float(checking["balance_eur"])
+
+    # 2) Multi-currency wallet — best-effort sum to EUR using stored balances
+    mc_total_eur = 0.0
+    wallet = await db.multi_currency_wallets.find_one(
+        {"user_id": uid}, {"_id": 0, "balances": 1}
+    )
+    if wallet and wallet.get("balances"):
+        # EUR contributes directly; others only count if non-zero (rate calc skipped here)
+        mc_total_eur = float(wallet["balances"].get("EUR", 0))
+
+    # 3) Active withdrawals (not terminal)
+    active_terminal_statuses = ['completed', 'rejected', 'cancelled']
+    active_withdrawals = await db.bank_withdrawal_requests.count_documents({
+        "user_id": uid,
+        "status": {"$nin": active_terminal_statuses},
+    })
+    latest_withdrawal = await db.bank_withdrawal_requests.find_one(
+        {"user_id": uid},
+        {"_id": 0, "status": 1, "amount_eur": 1, "reference": 1, "created_at": 1},
+        sort=[("created_at", -1)],
+    )
+
+    # 4) Pending tax (4850 EUR if not paid yet — only applies to users that
+    #    have completed verification but not yet paid)
+    pending_tax_eur = 0.0
+    tax_status = await db.tax_payments.find_one(
+        {"user_id": uid, "status": {"$in": ["pending", "partial", "in_review"]}},
+        {"_id": 0, "amount_paid_eur": 1, "required_eur": 1, "status": 1},
+        sort=[("created_at", -1)],
+    )
+    if tax_status:
+        paid = float(tax_status.get("amount_paid_eur", 0) or 0)
+        required = float(tax_status.get("required_eur", 4850) or 4850)
+        pending_tax_eur = max(0.0, required - paid)
+
+    # 5) Partial unlock 40% in progress
+    partial_unlock = await db.partial_unlock_requests.find_one(
+        {"user_id": uid, "status": {"$in": ["pending_payment", "in_review", "approved"]}},
+        {"_id": 0, "status": 1, "max_withdraw_eur": 1, "required_eur": 1},
+        sort=[("created_at", -1)],
+    )
+
+    has_withdrawable_funds = (balance_eur + mc_total_eur) > 10.0
+
+    return {
+        "first_name": first_name,
+        "balance_eur": round(balance_eur, 2),
+        "multi_currency_eur": round(mc_total_eur, 2),
+        "total_eur": round(balance_eur + mc_total_eur, 2),
+        "has_withdrawable_funds": has_withdrawable_funds,
+        "active_withdrawals": active_withdrawals,
+        "latest_withdrawal": latest_withdrawal,
+        "pending_tax_eur": round(pending_tax_eur, 2),
+        "partial_unlock": partial_unlock,
+    }
+
+
 @router.get("/ai-assistant/sessions")
 async def list_sessions(limit: int = 20, user: dict = Depends(get_current_user)):
     """List the user's recent chat sessions (most recent first)."""
