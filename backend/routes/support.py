@@ -5,6 +5,7 @@ import uuid
 import logging
 
 from config import db, SUPPORT_EMAILS, SUPPORT_EMAIL
+from services.case_codes import generate_case_code
 from models import SupportTicket, PaymentIssueReport, TicketReply, KYCSubmission
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, create_admin_notification, log_system_activity
@@ -42,7 +43,18 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
     }
     
     await db.support_tickets.insert_one(new_ticket)
-    
+
+    # Allocate unified PLB case code
+    case_code = await generate_case_code(
+        user_id=current_user['id'],
+        user_email=current_user.get('email'),
+        entity_type='support_ticket',
+        entity_id=ticket_id,
+        entity_ref=ticket_number,
+        summary=ticket.subject[:200],
+        status='open',
+    )
+
     await create_notification(
         current_user['id'],
         'Ticket Creado',
@@ -163,7 +175,12 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
         metadata={'ticket_number': ticket_number, 'category': ticket.category}
     )
     
-    return {'message': 'Su solicitud ha sido enviada correctamente. Nuestro equipo de soporte se pondra en contacto con usted.', 'ticket_number': ticket_number, 'id': ticket_id}
+    return {
+        'message': 'Su solicitud ha sido enviada correctamente. Nuestro equipo de soporte se pondra en contacto con usted.',
+        'ticket_number': ticket_number,
+        'case_code': case_code,
+        'id': ticket_id,
+    }
 
 @router.post("/support/payment-issue")
 async def report_payment_issue(report: PaymentIssueReport, current_user: dict = Depends(get_current_user)):

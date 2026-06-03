@@ -79,6 +79,7 @@ import VaultBlockchainPage from "./pages/VaultBlockchainPage";
 import CommandCenterPage from "./pages/CommandCenterPage";
 import NotificationsCenterPage from "./pages/NotificationsCenterPage";
 import MobileAppPage from "./pages/MobileAppPage";
+import CasesPage from "./pages/CasesPage";
 import AdminExchangeRatesPage from "./pages/admin/AdminExchangeRatesPage";
 import AdminBankWithdrawalsPage from "./pages/admin/AdminBankWithdrawalsPage";
 
@@ -176,6 +177,7 @@ function AppRoutes() {
             <Route path="/command-center" element={<ProtectedRoute><CommandCenterPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsCenterPage /></ProtectedRoute>} />
             <Route path="/mobile-app" element={<ProtectedRoute><MobileAppPage /></ProtectedRoute>} />
+            <Route path="/cases" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} />

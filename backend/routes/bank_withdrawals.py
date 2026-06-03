@@ -34,6 +34,7 @@ from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
 from services.email import send_email_background, get_email_template
+from services.case_codes import generate_case_code, update_case_status
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
     _convert_rate, _ensure_wallet, _round, _now_iso,
@@ -206,6 +207,17 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
     }
     await db.bank_withdrawal_requests.insert_one(doc)
 
+    # Allocate unified PLB case code
+    case_code = await generate_case_code(
+        user_id=user['id'],
+        user_email=user.get('email'),
+        entity_type='withdrawal',
+        entity_id=req_id,
+        entity_ref=reference,
+        summary=f'Retiro {amount:,.2f} {from_cur} → {COUNTRY_BANKS[country]["name"]}',
+        status='awaiting_code',
+    )
+
     # Reserve funds: $inc pending balance
     await db.multi_currency_wallets.update_one(
         {'user_id': user['id']},
@@ -251,6 +263,7 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
         'ok': True,
         'request_id': req_id,
         'reference': reference,
+        'case_code': case_code,
         'masked_email': masked,
         'expires_at': code_expires_at,
         'preview': {
@@ -361,10 +374,28 @@ async def confirm_code(request_id: str, payload: dict, user: dict = Depends(get_
         'created_at': now,
     })
 
+    # Sync unified case status
+    await update_case_status(
+        entity_type='withdrawal',
+        entity_id=request_id,
+        status='conversion_done',
+        summary=f'Retiro {amount:,.2f} {from_cur} → {rec["bank_name"]}',
+    )
+
     fresh = await db.bank_withdrawal_requests.find_one(
         {'id': request_id}, {'_id': 0, 'confirmation_code_hash': 0}
     )
-    return {'ok': True, 'request': fresh}
+    # Include the case code in the response so the wizard can show it on success
+    case_row = await db.cases.find_one(
+        {'entity_type': 'withdrawal', 'entity_id': request_id},
+        {'_id': 0, 'code': 1},
+    )
+    return {
+        'ok': True,
+        'request': fresh,
+        'reference': rec.get('reference'),
+        'case_code': (case_row or {}).get('code'),
+    }
 
 
 async def _release_pending(rec: dict):

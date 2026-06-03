@@ -1,5 +1,36 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 72 (Jun 03, 2026) — Casos Automáticos PLB-AAAA-XXXXXX
+
+**Servicio central** `services/case_codes.py`:
+- `generate_case_code(entity_type, entity_id, ...)` genera `PLB-YYYY-XXXXXX` (6 dígitos random, retry hasta 5 veces en colisión) y lo persiste en colección nueva `cases`
+- `update_case_status(entity_type, entity_id, status, summary)` para sincronizar estados a posteriori
+- `get_case_by_entity(...)` helper para recuperar el code dado el entity
+
+**Router** `routes/cases.py`:
+- `GET /api/cases/me?entity_type=&status=&limit=` → listado paginado del usuario, ordenado por `created_at` desc, con `by_type` count + enrichment (nav_path, type_label)
+- `GET /api/cases/lookup/{code}` → valida regex `PLB-\d{4}-\d{6}`, scope al user
+- `GET /api/cases/search?q=...` → fuzzy search por code / entity_ref / summary
+
+**3 flujos engachados** (cada nueva entidad genera ahora un PLB-code):
+- `bank_withdrawals.py` (initiate + confirm-code) → `entity_type='withdrawal'`, `summary='Retiro X EUR → País'`
+- `support.py` (create ticket) → `entity_type='support_ticket'`, devuelve `case_code` en la respuesta JSON. **Bug pre-existente arreglado**: el modelo `SupportTicket` no tenía `priority`, ahora se usa `'open'` por defecto.
+- `partial_unlock.py` (start 40%) → `entity_type='partial_unlock'`
+
+**Frontend**:
+- `pages/CasesPage.jsx` (~280 líneas) → ruta `/cases` con search bar Enter→lookup directo, 6 filter tabs (Todos/Retiros/Soporte/Liberación/MT5/Vault) con counts, lista de cards con copy-to-clipboard del código, badges de estado dinámicos por status, deep-link "Ver detalle"
+- Link en **Sidebar**: "Mis Casos PLB" (icono FolderKanban) entre "App Móvil" y "Notificaciones"
+- `InlineWithdrawalWizard.jsx` → step 5 (éxito) ahora muestra el `case_code` PROMINENTE en cyan + botón "Copiar código", la referencia interna pasa a ser secundaria
+
+**Curl tests** (5/5 ✅):
+- POST `/support/tickets` → `case_code: "PLB-2026-807340"` ✓
+- GET `/cases/me` → count=1, code+summary correctos ✓
+- GET `/cases/lookup/PLB-2026-807340` → type=support_ticket, nav=/support ✓
+- GET `/cases/search?q=PLB` → encontrado ✓
+
+**E2E tests** (5/5 ✅): login · `/cases` carga · search · filter tabs · case row con el PLB code creado vía curl aparece en la UI con su selector exacto.
+
+
 ## Iteration 71 (Jun 03, 2026) — Bank tips · Health Score · AI Copilot
 
 **Backend** (3 cambios):

@@ -379,8 +379,29 @@ export const InlineWithdrawalWizard = ({ onClose, onCompleted }) => {
                             <CheckCircle2 className="w-7 h-7 text-emerald-400" />
                         </motion.div>
                         <p className="text-white font-bold text-[14px]">¡Retiro confirmado!</p>
-                        <p className="text-slate-400 text-[11.5px] mt-1">Referencia:</p>
-                        <p className="text-cyan-300 font-mono font-bold text-[13px]">{final.reference}</p>
+
+                        {/* Unified PLB case code — the one the user shares with support */}
+                        {final.case_code && (
+                            <div className="mt-3 mx-auto inline-block">
+                                <p className="text-slate-400 text-[10px] uppercase tracking-wider font-bold">Tu caso</p>
+                                <p
+                                    className="font-mono font-bold text-[14px] text-cyan-300 tracking-wide"
+                                    data-testid="ai-wizard-case-code"
+                                >
+                                    {final.case_code}
+                                </p>
+                                <button
+                                    onClick={() => { navigator.clipboard?.writeText(final.case_code); }}
+                                    className="text-[10px] text-slate-500 hover:text-cyan-300 underline-offset-2 hover:underline"
+                                    data-testid="ai-wizard-copy-case"
+                                >
+                                    Copiar código
+                                </button>
+                            </div>
+                        )}
+
+                        <p className="text-slate-400 text-[11.5px] mt-3">Referencia interna:</p>
+                        <p className="text-slate-300 font-mono text-[12px]">{final.reference}</p>
                         <div className="mt-4 p-3 rounded-lg bg-slate-900/60 ring-1 ring-slate-800 text-left text-[11px] space-y-1" data-testid="ai-wizard-success">
                             <SummaryRow label="Estado" value="Recibido — en cola" />
                             <SummaryRow label="Tiempo estimado" value="2-5 días hábiles" />

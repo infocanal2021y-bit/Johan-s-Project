@@ -40,6 +40,7 @@ from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, create_admin_notification
 from services.email import send_partial_unlock_status_email
+from services.case_codes import generate_case_code
 
 
 router = APIRouter()
@@ -228,6 +229,18 @@ async def start_request(user: dict = Depends(get_current_user)):
         'updated_at': now,
     }
     await db.partial_withdraw_unlocks.insert_one(doc)
+
+    # Allocate unified PLB case code
+    await generate_case_code(
+        user_id=user['id'],
+        user_email=user.get('email'),
+        entity_type='partial_unlock',
+        entity_id=doc['id'],
+        entity_ref=payment_reference,
+        summary=f'Liberación parcial 40% · {REQUIRED_EUR:,.0f} EUR',
+        status='pending_payment',
+    )
+
     # Fire-and-forget transactional email
     try:
         await send_partial_unlock_status_email(
