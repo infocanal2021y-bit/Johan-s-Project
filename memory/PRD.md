@@ -1,5 +1,37 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 70 (Jun 03, 2026) — Diagnóstico Automático
+
+**Backend** (`/app/backend/routes/diagnostics.py`, ~250 líneas):
+- Endpoint nuevo `GET /api/diagnostics/me` que recorre 10 checks sobre la cuenta del usuario:
+  1. Perfil completo (nombre, teléfono, país)
+  2. Estado KYC (verified/pending/rejected/missing/incomplete)
+  3. Cuenta suspendida o con restricciones
+  4. Impuesto pendiente (`tax_payments`)
+  5. Liberación parcial 40% en curso (`partial_unlock_requests`)
+  6. Retiro atascado en `awaiting_code`
+  7. Retiro activo (en cualquier estado intermedio)
+  8. Sin datos bancarios guardados
+  9. Documentos Vault pendientes de certificación
+  10. Aviso positivo de fondos disponibles para retirar
+- Cada hallazgo: `{severity: 'blocker'|'warn'|'info'|'ok', category, title, description, action_label?, action_path?, meta}`
+- Respuesta incluye `overall: 'all_clear'|'minor'|'action_required'|'blocked'` y contadores
+- Persiste evento ligero en `diagnostics_log` (telemetría sin PII)
+
+**Frontend** `components/diagnostics/DiagnosticPanel.jsx` (~200 líneas):
+- Panel reutilizable con modos `compact` (chat) y full (dashboard)
+- Headline gradient con icono según severidad, contadores por tipo, lista de FindingRows
+- Cada FindingRow muestra icono de categoría + icono de severidad + CTA navegable
+
+**Integraciones:**
+- **AI Assistant**: nuevo quick action "Analizar mi caso" (icono Sparkles, color violeta) reemplaza al menos útil "Otras consultas". Click abre el panel inline (`diagOpen` state)
+- **Dashboard**: nuevo CTA prominente `DiagnosticCTA.jsx` justo después de los banners de estado, muestra pill dinámico ("3 pendientes" / "Bloqueo activo" / "Al día") basado en data real. Click dispara `CustomEvent('open-diagnostic')` que el `AIAssistantWidget` escucha y abre el panel sin prop-drilling.
+
+**Smoke tests E2E (8/8 OK)**: CTA dashboard visible ✓ · Auto-welcome ✓ · Panel desde quick action ✓ · Findings renderizan ✓ · Botón volver ✓ · Dashboard CTA dispara evento ✓.
+
+**Backend curl**: admin recibe 5 hallazgos (1 warn perfil, 2 info banking+vault, 2 ok KYC+saldo €25,585) · overall=`action_required`.
+
+
 ## Iteration 69 (Jun 01, 2026) — Conversational withdrawal wizard inside chat
 
 **Nuevo componente** `components/ai/InlineWithdrawalWizard.jsx` (~400 líneas) — wizard de 6 pasos que se monta DENTRO del panel del AI Assistant:

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { SUPPORT_EMAIL } from '../../config/branding';
 import { InlineWithdrawalWizard } from './InlineWithdrawalWizard';
+import { DiagnosticPanel } from '../diagnostics/DiagnosticPanel';
 
 const fmtTime = (iso) => !iso ? '' : new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -69,10 +70,10 @@ const renderMarkdown = (text) => {
 // ─── Welcome view (shown on a fresh, empty chat) ─────────────────
 const fmtEUR = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate, onOpenWizard }) => {
+const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate, onOpenWizard, onOpenDiagnostic }) => {
     const firstName = ctx?.first_name || (user?.name || user?.email || 'Cliente').split(' ')[0];
 
-    // 6 quick actions: 4 trigger LLM prompts, 1 opens inline wizard, 1 navigates
+    // 6 quick actions
     const actions = [
         {
             id: 'withdraw',
@@ -106,19 +107,19 @@ const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate, onOpenWizard 
             prompt: '¿Tengo impuestos o pagos pendientes? Indícame el detalle y los pasos para regularizarlos.',
         },
         {
+            id: 'diagnostic',
+            label: 'Analizar mi caso',
+            icon: Sparkles,
+            color: '#a78bfa',
+            kind: 'diagnostic',
+        },
+        {
             id: 'support',
             label: 'Hablar con soporte',
             icon: HelpCircle,
-            color: '#a78bfa',
+            color: '#94a3b8',
             kind: 'navigate',
             path: '/support',
-        },
-        {
-            id: 'other',
-            label: 'Otras consultas',
-            icon: MessageCircle,
-            color: '#94a3b8',
-            kind: 'focus',
         },
     ];
 
@@ -200,6 +201,7 @@ const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate, onOpenWizard 
                             if (a.kind === 'send') onSend(a.prompt);
                             else if (a.kind === 'navigate') onNavigate(a.path);
                             else if (a.kind === 'wizard') onOpenWizard?.();
+                            else if (a.kind === 'diagnostic') onOpenDiagnostic?.();
                             else if (a.kind === 'focus') {
                                 setTimeout(() => {
                                     document.querySelector('[data-testid="ai-input"]')?.focus();
@@ -257,6 +259,7 @@ export const AIAssistantWidget = () => {
     const [loadingSession, setLoadingSession] = useState(false);
     const [quickCtx, setQuickCtx] = useState(null);
     const [wizardOpen, setWizardOpen] = useState(false);
+    const [diagOpen, setDiagOpen] = useState(false);
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -302,6 +305,17 @@ export const AIAssistantWidget = () => {
         }, 1200);
         return () => clearTimeout(t);
     }, [user, location.pathname, open]);
+
+    // External trigger: dashboard "Analizar mi caso" button dispatches this event
+    useEffect(() => {
+        const handler = () => {
+            setOpen(true);
+            setWizardOpen(false);
+            setDiagOpen(true);
+        };
+        window.addEventListener('open-diagnostic', handler);
+        return () => window.removeEventListener('open-diagnostic', handler);
+    }, []);
 
     const loadSessions = useCallback(async () => {
         try {
@@ -479,7 +493,7 @@ export const AIAssistantWidget = () => {
                         ) : (
                             <>
                                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3" data-testid="ai-messages-list">
-                                    {messages.length === 0 && !loadingSession && !wizardOpen && (
+                                    {messages.length === 0 && !loadingSession && !wizardOpen && !diagOpen && (
                                         <WelcomeView
                                             user={user}
                                             ctx={quickCtx}
@@ -487,23 +501,29 @@ export const AIAssistantWidget = () => {
                                             onSend={send}
                                             onNavigate={(path) => { setOpen(false); navigate(path); }}
                                             onOpenWizard={() => setWizardOpen(true)}
+                                            onOpenDiagnostic={() => setDiagOpen(true)}
                                         />
                                     )}
                                     {wizardOpen && (
                                         <InlineWithdrawalWizard
                                             onClose={() => {
                                                 setWizardOpen(false);
-                                                // Refresh ctx so the proactive banner updates after a withdrawal
                                                 setQuickCtx(null);
                                             }}
                                             onCompleted={() => {
-                                                // Push a confirmation message into the chat history
                                                 setMessages((m) => [...m, {
                                                     role: 'assistant',
                                                     content: 'Tu solicitud de retiro fue registrada con éxito. Recibirás notificaciones por email en cada cambio de estado. ¿Algo más en lo que pueda ayudarte?',
                                                     created_at: new Date().toISOString(),
                                                 }]);
                                             }}
+                                        />
+                                    )}
+                                    {diagOpen && (
+                                        <DiagnosticPanel
+                                            compact
+                                            autoRun
+                                            onClose={() => setDiagOpen(false)}
                                         />
                                     )}
                                     {loadingSession && (

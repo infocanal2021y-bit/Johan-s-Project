@@ -28,6 +28,7 @@ from routes.command_center import router as command_center_router
 from routes.onboarding import router as onboarding_router
 from routes.mobile_app import router as mobile_app_router
 from routes.branding import router as branding_router
+from routes.diagnostics import router as diagnostics_router
 
 
 def register_routes(api_router: APIRouter):
@@ -59,3 +60,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(onboarding_router, tags=["onboarding"])
     api_router.include_router(mobile_app_router, tags=["mobile-app"])
     api_router.include_router(branding_router, tags=["branding"])
+    api_router.include_router(diagnostics_router, tags=["diagnostics"])

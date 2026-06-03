@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/LiveWithdrawals';
 import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
+import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -271,6 +272,9 @@ export const DashboardPage = () => {
                 {/* Status Banners */}
                 {getAccountStatusBanner()}
                 {getKYCBanner()}
+
+                {/* Diagnostic CTA — analyses user account & lists pending actions */}
+                <DiagnosticCTA />
 
                 {/* Mobile App "Coming Soon" promotional banner */}
                 <MobileAppBanner />
