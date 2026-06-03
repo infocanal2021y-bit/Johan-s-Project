@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n/LanguageContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ConnectionIndicator } from '../ConnectionIndicator';
+import { SidebarHealthRing } from './SidebarHealthRing';
 import { NotificationBell } from '../NotificationBell';
 import { LevelBadge } from '../dashboard/LevelBadge';
 import { 
@@ -308,11 +309,15 @@ export const Sidebar = () => {
             {/* User Info & Logout */}
             <div className="p-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.15)' }}>
                 <div className="flex items-center gap-3 px-3 py-2.5 mb-2">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
-                        <span className="text-sm text-white" style={{ fontWeight: 600 }}>
-                            {user?.name?.charAt(0).toUpperCase()}
-                        </span>
-                    </div>
+                    {!isAdmin ? (
+                        <SidebarHealthRing user={user} />
+                    ) : (
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
+                            <span className="text-sm text-white" style={{ fontWeight: 600 }}>
+                                {user?.name?.charAt(0).toUpperCase()}
+                            </span>
+                        </div>
+                    )}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <p className="text-[13px] text-white truncate" style={{ fontWeight: 600 }}>{user?.name}</p>

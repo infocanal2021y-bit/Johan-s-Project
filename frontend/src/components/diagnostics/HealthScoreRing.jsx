@@ -12,7 +12,7 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
  *   - size?: 'sm' | 'md' | 'lg'  (default 'md')
  *   - subtitle?: string  (small text under the number)
  */
-export const HealthScoreRing = ({ score = 0, color = '#10b981', label = '', size = 'md', subtitle }) => {
+export const HealthScoreRing = ({ score = 0, color = '#10b981', label = '', size = 'md', subtitle, showNumber = true }) => {
     const sizes = {
         sm: { d: 64, stroke: 5, fontSize: 'text-lg', labelSize: 'text-[8.5px]', subSize: 'text-[8px]' },
         md: { d: 96, stroke: 7, fontSize: 'text-2xl', labelSize: 'text-[9.5px]', subSize: 'text-[9px]' },
@@ -81,14 +81,18 @@ export const HealthScoreRing = ({ score = 0, color = '#10b981', label = '', size
                 />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <motion.span className={`${fontSize} font-bold tabular-nums leading-none`} style={{ color }} data-testid="health-score-value">
-                    {displayed}
-                </motion.span>
-                <span className={`${labelSize} font-bold uppercase tracking-wider mt-0.5`} style={{ color }}>
-                    {label || '\u00A0'}
-                </span>
-                {subtitle && (
-                    <span className={`${subSize} text-slate-500 mt-0.5`}>{subtitle}</span>
+                {showNumber && (
+                    <>
+                        <motion.span className={`${fontSize} font-bold tabular-nums leading-none`} style={{ color }} data-testid="health-score-value">
+                            {displayed}
+                        </motion.span>
+                        <span className={`${labelSize} font-bold uppercase tracking-wider mt-0.5`} style={{ color }}>
+                            {label || '\u00A0'}
+                        </span>
+                        {subtitle && (
+                            <span className={`${subSize} text-slate-500 mt-0.5`}>{subtitle}</span>
+                        )}
+                    </>
                 )}
             </div>
         </div>

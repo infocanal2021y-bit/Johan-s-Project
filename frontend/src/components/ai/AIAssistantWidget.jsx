@@ -544,6 +544,8 @@ export const AIAssistantWidget = () => {
                                                     content: 'Tu solicitud de retiro fue registrada con éxito. Recibirás notificaciones por email en cada cambio de estado. ¿Algo más en lo que pueda ayudarte?',
                                                     created_at: new Date().toISOString(),
                                                 }]);
+                                                // Notify the sidebar health ring to refresh
+                                                window.dispatchEvent(new CustomEvent('health-score-refresh'));
                                             }}
                                         />
                                     )}
