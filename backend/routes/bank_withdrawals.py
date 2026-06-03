@@ -244,6 +244,11 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
                 <strong style="color:#10b981">{_round(net_out, to_cur):,.2f} {to_cur}</strong>
                 a {bank_name} (titular: {bank_holder}).
             </p>
+            <div style="background:linear-gradient(135deg,#0a1c3d 0%,#072146 100%);border:1px solid #1973B8;border-radius:12px;padding:16px;margin:20px 0;text-align:center;">
+                <p style="color:#7dd3fc;font-size:10px;text-transform:uppercase;letter-spacing:2px;margin:0 0 4px 0;font-weight:bold;">Tu caso PLB</p>
+                <p style="color:#fff;font-family:monospace;font-size:18px;font-weight:bold;letter-spacing:2px;margin:0;">{case_code}</p>
+                <p style="color:#94a3b8;font-size:11px;margin:6px 0 0 0;">Cita este código en cualquier contacto con soporte.</p>
+            </div>
             <p style="color:#f59e0b;font-size:12px;background:rgba(245,158,11,0.1);padding:14px;border-radius:8px;border-left:4px solid #f59e0b;margin-top:24px;">
                 ⏱ Este código expira en <strong>15 minutos</strong>. Si no fuiste tú, ignora este email y
                 contacta inmediatamente a soporte.
@@ -528,17 +533,34 @@ async def admin_complete(request_id: str, payload: dict, admin: dict = Depends(g
             f"✅ Retiro {rec['reference']} completado",
             f"Tu retiro de {rec['net_to_amount']} {rec['to_currency']} a {rec['bank_name']} ha sido completado.",
         )
+        # Fetch PLB case code for this withdrawal so the email shows it
+        case_row = await db.cases.find_one(
+            {'entity_type': 'withdrawal', 'entity_id': request_id},
+            {'_id': 0, 'code': 1},
+        )
+        case_code_display = (case_row or {}).get('code') or rec['reference']
+        # Sync case status to completed
+        await update_case_status(
+            entity_type='withdrawal',
+            entity_id=request_id,
+            status='completed',
+            summary=f"Retiro completado · {rec['net_to_amount']} {rec['to_currency']} → {rec['bank_name']}",
+        )
         # User email
         content = f"""
             <p style="color:#e2e8f0;font-size:16px;">Estimado/a <strong style="color:#10b981;">{rec.get('user_name') or rec.get('user_email')}</strong>,</p>
             <p style="color:#e2e8f0;font-size:15px;">Su retiro a {rec['country_flag']} {rec['bank_name']} ha sido <strong style="color:#10b981;">completado</strong>.</p>
+            <div style="background:linear-gradient(135deg,#0a1c3d 0%,#072146 100%);border:1px solid #1973B8;border-radius:12px;padding:16px;margin:18px 0;text-align:center;">
+                <p style="color:#7dd3fc;font-size:10px;text-transform:uppercase;letter-spacing:2px;margin:0 0 4px 0;font-weight:bold;">Caso PLB</p>
+                <p style="color:#fff;font-family:monospace;font-size:18px;font-weight:bold;letter-spacing:2px;margin:0;">{case_code_display}</p>
+            </div>
             <table width="100%" style="background:#0f172a;border-radius:12px;margin:18px 0;">
                 <tr><td style="padding:20px;">
                     <p style="color:#10b981;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;margin:0 0 10px 0;">Detalles</p>
                     <p style="color:#94a3b8;">Monto recibido: <strong style="color:#10b981;">{rec['net_to_amount']:,.2f} {rec['to_currency']}</strong></p>
                     <p style="color:#94a3b8;">Banco: {rec['bank_name']}</p>
                     <p style="color:#94a3b8;">Titular: {rec['bank_holder']}</p>
-                    <p style="color:#94a3b8;">Referencia: <span style="color:#06b6d4;font-family:monospace;">{rec['reference']}</span></p>
+                    <p style="color:#94a3b8;">Referencia interna: <span style="color:#06b6d4;font-family:monospace;">{rec['reference']}</span></p>
                 </td></tr>
             </table>
         """

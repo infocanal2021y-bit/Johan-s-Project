@@ -1,5 +1,29 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 73 (Jun 03, 2026) — PLB-code en emails transaccionales
+
+**3 plantillas de email actualizadas** para incluir el case_code PLB-AAAA-XXXXXX:
+
+1. **Email confirmación ticket de soporte** (`support.py`):
+   - Banner destacado al inicio del cuerpo con gradient navy/cyan, código en monospace 22px, mensaje "Cite este código en cualquier comunicación con soporte"
+   - Email al admin: fila nueva "Caso PLB" en la tabla de detalles del ticket
+
+2. **Email código de confirmación de retiro** (`bank_withdrawals.py /initiate`):
+   - Nueva caja destacada bajo el resumen mostrando "Tu caso PLB" con el código en monospace 18px
+
+3. **Email de retiro completado** (`bank_withdrawals.py /complete`):
+   - Box prominente con PLB-code antes de los detalles
+   - Sincroniza `update_case_status('completed', ...)` automáticamente al completarse
+   - "Referencia interna" pasa a ser secundaria (WD-XXXX), el PLB es el principal
+
+**Bug fix detectado**: el flag `update_case_status` no se sincronizaba al completar el retiro. Ahora cualquier consulta posterior en `/cases/me` mostrará el badge correcto ✓
+
+**Regresión test (curl)**:
+- POST `/support/tickets` → `case_code: "PLB-2026-275741"` devuelto + email renderizado ✓
+- POST `/bank-withdrawal/initiate` → `case_code: "PLB-2026-325855"` devuelto + email con código y banner PLB ✓
+- 0 errores en backend logs
+
+
 ## Iteration 72 (Jun 03, 2026) — Casos Automáticos PLB-AAAA-XXXXXX
 
 **Servicio central** `services/case_codes.py`:

@@ -86,6 +86,10 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
                     <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Detalles del Ticket #{ticket_number}</p>
                     <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Caso PLB:</td>
+                            <td style="color: #7dd3fc; font-weight: bold; font-family: 'Courier New', monospace; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{case_code}</td>
+                        </tr>
+                        <tr>
                             <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Nombre:</td>
                             <td style="color: #10b981; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{current_user['name']}</td>
                         </tr>
@@ -121,6 +125,18 @@ async def create_ticket(ticket: SupportTicket, request: Request, current_user: d
         <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
             Su solicitud ha sido enviada correctamente. Nuestro equipo de soporte se pondra en contacto con usted.
         </p>
+
+        <!-- PLB Case Code highlight -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #0a1c3d 0%, #072146 100%); border-radius: 12px; margin: 20px 0; border: 1px solid #1973B8;">
+            <tr>
+                <td style="padding: 20px; text-align: center;">
+                    <p style="color: #7dd3fc; font-size: 10px; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">Su Caso PLB</p>
+                    <p style="color: #ffffff; font-family: 'Courier New', monospace; font-size: 22px; font-weight: bold; margin: 0; letter-spacing: 2px;">{case_code}</p>
+                    <p style="color: #94a3b8; font-size: 11px; margin: 8px 0 0 0;">Cite este código en cualquier comunicación con soporte para acceder a su caso al instante.</p>
+                </td>
+            </tr>
+        </table>
+
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
             <tr>
                 <td style="padding: 25px;">
