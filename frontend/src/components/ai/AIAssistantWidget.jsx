@@ -11,6 +11,7 @@ import {
     Wallet, ArrowUpRight, FileText, AlertCircle, HelpCircle, Receipt,
 } from 'lucide-react';
 import { SUPPORT_EMAIL } from '../../config/branding';
+import { InlineWithdrawalWizard } from './InlineWithdrawalWizard';
 
 const fmtTime = (iso) => !iso ? '' : new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -68,18 +69,17 @@ const renderMarkdown = (text) => {
 // ─── Welcome view (shown on a fresh, empty chat) ─────────────────
 const fmtEUR = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate }) => {
+const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate, onOpenWizard }) => {
     const firstName = ctx?.first_name || (user?.name || user?.email || 'Cliente').split(' ')[0];
 
-    // 6 quick actions: 4 trigger LLM prompts, 2 navigate to real flows
+    // 6 quick actions: 4 trigger LLM prompts, 1 opens inline wizard, 1 navigates
     const actions = [
         {
             id: 'withdraw',
             label: 'Realizar un retiro',
             icon: ArrowUpRight,
             color: '#10b981',
-            kind: 'navigate',
-            path: '/wallet/bank-withdrawal',
+            kind: 'wizard',
         },
         {
             id: 'balance',
@@ -145,7 +145,7 @@ const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate }) => {
                 <motion.button
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    onClick={() => onNavigate('/wallet/bank-withdrawal')}
+                    onClick={() => onOpenWizard?.()}
                     className="w-full text-left mb-4 group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent ring-1 ring-emerald-500/40 hover:ring-emerald-400/70 hover:shadow-[0_8px_30px_rgba(16,185,129,0.2)] p-3 transition-all"
                     data-testid="ai-proactive-withdrawal-banner"
                 >
@@ -199,8 +199,8 @@ const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate }) => {
                         onClick={() => {
                             if (a.kind === 'send') onSend(a.prompt);
                             else if (a.kind === 'navigate') onNavigate(a.path);
+                            else if (a.kind === 'wizard') onOpenWizard?.();
                             else if (a.kind === 'focus') {
-                                // Just focus the textarea so the user can type their own question
                                 setTimeout(() => {
                                     document.querySelector('[data-testid="ai-input"]')?.focus();
                                 }, 30);
@@ -256,6 +256,7 @@ export const AIAssistantWidget = () => {
     const [sending, setSending] = useState(false);
     const [loadingSession, setLoadingSession] = useState(false);
     const [quickCtx, setQuickCtx] = useState(null);
+    const [wizardOpen, setWizardOpen] = useState(false);
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -478,13 +479,31 @@ export const AIAssistantWidget = () => {
                         ) : (
                             <>
                                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3" data-testid="ai-messages-list">
-                                    {messages.length === 0 && !loadingSession && (
+                                    {messages.length === 0 && !loadingSession && !wizardOpen && (
                                         <WelcomeView
                                             user={user}
                                             ctx={quickCtx}
                                             suggestions={suggestions}
                                             onSend={send}
                                             onNavigate={(path) => { setOpen(false); navigate(path); }}
+                                            onOpenWizard={() => setWizardOpen(true)}
+                                        />
+                                    )}
+                                    {wizardOpen && (
+                                        <InlineWithdrawalWizard
+                                            onClose={() => {
+                                                setWizardOpen(false);
+                                                // Refresh ctx so the proactive banner updates after a withdrawal
+                                                setQuickCtx(null);
+                                            }}
+                                            onCompleted={() => {
+                                                // Push a confirmation message into the chat history
+                                                setMessages((m) => [...m, {
+                                                    role: 'assistant',
+                                                    content: 'Tu solicitud de retiro fue registrada con éxito. Recibirás notificaciones por email en cada cambio de estado. ¿Algo más en lo que pueda ayudarte?',
+                                                    created_at: new Date().toISOString(),
+                                                }]);
+                                            }}
                                         />
                                     )}
                                     {loadingSession && (

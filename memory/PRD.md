@@ -1,5 +1,29 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 69 (Jun 01, 2026) — Conversational withdrawal wizard inside chat
+
+**Nuevo componente** `components/ai/InlineWithdrawalWizard.jsx` (~400 líneas) — wizard de 6 pasos que se monta DENTRO del panel del AI Assistant:
+
+| Step | Acción |
+|------|--------|
+| 0 · elegibilidad | Lee `/api/ai-assistant/quick-context` y muestra 3 checks: fondos disponibles · impuestos al día · sin partial-unlock pendiente. Auto-skip si todo OK. |
+| 1 · monto       | Select de moneda origen (EUR/USD/GBP) + país destino (lista de `bank-withdrawal/config`) + input numérico. |
+| 2 · banco       | Select de banco (filtrado por país), titular, IBAN/cuenta, SWIFT opcional. |
+| 3 · revisión    | Resumen estructurado + comisión. CTA "Enviar código de verificación" → `POST /bank-withdrawal/initiate`. |
+| 4 · código      | Input 6 dígitos con email enmascarado. CTA "Confirmar retiro" → `POST /bank-withdrawal/{id}/confirm-code`. |
+| 5 · éxito       | Animación spring + referencia única + tiempo estimado · botón "Volver al chat". |
+
+**Integración con AIAssistantWidget**:
+- Quick action "withdraw" ya NO navega a `/wallet/bank-withdrawal`, ahora abre `setWizardOpen(true)` inline
+- Banner proactivo verde también dispara el wizard (no navegación)
+- Cuando el wizard se cierra, se invalida `quickCtx` para que el banner refleje el nuevo saldo
+- `onCompleted` inyecta un mensaje del asistente en la sesión actual confirmando el retiro
+
+**Reutiliza endpoints existentes** (no nuevos): `bank-withdrawal/config`, `bank-withdrawal/initiate`, `bank-withdrawal/{id}/confirm-code`. Toda la validación de saldo, comisión, código de 6 dígitos por email y bloqueo de pending se mantiene como antes.
+
+**Smoke tests Playwright** (8/8 OK): wizard renderiza · auto-skip eligibility con admin (tiene fondos) · step1→2→3 navega · resumen muestra todos los campos · botón "back-to-chat" cierra y vuelve al welcome view.
+
+
 ## Iteration 68 (Jun 01, 2026) — Virtual Assistant welcome flow
 
 **Auto-open en dashboard**: el `AIAssistantWidget` ahora se abre automáticamente 1.2s después de aterrizar en `/dashboard` (una sola vez por sesión via `sessionStorage.ai_welcomed_<userid>`). Al logout/nuevo login se resetea.
