@@ -180,16 +180,69 @@ async def quick_context(user: dict = Depends(get_current_user)):
 
     has_withdrawable_funds = (balance_eur + mc_total_eur) > 10.0
 
+    # ── Proactive insight ─────────────────────────────────────
+    # Smart message based on combined state. Returns None if nothing actionable.
+    insight = None
+    has_saved_iban = False
+    saved_bank = await db.bank_withdrawal_requests.find_one(
+        {"user_id": uid, "status": {"$in": [
+            "completed", "received", "conversion_done",
+            "compliance_review", "transfer_in_progress",
+        ]}},
+        {"_id": 0, "bank_name": 1, "bank_account": 1},
+    )
+    if saved_bank and saved_bank.get("bank_account"):
+        has_saved_iban = True
+
+    if has_withdrawable_funds and pending_tax_eur > 0:
+        insight = {
+            "type": "tax_blocker",
+            "tone": "warn",
+            "title": "Su cuenta tiene fondos, pero hay impuestos pendientes",
+            "body": f"Detectamos €{balance_eur + mc_total_eur:,.2f} disponibles. Para retirarlos necesita resolver €{pending_tax_eur:,.2f} en impuestos pendientes.",
+            "cta_label": "Resolver impuesto",
+            "cta_path": "/partial-unlock",
+        }
+    elif has_withdrawable_funds and not has_saved_iban:
+        insight = {
+            "type": "ready_but_no_iban",
+            "tone": "info",
+            "title": "Su cuenta está lista para retiro",
+            "body": "He detectado que su cuenta está lista para retiro, pero aún no ha registrado un IBAN. Para evitar retrasos, registre los datos bancarios en su primer retiro.",
+            "cta_label": "Iniciar retiro guiado",
+            "cta_path": "wizard://start",
+        }
+    elif has_withdrawable_funds and has_saved_iban:
+        insight = {
+            "type": "ready_to_withdraw",
+            "tone": "success",
+            "title": "Listo para retirar",
+            "body": f"Tiene €{balance_eur + mc_total_eur:,.2f} disponibles y datos bancarios validados. Puede iniciar un retiro en cualquier momento.",
+            "cta_label": "Iniciar retiro",
+            "cta_path": "wizard://start",
+        }
+    elif active_withdrawals > 0 and latest_withdrawal:
+        insight = {
+            "type": "withdrawal_in_progress",
+            "tone": "info",
+            "title": "Retiro en proceso",
+            "body": f"Su retiro {latest_withdrawal.get('reference', '')} está en estado {latest_withdrawal.get('status', '')}. Le notificaremos al avanzar.",
+            "cta_label": "Ver estado",
+            "cta_path": "/wallet/bank-withdrawal",
+        }
+
     return {
         "first_name": first_name,
         "balance_eur": round(balance_eur, 2),
         "multi_currency_eur": round(mc_total_eur, 2),
         "total_eur": round(balance_eur + mc_total_eur, 2),
         "has_withdrawable_funds": has_withdrawable_funds,
+        "has_saved_iban": has_saved_iban,
         "active_withdrawals": active_withdrawals,
         "latest_withdrawal": latest_withdrawal,
         "pending_tax_eur": round(pending_tax_eur, 2),
         "partial_unlock": partial_unlock,
+        "proactive_insight": insight,
     }
 
 

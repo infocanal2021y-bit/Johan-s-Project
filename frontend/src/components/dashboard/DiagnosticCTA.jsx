@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import api from '../../lib/api';
 import { Sparkles, ChevronRight, AlertTriangle, ShieldAlert, CheckCircle2, Loader2 } from 'lucide-react';
+import { HealthScoreRing } from '../diagnostics/HealthScoreRing';
 
 
 /**
@@ -28,8 +29,9 @@ export const DiagnosticCTA = () => {
 
     const pending = (data?.blocker_count || 0) + (data?.warn_count || 0);
     const blocked = (data?.blocker_count || 0) > 0;
+    const score = data?.health_score;
+    const scoreColor = data?.health_score_color || '#06b6d4';
     const handleClick = () => {
-        // Let the floating AI assistant open the panel inline
         window.dispatchEvent(new CustomEvent('open-diagnostic'));
     };
 
@@ -46,26 +48,36 @@ export const DiagnosticCTA = () => {
             <div className="pointer-events-none absolute -bottom-20 -left-12 w-56 h-56 rounded-full bg-violet-500/10 blur-3xl" />
 
             <div className="relative flex items-center justify-between gap-3 p-4 sm:p-5">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-cyan-500/20 to-violet-500/20 ring-1 ring-cyan-500/30">
-                        <Sparkles className="w-5 h-5 text-cyan-300" />
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    {/* Health score ring (replaces the static icon) */}
+                    <div className="flex-shrink-0">
+                        {!loading && score != null ? (
+                            <HealthScoreRing score={score} color={scoreColor} label="" size="sm" />
+                        ) : (
+                            <div className="w-16 h-16 rounded-full bg-slate-800 ring-1 ring-slate-700 flex items-center justify-center">
+                                <Loader2 className="w-5 h-5 animate-spin text-cyan-300" />
+                            </div>
+                        )}
                     </div>
                     <div className="min-w-0">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-300 font-bold flex items-center gap-1.5">
-                            Diagnóstico automático
-                            {loading && <Loader2 className="w-2.5 h-2.5 animate-spin opacity-60" />}
+                            <Sparkles className="w-3 h-3" /> Salud de cuenta
                         </p>
-                        <p className="text-white font-bold text-[15px] sm:text-[16px] mt-0.5 leading-tight">Analizar mi caso</p>
+                        <p className="text-white font-bold text-[15px] sm:text-[16px] mt-0.5 leading-tight">
+                            {loading ? 'Analizando…' : score >= 90
+                                ? 'Tu cuenta está en perfecto estado'
+                                : score >= 70 ? 'Tu cuenta está bien, hay pequeñas mejoras'
+                                    : score >= 50 ? 'Tu cuenta necesita atención'
+                                        : 'Tu cuenta tiene puntos críticos'}
+                        </p>
                         <p className="text-slate-400 text-[11.5px] mt-0.5 truncate">
                             {loading
                                 ? 'Cargando…'
                                 : data?.overall === 'all_clear'
-                                    ? 'Tu cuenta está al día — no hay acciones pendientes.'
-                                    : data?.overall === 'minor'
-                                        ? 'Hay información útil sobre tu cuenta.'
-                                        : pending > 0
-                                            ? `${pending} ${pending === 1 ? 'acción recomendada' : 'acciones recomendadas'} en tu cuenta.`
-                                            : 'Revisa el estado de tu cuenta en un click.'}
+                                    ? 'No hay acciones pendientes.'
+                                    : pending > 0
+                                        ? `${pending} ${pending === 1 ? 'acción recomendada' : 'acciones recomendadas'} · click para ver detalle`
+                                        : 'Click para ver el análisis completo'}
                         </p>
                     </div>
                 </div>

@@ -279,6 +279,24 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
     else:
         overall = 'all_clear'
 
+    # ── Health score (0-100) ─────────────────────────────────────
+    # blockers cost 30 pts each, warns 12 pts each. Info doesn't deduct.
+    # Min 5 so the ring is never visually empty.
+    raw_score = 100 - (blocker * 30) - (warn * 12)
+    health_score = max(5, min(100, raw_score))
+
+    if health_score >= 90:
+        score_label, score_color = 'Excelente', '#10b981'
+    elif health_score >= 70:
+        score_label, score_color = 'Bueno', '#06b6d4'
+    elif health_score >= 50:
+        score_label, score_color = 'Atención', '#f59e0b'
+    else:
+        score_label, score_color = 'Crítico', '#ef4444'
+
+    # Compute "to perfect" — how many pts the user would gain by clearing all warn/blockers
+    score_potential = 100 - health_score
+
     # Sort: blockers first, then warn, then info, then ok
     order = {'blocker': 0, 'warn': 1, 'info': 2, 'ok': 3}
     findings.sort(key=lambda x: order.get(x['severity'], 99))
@@ -302,5 +320,9 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
         'info_count': info,
         'total': len(findings),
         'findings': findings,
+        'health_score': health_score,
+        'health_score_label': score_label,
+        'health_score_color': score_color,
+        'health_score_potential': score_potential,
         'last_run_at': _now_iso(),
     }

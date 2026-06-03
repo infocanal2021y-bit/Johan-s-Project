@@ -67,6 +67,56 @@ const renderMarkdown = (text) => {
 };
 
 
+// ─── Proactive AI Copilot insight ─────────────────────────────────
+// Renders a smart card that reacts to combined account state and offers
+// a single clear action. Tone-aware styling.
+const INSIGHT_TONE = {
+    success: { color: '#10b981', bg: 'from-emerald-500/15', ring: 'ring-emerald-500/40 hover:ring-emerald-400/70', shadow: 'rgba(16,185,129,0.2)' },
+    info:    { color: '#06b6d4', bg: 'from-cyan-500/15',    ring: 'ring-cyan-500/40 hover:ring-cyan-400/70',       shadow: 'rgba(6,182,212,0.2)' },
+    warn:    { color: '#f59e0b', bg: 'from-amber-500/15',   ring: 'ring-amber-500/40 hover:ring-amber-400/70',     shadow: 'rgba(245,158,11,0.2)' },
+};
+
+const ProactiveInsight = ({ insight, onOpenWizard, onNavigate }) => {
+    const tone = INSIGHT_TONE[insight.tone] || INSIGHT_TONE.info;
+    const handleClick = () => {
+        if (insight.cta_path === 'wizard://start') onOpenWizard?.();
+        else if (insight.cta_path) onNavigate?.(insight.cta_path);
+    };
+    return (
+        <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={handleClick}
+            className={`w-full text-left mb-4 group relative overflow-hidden rounded-xl bg-gradient-to-br ${tone.bg} via-transparent to-transparent ring-1 ${tone.ring} hover:shadow-[0_8px_30px] p-3 transition-all`}
+            style={{ '--tw-shadow-color': tone.shadow }}
+            data-testid="ai-proactive-insight"
+        >
+            <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: tone.color + '25', boxShadow: `inset 0 0 0 1px ${tone.color}50` }}>
+                    <Sparkles className="w-4 h-4" style={{ color: tone.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-0.5" style={{ color: tone.color }}>
+                        Copiloto financiero
+                    </p>
+                    <p className="text-[12px] font-bold leading-tight" style={{ color: tone.color }}>
+                        {insight.title}
+                    </p>
+                    <p className="text-slate-300 text-[11px] mt-1 leading-relaxed">
+                        {insight.body}
+                    </p>
+                    {insight.cta_label && (
+                        <p className="text-[11px] font-semibold mt-1.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all" style={{ color: tone.color }}>
+                            {insight.cta_label} <ChevronRight className="w-3 h-3" />
+                        </p>
+                    )}
+                </div>
+            </div>
+        </motion.button>
+    );
+};
+
+
 // ─── Welcome view (shown on a fresh, empty chat) ─────────────────
 const fmtEUR = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -141,39 +191,17 @@ const WelcomeView = ({ user, ctx, suggestions, onSend, onNavigate, onOpenWizard,
                 </div>
             </div>
 
-            {/* Proactive banner — only if funds detected */}
-            {ctx?.has_withdrawable_funds && (
-                <motion.button
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => onOpenWizard?.()}
-                    className="w-full text-left mb-4 group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent ring-1 ring-emerald-500/40 hover:ring-emerald-400/70 hover:shadow-[0_8px_30px_rgba(16,185,129,0.2)] p-3 transition-all"
-                    data-testid="ai-proactive-withdrawal-banner"
-                >
-                    <div className="flex items-start gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/25 ring-1 ring-emerald-400/50 flex items-center justify-center flex-shrink-0">
-                            <ArrowUpRight className="w-4 h-4 text-emerald-300" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-emerald-200 text-[12px] font-bold leading-tight">
-                                Veo que tiene fondos disponibles para retiro.
-                            </p>
-                            <p className="text-emerald-300/80 text-[11px] mt-0.5">
-                                Saldo: <span className="font-mono font-bold text-emerald-200">{fmtEUR(ctx.total_eur)}</span>
-                                {ctx.pending_tax_eur > 0 && (
-                                    <span className="text-amber-300/90"> · Impuesto pendiente: {fmtEUR(ctx.pending_tax_eur)}</span>
-                                )}
-                            </p>
-                            <p className="text-emerald-200 text-[11px] font-semibold mt-1.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-                                ¿Desea iniciar el proceso ahora? <ChevronRight className="w-3 h-3" />
-                            </p>
-                        </div>
-                    </div>
-                </motion.button>
+            {/* Proactive Copilot insight — smart message based on combined state */}
+            {ctx?.proactive_insight && (
+                <ProactiveInsight
+                    insight={ctx.proactive_insight}
+                    onOpenWizard={onOpenWizard}
+                    onNavigate={onNavigate}
+                />
             )}
 
-            {/* Active withdrawal notice (read-only) */}
-            {!ctx?.has_withdrawable_funds && ctx?.active_withdrawals > 0 && ctx?.latest_withdrawal && (
+            {/* Active withdrawal notice (read-only fallback when no insight) */}
+            {!ctx?.proactive_insight && ctx?.active_withdrawals > 0 && ctx?.latest_withdrawal && (
                 <div
                     className="mb-4 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30 p-3"
                     data-testid="ai-active-withdrawal-info"

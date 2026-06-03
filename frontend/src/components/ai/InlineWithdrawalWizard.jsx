@@ -7,6 +7,7 @@ import {
     ArrowLeft, ArrowRight, Loader2, CheckCircle2, ShieldCheck,
     AlertTriangle, Wallet, Building2, Mail, Hash, ChevronRight,
 } from 'lucide-react';
+import { BankTipsCard } from '../banks/BankTipsCard';
 
 
 const fmtEUR = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -269,6 +270,11 @@ export const InlineWithdrawalWizard = ({ onClose, onCompleted }) => {
                                 <option value="Otro banco">Otro banco…</option>
                             </select>
                         </Field>
+
+                        {/* Bank-specific tips — only shown for Spanish banks we have data on */}
+                        {form.country === 'ES' && form.bank_name && form.bank_name !== 'Otro banco' && (
+                            <BankTipsCard bankName={form.bank_name} />
+                        )}
                         <Field label="Titular de la cuenta">
                             <input
                                 type="text"

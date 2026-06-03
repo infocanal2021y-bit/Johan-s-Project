@@ -1,5 +1,29 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+## Iteration 71 (Jun 03, 2026) — Bank tips · Health Score · AI Copilot
+
+**Backend** (3 cambios):
+- `routes/banks.py` nuevo · catálogo curado de 6 bancos españoles (CaixaBank, BBVA, Santander, Sabadell, ING, Bankinter) con IBAN prefix, SWIFT, tiempo medio de procesamiento, fiabilidad (0-100), consejos y avisos específicos.
+  - `GET /api/banks/tips` (lista) · `GET /api/banks/tips/{name}` (single)
+- `routes/diagnostics.py` · ahora devuelve `health_score (0-100)`, `health_score_label` ('Excelente'/'Bueno'/'Atención'/'Crítico'), `health_score_color`, `health_score_potential`. Fórmula: `100 − 30×blockers − 12×warns`, clamp 5-100.
+- `routes/ai_assistant.py` · `quick-context` ahora incluye `proactive_insight` con lógica multi-condicional (tax_blocker / ready_but_no_iban / ready_to_withdraw / withdrawal_in_progress). Detecta si el usuario tiene IBAN guardado.
+
+**Frontend** (3 componentes nuevos + 3 actualizados):
+- `HealthScoreRing.jsx` · SVG animado con gradient stroke + glow shadow, anima de 0 al score real en 1.4s, muestra número grande + label + subtitulo
+- `BankTipsCard.jsx` · tarjeta lazy-load con caché en memoria, color por banco, IBAN/SWIFT en monoespaciada, 3 tips con checkmarks, warnings ámbar destacados
+- `ProactiveInsight` (interno de AIAssistantWidget) · banner inteligente que reacciona al `proactive_insight` del backend, 3 tonos (success/info/warn), CTA dirigido al wizard o navegación
+- `DiagnosticPanel.jsx` · Headline ahora muestra ring 0-100 + pills compactas a la derecha
+- `DiagnosticCTA.jsx` · ring reemplaza el icono estático, mensaje principal cambia según score (>90/70/50/<50)
+- `InlineWithdrawalWizard.jsx` · step 2 (banco) ahora muestra `<BankTipsCard>` automáticamente cuando se selecciona un banco español
+
+**Smoke tests E2E (8/8 ✅)**: ring dashboard, copilot insight, click→wizard, step bank, CaixaBank tips, warnings visibles, switch a BBVA actualiza la card, diagnóstico con ring.
+
+**Backend curl** (admin):
+- `health_score: 88` ("Bueno", cyan) · 1 warn (perfil) + 2 info + 2 ok
+- `CaixaBank`: SWIFT `CAIXESBBXXX`, fiabilidad 95/100, 3 tips
+- `proactive_insight`: *"Su cuenta está lista para retiro, pero aún no ha registrado un IBAN..."* ✓ (frase exacta solicitada)
+
+
 ## Iteration 70 (Jun 03, 2026) — Diagnóstico Automático
 
 **Backend** (`/app/backend/routes/diagnostics.py`, ~250 líneas):

@@ -8,6 +8,7 @@ import {
     Loader2, RefreshCw, ChevronRight, ArrowLeft, FileText,
     Wallet, Receipt, Shield, User as UserIcon, Box,
 } from 'lucide-react';
+import { HealthScoreRing } from './HealthScoreRing';
 
 
 // Visual config per severity (color + icon + sort weight)
@@ -149,7 +150,14 @@ export const DiagnosticPanel = ({ compact = false, onClose, autoRun = true }) =>
                         className="space-y-3"
                     >
                         {/* Headline */}
-                        <Headline overall={data.overall} counts={data} compact={compact} />
+                        <Headline
+                            overall={data.overall}
+                            counts={data}
+                            compact={compact}
+                            score={data.health_score}
+                            scoreColor={data.health_score_color}
+                            scoreLabel={data.health_score_label}
+                        />
 
                         {/* Findings list */}
                         <ul className="space-y-2" data-testid="diag-findings">
@@ -178,41 +186,52 @@ export const DiagnosticPanel = ({ compact = false, onClose, autoRun = true }) =>
 
 
 // ─── Headline summary card ────────────────────────────────────────
-const Headline = ({ overall, counts, compact }) => {
+const Headline = ({ overall, counts, compact, score, scoreColor, scoreLabel }) => {
     const meta = OVERALL_HEADLINE[overall] || OVERALL_HEADLINE.minor;
     return (
         <div
             className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${meta.ring} ring-1 p-3 sm:p-4`}
             data-testid={`diag-headline-${overall}`}
         >
-            <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: meta.color + '25', boxShadow: `inset 0 0 0 1px ${meta.color}40` }}>
-                    <Sparkles className="w-5 h-5" style={{ color: meta.color }} />
+            <div className="flex items-center gap-3 sm:gap-4">
+                {/* Health score ring */}
+                <div className="flex-shrink-0">
+                    <HealthScoreRing
+                        score={score ?? 0}
+                        color={scoreColor || meta.color}
+                        label={scoreLabel || ''}
+                        size={compact ? 'sm' : 'md'}
+                        subtitle="/ 100"
+                    />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className={`font-bold ${compact ? 'text-[13px]' : 'text-[15px]'} leading-tight`} style={{ color: meta.color }}>
+                    <p className="text-[9.5px] uppercase tracking-[0.16em] font-bold" style={{ color: meta.color }}>
+                        Salud de cuenta
+                    </p>
+                    <p className={`font-bold ${compact ? 'text-[12.5px]' : 'text-[14px]'} leading-tight mt-0.5`} style={{ color: meta.color }}>
                         {meta.title}
                     </p>
-                    <p className="text-slate-300 text-[11px] mt-0.5">{meta.sub}</p>
+                    <p className="text-slate-300 text-[11px] mt-1">{meta.sub}</p>
+
+                    {/* Count pills */}
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {[
+                            { k: 'blocker', count: counts.blocker_count },
+                            { k: 'warn', count: counts.warn_count },
+                            { k: 'info', count: counts.info_count },
+                            { k: 'ok', count: counts.ok_count },
+                        ].filter(x => x.count > 0).map(({ k, count }) => {
+                            const s = SEVERITY[k];
+                            return (
+                                <div key={k} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${s.bg} ring-1 ${s.ring}`} data-testid={`diag-count-${k}`}>
+                                    <s.icon className="w-2.5 h-2.5 flex-shrink-0" style={{ color: s.color }} />
+                                    <span className={`text-[10px] ${s.text} font-bold tabular-nums`}>{count}</span>
+                                    <span className="text-slate-400 text-[9px] uppercase tracking-wider hidden md:inline">{s.label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
-            {/* Count pills */}
-            <div className="grid grid-cols-4 gap-1.5 mt-3">
-                {[
-                    { k: 'blocker', count: counts.blocker_count },
-                    { k: 'warn', count: counts.warn_count },
-                    { k: 'info', count: counts.info_count },
-                    { k: 'ok', count: counts.ok_count },
-                ].map(({ k, count }) => {
-                    const s = SEVERITY[k];
-                    return (
-                        <div key={k} className={`px-2 py-1.5 rounded-md ${s.bg} ring-1 ${s.ring} flex items-center gap-1.5`} data-testid={`diag-count-${k}`}>
-                            <s.icon className="w-3 h-3 flex-shrink-0" style={{ color: s.color }} />
-                            <span className={`text-[10px] ${s.text} font-bold`}>{count}</span>
-                            <span className="text-slate-400 text-[9px] uppercase tracking-wider hidden sm:inline">{s.label}</span>
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );
