@@ -35,26 +35,87 @@ const FeatureCard = ({ icon: Icon, title, desc, color, delay = 0 }) => (
 );
 
 
-// ─── Store badge (looks like the official one but disabled) ──────
-const StoreBadge = ({ store, primary, secondary, icon: Icon, accent }) => (
+// ─── Official Apple App Store badge (recreated with proper brand styling) ──
+const AppStoreBadge = ({ disabled = true }) => (
     <div
-        className="group relative inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-black ring-1 ring-slate-700 opacity-90 cursor-not-allowed select-none"
-        data-testid={`store-badge-${store.toLowerCase()}`}
-        title="Próximamente"
+        className={`group relative inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-black ring-1 ring-white/10 select-none ${disabled ? 'cursor-not-allowed opacity-95' : 'cursor-pointer hover:ring-white/30'} transition-all`}
+        data-testid="store-badge-ios"
+        title={disabled ? 'Próximamente' : 'Descargar en App Store'}
     >
-        <Icon className="w-7 h-7 text-white flex-shrink-0" style={{ color: accent }} />
+        {/* Apple logo — proper SVG so it scales crisp */}
+        <svg viewBox="0 0 384 512" width="28" height="32" className="flex-shrink-0">
+            <path
+                fill="#ffffff"
+                d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"
+            />
+        </svg>
         <div className="text-left leading-tight">
-            <p className="text-slate-400 text-[9.5px] uppercase tracking-wider font-semibold">{primary}</p>
-            <p className="text-white text-[14px] font-bold">{secondary}</p>
+            <p className="text-white text-[9.5px] tracking-wide font-medium">Disponible pronto en</p>
+            <p className="text-white text-[18px] font-semibold -mt-0.5" style={{ fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif' }}>
+                App Store
+            </p>
         </div>
-        <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-400 text-amber-950">
-            Próximamente
-        </span>
+        {disabled && (
+            <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-400 text-amber-950">
+                Próximamente
+            </span>
+        )}
     </div>
 );
 
 
-// ─── Phone mockup with shine ──────────────────────────────────────
+// ─── Official Google Play badge (with the colorful 4-tone triangle logo) ──
+const GooglePlayBadge = ({ disabled = true }) => (
+    <div
+        className={`group relative inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-black ring-1 ring-white/10 select-none ${disabled ? 'cursor-not-allowed opacity-95' : 'cursor-pointer hover:ring-white/30'} transition-all`}
+        data-testid="store-badge-android"
+        title={disabled ? 'Próximamente' : 'Disponible en Google Play'}
+    >
+        {/* Google Play colorful triangle */}
+        <svg viewBox="0 0 32 36" width="26" height="32" className="flex-shrink-0">
+            <defs>
+                <linearGradient id="gp-blue" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#00C2FF" />
+                    <stop offset="100%" stopColor="#1492DA" />
+                </linearGradient>
+                <linearGradient id="gp-green" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#00F076" />
+                    <stop offset="100%" stopColor="#00A852" />
+                </linearGradient>
+                <linearGradient id="gp-yellow" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#FFD834" />
+                    <stop offset="100%" stopColor="#FFBD00" />
+                </linearGradient>
+                <linearGradient id="gp-red" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#FF3A44" />
+                    <stop offset="100%" stopColor="#C31162" />
+                </linearGradient>
+            </defs>
+            {/* Blue triangle (left) */}
+            <path d="M0.5 1.5 L0.5 34.5 L17 18 Z" fill="url(#gp-blue)" />
+            {/* Green triangle (top right) */}
+            <path d="M0.5 1.5 L17 18 L24.5 10.5 Z" fill="url(#gp-green)" />
+            {/* Yellow triangle (right tip) */}
+            <path d="M24.5 10.5 L17 18 L24.5 25.5 L31 18 Z" fill="url(#gp-yellow)" />
+            {/* Red triangle (bottom right) */}
+            <path d="M17 18 L0.5 34.5 L24.5 25.5 Z" fill="url(#gp-red)" />
+        </svg>
+        <div className="text-left leading-tight">
+            <p className="text-white text-[9.5px] tracking-wide font-medium">Disponible pronto en</p>
+            <p className="text-white text-[18px] font-semibold -mt-0.5" style={{ fontFamily: 'system-ui, "Product Sans", sans-serif' }}>
+                Google Play
+            </p>
+        </div>
+        {disabled && (
+            <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-400 text-amber-950">
+                Próximamente
+            </span>
+        )}
+    </div>
+);
+
+
+// ─── Phone mockup — premium iPhone 15 Pro style ──────────────────
 const PhoneMockup = () => (
     <motion.div
         initial={{ opacity: 0, scale: 0.92, rotate: -4 }}
@@ -63,88 +124,169 @@ const PhoneMockup = () => (
         className="relative mx-auto"
         style={{ perspective: '1000px' }}
     >
-        {/* Glow */}
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/30 via-[#1973B8]/20 to-emerald-500/20 blur-3xl rounded-full" />
+        {/* Ambient glow */}
+        <div className="absolute -inset-8 bg-gradient-to-br from-cyan-500/25 via-[#1973B8]/15 to-emerald-500/20 blur-3xl rounded-full" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/10 to-transparent blur-2xl rounded-full" />
 
-        {/* Phone frame */}
-        <div className="relative w-[260px] h-[520px] mx-auto rounded-[44px] bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 ring-[6px] ring-slate-950 shadow-[0_30px_80px_-15px_rgba(0,0,0,0.7)]">
-            {/* Notch */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-5 rounded-full bg-black z-10" />
+        {/* Phone frame — titanium gradient bezel */}
+        <div
+            className="relative w-[280px] h-[568px] mx-auto rounded-[48px] p-[3px] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.05)_inset]"
+            style={{
+                background: 'linear-gradient(135deg, #3a3a3c 0%, #1c1c1e 30%, #2c2c2e 50%, #1a1a1c 100%)',
+            }}
+        >
+            {/* Inner black ring */}
+            <div className="relative w-full h-full rounded-[45px] bg-black overflow-hidden">
+                {/* Subtle highlight on top edge (light reflection) */}
+                <div className="absolute top-0 left-1/4 right-1/4 h-12 bg-gradient-to-b from-white/[0.08] to-transparent rounded-b-full pointer-events-none" />
 
-            {/* Screen */}
-            <div className="absolute inset-2 rounded-[38px] overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#072146] to-slate-950">
-                <div className="absolute inset-0 p-4 pt-9 flex flex-col">
-                    {/* Status bar */}
-                    <div className="flex items-center justify-between text-white text-[10px] font-bold opacity-80 mb-3">
-                        <span>9:41</span>
-                        <span className="flex items-center gap-1">●●●● <span className="ml-1">5G</span></span>
-                    </div>
-                    {/* Brand */}
-                    <div className="flex items-center gap-1.5 mb-4">
-                        <ShieldCheck className="w-3.5 h-3.5 text-cyan-300" />
-                        <p className="text-cyan-300 text-[10px] font-bold tracking-[0.18em] uppercase">PayLionsBit</p>
-                    </div>
-                    <p className="text-white text-[11px] font-bold">¡Hola, Jorge!</p>
-                    <p className="text-slate-400 text-[9px] mt-0.5">Balance total disponible</p>
+                {/* Dynamic Island */}
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[100px] h-[28px] rounded-full bg-black ring-1 ring-slate-900/80 z-20 flex items-center justify-between px-2.5">
+                    <div className="w-1 h-1 rounded-full bg-slate-700" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-800 ring-1 ring-slate-700" />
+                </div>
 
-                    {/* Big balance */}
-                    <div className="mt-2 mb-4">
-                        <p className="text-white text-[26px] font-bold tabular-nums tracking-tight">€48.250,00</p>
-                        <p className="text-emerald-400 text-[9.5px] font-bold mt-0.5">▲ +2,4% esta semana</p>
-                    </div>
-
-                    {/* Quick actions */}
-                    <div className="grid grid-cols-4 gap-1.5 mb-4">
-                        {[Wallet, RefreshCw, BarChart3, Bell].map((Ic, i) => (
-                            <div key={i} className="bg-white/5 ring-1 ring-white/10 rounded-lg py-2 flex flex-col items-center gap-1">
-                                <Ic className="w-3.5 h-3.5 text-cyan-300" />
-                                <span className="text-[7.5px] text-white/70 font-bold uppercase tracking-wide">
-                                    {['Wallet', 'Convert', 'Stats', 'Alertas'][i]}
+                {/* Screen content */}
+                <div className="absolute inset-1.5 rounded-[42px] overflow-hidden" style={{
+                    background: 'linear-gradient(180deg, #0a1628 0%, #062046 25%, #051937 50%, #030f24 100%)',
+                }}>
+                    <div className="absolute inset-0 p-4 pt-12 flex flex-col">
+                        {/* Status bar */}
+                        <div className="absolute top-3 left-5 right-5 flex items-center justify-between text-white text-[10.5px] font-semibold opacity-90 z-10">
+                            <span style={{ fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif' }}>9:41</span>
+                            <span className="flex items-center gap-1.5">
+                                {/* Signal bars */}
+                                <span className="flex items-end gap-0.5">
+                                    <span className="w-[2.5px] h-[3px] rounded-sm bg-white" />
+                                    <span className="w-[2.5px] h-[5px] rounded-sm bg-white" />
+                                    <span className="w-[2.5px] h-[7px] rounded-sm bg-white" />
+                                    <span className="w-[2.5px] h-[9px] rounded-sm bg-white" />
                                 </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Faux chart */}
-                    <div className="bg-white/5 ring-1 ring-white/10 rounded-lg p-2.5 mb-3">
-                        <p className="text-white text-[9px] font-bold uppercase tracking-wider mb-1.5">Inversiones</p>
-                        <svg viewBox="0 0 200 50" className="w-full">
-                            <defs>
-                                <linearGradient id="phChart" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.6" />
-                                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            <path
-                                d="M0,35 L25,30 L50,25 L75,28 L100,18 L125,22 L150,12 L175,18 L200,10 L200,50 L0,50 Z"
-                                fill="url(#phChart)"
-                            />
-                            <path
-                                d="M0,35 L25,30 L50,25 L75,28 L100,18 L125,22 L150,12 L175,18 L200,10"
-                                fill="none"
-                                stroke="#10b981"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                    </div>
-
-                    {/* Notification card */}
-                    <div className="bg-cyan-500/10 ring-1 ring-cyan-500/30 rounded-lg p-2 flex items-start gap-2 mt-auto">
-                        <Bell className="w-3 h-3 text-cyan-300 mt-0.5 flex-shrink-0" />
-                        <div>
-                            <p className="text-cyan-200 text-[9px] font-bold">Expediente actualizado</p>
-                            <p className="text-cyan-300/70 text-[8px]">USD-EUR conversión completada</p>
+                                {/* 5G */}
+                                <span className="text-[9px] font-bold tracking-tight">5G</span>
+                                {/* Battery */}
+                                <div className="relative ml-1 w-[22px] h-[10px] rounded-[3px] ring-[1.2px] ring-white/80 flex items-center px-[1.5px]">
+                                    <div className="w-[80%] h-[6px] rounded-[1.5px] bg-white" />
+                                    <div className="absolute -right-[2.5px] top-1/2 -translate-y-1/2 w-[1.5px] h-[4px] rounded-r bg-white/80" />
+                                </div>
+                            </span>
                         </div>
+
+                        {/* Brand row */}
+                        <div className="flex items-center gap-1.5 mb-3">
+                            <ShieldCheck className="w-3.5 h-3.5 text-cyan-300" />
+                            <p className="text-cyan-300 text-[10px] font-bold tracking-[0.2em] uppercase" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                                PayLionsBit
+                            </p>
+                        </div>
+
+                        {/* Greeting */}
+                        <p className="text-slate-400 text-[10px]">Buenos días, Jorge</p>
+                        <p className="text-slate-500 text-[8.5px] mt-0.5">Balance total disponible</p>
+
+                        {/* Big balance card */}
+                        <div className="mt-1.5 mb-3 bg-gradient-to-br from-slate-900/80 via-[#072146]/60 to-slate-950/80 ring-1 ring-white/5 rounded-2xl p-3 backdrop-blur-sm">
+                            <p className="text-white text-[28px] font-bold tabular-nums tracking-tight" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                                €48.250<span className="text-slate-500 text-[16px]">,00</span>
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
+                                    <span className="text-emerald-400 text-[8px]">▲</span>
+                                    <span className="text-emerald-300 text-[8.5px] font-bold">+2,4%</span>
+                                </span>
+                                <span className="text-slate-500 text-[8.5px]">esta semana</span>
+                            </div>
+                        </div>
+
+                        {/* Quick actions row */}
+                        <div className="grid grid-cols-4 gap-1.5 mb-3">
+                            {[
+                                { icon: Wallet, label: 'Wallet', color: '#06b6d4' },
+                                { icon: RefreshCw, label: 'Convertir', color: '#10b981' },
+                                { icon: BarChart3, label: 'Stats', color: '#a78bfa' },
+                                { icon: Bell, label: 'Alertas', color: '#f59e0b' },
+                            ].map((a, i) => (
+                                <div key={i} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl py-2 flex flex-col items-center gap-1">
+                                    <a.icon className="w-3.5 h-3.5" style={{ color: a.color }} />
+                                    <span className="text-[7.5px] text-white/60 font-semibold uppercase tracking-wide">
+                                        {a.label}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Investment chart card */}
+                        <div className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl p-2.5 mb-3">
+                            <div className="flex items-center justify-between mb-1">
+                                <p className="text-white text-[9px] font-bold uppercase tracking-wider">Mis Inversiones</p>
+                                <span className="text-emerald-400 text-[8.5px] font-bold">+€1.158</span>
+                            </div>
+                            <svg viewBox="0 0 200 50" className="w-full">
+                                <defs>
+                                    <linearGradient id="ph-chart-pro" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.6" />
+                                        <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                <path
+                                    d="M0,40 L20,35 L40,28 L60,30 L80,22 L100,18 L120,20 L140,12 L160,15 L180,8 L200,10 L200,50 L0,50 Z"
+                                    fill="url(#ph-chart-pro)"
+                                />
+                                <path
+                                    d="M0,40 L20,35 L40,28 L60,30 L80,22 L100,18 L120,20 L140,12 L160,15 L180,8 L200,10"
+                                    fill="none"
+                                    stroke="#10b981"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                />
+                                {/* End dot */}
+                                <circle cx="200" cy="10" r="2.5" fill="#10b981" />
+                                <circle cx="200" cy="10" r="4" fill="#10b981" opacity="0.3" />
+                            </svg>
+                        </div>
+
+                        {/* Multi-currency mini chips */}
+                        <div className="grid grid-cols-3 gap-1.5 mb-3">
+                            {[
+                                { f: '🇺🇸', c: 'USD', v: '5,2k', up: true },
+                                { f: '🇬🇧', c: 'GBP', v: '1,8k', up: true },
+                                { f: '🇲🇽', c: 'MXN', v: '88k', up: false },
+                            ].map((m) => (
+                                <div key={m.c} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-lg px-1.5 py-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-white/70 text-[7px] font-bold">{m.f} {m.c}</p>
+                                        <span className={`text-[7.5px] ${m.up ? 'text-emerald-400' : 'text-rose-400'}`}>{m.up ? '▲' : '▼'}</span>
+                                    </div>
+                                    <p className="text-white text-[10px] font-bold font-mono mt-0.5">{m.v}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Notification card (sticks to bottom) */}
+                        <div className="bg-gradient-to-r from-cyan-500/15 to-cyan-500/5 ring-1 ring-cyan-500/40 backdrop-blur-sm rounded-xl p-2 flex items-start gap-1.5 mt-auto">
+                            <div className="w-5 h-5 rounded-full bg-cyan-500/25 flex items-center justify-center flex-shrink-0">
+                                <Bell className="w-2.5 h-2.5 text-cyan-300" />
+                            </div>
+                            <div>
+                                <p className="text-cyan-100 text-[9px] font-bold">Retiro completado ✓</p>
+                                <p className="text-cyan-300/70 text-[8px] mt-0.5">PLB-2026-275741 · hace 2 min</p>
+                            </div>
+                        </div>
+
+                        {/* Home indicator */}
+                        <div className="mx-auto mt-3 w-[120px] h-[4px] rounded-full bg-white/80" />
                     </div>
                 </div>
             </div>
 
-            {/* Power button */}
-            <div className="absolute right-[-2px] top-32 w-[3px] h-12 bg-slate-700 rounded-l" />
-            {/* Volume */}
-            <div className="absolute left-[-2px] top-24 w-[3px] h-8 bg-slate-700 rounded-r" />
-            <div className="absolute left-[-2px] top-36 w-[3px] h-14 bg-slate-700 rounded-r" />
+            {/* Hardware buttons */}
+            {/* Power (right side) */}
+            <div className="absolute right-[-3px] top-32 w-[3px] h-16 bg-gradient-to-b from-slate-700 to-slate-800 rounded-l" />
+            {/* Volume up + down (left side) */}
+            <div className="absolute left-[-3px] top-24 w-[3px] h-8 bg-gradient-to-b from-slate-700 to-slate-800 rounded-r" />
+            <div className="absolute left-[-3px] top-36 w-[3px] h-14 bg-gradient-to-b from-slate-700 to-slate-800 rounded-r" />
+            {/* Mute switch */}
+            <div className="absolute left-[-3px] top-16 w-[3px] h-5 bg-gradient-to-b from-slate-600 to-slate-700 rounded-r" />
         </div>
     </motion.div>
 );
@@ -286,20 +428,8 @@ const MobileAppPage = () => {
                                 transition={{ delay: 0.3 }}
                                 className="flex flex-wrap gap-3 mt-7"
                             >
-                                <StoreBadge
-                                    store="ios"
-                                    primary="Disponible pronto en"
-                                    secondary="App Store"
-                                    icon={Apple}
-                                    accent="#ffffff"
-                                />
-                                <StoreBadge
-                                    store="android"
-                                    primary="Disponible pronto en"
-                                    secondary="Google Play"
-                                    icon={Smartphone}
-                                    accent="#10b981"
-                                />
+                                <AppStoreBadge disabled />
+                                <GooglePlayBadge disabled />
                             </motion.div>
 
                             {/* Trust strip */}
