@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { Card } from '../components/ui/card';
 import {
     Smartphone, Apple, Bell, TrendingUp, FolderKanban, RefreshCw,
     Zap, ShieldCheck, ChevronRight, Sparkles, BarChart3, Wallet,
-    Clock, Star, Globe, Lock,
+    Clock, Star, Globe, Lock, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
 
@@ -363,49 +363,261 @@ const ScreenTransactions = () => {
 };
 
 
-// ─── Dual phone stack — back phone behind, front phone in focus ──
-const DualPhoneStack = () => (
-    <div className="relative mx-auto w-full flex items-center justify-center" style={{ perspective: '1400px' }}>
-        {/* Ambient glow halo */}
-        <div className="absolute inset-0 -m-12 bg-gradient-to-br from-cyan-500/25 via-[#1973B8]/15 to-emerald-500/20 blur-3xl rounded-full pointer-events-none" />
-        <div className="absolute inset-0 -m-12 bg-gradient-to-tr from-violet-500/10 to-transparent blur-2xl rounded-full pointer-events-none" />
+// ─── FRONT screen #2: MT5 / Investments view ──────────────────────
+const ScreenInvestments = () => {
+    const positions = [
+        { sym: 'EUR/USD', side: 'BUY', pnl: '+€428,10', up: true, pct: '+1,82%', vol: '2.5 lots' },
+        { sym: 'XAU/USD', side: 'BUY', pnl: '+€612,40', up: true, pct: '+3,21%', vol: '0.5 lots' },
+        { sym: 'GBP/JPY', side: 'SELL', pnl: '−€118,00', up: false, pct: '−0,64%', vol: '1.0 lots' },
+        { sym: 'BTC/USD', side: 'BUY', pnl: '+€235,80', up: true, pct: '+0,98%', vol: '0.1 lots' },
+    ];
+    return (
+        <div className="absolute inset-0 p-4 pt-12 flex flex-col">
+            <StatusBar />
 
-        {/* Floor reflection / shadow puddle */}
-        <div className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 w-[420px] max-w-[80%] h-[40px] rounded-[50%] bg-black/70 blur-2xl pointer-events-none" />
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
+                    <p className="text-emerald-300 text-[10px] font-bold tracking-[0.2em] uppercase">MT5 Pro</p>
+                </div>
+                <span className="text-emerald-400 text-[8.5px] font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> EN VIVO
+                </span>
+            </div>
 
-        {/* BACK PHONE — Transactions screen (hidden on small screens) */}
-        <motion.div
-            initial={{ opacity: 0, y: 40, rotate: 12, scale: 0.85 }}
-            animate={{ opacity: 1, y: 0, rotate: 12, scale: 0.92 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
-            className="hidden sm:block absolute z-10 origin-bottom"
-            style={{
-                transform: 'translateX(70px) translateY(-25px)',
-                filter: 'drop-shadow(0 25px 40px rgba(0,0,0,0.55))',
-            }}
-        >
-            <PhoneFrame scale={0.92}>
-                <ScreenTransactions />
-            </PhoneFrame>
-        </motion.div>
+            {/* Equity / Balance card */}
+            <div className="bg-gradient-to-br from-emerald-500/20 via-emerald-500/5 to-transparent ring-1 ring-emerald-500/30 rounded-2xl p-3 mb-3">
+                <p className="text-emerald-200/70 text-[8.5px] font-bold uppercase tracking-wider">Equity Total · MT5 #4719</p>
+                <p className="text-white text-[26px] font-bold tabular-nums tracking-tight mt-1">
+                    €128.450<span className="text-slate-500 text-[15px]">,30</span>
+                </p>
+                <div className="flex items-center gap-3 mt-1.5">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/20 ring-1 ring-emerald-500/40">
+                        <ArrowUpRight className="w-2.5 h-2.5 text-emerald-300" />
+                        <span className="text-emerald-300 text-[8.5px] font-bold">+€1.158,30</span>
+                    </span>
+                    <span className="text-slate-400 text-[8.5px]">hoy · +0,91%</span>
+                </div>
+            </div>
 
-        {/* FRONT PHONE — Dashboard (always visible) */}
-        <motion.div
-            initial={{ opacity: 0, y: 30, rotate: -6, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, rotate: -5, scale: 1 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-            className="relative z-20"
-            style={{
-                transform: 'translateX(-40px)',
-                filter: 'drop-shadow(0 35px 55px rgba(0,0,0,0.7))',
-            }}
-        >
-            <PhoneFrame>
-                <ScreenDashboard />
-            </PhoneFrame>
-        </motion.div>
-    </div>
-);
+            {/* Larger area chart */}
+            <div className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl p-2.5 mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-white text-[9px] font-bold uppercase tracking-wider">Curva Equity · 7d</p>
+                    <div className="flex gap-1">
+                        {['1D', '7D', '1M'].map((t, i) => (
+                            <span key={t} className={`text-[7.5px] px-1.5 py-0.5 rounded-full font-bold ${i === 1 ? 'bg-emerald-400 text-emerald-950' : 'text-white/40'}`}>
+                                {t}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+                <svg viewBox="0 0 200 65" className="w-full">
+                    <defs>
+                        <linearGradient id="inv-fill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#34d399" stopOpacity="0.55" />
+                            <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
+                    <g stroke="rgba(255,255,255,0.04)" strokeWidth="0.5">
+                        <line x1="0" y1="15" x2="200" y2="15" />
+                        <line x1="0" y1="32" x2="200" y2="32" />
+                        <line x1="0" y1="49" x2="200" y2="49" />
+                    </g>
+                    <path d="M0,52 L18,48 L36,42 L54,45 L72,38 L90,30 L108,33 L126,22 L144,18 L162,24 L180,12 L200,8 L200,65 L0,65 Z" fill="url(#inv-fill)" />
+                    <path d="M0,52 L18,48 L36,42 L54,45 L72,38 L90,30 L108,33 L126,22 L144,18 L162,24 L180,12 L200,8" fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="200" cy="8" r="2.8" fill="#34d399" />
+                    <circle cx="200" cy="8" r="5" fill="#34d399" opacity="0.25" />
+                </svg>
+            </div>
+
+            {/* Active positions */}
+            <p className="text-white/50 text-[8.5px] font-bold uppercase tracking-wider mb-1.5">Posiciones abiertas</p>
+            <div className="space-y-1.5 flex-1">
+                {positions.map((p, i) => (
+                    <div key={i} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl p-2 flex items-center gap-2">
+                        <span className={`text-[7.5px] font-bold px-1.5 py-0.5 rounded ${p.side === 'BUY' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                            {p.side}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-white text-[10px] font-bold font-mono leading-tight">{p.sym}</p>
+                            <p className="text-slate-500 text-[7.5px] mt-0.5">{p.vol}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className={`text-[10px] font-bold tabular-nums ${p.up ? 'text-emerald-300' : 'text-rose-300'}`}>{p.pnl}</p>
+                            <p className={`text-[7.5px] font-semibold ${p.up ? 'text-emerald-400/70' : 'text-rose-400/70'}`}>{p.pct}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mx-auto mt-2 w-[120px] h-[4px] rounded-full bg-white/80" />
+        </div>
+    );
+};
+
+
+// ─── FRONT screen #3: Multi-currency Wallet view ──────────────────
+const ScreenWallet = () => {
+    const wallets = [
+        { f: '🇪🇺', c: 'EUR', sym: '€', v: '48.250,00', usd: '48.250,00', main: true, color: '#06b6d4' },
+        { f: '🇺🇸', c: 'USD', sym: '$', v: '5.240,18', usd: '4.829,12', main: false, color: '#10b981' },
+        { f: '🇬🇧', c: 'GBP', sym: '£', v: '1.820,55', usd: '2.182,42', main: false, color: '#a78bfa' },
+        { f: '🇲🇽', c: 'MXN', sym: '$', v: '88.450,00', usd: '4.890,12', main: false, color: '#f59e0b' },
+        { f: '🇩🇴', c: 'DOP', sym: 'RD$', v: '125.300,00', usd: '2.158,40', main: false, color: '#ec4899' },
+        { f: '🇨🇴', c: 'COP', sym: '$', v: '8.940.000', usd: '2.118,30', main: false, color: '#f97316' },
+    ];
+    return (
+        <div className="absolute inset-0 p-4 pt-12 flex flex-col">
+            <StatusBar />
+
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-violet-300" />
+                    <p className="text-violet-300 text-[10px] font-bold tracking-[0.2em] uppercase">Multidivisa</p>
+                </div>
+                <span className="text-slate-400 text-[8.5px] font-semibold flex items-center gap-1">
+                    <RefreshCw className="w-2.5 h-2.5" /> 1 min
+                </span>
+            </div>
+
+            {/* Total equivalent card */}
+            <div className="bg-gradient-to-br from-violet-500/20 via-violet-500/5 to-transparent ring-1 ring-violet-500/30 rounded-2xl p-3 mb-3">
+                <p className="text-violet-200/70 text-[8.5px] font-bold uppercase tracking-wider">Equivalente EUR</p>
+                <p className="text-white text-[26px] font-bold tabular-nums tracking-tight mt-1">
+                    €64.428<span className="text-slate-500 text-[15px]">,36</span>
+                </p>
+                <p className="text-slate-400 text-[8.5px] mt-1">6 divisas activas · tasas live ER-API</p>
+            </div>
+
+            {/* Convert quick action */}
+            <button className="bg-gradient-to-r from-cyan-500/15 to-emerald-500/15 ring-1 ring-cyan-500/30 rounded-xl p-2 mb-3 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/25 flex items-center justify-center">
+                    <RefreshCw className="w-3.5 h-3.5 text-cyan-300" />
+                </div>
+                <div className="text-left flex-1">
+                    <p className="text-white text-[10px] font-bold">Convertir divisa</p>
+                    <p className="text-slate-400 text-[8px]">Tasas institucionales sin comisión oculta</p>
+                </div>
+                <ChevronRight className="w-3 h-3 text-white/40" />
+            </button>
+
+            {/* Wallets list */}
+            <p className="text-white/50 text-[8.5px] font-bold uppercase tracking-wider mb-1.5">Mis monedas</p>
+            <div className="space-y-1.5 flex-1 overflow-hidden">
+                {wallets.map((w) => (
+                    <div key={w.c} className={`backdrop-blur-sm rounded-xl p-2 flex items-center gap-2 ${w.main ? 'bg-gradient-to-r from-cyan-500/15 to-transparent ring-1 ring-cyan-500/30' : 'bg-white/[0.04] ring-1 ring-white/5'}`}>
+                        <span className="text-[14px]">{w.f}</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                                <p className="text-white text-[9.5px] font-bold">{w.c}</p>
+                                {w.main && <span className="text-[7px] px-1 py-0 rounded bg-cyan-400 text-cyan-950 font-bold">PRINCIPAL</span>}
+                            </div>
+                            <p className="text-slate-500 text-[7.5px] mt-0.5 font-mono">≈ €{w.usd}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-white text-[10px] font-bold tabular-nums font-mono">{w.sym}{w.v}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mx-auto mt-2 w-[120px] h-[4px] rounded-full bg-white/80" />
+        </div>
+    );
+};
+
+
+// ─── Dual phone stack — back phone behind, front phone auto-cycles ──
+const FRONT_SCREENS = [
+    { key: 'dashboard', label: 'Dashboard', Comp: ScreenDashboard },
+    { key: 'investments', label: 'Inversiones', Comp: ScreenInvestments },
+    { key: 'wallet', label: 'Wallet', Comp: ScreenWallet },
+];
+
+const DualPhoneStack = () => {
+    const [idx, setIdx] = useState(0);
+
+    useEffect(() => {
+        const t = setInterval(() => setIdx((i) => (i + 1) % FRONT_SCREENS.length), 5000);
+        return () => clearInterval(t);
+    }, []);
+
+    const ActiveScreen = FRONT_SCREENS[idx].Comp;
+
+    return (
+        <div className="relative mx-auto w-full flex items-center justify-center" style={{ perspective: '1400px' }}>
+            {/* Ambient glow halo */}
+            <div className="absolute inset-0 -m-12 bg-gradient-to-br from-cyan-500/25 via-[#1973B8]/15 to-emerald-500/20 blur-3xl rounded-full pointer-events-none" />
+            <div className="absolute inset-0 -m-12 bg-gradient-to-tr from-violet-500/10 to-transparent blur-2xl rounded-full pointer-events-none" />
+
+            {/* Floor reflection / shadow puddle */}
+            <div className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 w-[420px] max-w-[80%] h-[40px] rounded-[50%] bg-black/70 blur-2xl pointer-events-none" />
+
+            {/* BACK PHONE — Transactions screen (hidden on small screens) */}
+            <motion.div
+                initial={{ opacity: 0, y: 40, rotate: 12, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, rotate: 12, scale: 0.92 }}
+                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+                className="hidden sm:block absolute z-10 origin-bottom"
+                style={{
+                    transform: 'translateX(70px) translateY(-25px)',
+                    filter: 'drop-shadow(0 25px 40px rgba(0,0,0,0.55))',
+                }}
+            >
+                <PhoneFrame scale={0.92}>
+                    <ScreenTransactions />
+                </PhoneFrame>
+            </motion.div>
+
+            {/* FRONT PHONE — auto-cycling screens */}
+            <motion.div
+                initial={{ opacity: 0, y: 30, rotate: -6, scale: 0.94 }}
+                animate={{ opacity: 1, y: 0, rotate: -5, scale: 1 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+                className="relative z-20"
+                style={{
+                    transform: 'translateX(-40px)',
+                    filter: 'drop-shadow(0 35px 55px rgba(0,0,0,0.7))',
+                }}
+            >
+                <PhoneFrame>
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={FRONT_SCREENS[idx].key}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -12 }}
+                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                            className="absolute inset-0"
+                        >
+                            <ActiveScreen />
+                        </motion.div>
+                    </AnimatePresence>
+                </PhoneFrame>
+
+                {/* Screen indicators (dots + active label) */}
+                <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30" data-testid="phone-carousel-dots">
+                    {FRONT_SCREENS.map((s, i) => (
+                        <button
+                            key={s.key}
+                            onClick={() => setIdx(i)}
+                            className="group flex items-center gap-1.5"
+                            data-testid={`phone-dot-${s.key}`}
+                        >
+                            <span
+                                className={`block rounded-full transition-all duration-500 ${i === idx ? 'w-6 h-1.5 bg-cyan-300' : 'w-1.5 h-1.5 bg-white/25 group-hover:bg-white/50'}`}
+                            />
+                        </button>
+                    ))}
+                </div>
+                <p className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-cyan-300/70 text-[10px] font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+                    {FRONT_SCREENS[idx].label}
+                </p>
+            </motion.div>
+        </div>
+    );
+};
 
 
 // ─── Notify form (waitlist) ───────────────────────────────────────

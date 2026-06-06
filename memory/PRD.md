@@ -29,6 +29,21 @@
 
 **Status:** ✅ Verificado vía screenshot desktop + lint limpio. Diseño aprobado visualmente.
 
+### Iteration 74.1 — Carrusel automático en teléfono frontal
+
+**Pedido:** Agregar carrusel sutil en el teléfono frontal cycleando 3 pantallas cada 5s.
+
+**Implementado:**
+- `ScreenInvestments` (NUEVA): MT5 #4719 equity €128.450, badge "EN VIVO" pulsante, curva equity 7D con grilla, 4 posiciones abiertas (EUR/USD BUY, XAU/USD BUY, GBP/JPY SELL, BTC/USD BUY) con P&L y %
+- `ScreenWallet` (NUEVA): Equivalente EUR €64.428, CTA convertir divisa, lista de 6 monedas (EUR principal, USD, GBP, MXN, DOP, COP) con banderas y equivalente EUR cada una
+- `DualPhoneStack` actualizado:
+  - `FRONT_SCREENS` array con 3 pantallas (Dashboard / Inversiones / Wallet)
+  - `useState` + `useEffect` con `setInterval` cycle 5s
+  - `AnimatePresence mode="wait"` con fade y desplazamiento vertical 12px (entrada/salida)
+  - 3 dots indicadores clickeables debajo del teléfono (`phone-dot-*`) — el activo se expande a barra de 24px cyan
+  - Label dinámica con el nombre de la pantalla activa (uppercase tracking-wide cyan)
+
+
 
 ## Iteration 73 (Jun 03, 2026) — PLB-code en emails transaccionales
 
