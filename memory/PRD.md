@@ -44,6 +44,47 @@
   - Label dinámica con el nombre de la pantalla activa (uppercase tracking-wide cyan)
 
 
+### Iteration 74.2 — Dashboard Banner: Premium iPhone Pro con 3 pantallas + 3D floating
+
+**Pedido:** Rediseñar completamente el mockup del teléfono en el banner del Dashboard (`MobileAppBanner.jsx`). Render hiperrealista, 3 pantallas rotativas, animación 3D continua (5°-12°), responsive total.
+
+**Implementado en `/app/frontend/src/components/dashboard/MobileAppBanner.jsx` (rewrite total):**
+
+1. **iPhone Pro Titanium hyperrealistic** (190×388px):
+   - Gradient bezel (3a3a3c → 1c1c1e → 2c2c2e → 1a1a1c)
+   - Dynamic Island con cámara + LiDAR dot
+   - Glass top reflection + screen glare overlay (mix-blend-overlay)
+   - 4 botones de hardware (power, volumen ±, mute switch)
+   - Shadow + inset highlight rings
+
+2. **3 pantallas profesionales auto-rotativas (5s):**
+   - `ScreenBalance`: Balance Total €48.250, Disponible €32.840, Inv. Activas €15.410, Rendimiento mensual con chart de grilla, ROI 30d +8.42%, Sharpe 1.84
+   - `ScreenWithdrawals`: Flujo neto +€6.958 con barchart 12-meses, filtros Todo/Retiros/FX, 4 transacciones con PLB codes (BBVA, Vault, FX, Santander pendiente), notificación push
+   - `ScreenConverter`: EUR 1.000 → USD 1.085,42 con badge LIVE pulsante, botón swap circular gradient, tasa institucional 1.0854, 3 tasas en vivo (GBP/MXN/DOP), CTA "Convertir ahora" gradient cyan→violet
+
+3. **Animación 3D continua (Framer Motion):**
+   - Rotación: `rotate: [-8, -12, -5, -8]` loop 8s easeInOut
+   - Floating: `y: [0, -8, 0]` loop 6s easeInOut
+   - GPU acelerada: `will-change-transform`, `transformStyle: preserve-3d`, `backfaceVisibility: hidden`
+   - Entry animation: opacity + scale 0.92→1 con cubic-bezier
+
+4. **Efectos visuales:**
+   - Glow azul ambiental (cyan/blue/emerald layered) en `-inset-10`
+   - Violet bloom secundario
+   - Floor shadow elíptica blur (puddle)
+   - Glass reflection top + screen glare mix-blend
+
+5. **Responsive:**
+   - Desktop (lg): teléfono grande derecha, `scale-110`, grid 2 col
+   - Tablet (sm-md): `scale-100`, grid 1 col, teléfono debajo del texto
+   - Mobile (<sm): `scale-90`, teléfono debajo, nunca cortado
+   - Quitado `hidden md:block` → ahora visible siempre
+
+6. **AnimatePresence + dots clickeables** debajo del frame (`banner-phone-dot-*`)
+
+**Status:** ✅ Verificado con 3 screenshots desktop (las 3 pantallas funcionan, animación fluida, lint 0 warnings). Refresca el Dashboard en preview para ver el resultado.
+
+
 
 ## Iteration 73 (Jun 03, 2026) — PLB-code en emails transaccionales
 
