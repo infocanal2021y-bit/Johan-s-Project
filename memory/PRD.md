@@ -1,5 +1,35 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+
+## Iteration 74 (Feb 06, 2026) — Mobile Page: Dual iPhone Premium Stack
+
+**Pedido:** Agregar un segundo teléfono detrás del principal mostrando otra pantalla (retiros / movimientos) para dar apariencia mucho más profesional, estilo Bloomberg Terminal / Revolut Premium.
+
+**Cambios en `/app/frontend/src/pages/MobileAppPage.jsx`:**
+
+1. **Refactor a componentes reutilizables:**
+   - `PhoneFrame` — chasis iPhone 15 Pro Titanium (gradient bezel, botones físicos, Dynamic Island, highlight de reflejo), parametrizable con prop `scale`
+   - `StatusBar` — barra de estado iOS (9:41 + signal + 5G + batería) reutilizada en ambas pantallas
+   - `ScreenDashboard` — pantalla frontal: balance €48.250, accesos rápidos, chart de inversiones, multi-divisas, notificación PLB
+   - `ScreenTransactions` (NUEVA) — pantalla trasera: header "Movimientos · Feb 2026", card de flujo neto +€6.958 con barchart 12-meses, filtros (Todo/Entradas/Retiros/FX), lista de 5 transacciones con código PLB-2026-XXXXXX (retiros BBVA/Santander, liberación Vault, conversión EUR→USD, rendimiento MT5), CTA "Nuevo retiro" con gradient cyan→emerald
+
+2. **`DualPhoneStack`** — composición premium:
+   - Halo ambiental cyan/emerald + violet bloom de fondo
+   - "Floor reflection" (shadow puddle elíptico) abajo para flotación
+   - Phone trasero: `scale=0.92`, `rotate=+12°`, `translate(70px,-25px)`, drop-shadow 25/40 negro, oculto en mobile (`hidden sm:block`)
+   - Phone frontal: `rotate=-5°`, `translate(-40px)`, drop-shadow 35/55 negro, animación de entrada staggered
+   - Resultado: composición flotante asimétrica con profundidad real (3 capas: halo → trasero → frontal)
+
+3. **Container del hero** ajustado: `min-h-[600px]` + flex centrado para acomodar la pila
+
+**Responsive:**
+- Desktop (≥1024px): grid 2 col, ambos teléfonos visibles
+- Tablet (640–1023px): grid 1 col + ambos teléfonos visibles
+- Mobile (<640px): solo teléfono frontal (back oculto vía `hidden sm:block`)
+
+**Status:** ✅ Verificado vía screenshot desktop + lint limpio. Diseño aprobado visualmente.
+
+
 ## Iteration 73 (Jun 03, 2026) — PLB-code en emails transaccionales
 
 **3 plantillas de email actualizadas** para incluir el case_code PLB-AAAA-XXXXXX:

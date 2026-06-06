@@ -115,180 +115,296 @@ const GooglePlayBadge = ({ disabled = true }) => (
 );
 
 
-// ─── Phone mockup — premium iPhone 15 Pro style ──────────────────
-const PhoneMockup = () => (
-    <motion.div
-        initial={{ opacity: 0, scale: 0.92, rotate: -4 }}
-        animate={{ opacity: 1, scale: 1, rotate: -4 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="relative mx-auto"
-        style={{ perspective: '1000px' }}
+// ─── Reusable iPhone 15 Pro frame ─────────────────────────────────
+const PhoneFrame = ({ children, scale = 1 }) => (
+    <div
+        className="relative rounded-[48px] p-[3px] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.05)_inset]"
+        style={{
+            width: 280 * scale,
+            height: 568 * scale,
+            background: 'linear-gradient(135deg, #3a3a3c 0%, #1c1c1e 30%, #2c2c2e 50%, #1a1a1c 100%)',
+        }}
     >
-        {/* Ambient glow */}
-        <div className="absolute -inset-8 bg-gradient-to-br from-cyan-500/25 via-[#1973B8]/15 to-emerald-500/20 blur-3xl rounded-full" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/10 to-transparent blur-2xl rounded-full" />
+        {/* Inner black ring */}
+        <div className="relative w-full h-full rounded-[45px] bg-black overflow-hidden">
+            {/* Subtle highlight on top edge (light reflection) */}
+            <div className="absolute top-0 left-1/4 right-1/4 h-12 bg-gradient-to-b from-white/[0.08] to-transparent rounded-b-full pointer-events-none" />
 
-        {/* Phone frame — titanium gradient bezel */}
-        <div
-            className="relative w-[280px] h-[568px] mx-auto rounded-[48px] p-[3px] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.05)_inset]"
-            style={{
-                background: 'linear-gradient(135deg, #3a3a3c 0%, #1c1c1e 30%, #2c2c2e 50%, #1a1a1c 100%)',
-            }}
-        >
-            {/* Inner black ring */}
-            <div className="relative w-full h-full rounded-[45px] bg-black overflow-hidden">
-                {/* Subtle highlight on top edge (light reflection) */}
-                <div className="absolute top-0 left-1/4 right-1/4 h-12 bg-gradient-to-b from-white/[0.08] to-transparent rounded-b-full pointer-events-none" />
+            {/* Dynamic Island */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[100px] h-[28px] rounded-full bg-black ring-1 ring-slate-900/80 z-20 flex items-center justify-between px-2.5">
+                <div className="w-1 h-1 rounded-full bg-slate-700" />
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-800 ring-1 ring-slate-700" />
+            </div>
 
-                {/* Dynamic Island */}
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[100px] h-[28px] rounded-full bg-black ring-1 ring-slate-900/80 z-20 flex items-center justify-between px-2.5">
-                    <div className="w-1 h-1 rounded-full bg-slate-700" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-800 ring-1 ring-slate-700" />
+            {/* Screen */}
+            <div
+                className="absolute inset-1.5 rounded-[42px] overflow-hidden"
+                style={{ background: 'linear-gradient(180deg, #0a1628 0%, #062046 25%, #051937 50%, #030f24 100%)' }}
+            >
+                {children}
+            </div>
+        </div>
+
+        {/* Hardware buttons */}
+        <div className="absolute right-[-3px] top-32 w-[3px] h-16 bg-gradient-to-b from-slate-700 to-slate-800 rounded-l" />
+        <div className="absolute left-[-3px] top-24 w-[3px] h-8 bg-gradient-to-b from-slate-700 to-slate-800 rounded-r" />
+        <div className="absolute left-[-3px] top-36 w-[3px] h-14 bg-gradient-to-b from-slate-700 to-slate-800 rounded-r" />
+        <div className="absolute left-[-3px] top-16 w-[3px] h-5 bg-gradient-to-b from-slate-600 to-slate-700 rounded-r" />
+    </div>
+);
+
+
+// ─── Reusable status bar (9:41 + signal + battery) ────────────────
+const StatusBar = () => (
+    <div className="absolute top-3 left-5 right-5 flex items-center justify-between text-white text-[10.5px] font-semibold opacity-90 z-10">
+        <span style={{ fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif' }}>9:41</span>
+        <span className="flex items-center gap-1.5">
+            <span className="flex items-end gap-0.5">
+                <span className="w-[2.5px] h-[3px] rounded-sm bg-white" />
+                <span className="w-[2.5px] h-[5px] rounded-sm bg-white" />
+                <span className="w-[2.5px] h-[7px] rounded-sm bg-white" />
+                <span className="w-[2.5px] h-[9px] rounded-sm bg-white" />
+            </span>
+            <span className="text-[9px] font-bold tracking-tight">5G</span>
+            <div className="relative ml-1 w-[22px] h-[10px] rounded-[3px] ring-[1.2px] ring-white/80 flex items-center px-[1.5px]">
+                <div className="w-[80%] h-[6px] rounded-[1.5px] bg-white" />
+                <div className="absolute -right-[2.5px] top-1/2 -translate-y-1/2 w-[1.5px] h-[4px] rounded-r bg-white/80" />
+            </div>
+        </span>
+    </div>
+);
+
+
+// ─── FRONT screen: Dashboard / Wallet view ────────────────────────
+const ScreenDashboard = () => (
+    <div className="absolute inset-0 p-4 pt-12 flex flex-col">
+        <StatusBar />
+
+        <div className="flex items-center gap-1.5 mb-3">
+            <ShieldCheck className="w-3.5 h-3.5 text-cyan-300" />
+            <p className="text-cyan-300 text-[10px] font-bold tracking-[0.2em] uppercase">PayLionsBit</p>
+        </div>
+
+        <p className="text-slate-400 text-[10px]">Buenos días, Jorge</p>
+        <p className="text-slate-500 text-[8.5px] mt-0.5">Balance total disponible</p>
+
+        <div className="mt-1.5 mb-3 bg-gradient-to-br from-slate-900/80 via-[#072146]/60 to-slate-950/80 ring-1 ring-white/5 rounded-2xl p-3 backdrop-blur-sm">
+            <p className="text-white text-[28px] font-bold tabular-nums tracking-tight">
+                €48.250<span className="text-slate-500 text-[16px]">,00</span>
+            </p>
+            <div className="flex items-center gap-1.5 mt-1">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
+                    <span className="text-emerald-400 text-[8px]">▲</span>
+                    <span className="text-emerald-300 text-[8.5px] font-bold">+2,4%</span>
+                </span>
+                <span className="text-slate-500 text-[8.5px]">esta semana</span>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5 mb-3">
+            {[
+                { icon: Wallet, label: 'Wallet', color: '#06b6d4' },
+                { icon: RefreshCw, label: 'Convertir', color: '#10b981' },
+                { icon: BarChart3, label: 'Stats', color: '#a78bfa' },
+                { icon: Bell, label: 'Alertas', color: '#f59e0b' },
+            ].map((a, i) => (
+                <div key={i} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl py-2 flex flex-col items-center gap-1">
+                    <a.icon className="w-3.5 h-3.5" style={{ color: a.color }} />
+                    <span className="text-[7.5px] text-white/60 font-semibold uppercase tracking-wide">{a.label}</span>
                 </div>
+            ))}
+        </div>
 
-                {/* Screen content */}
-                <div className="absolute inset-1.5 rounded-[42px] overflow-hidden" style={{
-                    background: 'linear-gradient(180deg, #0a1628 0%, #062046 25%, #051937 50%, #030f24 100%)',
-                }}>
-                    <div className="absolute inset-0 p-4 pt-12 flex flex-col">
-                        {/* Status bar */}
-                        <div className="absolute top-3 left-5 right-5 flex items-center justify-between text-white text-[10.5px] font-semibold opacity-90 z-10">
-                            <span style={{ fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif' }}>9:41</span>
-                            <span className="flex items-center gap-1.5">
-                                {/* Signal bars */}
-                                <span className="flex items-end gap-0.5">
-                                    <span className="w-[2.5px] h-[3px] rounded-sm bg-white" />
-                                    <span className="w-[2.5px] h-[5px] rounded-sm bg-white" />
-                                    <span className="w-[2.5px] h-[7px] rounded-sm bg-white" />
-                                    <span className="w-[2.5px] h-[9px] rounded-sm bg-white" />
-                                </span>
-                                {/* 5G */}
-                                <span className="text-[9px] font-bold tracking-tight">5G</span>
-                                {/* Battery */}
-                                <div className="relative ml-1 w-[22px] h-[10px] rounded-[3px] ring-[1.2px] ring-white/80 flex items-center px-[1.5px]">
-                                    <div className="w-[80%] h-[6px] rounded-[1.5px] bg-white" />
-                                    <div className="absolute -right-[2.5px] top-1/2 -translate-y-1/2 w-[1.5px] h-[4px] rounded-r bg-white/80" />
-                                </div>
-                            </span>
-                        </div>
+        <div className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl p-2.5 mb-3">
+            <div className="flex items-center justify-between mb-1">
+                <p className="text-white text-[9px] font-bold uppercase tracking-wider">Mis Inversiones</p>
+                <span className="text-emerald-400 text-[8.5px] font-bold">+€1.158</span>
+            </div>
+            <svg viewBox="0 0 200 50" className="w-full">
+                <defs>
+                    <linearGradient id="ph-chart-pro" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.6" />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                    </linearGradient>
+                </defs>
+                <path d="M0,40 L20,35 L40,28 L60,30 L80,22 L100,18 L120,20 L140,12 L160,15 L180,8 L200,10 L200,50 L0,50 Z" fill="url(#ph-chart-pro)" />
+                <path d="M0,40 L20,35 L40,28 L60,30 L80,22 L100,18 L120,20 L140,12 L160,15 L180,8 L200,10" fill="none" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="200" cy="10" r="2.5" fill="#10b981" />
+                <circle cx="200" cy="10" r="4" fill="#10b981" opacity="0.3" />
+            </svg>
+        </div>
 
-                        {/* Brand row */}
-                        <div className="flex items-center gap-1.5 mb-3">
-                            <ShieldCheck className="w-3.5 h-3.5 text-cyan-300" />
-                            <p className="text-cyan-300 text-[10px] font-bold tracking-[0.2em] uppercase" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                                PayLionsBit
-                            </p>
-                        </div>
-
-                        {/* Greeting */}
-                        <p className="text-slate-400 text-[10px]">Buenos días, Jorge</p>
-                        <p className="text-slate-500 text-[8.5px] mt-0.5">Balance total disponible</p>
-
-                        {/* Big balance card */}
-                        <div className="mt-1.5 mb-3 bg-gradient-to-br from-slate-900/80 via-[#072146]/60 to-slate-950/80 ring-1 ring-white/5 rounded-2xl p-3 backdrop-blur-sm">
-                            <p className="text-white text-[28px] font-bold tabular-nums tracking-tight" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                                €48.250<span className="text-slate-500 text-[16px]">,00</span>
-                            </p>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
-                                    <span className="text-emerald-400 text-[8px]">▲</span>
-                                    <span className="text-emerald-300 text-[8.5px] font-bold">+2,4%</span>
-                                </span>
-                                <span className="text-slate-500 text-[8.5px]">esta semana</span>
-                            </div>
-                        </div>
-
-                        {/* Quick actions row */}
-                        <div className="grid grid-cols-4 gap-1.5 mb-3">
-                            {[
-                                { icon: Wallet, label: 'Wallet', color: '#06b6d4' },
-                                { icon: RefreshCw, label: 'Convertir', color: '#10b981' },
-                                { icon: BarChart3, label: 'Stats', color: '#a78bfa' },
-                                { icon: Bell, label: 'Alertas', color: '#f59e0b' },
-                            ].map((a, i) => (
-                                <div key={i} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl py-2 flex flex-col items-center gap-1">
-                                    <a.icon className="w-3.5 h-3.5" style={{ color: a.color }} />
-                                    <span className="text-[7.5px] text-white/60 font-semibold uppercase tracking-wide">
-                                        {a.label}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Investment chart card */}
-                        <div className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl p-2.5 mb-3">
-                            <div className="flex items-center justify-between mb-1">
-                                <p className="text-white text-[9px] font-bold uppercase tracking-wider">Mis Inversiones</p>
-                                <span className="text-emerald-400 text-[8.5px] font-bold">+€1.158</span>
-                            </div>
-                            <svg viewBox="0 0 200 50" className="w-full">
-                                <defs>
-                                    <linearGradient id="ph-chart-pro" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.6" />
-                                        <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                                    </linearGradient>
-                                </defs>
-                                <path
-                                    d="M0,40 L20,35 L40,28 L60,30 L80,22 L100,18 L120,20 L140,12 L160,15 L180,8 L200,10 L200,50 L0,50 Z"
-                                    fill="url(#ph-chart-pro)"
-                                />
-                                <path
-                                    d="M0,40 L20,35 L40,28 L60,30 L80,22 L100,18 L120,20 L140,12 L160,15 L180,8 L200,10"
-                                    fill="none"
-                                    stroke="#10b981"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                />
-                                {/* End dot */}
-                                <circle cx="200" cy="10" r="2.5" fill="#10b981" />
-                                <circle cx="200" cy="10" r="4" fill="#10b981" opacity="0.3" />
-                            </svg>
-                        </div>
-
-                        {/* Multi-currency mini chips */}
-                        <div className="grid grid-cols-3 gap-1.5 mb-3">
-                            {[
-                                { f: '🇺🇸', c: 'USD', v: '5,2k', up: true },
-                                { f: '🇬🇧', c: 'GBP', v: '1,8k', up: true },
-                                { f: '🇲🇽', c: 'MXN', v: '88k', up: false },
-                            ].map((m) => (
-                                <div key={m.c} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-lg px-1.5 py-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-white/70 text-[7px] font-bold">{m.f} {m.c}</p>
-                                        <span className={`text-[7.5px] ${m.up ? 'text-emerald-400' : 'text-rose-400'}`}>{m.up ? '▲' : '▼'}</span>
-                                    </div>
-                                    <p className="text-white text-[10px] font-bold font-mono mt-0.5">{m.v}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Notification card (sticks to bottom) */}
-                        <div className="bg-gradient-to-r from-cyan-500/15 to-cyan-500/5 ring-1 ring-cyan-500/40 backdrop-blur-sm rounded-xl p-2 flex items-start gap-1.5 mt-auto">
-                            <div className="w-5 h-5 rounded-full bg-cyan-500/25 flex items-center justify-center flex-shrink-0">
-                                <Bell className="w-2.5 h-2.5 text-cyan-300" />
-                            </div>
-                            <div>
-                                <p className="text-cyan-100 text-[9px] font-bold">Retiro completado ✓</p>
-                                <p className="text-cyan-300/70 text-[8px] mt-0.5">PLB-2026-275741 · hace 2 min</p>
-                            </div>
-                        </div>
-
-                        {/* Home indicator */}
-                        <div className="mx-auto mt-3 w-[120px] h-[4px] rounded-full bg-white/80" />
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+            {[
+                { f: '🇺🇸', c: 'USD', v: '5,2k', up: true },
+                { f: '🇬🇧', c: 'GBP', v: '1,8k', up: true },
+                { f: '🇲🇽', c: 'MXN', v: '88k', up: false },
+            ].map((m) => (
+                <div key={m.c} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-lg px-1.5 py-1.5">
+                    <div className="flex items-center justify-between">
+                        <p className="text-white/70 text-[7px] font-bold">{m.f} {m.c}</p>
+                        <span className={`text-[7.5px] ${m.up ? 'text-emerald-400' : 'text-rose-400'}`}>{m.up ? '▲' : '▼'}</span>
                     </div>
+                    <p className="text-white text-[10px] font-bold font-mono mt-0.5">{m.v}</p>
+                </div>
+            ))}
+        </div>
+
+        <div className="bg-gradient-to-r from-cyan-500/15 to-cyan-500/5 ring-1 ring-cyan-500/40 backdrop-blur-sm rounded-xl p-2 flex items-start gap-1.5 mt-auto">
+            <div className="w-5 h-5 rounded-full bg-cyan-500/25 flex items-center justify-center flex-shrink-0">
+                <Bell className="w-2.5 h-2.5 text-cyan-300" />
+            </div>
+            <div>
+                <p className="text-cyan-100 text-[9px] font-bold">Retiro completado ✓</p>
+                <p className="text-cyan-300/70 text-[8px] mt-0.5">PLB-2026-275741 · hace 2 min</p>
+            </div>
+        </div>
+
+        <div className="mx-auto mt-3 w-[120px] h-[4px] rounded-full bg-white/80" />
+    </div>
+);
+
+
+// ─── BACK screen: Movimientos / Retiros view ──────────────────────
+const ScreenTransactions = () => {
+    const txs = [
+        { type: 'out', icon: '↗', label: 'Retiro a BBVA', code: 'PLB-2026-275741', amt: '−€8.500,00', sub: 'Hoy · 09:12', color: '#06b6d4', done: true },
+        { type: 'in', icon: '↘', label: 'Liberación Vault', code: 'PLB-2026-274912', amt: '+€12.300,00', sub: 'Ayer · 18:45', color: '#10b981', done: true },
+        { type: 'fx', icon: '⇄', label: 'EUR → USD', code: 'PLB-2026-274880', amt: '$5.200,00', sub: 'Ayer · 14:20', color: '#a78bfa', done: true },
+        { type: 'in', icon: '↘', label: 'Rendimiento MT5', code: 'PLB-2026-274601', amt: '+€1.158,40', sub: '13 feb · 23:59', color: '#10b981', done: true },
+        { type: 'out', icon: '↗', label: 'Retiro a Santander', code: 'PLB-2026-273944', amt: '−€3.200,00', sub: '11 feb · 16:08', color: '#06b6d4', pending: true },
+    ];
+
+    return (
+        <div className="absolute inset-0 p-4 pt-12 flex flex-col">
+            <StatusBar />
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-cyan-300" />
+                    <p className="text-cyan-300 text-[10px] font-bold tracking-[0.2em] uppercase">Movimientos</p>
+                </div>
+                <span className="text-slate-400 text-[8.5px] font-semibold">Feb 2026</span>
+            </div>
+
+            {/* Net flow card */}
+            <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent ring-1 ring-emerald-500/25 rounded-2xl p-3 mb-3">
+                <p className="text-emerald-200/80 text-[8.5px] font-bold uppercase tracking-wider">Flujo neto del mes</p>
+                <p className="text-white text-[24px] font-bold tabular-nums tracking-tight mt-1">
+                    +€6.958<span className="text-slate-500 text-[14px]">,40</span>
+                </p>
+                {/* Mini bar chart */}
+                <div className="flex items-end gap-[3px] h-[22px] mt-2">
+                    {[12, 16, 9, 14, 22, 18, 11, 20, 14, 17, 21, 16].map((h, i) => (
+                        <div
+                            key={i}
+                            className="flex-1 rounded-[1.5px]"
+                            style={{
+                                height: `${h * 0.9}px`,
+                                background: i >= 9 ? 'linear-gradient(180deg,#34d399,#059669)' : 'rgba(255,255,255,0.12)',
+                            }}
+                        />
+                    ))}
                 </div>
             </div>
 
-            {/* Hardware buttons */}
-            {/* Power (right side) */}
-            <div className="absolute right-[-3px] top-32 w-[3px] h-16 bg-gradient-to-b from-slate-700 to-slate-800 rounded-l" />
-            {/* Volume up + down (left side) */}
-            <div className="absolute left-[-3px] top-24 w-[3px] h-8 bg-gradient-to-b from-slate-700 to-slate-800 rounded-r" />
-            <div className="absolute left-[-3px] top-36 w-[3px] h-14 bg-gradient-to-b from-slate-700 to-slate-800 rounded-r" />
-            {/* Mute switch */}
-            <div className="absolute left-[-3px] top-16 w-[3px] h-5 bg-gradient-to-b from-slate-600 to-slate-700 rounded-r" />
+            {/* Filter pills */}
+            <div className="flex gap-1.5 mb-2.5">
+                {[
+                    { l: 'Todo', a: true },
+                    { l: 'Entradas', a: false },
+                    { l: 'Retiros', a: false },
+                    { l: 'FX', a: false },
+                ].map((p) => (
+                    <span
+                        key={p.l}
+                        className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${p.a ? 'bg-cyan-400 text-cyan-950' : 'bg-white/[0.04] text-white/60 ring-1 ring-white/10'}`}
+                    >
+                        {p.l}
+                    </span>
+                ))}
+            </div>
+
+            {/* Transactions list */}
+            <div className="space-y-1.5 flex-1 overflow-hidden">
+                {txs.map((t, i) => (
+                    <div key={i} className="bg-white/[0.04] ring-1 ring-white/5 backdrop-blur-sm rounded-xl p-2 flex items-center gap-2">
+                        <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
+                            style={{ background: t.color + '20', color: t.color }}
+                        >
+                            {t.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-white text-[9.5px] font-bold leading-tight truncate">{t.label}</p>
+                            <p className="text-slate-500 text-[7.5px] mt-0.5 truncate font-mono">{t.code}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                            <p className={`text-[9.5px] font-bold tabular-nums ${t.type === 'out' ? 'text-white' : t.type === 'in' ? 'text-emerald-300' : 'text-violet-300'}`}>
+                                {t.amt}
+                            </p>
+                            <p className={`text-[7px] mt-0.5 font-semibold ${t.pending ? 'text-amber-300' : 'text-slate-500'}`}>
+                                {t.pending ? '· Pendiente' : t.sub}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Floating CTA */}
+            <button className="mt-2 w-full h-9 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 text-cyan-950 font-bold text-[10.5px] tracking-wide flex items-center justify-center gap-1.5 shadow-[0_8px_24px_-6px_rgba(6,182,212,0.6)]">
+                <RefreshCw className="w-3 h-3" /> Nuevo retiro
+            </button>
+
+            <div className="mx-auto mt-2 w-[120px] h-[4px] rounded-full bg-white/80" />
         </div>
-    </motion.div>
+    );
+};
+
+
+// ─── Dual phone stack — back phone behind, front phone in focus ──
+const DualPhoneStack = () => (
+    <div className="relative mx-auto w-full flex items-center justify-center" style={{ perspective: '1400px' }}>
+        {/* Ambient glow halo */}
+        <div className="absolute inset-0 -m-12 bg-gradient-to-br from-cyan-500/25 via-[#1973B8]/15 to-emerald-500/20 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute inset-0 -m-12 bg-gradient-to-tr from-violet-500/10 to-transparent blur-2xl rounded-full pointer-events-none" />
+
+        {/* Floor reflection / shadow puddle */}
+        <div className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 w-[420px] max-w-[80%] h-[40px] rounded-[50%] bg-black/70 blur-2xl pointer-events-none" />
+
+        {/* BACK PHONE — Transactions screen (hidden on small screens) */}
+        <motion.div
+            initial={{ opacity: 0, y: 40, rotate: 12, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, rotate: 12, scale: 0.92 }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+            className="hidden sm:block absolute z-10 origin-bottom"
+            style={{
+                transform: 'translateX(70px) translateY(-25px)',
+                filter: 'drop-shadow(0 25px 40px rgba(0,0,0,0.55))',
+            }}
+        >
+            <PhoneFrame scale={0.92}>
+                <ScreenTransactions />
+            </PhoneFrame>
+        </motion.div>
+
+        {/* FRONT PHONE — Dashboard (always visible) */}
+        <motion.div
+            initial={{ opacity: 0, y: 30, rotate: -6, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, rotate: -5, scale: 1 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+            className="relative z-20"
+            style={{
+                transform: 'translateX(-40px)',
+                filter: 'drop-shadow(0 35px 55px rgba(0,0,0,0.7))',
+            }}
+        >
+            <PhoneFrame>
+                <ScreenDashboard />
+            </PhoneFrame>
+        </motion.div>
+    </div>
 );
 
 
@@ -451,9 +567,9 @@ const MobileAppPage = () => {
                             </motion.div>
                         </div>
 
-                        {/* Right phone mockup */}
-                        <div className="relative">
-                            <PhoneMockup />
+                        {/* Right phone mockups (dual stacked) */}
+                        <div className="relative min-h-[600px] flex items-center justify-center">
+                            <DualPhoneStack />
                         </div>
                     </div>
                 </div>
