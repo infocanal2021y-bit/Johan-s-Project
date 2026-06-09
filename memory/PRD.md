@@ -109,7 +109,28 @@
   - Active: `text-cyan-300` + drop-shadow(0_0_8px cyan/70)
 - Transición: `duration-300 ease-out` (más fluido)
 
-**Status:** ✅ Verificado vía screenshot Dashboard. El item activo "Dashboard" muestra todo el set: gradient bg, ícono cyan iluminado, barra lateral brillante. Lint pre-existing warnings (NavLinks/SidebarContent nested) sin tocar — son anteriores y no afectan funcionamiento.
+### Iteration 74.4 — Sidebar hover con escalado de texto + dimming de hermanos
+
+**Pedido:** Texto crece 5-10% al hover, icono crece proporcionalmente, fondo iluminado suave, transición 200-300ms fluida, activo permanente, demás opciones en estado discreto.
+
+**Cambios en `Sidebar.jsx` → `NavLinks`:**
+- Container `group/nav` para coordinar opacity entre hermanos
+- **Inactivo base**: `text-slate-400/90` (más discreto vs antes `slate-300`)
+- **Dimming**: cuando el mouse entra al nav, los items no-hovered bajan a `group-hover/nav:opacity-70` y el hovered hace `hover:!opacity-100` (atención dirigida)
+- **Hover sobre item**:
+  - Background: gradient cyan/15 → white/0.06 → transparent
+  - Texto: `scale-[1.07]` (7%) + `tracking-wide`
+  - Icono: `scale-125` (25% más grande, proporcional al texto) + cyan + drop-shadow glow 8px
+  - Barra lateral: `h-6` opacity-80 gradient cyan→blue
+  - Transición: `duration-300 ease-out` (fluida y elegante)
+- **Active permanente**:
+  - Texto: `scale-[1.03]` + `font-semibold`
+  - Icono: `scale-110` + cyan + drop-shadow más intenso
+  - Barra lateral: `h-8` opacity-100 con `shadow-[0_0_8px_rgba(34,211,238,0.6)]`
+  - Background: gradient cyan/20 → blue/15 + inset ring sutil
+
+**Status:** ✅ Verificado en preview con screenshot en hover.
+
 
 
 

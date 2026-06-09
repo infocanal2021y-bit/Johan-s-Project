@@ -166,7 +166,7 @@ export const Sidebar = () => {
     ];
 
     const NavLinks = ({ links }) => (
-        <nav className="space-y-0.5">
+        <nav className="space-y-0.5 group/nav">
             {links.map((link) => (
                 <NavLink
                     key={link.to}
@@ -176,7 +176,7 @@ export const Sidebar = () => {
                         `group relative flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-300 ease-out touch-manipulation overflow-hidden ${
                             isActive
                                 ? 'sb-active bg-gradient-to-r from-cyan-500/20 via-[#1973B8]/15 to-transparent text-white font-semibold shadow-[inset_0_0_0_1px_rgba(124,177,229,0.18)]'
-                                : 'text-slate-300 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:via-white/[0.04] hover:to-transparent hover:text-white active:bg-white/10'
+                                : 'text-slate-400/90 hover:bg-gradient-to-r hover:from-cyan-500/15 hover:via-white/[0.06] hover:to-transparent hover:text-white active:bg-white/10 group-hover/nav:opacity-70 hover:!opacity-100'
                         }`
                     }
                 >
@@ -185,16 +185,24 @@ export const Sidebar = () => {
                         aria-hidden="true"
                         className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-gradient-to-b from-cyan-300 to-[#1973B8] transition-all duration-300
                                    h-0 opacity-0
-                                   group-hover:h-5 group-hover:opacity-70
+                                   group-hover:h-6 group-hover:opacity-80
                                    group-[.sb-active]:h-8 group-[.sb-active]:opacity-100 group-[.sb-active]:shadow-[0_0_8px_rgba(34,211,238,0.6)]"
                     />
-                    {/* Icon with glow on hover/active */}
+                    {/* Icon with glow + grow on hover/active */}
                     <link.icon
-                        className="w-[18px] h-[18px] flex-shrink-0 transition-all duration-300
-                                   group-hover:scale-110 group-hover:text-cyan-300 group-hover:[filter:drop-shadow(0_0_6px_rgba(34,211,238,0.55))]
-                                   group-[.sb-active]:text-cyan-300 group-[.sb-active]:[filter:drop-shadow(0_0_8px_rgba(34,211,238,0.7))]"
+                        className="w-[18px] h-[18px] flex-shrink-0 transition-all duration-300 ease-out origin-center
+                                   group-hover:scale-125 group-hover:text-cyan-300 group-hover:[filter:drop-shadow(0_0_8px_rgba(34,211,238,0.65))]
+                                   group-[.sb-active]:scale-110 group-[.sb-active]:text-cyan-300 group-[.sb-active]:[filter:drop-shadow(0_0_8px_rgba(34,211,238,0.7))]"
                     />
-                    <span className="text-[13px] lg:text-sm relative z-10" style={{ fontWeight: 500 }}>{t(link.label)}</span>
+                    {/* Label with subtle grow on hover */}
+                    <span
+                        className="text-[13px] lg:text-sm relative z-10 transition-all duration-300 ease-out origin-left
+                                   group-hover:scale-[1.07] group-hover:tracking-wide
+                                   group-[.sb-active]:scale-[1.03]"
+                        style={{ fontWeight: 500 }}
+                    >
+                        {t(link.label)}
+                    </span>
                 </NavLink>
             ))}
         </nav>
