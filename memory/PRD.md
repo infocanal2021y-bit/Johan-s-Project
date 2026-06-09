@@ -84,6 +84,34 @@
 
 **Status:** ✅ Verificado con 3 screenshots desktop (las 3 pantallas funcionan, animación fluida, lint 0 warnings). Refresca el Dashboard en preview para ver el resultado.
 
+### Iteration 74.3 — Centrado teléfono + Sidebar hover premium
+
+**Pedido del usuario:**
+- Teléfono: centrar mejor, girar suavemente sobre su propio eje, más efecto flotante y sombra 3D
+- Sidebar: hover con cambio claro de apariencia (fondo brillante, icono iluminado, borde lateral), opción activa aún más destacada
+
+**Cambios en `MobileAppBanner.jsx`:**
+- Container: `lg:pl-6 lg:pr-2 lg:py-6 mt-4 pb-8` para mejor centrado vertical y respiración lateral
+- Rotación 3D ahora usa `rotateY: [-8, 8, -8]` (eje propio vertical, 9s loop) + `rotateZ: [-3, 0, -3]` sutil para microbalanceo
+- Floating: `y: [0, -10, 0]` 5s (más rango)
+- Sombra del piso ahora animada: `scaleX: [1, 0.78, 1]` + `opacity: [0.7, 0.45, 0.7]` (se contrae cuando el teléfono sube → ilusión de altura)
+- Doble drop-shadow: 30/40 negro + 12/20 cyan/18 para glow sutil
+
+**Cambios en `Sidebar.jsx` (`NavLinks` component):**
+- Hover state: gradient cyan/10 → white/0.04 → transparent + texto blanco
+- Active state: clase `sb-active` con gradient cyan/20 → blue/15 → transparent + `font-semibold` + inset ring sutil
+- Barra de acento lateral animada:
+  - Default: `h-0 opacity-0`
+  - Hover: `h-5 opacity-70` (gradient cyan→blue)
+  - Active: `h-8 opacity-100` + box-shadow glow cyan
+- Iconos con glow drop-shadow:
+  - Hover: `scale-110` + `text-cyan-300` + drop-shadow(0_0_6px cyan/55)
+  - Active: `text-cyan-300` + drop-shadow(0_0_8px cyan/70)
+- Transición: `duration-300 ease-out` (más fluido)
+
+**Status:** ✅ Verificado vía screenshot Dashboard. El item activo "Dashboard" muestra todo el set: gradient bg, ícono cyan iluminado, barra lateral brillante. Lint pre-existing warnings (NavLinks/SidebarContent nested) sin tocar — son anteriores y no afectan funcionamiento.
+
+
 
 
 ## Iteration 73 (Jun 03, 2026) — PLB-code en emails transaccionales

@@ -275,26 +275,36 @@ const BannerPhone = () => {
             <div className="absolute -inset-10 bg-gradient-to-br from-cyan-500/40 via-[#1973B8]/30 to-emerald-500/25 blur-3xl rounded-full pointer-events-none" />
             <div className="absolute -inset-6 bg-gradient-to-tr from-violet-500/15 to-transparent blur-2xl rounded-full pointer-events-none" />
 
-            {/* Floor shadow */}
-            <div className="absolute bottom-[-18px] left-1/2 -translate-x-1/2 w-[180px] max-w-[80%] h-[24px] rounded-[50%] bg-black/70 blur-xl pointer-events-none" />
-
-            {/* Floating 3D tilt — continuous, GPU accelerated */}
+            {/* Floor shadow — dynamic, scales with phone hover */}
             <motion.div
-                initial={{ opacity: 0, y: 30, rotate: -8, scale: 0.92 }}
+                animate={{ scaleX: [1, 0.78, 1], opacity: [0.7, 0.45, 0.7] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }}
+                className="absolute bottom-[-22px] left-1/2 -translate-x-1/2 w-[200px] max-w-[80%] h-[26px] rounded-[50%] bg-black blur-xl pointer-events-none"
+            />
+
+            {/* Floating + 3D Y-axis rotation — continuous, GPU accelerated */}
+            <motion.div
+                initial={{ opacity: 0, y: 30, rotateY: -15, scale: 0.92 }}
                 animate={{
                     opacity: 1,
-                    y: [0, -8, 0],
-                    rotate: [-8, -12, -5, -8],
+                    y: [0, -10, 0],
+                    rotateY: [-8, 8, -8],
+                    rotateZ: [-3, 0, -3],
                     scale: 1,
                 }}
                 transition={{
                     opacity: { duration: 0.7, ease: [0.16, 1, 0.3, 1] },
                     scale: { duration: 0.7, ease: [0.16, 1, 0.3, 1] },
-                    y: { duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.7 },
-                    rotate: { duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 0.7 },
+                    y: { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.7 },
+                    rotateY: { duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 0.7 },
+                    rotateZ: { duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 0.7 },
                 }}
                 className="relative will-change-transform"
-                style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
+                style={{
+                    transformStyle: 'preserve-3d',
+                    backfaceVisibility: 'hidden',
+                    filter: 'drop-shadow(0 30px 40px rgba(0,0,0,0.55)) drop-shadow(0 12px 20px rgba(6,182,212,0.18))',
+                }}
             >
                 {/* Titanium iPhone frame */}
                 <div
@@ -508,8 +518,8 @@ export const MobileAppBanner = () => {
                     </motion.div>
                 </div>
 
-                {/* ── Right phone mockup (also visible on mobile, smaller) ───── */}
-                <div className="relative flex items-center justify-center mt-2 lg:mt-0 scale-90 sm:scale-100 lg:scale-110 mx-auto pb-4">
+                {/* ── Right phone mockup (centered, visible on all screens) ───── */}
+                <div className="relative flex items-center justify-center mt-4 lg:mt-0 lg:pl-6 lg:pr-2 lg:py-6 mx-auto pb-8">
                     <BannerPhone />
                 </div>
             </div>

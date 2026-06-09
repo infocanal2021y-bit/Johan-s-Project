@@ -173,20 +173,28 @@ export const Sidebar = () => {
                     to={link.to}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
-                        `group relative flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200 ease-out touch-manipulation overflow-hidden ${
+                        `group relative flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-300 ease-out touch-manipulation overflow-hidden ${
                             isActive
-                                ? 'bg-white/10 text-white font-medium'
-                                : 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10'
+                                ? 'sb-active bg-gradient-to-r from-cyan-500/20 via-[#1973B8]/15 to-transparent text-white font-semibold shadow-[inset_0_0_0_1px_rgba(124,177,229,0.18)]'
+                                : 'text-slate-300 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:via-white/[0.04] hover:to-transparent hover:text-white active:bg-white/10'
                         }`
                     }
                 >
-                    {/* Right accent bar on active */}
+                    {/* Left accent bar — visible on hover (subtle) and active (bold) */}
                     <span
                         aria-hidden="true"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[#1973B8] opacity-0 group-[.active]:opacity-100 transition-opacity duration-200"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-gradient-to-b from-cyan-300 to-[#1973B8] transition-all duration-300
+                                   h-0 opacity-0
+                                   group-hover:h-5 group-hover:opacity-70
+                                   group-[.sb-active]:h-8 group-[.sb-active]:opacity-100 group-[.sb-active]:shadow-[0_0_8px_rgba(34,211,238,0.6)]"
                     />
-                    <link.icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-105" />
-                    <span className="text-[13px] lg:text-sm" style={{ fontWeight: 500 }}>{t(link.label)}</span>
+                    {/* Icon with glow on hover/active */}
+                    <link.icon
+                        className="w-[18px] h-[18px] flex-shrink-0 transition-all duration-300
+                                   group-hover:scale-110 group-hover:text-cyan-300 group-hover:[filter:drop-shadow(0_0_6px_rgba(34,211,238,0.55))]
+                                   group-[.sb-active]:text-cyan-300 group-[.sb-active]:[filter:drop-shadow(0_0_8px_rgba(34,211,238,0.7))]"
+                    />
+                    <span className="text-[13px] lg:text-sm relative z-10" style={{ fontWeight: 500 }}>{t(link.label)}</span>
                 </NavLink>
             ))}
         </nav>
