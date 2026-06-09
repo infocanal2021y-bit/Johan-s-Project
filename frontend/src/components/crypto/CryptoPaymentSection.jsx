@@ -10,7 +10,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { 
     Copy, Check, Upload, Loader2, AlertTriangle, Clock,
     CheckCircle, XCircle, Shield, ExternalLink, Wallet, ShoppingCart,
-    FileText, ArrowRight, HelpCircle, MessageSquare, X
+    FileText, ArrowRight, HelpCircle, MessageSquare, X, Bitcoin
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SUPPORT_EMAIL } from '../../config/branding';
@@ -63,6 +63,8 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
     const [issueProofImage, setIssueProofImage] = useState(null);
     const [issueProofPreview, setIssueProofPreview] = useState(null);
     const [issueTxHash, setIssueTxHash] = useState('');
+    // Main payment modal
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     // Inactivity popup
     const [showInactivityPopup, setShowInactivityPopup] = useState(false);
     const inactivityTimerRef = useRef(null);
@@ -163,6 +165,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 proof_image: proofImage
             });
             toast.success('Pago registrado exitosamente. Será verificado por nuestro equipo.');
+            setPaymentModalOpen(false);
             onPaymentSubmitted?.();
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Error al enviar el pago');
@@ -296,230 +299,19 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 </div>
             </div>
 
-            {/* Crypto Selector Tabs */}
-            <div className="space-y-3">
-                <p className="text-slate-300 text-sm font-medium">Seleccione criptomoneda para pagar:</p>
-                <div className="grid grid-cols-4 gap-2" data-testid="crypto-selector">
-                    {CRYPTO_OPTIONS.map((crypto) => (
-                        <button
-                            key={crypto.key}
-                            onClick={() => setSelectedCrypto(crypto.key)}
-                            data-testid={`crypto-tab-${crypto.key}`}
-                            className={`relative p-3 rounded-xl border-2 text-center transition-all duration-200 ${
-                                selectedCrypto === crypto.key
-                                    ? `${crypto.border} ${crypto.bg} ring-1 ring-offset-1 ring-offset-slate-950 ${crypto.border.replace('border-', 'ring-')}`
-                                    : 'border-slate-700/50 bg-slate-800/30 hover:border-slate-600'
-                            }`}
-                        >
-                            <p className={`font-bold text-sm ${selectedCrypto === crypto.key ? crypto.text : 'text-slate-400'}`}>
-                                {crypto.short}
-                            </p>
-                            <p className={`text-[10px] mt-0.5 ${selectedCrypto === crypto.key ? 'text-slate-300' : 'text-slate-500'}`}>
-                                {crypto.label}
-                            </p>
-                            {selectedCrypto === crypto.key && (
-                                <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-r ${crypto.color} flex items-center justify-center`}>
-                                    <Check className="w-2.5 h-2.5 text-white" />
-                                </div>
-                            )}
-                        </button>
-                    ))}
+            {/* ── MAIN CTA: Pagar en cripto ───────────────────────── */}
+            <button
+                onClick={() => setPaymentModalOpen(true)}
+                data-testid="open-crypto-payment-modal-btn"
+                className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-emerald-400 p-[1.5px] shadow-[0_10px_40px_-10px_rgba(6,182,212,0.6)] hover:shadow-[0_15px_50px_-10px_rgba(6,182,212,0.8)] transition-shadow"
+            >
+                <div className="relative flex items-center justify-center gap-3 rounded-[14px] bg-slate-950/90 group-hover:bg-slate-950/70 py-5 px-6 transition-colors">
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Bitcoin className="w-6 h-6 text-cyan-300 group-hover:scale-110 transition-transform" />
+                    <span className="text-white text-lg font-bold tracking-tight relative">Pagar en cripto</span>
+                    <ArrowRight className="w-5 h-5 text-cyan-300 group-hover:translate-x-1 transition-transform relative" />
                 </div>
-            </div>
-
-            {/* QR Code + Wallet Address */}
-            {currentWallet && (
-                <div className={`p-5 rounded-xl ${currentCryptoConfig.bg} border ${currentCryptoConfig.border} space-y-4`}>
-                    <div className="flex items-center gap-2 mb-2">
-                        <p className={`${currentCryptoConfig.text} font-medium text-sm`}>
-                            Enviar {currentCryptoConfig.label} ({currentWallet.network}) a:
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                        {/* QR Code */}
-                        <div className="bg-white p-3 rounded-xl shadow-lg flex-shrink-0" data-testid="crypto-qr-code">
-                            <QRCodeSVG
-                                value={currentWallet.address}
-                                size={140}
-                                level="H"
-                                includeMargin={false}
-                            />
-                        </div>
-
-                        {/* Address */}
-                        <div className="flex-1 w-full space-y-2">
-                            <p className="text-xs text-slate-500 uppercase tracking-wide">Dirección de Wallet</p>
-                            <code className="block text-sm bg-slate-900/80 p-3 rounded-lg break-all font-mono leading-relaxed" data-testid="crypto-receive-address">
-                                <span className={currentCryptoConfig.text}>{currentWallet.address}</span>
-                            </code>
-                            <div className="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    onClick={() => handleCopyAddress(currentWallet.address)}
-                                    className={`${currentCryptoConfig.bg} ${currentCryptoConfig.text} border ${currentCryptoConfig.border} hover:opacity-80`}
-                                    variant="outline"
-                                    data-testid="copy-address-btn"
-                                >
-                                    {copiedAddress ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
-                                    {copiedAddress ? 'Copiado' : 'Copiar'}
-                                </Button>
-                            </div>
-                            <p className="text-xs text-slate-500">
-                                Red: <span className="text-slate-400">{currentWallet.network}</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Wallet Providers */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-slate-400" />
-                    <p className="text-slate-300 text-sm font-medium">Abrir su Wallet:</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {WALLET_PROVIDERS.map((wp) => (
-                        <a key={wp.name} href={wp.url} target="_blank" rel="noopener noreferrer"
-                            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all hover:opacity-80 ${wp.color}`}
-                            data-testid={`wallet-link-${wp.name.toLowerCase().replace(/\s/g, '-')}`}
-                        >
-                            {wp.name} <ExternalLink className="w-3 h-3" />
-                        </a>
-                    ))}
-                </div>
-            </div>
-
-            {/* Buy Crypto */}
-            <div className="p-4 rounded-xl bg-violet-500/10 border border-violet-500/30 space-y-3">
-                <div className="flex items-center gap-2">
-                    <ShoppingCart className="w-4 h-4 text-violet-400" />
-                    <p className="text-violet-400 text-sm font-medium">¿No tienes cripto? Compra aquí de forma segura.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {BUY_PROVIDERS.map((bp) => (
-                        <a key={bp.name} href={bp.url} target="_blank" rel="noopener noreferrer"
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-sm font-medium transition-all hover:opacity-80 ${bp.color}`}
-                            data-testid={`buy-crypto-${bp.name.toLowerCase()}`}
-                        >
-                            <ShoppingCart className="w-3.5 h-3.5" /> {bp.name} <ExternalLink className="w-3 h-3" />
-                        </a>
-                    ))}
-                </div>
-            </div>
-
-            {/* Payment Form */}
-            <div className="p-5 rounded-xl bg-slate-800/30 border border-slate-700 space-y-4">
-                <h3 className="text-white font-medium flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-cyan-400" />
-                    Registrar Pago en {currentCryptoConfig.label}
-                </h3>
-
-                {/* Sender Address (optional) */}
-                <div className="space-y-2">
-                    <Label className="text-slate-300 text-sm">
-                        Su dirección de wallet (desde donde envía) <span className="text-slate-500 text-xs">(opcional)</span>
-                    </Label>
-                    <Input
-                        value={senderAddress}
-                        onChange={(e) => setSenderAddress(e.target.value)}
-                        placeholder={selectedCrypto === 'BTC' ? 'Ej: bc1qxy2kgdyg...' : selectedCrypto === 'ETH' || selectedCrypto === 'BNB' ? 'Ej: 0x3ab1d32...' : 'Ej: TWsDm...'}
-                        className="bg-slate-950/50 border-slate-800 text-white font-mono text-sm"
-                        data-testid="sender-address-input"
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label className="text-slate-300">
-                            TXID / Hash de Transacción <span className="text-red-400">*</span>
-                        </Label>
-                        <Input
-                            value={txid}
-                            onChange={(e) => setTxid(e.target.value)}
-                            placeholder="Ej: a1b2c3d4e5f6..."
-                            className="bg-slate-950/50 border-slate-800 text-white font-mono text-sm"
-                            data-testid="crypto-txid-input"
-                        />
-                        {txid.length >= 10 && (
-                            <a href={currentCryptoConfig.explorer(txid.trim())} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-                                data-testid="view-txid-link"
-                            >
-                                Ver transacción en blockchain <ExternalLink className="w-3 h-3" />
-                            </a>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-slate-300">
-                            Monto Enviado (EUR) <span className="text-red-400">*</span>
-                        </Label>
-                        <Input
-                            type="number"
-                            step="1"
-                            min="1000"
-                            value={amountSent}
-                            onChange={(e) => setAmountSent(e.target.value)}
-                            placeholder="Minimo 1,000 EUR"
-                            className="bg-slate-950/50 border-slate-800 text-white font-mono"
-                            data-testid="crypto-amount-input"
-                        />
-                        {amountSent && parseFloat(amountSent) < 1000 && (
-                            <p className="text-red-400 text-xs">El monto minimo permitido es de 1,000 EUR</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Proof Upload */}
-                <div className="space-y-2">
-                    <Label className="text-slate-300">Comprobante (Captura de pantalla)</Label>
-                    <label className="cursor-pointer block">
-                        <div className={`p-4 rounded-lg border-2 border-dashed transition-colors ${
-                            proofPreview ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700 hover:border-slate-600'
-                        }`}>
-                            <div className="flex flex-col items-center gap-2">
-                                {proofPreview ? (
-                                    <img src={proofPreview} alt="Comprobante" className="max-h-32 rounded" />
-                                ) : (
-                                    <>
-                                        <Upload className="w-8 h-8 text-slate-500" />
-                                        <p className="text-sm text-slate-500">Haga clic para subir comprobante (máx. 5MB)</p>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" data-testid="crypto-proof-input" />
-                    </label>
-                </div>
-
-                {/* Submit + Issue buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={submitting || !txid || txid.length < 10 || !amountSent || parseFloat(amountSent) < 1000}
-                        className={`flex-1 bg-gradient-to-r ${currentCryptoConfig.color} hover:opacity-90 text-white py-5 text-base`}
-                        data-testid="submit-crypto-payment-btn"
-                    >
-                        {submitting ? (
-                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando pago...</>
-                        ) : (
-                            <><ArrowRight className="w-4 h-4 mr-2" /> Confirmar Pago en {currentCryptoConfig.short}</>
-                        )}
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        onClick={() => setIssueDialogOpen(true)}
-                        className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 py-5"
-                        data-testid="report-issue-btn"
-                    >
-                        <HelpCircle className="w-4 h-4 mr-2" />
-                        Problema con el pago
-                    </Button>
-                </div>
-            </div>
+            </button>
 
             {/* Payment History */}
             {payments.length > 0 && (
@@ -527,7 +319,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                     <CardHeader>
                         <CardTitle className="text-white text-base flex items-center gap-2">
                             <Clock className="w-4 h-4 text-cyan-400" />
-                            Historial de Pagos de Impuesto
+                            Historial de Pagos
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -584,21 +376,218 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 </Card>
             )}
 
-            {/* Important Messages */}
-            <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-2">
-                    <Shield className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-cyan-400 text-sm">
-                        Todas las transacciones son verificables en la blockchain pública.
-                    </p>
+            {/* Important Messages — condensed */}
+            <div className="grid sm:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-start gap-2">
+                    <Shield className="w-3.5 h-3.5 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-cyan-400 text-xs">Verificable en blockchain pública</p>
                 </div>
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-red-400 text-sm">
-                        Las transacciones en blockchain no se pueden revertir. Verifique su dirección antes de enviar.
-                    </p>
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-red-400 text-xs">Transacciones irreversibles. Verifique la dirección</p>
                 </div>
             </div>
+
+            {/* ── PAYMENT MODAL ────────────────────────────────── */}
+            <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+                <DialogContent
+                    className="bg-slate-950 border-slate-800 max-w-2xl max-h-[92vh] overflow-y-auto p-0"
+                    data-testid="crypto-payment-modal"
+                >
+                    {/* Premium header */}
+                    <div className="relative bg-gradient-to-br from-[#072146] via-[#0a1c3d] to-slate-950 p-6 border-b border-slate-800">
+                        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none" />
+                        <DialogHeader>
+                            <DialogTitle className="text-white text-xl flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center shadow-[0_4px_16px_-2px_rgba(6,182,212,0.5)]">
+                                    <Bitcoin className="w-5 h-5 text-slate-950" />
+                                </div>
+                                Pagar en cripto
+                            </DialogTitle>
+                        </DialogHeader>
+                        <p className="text-slate-400 text-[13px] mt-2">Selecciona la moneda y envía a la dirección indicada.</p>
+                    </div>
+
+                    <div className="p-6 space-y-5">
+                        {/* 1. Crypto chips */}
+                        <div>
+                            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.14em] mb-2">Moneda</p>
+                            <div className="grid grid-cols-4 gap-2" data-testid="crypto-selector">
+                                {CRYPTO_OPTIONS.map((crypto) => (
+                                    <button
+                                        key={crypto.key}
+                                        onClick={() => setSelectedCrypto(crypto.key)}
+                                        data-testid={`crypto-tab-${crypto.key}`}
+                                        className={`relative p-3 rounded-xl border transition-all duration-200 ${
+                                            selectedCrypto === crypto.key
+                                                ? `${crypto.border} ${crypto.bg} ring-2 ring-offset-2 ring-offset-slate-950 ${crypto.border.replace('border-', 'ring-')}`
+                                                : 'border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/60'
+                                        }`}
+                                    >
+                                        <p className={`font-bold text-sm ${selectedCrypto === crypto.key ? crypto.text : 'text-slate-400'}`}>
+                                            {crypto.short}
+                                        </p>
+                                        {selectedCrypto === crypto.key && (
+                                            <div className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gradient-to-r ${crypto.color} flex items-center justify-center ring-2 ring-slate-950`}>
+                                                <Check className="w-2.5 h-2.5 text-white" />
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 2. Payment details card (Red + Monto + Wallet + QR) */}
+                        {currentWallet && (
+                            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden">
+                                {/* Network + Amount row */}
+                                <div className="grid grid-cols-2 divide-x divide-slate-800 bg-slate-900/40">
+                                    <div className="p-3">
+                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Red</p>
+                                        <p className={`${currentCryptoConfig.text} font-bold text-sm mt-0.5`}>{currentWallet.network}</p>
+                                    </div>
+                                    <div className="p-3">
+                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Monto a pagar</p>
+                                        <p className="text-white font-bold text-sm mt-0.5 font-mono">${taxRemaining.toFixed(2)} <span className="text-slate-500 text-[11px] font-sans">EUR</span></p>
+                                    </div>
+                                </div>
+
+                                {/* QR + Address */}
+                                <div className="p-4 flex flex-col sm:flex-row items-center gap-4">
+                                    <div className="bg-white p-3 rounded-xl shadow-xl flex-shrink-0" data-testid="crypto-qr-code">
+                                        <QRCodeSVG value={currentWallet.address} size={140} level="H" includeMargin={false} />
+                                    </div>
+                                    <div className="flex-1 w-full space-y-2 min-w-0">
+                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Dirección wallet</p>
+                                        <code
+                                            className={`block text-[12px] bg-slate-950 ring-1 ring-slate-800 p-2.5 rounded-lg break-all font-mono leading-relaxed ${currentCryptoConfig.text}`}
+                                            data-testid="crypto-receive-address"
+                                        >
+                                            {currentWallet.address}
+                                        </code>
+                                        <Button
+                                            onClick={() => handleCopyAddress(currentWallet.address)}
+                                            className={`w-full ${copiedAddress ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' : `${currentCryptoConfig.bg} ${currentCryptoConfig.text} ${currentCryptoConfig.border}`} border hover:opacity-80`}
+                                            variant="outline"
+                                            data-testid="copy-address-btn"
+                                        >
+                                            {copiedAddress ? <><Check className="w-4 h-4 mr-2" /> Dirección copiada</> : <><Copy className="w-4 h-4 mr-2" /> Copiar dirección</>}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. Confirm payment (collapsible-feel) */}
+                        <details className="group rounded-xl bg-slate-900/40 ring-1 ring-slate-800 overflow-hidden">
+                            <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-900/60 transition-colors list-none">
+                                <span className="text-white font-semibold text-sm flex items-center gap-2">
+                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                    Ya pagué — confirmar mi transacción
+                                </span>
+                                <ArrowRight className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-90" />
+                            </summary>
+                            <div className="p-4 pt-0 space-y-3 border-t border-slate-800 mt-0">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-slate-400 text-xs">TXID <span className="text-red-400">*</span></Label>
+                                        <Input
+                                            value={txid}
+                                            onChange={(e) => setTxid(e.target.value)}
+                                            placeholder="a1b2c3d4e5..."
+                                            className="bg-slate-950 border-slate-800 text-white font-mono text-sm h-9"
+                                            data-testid="crypto-txid-input"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-slate-400 text-xs">Monto enviado (EUR) <span className="text-red-400">*</span></Label>
+                                        <Input
+                                            type="number" step="1" min="1000"
+                                            value={amountSent}
+                                            onChange={(e) => setAmountSent(e.target.value)}
+                                            placeholder="Mínimo 1.000"
+                                            className="bg-slate-950 border-slate-800 text-white font-mono h-9"
+                                            data-testid="crypto-amount-input"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label className="text-slate-400 text-xs">Comprobante (captura)</Label>
+                                    <label className="cursor-pointer block">
+                                        <div className={`p-3 rounded-lg border-2 border-dashed transition-colors ${proofPreview ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-800 hover:border-slate-700'}`}>
+                                            <div className="flex flex-col items-center gap-1.5">
+                                                {proofPreview ? (
+                                                    <img src={proofPreview} alt="Comprobante" className="max-h-24 rounded" />
+                                                ) : (
+                                                    <>
+                                                        <Upload className="w-5 h-5 text-slate-500" />
+                                                        <p className="text-xs text-slate-500">Subir captura (máx. 5MB)</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" data-testid="crypto-proof-input" />
+                                    </label>
+                                </div>
+
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={submitting || !txid || txid.length < 10 || !amountSent || parseFloat(amountSent) < 1000}
+                                    className={`w-full bg-gradient-to-r ${currentCryptoConfig.color} hover:opacity-90 text-white`}
+                                    data-testid="submit-crypto-payment-btn"
+                                >
+                                    {submitting ? (
+                                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                                    ) : (
+                                        <><ArrowRight className="w-4 h-4 mr-2" /> Confirmar pago</>
+                                    )}
+                                </Button>
+                            </div>
+                        </details>
+
+                        {/* 4. Tools row — minimal */}
+                        <div className="flex items-center justify-between pt-1 text-[11px]">
+                            <button
+                                onClick={() => { setPaymentModalOpen(false); setIssueDialogOpen(true); }}
+                                className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors"
+                                data-testid="report-issue-btn"
+                            >
+                                <HelpCircle className="w-3.5 h-3.5" /> Reportar problema
+                            </button>
+                            <details className="relative">
+                                <summary className="list-none cursor-pointer text-slate-500 hover:text-slate-300 transition-colors inline-flex items-center gap-1">
+                                    <ShoppingCart className="w-3.5 h-3.5" /> ¿No tienes cripto?
+                                </summary>
+                                <div className="absolute right-0 mt-2 w-64 p-3 rounded-xl bg-slate-900 ring-1 ring-slate-800 shadow-2xl z-10">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Wallets</p>
+                                    <div className="flex flex-wrap gap-1 mb-3">
+                                        {WALLET_PROVIDERS.map((wp) => (
+                                            <a key={wp.name} href={wp.url} target="_blank" rel="noopener noreferrer"
+                                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] border ${wp.color}`}
+                                                data-testid={`wallet-link-${wp.name.toLowerCase().replace(/\s/g, '-')}`}
+                                            >
+                                                {wp.name}
+                                            </a>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Comprar</p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {BUY_PROVIDERS.map((bp) => (
+                                            <a key={bp.name} href={bp.url} target="_blank" rel="noopener noreferrer"
+                                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] border ${bp.color}`}
+                                                data-testid={`buy-crypto-${bp.name.toLowerCase()}`}
+                                            >
+                                                {bp.name}
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Payment Issue Dialog */}
             <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>

@@ -4,11 +4,12 @@ import api from '../../lib/api';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
+import { QRCodeSVG } from 'qrcode.react';
 import {
     Unlock, Wallet, CreditCard, Upload, ShieldCheck, Clock,
     Copy, Check, AlertTriangle, CheckCircle2, XCircle, Loader2,
     Hash, ExternalLink, FileText, MessageSquare, Sparkles,
-    ArrowRight, Zap,
+    ArrowRight, Zap, Bitcoin, X,
 } from 'lucide-react';
 
 const fmtEUR = (n) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' });
@@ -758,7 +759,9 @@ export const PartialUnlockPanel = () => {
 // ─────────────── Sub-component: Payment details when pending_payment ───────────────
 const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainingEur, minPartial, paid, paymentReference }) => {
     const showAmount = remainingEur != null ? remainingEur : requiredEur;
+    const [open, setOpen] = useState(false);
     const [refCopied, setRefCopied] = useState(false);
+
     const copyRef = () => {
         if (!paymentReference) return;
         navigator.clipboard.writeText(paymentReference);
@@ -766,90 +769,173 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainin
         toast.success('Referencia copiada');
         setTimeout(() => setRefCopied(false), 2000);
     };
+
     return (
-        <div className="rounded-xl bg-slate-950/60 ring-1 ring-cyan-500/30 p-4 space-y-3" data-testid="partial-unlock-payment-details">
-            <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[9.5px] font-bold tracking-wider"
-                    style={{ backgroundColor: method.color + '22', color: method.color, border: `1px solid ${method.color}55` }}>
-                    {method.crypto_symbol} · {method.network}
-                </span>
-                <p className="text-slate-400 text-[11px]">Recomendado · ~{method.avg_confirmation_min} min</p>
-            </div>
-
-            {/* Single-source warning — institutional emphasis */}
-            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-100 text-[10.5px] leading-relaxed" data-testid="partial-unlock-single-source-warning">
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-300" />
-                <span>
-                    El pago debe venir <span className="text-white font-semibold">completo desde una sola fuente y por un solo método</span>. No mezcles wallets, exchanges ni cuentas externas — cada abono debe identificarse con la misma referencia.
-                </span>
-            </div>
-
-            {/* Unique payment reference */}
-            {paymentReference && (
-                <div data-testid="partial-unlock-payment-reference">
-                    <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">
-                        Referencia única de pago
-                    </p>
-                    <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 ring-1 ring-amber-500/40">
-                        <code className="text-amber-300 text-[12px] font-mono font-bold flex-1 tracking-wider">{paymentReference}</code>
-                        <button
-                            onClick={copyRef}
-                            type="button"
-                            data-no-hover
-                            data-testid="partial-unlock-copy-reference"
-                            className="flex-shrink-0 p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                            title="Copiar referencia"
-                        >
-                            {refCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
+        <div className="space-y-3" data-testid="partial-unlock-payment-details">
+            {/* Compact summary strip */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-950/60 ring-1 ring-slate-800">
+                <div className="flex items-center gap-3 min-w-0">
+                    <span
+                        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider flex-shrink-0"
+                        style={{ backgroundColor: method.color + '22', color: method.color, border: `1px solid ${method.color}55` }}
+                    >
+                        {method.crypto_symbol} · {method.network}
+                    </span>
+                    <div className="min-w-0">
+                        <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Monto a pagar</p>
+                        <p className="text-white text-base font-mono tabular-nums font-bold leading-tight">€{fmtEUR(showAmount)}</p>
                     </div>
-                    <p className="text-slate-500 text-[10px] mt-1">
-                        Inclúyela en el concepto / memo de cada pago para que podamos asociarlo a tu solicitud.
-                    </p>
                 </div>
+                <span className="text-slate-500 text-[10.5px] hidden sm:inline">~{method.avg_confirmation_min} min</span>
+            </div>
+
+            {/* MAIN CTA: Pagar en cripto */}
+            <button
+                onClick={() => setOpen(true)}
+                data-testid="partial-unlock-pay-crypto-btn"
+                className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-emerald-400 p-[1.5px] shadow-[0_10px_40px_-10px_rgba(6,182,212,0.55)] hover:shadow-[0_15px_50px_-10px_rgba(6,182,212,0.8)] transition-shadow"
+            >
+                <div className="relative flex items-center justify-center gap-3 rounded-[14px] bg-slate-950/90 group-hover:bg-slate-950/70 py-4 px-6 transition-colors">
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Bitcoin className="w-5 h-5 text-cyan-300 group-hover:scale-110 transition-transform relative" />
+                    <span className="text-white text-base font-bold tracking-tight relative">Pagar en cripto</span>
+                    <ArrowRight className="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform relative" />
+                </div>
+            </button>
+
+            {/* If user already paid something, secondary action to register more */}
+            {paid > 0 && (
+                <button
+                    onClick={onProof}
+                    data-testid="partial-unlock-upload-proof-btn-secondary"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/40 text-amber-300 hover:bg-amber-500/15 transition-colors text-[12.5px] font-bold"
+                >
+                    <Upload className="w-3.5 h-3.5" /> Registrar nuevo abono
+                </button>
             )}
 
-            <div>
-                <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">
-                    {paid > 0 ? 'Pendiente por completar' : 'Monto a enviar (puedes hacer abonos)'}
-                </p>
-                <p className="text-white text-2xl font-mono tabular-nums font-bold mt-0.5" data-testid="partial-unlock-amount-display">
-                    €{fmtEUR(showAmount)}
-                </p>
-                <p className="text-slate-500 text-[10.5px] mt-1">
-                    Mínimo por abono parcial: <span className="text-cyan-300 font-mono font-bold">€{fmtEUR(minPartial || 500)}</span>
-                </p>
-            </div>
-            <div>
-                <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Dirección oficial · Tesorería LIONSBIT</p>
-                <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 ring-1 ring-slate-800">
-                    <code className="text-cyan-300 text-[11.5px] font-mono break-all flex-1">{method.wallet_address}</code>
-                    <button
-                        onClick={onCopy}
-                        type="button"
-                        data-no-hover
-                        data-testid="partial-unlock-copy-address"
-                        className="flex-shrink-0 p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                        title="Copiar dirección"
+            {/* ── PAYMENT MODAL ───────────────────────────────────── */}
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                        onClick={() => setOpen(false)}
+                        data-testid="partial-unlock-pay-modal"
                     >
-                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                </div>
-            </div>
-            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-500/10 ring-1 ring-rose-500/30 text-rose-200 text-[10.5px] leading-relaxed">
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                <span>
-                    Envía <span className="text-white font-semibold">solo USDT en red TRC20</span>. Cualquier otra red (ERC20/BEP20) resultará en pérdida de fondos. Confirma la red en tu exchange antes de enviar.
-                </span>
-            </div>
-            <Button
-                onClick={onProof}
-                data-testid="partial-unlock-upload-proof-btn"
-                className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold tracking-wider shadow-md"
-            >
-                <Upload className="w-4 h-4 mr-2" />
-                {paid > 0 ? 'Registrar nuevo abono' : 'Ya pagué · Subir comprobante'}
-            </Button>
+                        <motion.div
+                            initial={{ y: 24, scale: 0.96, opacity: 0 }}
+                            animate={{ y: 0, scale: 1, opacity: 1 }}
+                            exit={{ y: 24, scale: 0.96, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+                            className="relative w-full max-w-lg bg-slate-950 ring-1 ring-slate-800 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="relative bg-gradient-to-br from-[#072146] via-[#0a1c3d] to-slate-950 px-5 py-4 border-b border-slate-800">
+                                <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none" />
+                                <div className="relative flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center shadow-[0_4px_16px_-2px_rgba(6,182,212,0.5)] flex-shrink-0">
+                                            <Bitcoin className="w-5 h-5 text-slate-950" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="text-white text-base font-bold leading-tight">Pagar en cripto</h3>
+                                            <p className="text-slate-400 text-[11px] mt-0.5">Envía y luego confirma tu transacción</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setOpen(false)}
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+                                        aria-label="Cerrar"
+                                        data-testid="partial-unlock-pay-modal-close"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-5 space-y-4">
+                                {/* Moneda / Red / Monto grid */}
+                                <div className="grid grid-cols-3 divide-x divide-slate-800 rounded-xl bg-slate-900/40 ring-1 ring-slate-800 overflow-hidden">
+                                    <div className="p-3">
+                                        <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Moneda</p>
+                                        <p className="font-bold text-sm mt-0.5" style={{ color: method.color }}>{method.crypto_symbol}</p>
+                                    </div>
+                                    <div className="p-3">
+                                        <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Red</p>
+                                        <p className="text-cyan-300 font-bold text-sm mt-0.5">{method.network}</p>
+                                    </div>
+                                    <div className="p-3">
+                                        <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Monto</p>
+                                        <p className="text-white font-bold text-sm mt-0.5 font-mono tabular-nums">€{fmtEUR(showAmount)}</p>
+                                    </div>
+                                </div>
+
+                                {/* QR + Wallet */}
+                                <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-900/40 ring-1 ring-slate-800">
+                                    <div className="bg-white p-3 rounded-xl shadow-xl flex-shrink-0">
+                                        <QRCodeSVG value={method.wallet_address} size={144} level="H" includeMargin={false} />
+                                    </div>
+                                    <div className="flex-1 w-full min-w-0 space-y-2">
+                                        <p className="text-[9.5px] uppercase tracking-wider text-slate-500 font-bold">Wallet · Tesorería</p>
+                                        <code className="block text-[11.5px] bg-slate-950 ring-1 ring-slate-800 p-2.5 rounded-lg break-all font-mono leading-relaxed text-cyan-300">
+                                            {method.wallet_address}
+                                        </code>
+                                        <Button
+                                            onClick={onCopy}
+                                            data-testid="partial-unlock-copy-address"
+                                            className={`w-full ${copied ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/40' : 'bg-cyan-500/10 text-cyan-300 ring-cyan-500/40 hover:bg-cyan-500/20'} ring-1`}
+                                            variant="outline"
+                                        >
+                                            {copied ? <><Check className="w-4 h-4 mr-2" /> Dirección copiada</> : <><Copy className="w-4 h-4 mr-2" /> Copiar dirección</>}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Reference (if present) — compact */}
+                                {paymentReference && (
+                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 ring-1 ring-amber-500/40" data-testid="partial-unlock-payment-reference">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[9.5px] uppercase tracking-wider text-amber-300/80 font-bold">Referencia · inclúyela en el memo</p>
+                                            <code className="text-amber-300 text-[12px] font-mono font-bold block truncate">{paymentReference}</code>
+                                        </div>
+                                        <button
+                                            onClick={copyRef}
+                                            type="button"
+                                            data-testid="partial-unlock-copy-reference"
+                                            className="flex-shrink-0 p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                                            title="Copiar referencia"
+                                        >
+                                            {refCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Single-source warning — kept condensed */}
+                                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-500/10 ring-1 ring-rose-500/30 text-rose-200 text-[10.5px] leading-relaxed">
+                                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                    <span>Solo <span className="text-white font-semibold">{method.crypto_symbol} en red {method.network}</span>. Otra red = pérdida de fondos.</span>
+                                </div>
+
+                                {/* CTA Ya pagué — within modal */}
+                                <Button
+                                    onClick={() => { setOpen(false); onProof(); }}
+                                    data-testid="partial-unlock-upload-proof-btn"
+                                    className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold tracking-wide"
+                                >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    {paid > 0 ? 'Registrar abono' : 'Ya pagué · Subir comprobante'}
+                                </Button>
+
+                                <p className="text-center text-slate-500 text-[10px]">
+                                    Mín. por abono: <span className="text-cyan-300 font-mono font-bold">€{fmtEUR(minPartial || 500)}</span>
+                                </p>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

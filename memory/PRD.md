@@ -131,6 +131,41 @@
 
 **Status:** ✅ Verificado en preview con screenshot en hover.
 
+### Iteration 74.5 — Sección de pago en cripto: simplificada con modal premium
+
+**Pedido del usuario:**
+- Botón principal debe decir solo "Pagar en cripto"
+- Al hacer clic, abrir vista limpia con: moneda, red, wallet, monto, QR y botón copiar dirección
+- Evitar textos largos o repetidos, diseño profesional y fácil de usar
+
+**Cambios en `PartialUnlockPanel.jsx` → componente `PaymentDetails`:**
+
+**Vista colapsada (default):**
+- Strip compacto: badge `{crypto} · {network}` + monto + tiempo estimado
+- 1 botón CTA premium: gradient cyan/emerald con ícono Bitcoin "Pagar en cripto →"
+- Si ya hay pagos (`paid > 0`): botón secundario "Registrar nuevo abono"
+
+**Modal (`partial-unlock-pay-modal`):**
+- Header gradient navy con ícono Bitcoin + título "Pagar en cripto"
+- Grid 3 cols: MONEDA / RED / MONTO (info crítica de un vistazo)
+- QR code (144px) + wallet address + botón "Copiar dirección" (toggle a "Dirección copiada" al click)
+- Referencia única compacta (con botón copy) si aplica
+- Warning condensado (1 línea): "Solo {crypto} en red {network}. Otra red = pérdida de fondos"
+- CTA secundaria: "Ya pagué · Subir comprobante" (amber gradient) → cierra modal + abre proof upload
+- Min. por abono al pie
+
+**Eliminado del flujo inline:**
+- Warning largo de "single source"
+- Texto "El pago debe venir completo..."
+- Repetición "Dirección oficial · Tesorería LIONSBIT"
+- Texto "Mínimo por abono parcial €500" duplicado
+- Warning USDT TRC20 largo
+
+Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
+
+**Status:** ✅ Verificado vía screenshot — vista colapsada limpia + modal abre con QR perfecto.
+
+
 
 
 
