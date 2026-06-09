@@ -757,10 +757,29 @@ export const PartialUnlockPanel = () => {
 
 
 // ─────────────── Sub-component: Payment details when pending_payment ───────────────
+const PAY_SESSION_SEC = 30 * 60; // address valid window
 const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainingEur, minPartial, paid, paymentReference }) => {
     const showAmount = remainingEur != null ? remainingEur : requiredEur;
     const [open, setOpen] = useState(false);
     const [refCopied, setRefCopied] = useState(false);
+    // 30-min countdown — starts when modal opens
+    const [secondsLeft, setSecondsLeft] = useState(PAY_SESSION_SEC);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        setSecondsLeft(PAY_SESSION_SEC);
+        const id = setInterval(() => {
+            setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+        }, 1000);
+        return () => clearInterval(id);
+    }, [open]);
+
+    const pct = (secondsLeft / PAY_SESSION_SEC) * 100;
+    const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+    const ss = String(secondsLeft % 60).padStart(2, '0');
+    const urgent = secondsLeft <= 5 * 60; // ≤ 5 min
+    const critical = secondsLeft <= 60; // ≤ 1 min
+    const expired = secondsLeft === 0;
 
     const copyRef = () => {
         if (!paymentReference) return;
@@ -856,6 +875,31 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainin
                             </div>
 
                             <div className="px-5 py-5 space-y-4">
+                                {/* Countdown · address valid for 30 min */}
+                                <div
+                                    className={`rounded-xl ring-1 overflow-hidden transition-colors ${expired ? 'bg-rose-500/10 ring-rose-500/40' : critical ? 'bg-rose-500/10 ring-rose-500/40' : urgent ? 'bg-amber-500/10 ring-amber-500/40' : 'bg-slate-900/60 ring-slate-800'}`}
+                                    data-testid="partial-unlock-pay-countdown"
+                                >
+                                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <Clock className={`w-4 h-4 ${expired || critical ? 'text-rose-300 animate-pulse' : urgent ? 'text-amber-300' : 'text-cyan-300'}`} />
+                                            <p className={`text-[11.5px] font-semibold ${expired ? 'text-rose-200' : critical ? 'text-rose-200' : urgent ? 'text-amber-200' : 'text-slate-200'}`}>
+                                                {expired ? 'Sesión de pago expirada — regenerar' : 'Dirección válida por'}
+                                            </p>
+                                        </div>
+                                        <span className={`font-mono font-bold tabular-nums text-[15px] tracking-wide ${expired || critical ? 'text-rose-300' : urgent ? 'text-amber-300' : 'text-cyan-300'}`} data-testid="partial-unlock-pay-countdown-clock">
+                                            {mm}:{ss}
+                                        </span>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="h-1 w-full bg-slate-950/60 overflow-hidden">
+                                        <div
+                                            className={`h-full transition-all duration-1000 ease-linear ${expired || critical ? 'bg-gradient-to-r from-rose-400 to-rose-500' : urgent ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-cyan-400 to-emerald-400'}`}
+                                            style={{ width: `${pct}%` }}
+                                        />
+                                    </div>
+                                </div>
+
                                 {/* Moneda / Red / Monto grid */}
                                 <div className="grid grid-cols-3 divide-x divide-slate-800 rounded-xl bg-slate-900/40 ring-1 ring-slate-800 overflow-hidden">
                                     <div className="p-3">
@@ -922,11 +966,22 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainin
                                 <Button
                                     onClick={() => { setOpen(false); onProof(); }}
                                     data-testid="partial-unlock-upload-proof-btn"
-                                    className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold tracking-wide"
+                                    disabled={expired}
+                                    className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Upload className="w-4 h-4 mr-2" />
                                     {paid > 0 ? 'Registrar abono' : 'Ya pagué · Subir comprobante'}
                                 </Button>
+
+                                {expired && (
+                                    <Button
+                                        onClick={() => setSecondsLeft(PAY_SESSION_SEC)}
+                                        data-testid="partial-unlock-pay-countdown-renew"
+                                        className="w-full h-10 bg-cyan-500/10 hover:bg-cyan-500/20 ring-1 ring-cyan-500/40 text-cyan-300 text-[12.5px] font-bold"
+                                    >
+                                        <Zap className="w-3.5 h-3.5 mr-2" /> Renovar sesión 30 min
+                                    </Button>
+                                )}
 
                                 <p className="text-center text-slate-500 text-[10px]">
                                     Mín. por abono: <span className="text-cyan-300 font-mono font-bold">€{fmtEUR(minPartial || 500)}</span>

@@ -165,6 +165,28 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — vista colapsada limpia + modal abre con QR perfecto.
 
+### Iteration 74.6 — Countdown 30 min en modal de pago
+
+**Pedido:** Añadir countdown con barra de progreso para generar urgencia profesional (estilo Binance/Coinbase).
+
+**Cambios en `PartialUnlockPanel.jsx` → `PaymentDetails`:**
+
+- Constante `PAY_SESSION_SEC = 30 * 60` fuera del componente
+- `useEffect` con `setInterval` 1s que decrementa `secondsLeft` mientras `open === true`. Cleanup al cerrar / unmount
+- Reset automático del contador al abrir el modal
+- Display MM:SS monospace + barra de progreso (`width: ${pct}%`) bajo el header
+- **3 estados visuales con transición de color**:
+  - Normal (> 5 min): cyan + barra `cyan→emerald`
+  - Urgent (≤ 5 min): amber + barra `amber-400→amber-500`
+  - Critical (≤ 1 min): rose + ícono `animate-pulse` + barra `rose`
+  - Expired (0): mensaje "Sesión de pago expirada — regenerar", barra rose llena
+- Cuando expira:
+  - Botón "Ya pagué" se deshabilita (`disabled:opacity-50`)
+  - Aparece botón secundario "Renovar sesión 30 min" (Zap icon cyan)
+
+**Status:** ✅ Verificado vía screenshot. Modal abre con countdown 29:58 corriendo, barra cyan→emerald llena, transición fluida.
+
+
 
 
 
