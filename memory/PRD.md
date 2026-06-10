@@ -186,6 +186,32 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot. Modal abre con countdown 29:58 corriendo, barra cyan→emerald llena, transición fluida.
 
+### Iteration 74.7 — Aviso institucional automático post-login
+
+**Pedido:** Modal de aviso institucional que aparezca al entrar al dashboard, esperando que otras notificaciones/modals se cierren primero, una vez por sesión.
+
+**Creado:** `/app/frontend/src/components/dashboard/InstitutionalNoticePopup.jsx`
+
+**Lógica:**
+- `sessionStorage` key `lbit_institutional_notice_seen_v1` — muestra solo 1 vez por sesión
+- `useEffect` que tras 1.2s inicial, hace polling cada 800ms verificando que no haya otros overlays abiertos
+- Función `isAnotherOverlayOpen()`: detecta `[role="dialog"][data-state="open"]`, `[role="alertdialog"]`, `.fixed.inset-0` con `bg-black/` o `backdrop-blur` (excluyendo `pointer-events-none` y nuestro propio backdrop), y `[data-tour-step]` del onboarding
+- Requiere 2 checks consecutivos limpios (≈1.6s) para evitar parpadeo entre transiciones de modals
+- Cleanup correcto del interval
+
+**Diseño:**
+- Backdrop `bg-black/55 backdrop-blur-[3px]` + click-outside para cerrar
+- Modal `max-w-2xl`, ring cyan/25, sombra cyan
+- Header con gradient navy + glow blobs cyan/emerald + ícono gradient + eyebrow + título
+- Body: strip amber con fecha **03/01/2027** + 3 párrafos formateados con highlights (white/cyan/italic) + firma "Atentamente, Dirección Operativa LIONSBIT" + REF code
+- Footer: botón **"Entendido →"** gradient cyan→emerald con shadow + hover translate
+
+**Integración en `DashboardPage.jsx`:**
+- Import + render `<InstitutionalNoticePopup />` dentro del `<Layout>` antes del contenido principal
+
+**Status:** ✅ Verificado con 2 screenshots — modal aparece correctamente tras esperar overlays (AI Assistant, toast Valentina, etc.) + cierra limpiamente al hacer click en "Entendido".
+
+
 
 
 

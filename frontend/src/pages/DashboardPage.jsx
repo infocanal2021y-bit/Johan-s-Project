@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/LiveWithdrawals';
 import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
+import { InstitutionalNoticePopup } from '../components/dashboard/InstitutionalNoticePopup';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -233,6 +234,7 @@ export const DashboardPage = () => {
 
     return (
         <Layout>
+            <InstitutionalNoticePopup />
             <div className="max-w-7xl mx-auto space-y-8" data-testid="dashboard-page">
                 {/* Header */}
                 <motion.div
