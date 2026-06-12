@@ -272,6 +272,26 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 74.10 — Personaje: sonrisa + dedo señalando el teléfono
+
+**Pedido:** Que el muñeco se vea sonriendo y señalando la aplicación.
+
+**Cambios en `MobileAppBanner.jsx` → `WalkingFigure`:**
+
+1. **Sonrisa y rostro:**
+   - 2 ojos elípticos color `#e5e7eb` (0.9×1.4) en (44,23) y (52,23)
+   - Curva de sonrisa con `path Q` confiada, stroke `#e5e7eb` width 1.1
+   - Mejillas: 2 elipses cyan opacity 0.18 (warmth)
+   - Cabello: path sutil oscuro en parte superior de la cabeza para definición humana
+
+2. **Mano señalando:**
+   - Reemplazado el círculo "hand" por grupo SVG con palma (elipse 4.5×3.5) + **dedo índice extendido** (rect 9×3.2 redondeado) + punta con highlight + **dot cyan brillante en la punta** (efecto "conexión")
+   - Rotación -25° alineada con el brazo para que apunte hacia arriba-derecha (al teléfono)
+   - Anillo pulse cyan reubicado a (111, 53) para emanar desde la punta del dedo
+
+**Status:** ✅ Verificado vía screenshot — figura sonríe con confianza y señala el teléfono. Anillo cyan pulsa cada 2.2s desde el dedo. Estética institucional fintech mantenida.
+
+
 
 
 

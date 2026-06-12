@@ -47,8 +47,18 @@ const WalkingFigure = () => (
 
                 {/* Head */}
                 <ellipse cx="48" cy="22" rx="11" ry="13" fill="url(#figHead)" />
+                {/* Hair / top shadow */}
+                <path d="M37,18 Q42,8 54,9 Q60,11 59,18 Q56,14 48,14 Q42,14 37,18 Z" fill="#0a1220" opacity="0.85" />
                 {/* Head rim light */}
                 <path d="M40,15 Q42,8 50,9" stroke="url(#figRim)" strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.7" />
+                {/* Face — eyes */}
+                <ellipse cx="44" cy="23" rx="0.9" ry="1.4" fill="#e5e7eb" />
+                <ellipse cx="52" cy="23" rx="0.9" ry="1.4" fill="#e5e7eb" />
+                {/* Smile — gentle confident curve */}
+                <path d="M43.5,27 Q48,30.5 52.5,27" stroke="#e5e7eb" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+                {/* Cheek warmth — subtle */}
+                <ellipse cx="42.5" cy="26.5" rx="1.2" ry="0.8" fill="#22d3ee" opacity="0.18" />
+                <ellipse cx="53.5" cy="26.5" rx="1.2" ry="0.8" fill="#22d3ee" opacity="0.18" />
 
                 {/* Neck */}
                 <rect x="44" y="33" width="8" height="6" fill="#1f2937" />
@@ -85,17 +95,26 @@ const WalkingFigure = () => (
                     <rect x="64" y="46" width="8" height="34" rx="3.5" fill="url(#figBody)" transform="rotate(35 68 63)" />
                     {/* Forearm reaching forward */}
                     <rect x="78" y="48" width="7.5" height="36" rx="3.5" fill="#10243f" transform="rotate(72 82 66)" />
-                    {/* Hand at tip — slight white glow indicating tap */}
-                    <circle cx="100" cy="58" r="5" fill="#1f2937" />
+                    {/* Hand — fist + extended index finger pointing UP-RIGHT toward the phone */}
+                    <g transform="translate(100 58) rotate(-25)">
+                        {/* Palm / fist */}
+                        <ellipse cx="0" cy="0" rx="4.5" ry="3.5" fill="#374151" />
+                        {/* Index finger pointing forward */}
+                        <rect x="2" y="-1.6" width="9" height="3.2" rx="1.6" fill="#3a4a5e" />
+                        {/* Finger tip light highlight */}
+                        <circle cx="11" cy="0" r="1.6" fill="#4b5563" />
+                        {/* Cyan dot on the tip — connection vibe */}
+                        <circle cx="11" cy="0" r="1" fill="#22d3ee" opacity="0.85" />
+                    </g>
                     <motion.circle
-                        cx="100" cy="58" r="6"
+                        cx="111" cy="53" r="6"
                         fill="none"
                         stroke="#22d3ee"
                         strokeWidth="1.2"
                         opacity="0"
                         animate={{ opacity: [0, 0.9, 0], scale: [0.6, 2.4, 2.6] }}
                         transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut', delay: 1.5 }}
-                        style={{ transformOrigin: '100px 58px' }}
+                        style={{ transformOrigin: '111px 53px' }}
                     />
                 </motion.g>
 
