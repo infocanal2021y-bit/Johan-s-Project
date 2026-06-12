@@ -42,6 +42,107 @@
         --bbva-success: #10B981;
         --bbva-warning: #F59E0B;
         --bbva-error: #EF4444;
+
+        /* LIONSBIT premium fintech tokens — global hierarchy */
+        --lb-cta-from: #00D4FF;
+        --lb-cta-to: #0099FF;
+        --lb-cta-glow: rgba(0, 212, 255, 0.35);
+        --lb-cta-glow-hover: rgba(0, 212, 255, 0.55);
+        --lb-pending: #FFB800;
+        --lb-approved: #00D084;
+        --lb-review: #4DA3FF;
+        --lb-error: #FF5C5C;
+    }
+}
+
+/* ─── Premium fintech component layer ───────────────────────────── */
+@layer components {
+    /* PRIMARY CTA — bright turquoise gradient + premium shadow + hover glow */
+    .lb-btn-primary {
+        @apply relative inline-flex items-center justify-center gap-2 font-bold text-white rounded-xl px-5 py-2.5
+               transition-all duration-300 ease-out
+               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950;
+        background: linear-gradient(135deg, var(--lb-cta-from) 0%, var(--lb-cta-to) 100%);
+        box-shadow: 0 10px 30px var(--lb-cta-glow), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+    .lb-btn-primary:hover {
+        box-shadow: 0 14px 40px var(--lb-cta-glow-hover), 0 0 0 1px rgba(0, 212, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        transform: translateY(-1px);
+    }
+    .lb-btn-primary:active { transform: translateY(0); }
+
+    /* SECONDARY button — glass surface */
+    .lb-btn-secondary {
+        @apply relative inline-flex items-center justify-center gap-2 font-semibold text-white rounded-xl px-5 py-2.5
+               transition-all duration-300 ease-out
+               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(8px);
+    }
+    .lb-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.13);
+        border-color: rgba(0, 212, 255, 0.45);
+        box-shadow: 0 6px 20px rgba(0, 212, 255, 0.12);
+    }
+
+    /* Premium "active card" — subtle luminous border for action containers */
+    .lb-card-glow {
+        position: relative;
+        border: 1px solid rgba(0, 212, 255, 0.18);
+        box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08), 0 12px 36px -16px rgba(0, 212, 255, 0.25);
+    }
+    .lb-card-glow::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.45), transparent 40%, rgba(0, 153, 255, 0.35));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    /* BADGES — vibrant institutional palette */
+    .lb-badge {
+        @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-[0.14em];
+    }
+    .lb-badge-pending {
+        background: rgba(255, 184, 0, 0.14);
+        color: #FFB800;
+        border: 1px solid rgba(255, 184, 0, 0.35);
+        box-shadow: 0 0 18px -6px rgba(255, 184, 0, 0.45);
+    }
+    .lb-badge-approved {
+        background: rgba(0, 208, 132, 0.14);
+        color: #00D084;
+        border: 1px solid rgba(0, 208, 132, 0.35);
+        box-shadow: 0 0 18px -6px rgba(0, 208, 132, 0.45);
+    }
+    .lb-badge-review {
+        background: rgba(77, 163, 255, 0.14);
+        color: #4DA3FF;
+        border: 1px solid rgba(77, 163, 255, 0.35);
+        box-shadow: 0 0 18px -6px rgba(77, 163, 255, 0.45);
+    }
+    .lb-badge-error {
+        background: rgba(255, 92, 92, 0.14);
+        color: #FF5C5C;
+        border: 1px solid rgba(255, 92, 92, 0.35);
+        box-shadow: 0 0 18px -6px rgba(255, 92, 92, 0.45);
+    }
+
+    /* "Coming soon" / featured premium pill */
+    .lb-pill-featured {
+        @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-[0.16em];
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.18) 0%, rgba(0, 153, 255, 0.12) 100%);
+        color: #66E5FF;
+        border: 1px solid rgba(0, 212, 255, 0.45);
+        box-shadow: 0 0 24px -6px rgba(0, 212, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 }
 

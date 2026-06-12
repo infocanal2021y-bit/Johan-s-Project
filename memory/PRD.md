@@ -211,6 +211,37 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado con 2 screenshots — modal aparece correctamente tras esperar overlays (AI Assistant, toast Valentina, etc.) + cierra limpiamente al hacer click en "Entendido".
 
+### Iteration 74.8 — Sistema de jerarquía visual fintech premium (CTAs / badges / cards)
+
+**Pedido:** Mejorar jerarquía visual global. CTAs gradient turquesa→azul brillante con glow, badges con colores vivos institucionales (Pendiente #FFB800, Aprobado #00D084, Review #4DA3FF, Error #FF5C5C), cards con borde luminoso sutil. Inspirado en Stripe / Revolut Business / Coinbase Prime / Mercury / Linear.
+
+**Implementado en `/app/frontend/src/index.css` (nuevos tokens + clases utilitarias):**
+
+1. **Tokens CSS** (`:root`):
+   - `--lb-cta-from #00D4FF`, `--lb-cta-to #0099FF`, `--lb-cta-glow rgba(0,212,255,.35)`, `--lb-cta-glow-hover .55`
+   - `--lb-pending #FFB800`, `--lb-approved #00D084`, `--lb-review #4DA3FF`, `--lb-error #FF5C5C`
+
+2. **`.lb-btn-primary`** — gradient 135° turquesa→azul, inner highlight blanco, shadow 0 10px 30px cyan/35, hover lift `translateY(-1px)` + glow 14px 40px cyan/55 + ring exterior cyan/35
+
+3. **`.lb-btn-secondary`** — glass `rgba(255,255,255,.08)`, border `.15`, backdrop-blur, hover border cyan/45
+
+4. **`.lb-card-glow`** — card con borde luminoso sutil (mask gradient cyan→transparent→blue) + outer ring cyan/8 + shadow cyan/25 sobre cards con acciones importantes
+
+5. **`.lb-badge` + variantes** — pill con bg `.14`, border `.35`, color saturado, outer glow `box-shadow 0 0 18px -6px color/45`:
+   - `lb-badge-pending` (amarillo dorado)
+   - `lb-badge-approved` (verde fluor)
+   - `lb-badge-review` (azul cielo)
+   - `lb-badge-error` (rojo coral)
+
+6. **`.lb-pill-featured`** — pill turquesa gradient + glow cyan ideal para "Próximamente / Coming soon"
+
+**Aplicado en (primer batch):**
+- `MobileAppBanner.jsx` → badge `lb-pill-featured`, CTA "Más info" `lb-btn-primary`
+- `DiagnosticCTA.jsx` → contenedor `lb-card-glow`, badges `lb-badge-pending/approved/error`
+
+**Status:** ✅ Verificado vía screenshot. El CTA "Más info" turquesa con glow ahora es lo PRIMERO que ve el usuario, el badge "PRÓXIMAMENTE Q2 2026" pasó de amber tenue a turquesa brillante, el badge "2 PENDIENTES" ahora es amarillo dorado vibrante. Sistema reutilizable disponible globalmente para próximos componentes.
+
+
 
 
 

@@ -403,7 +403,7 @@ export const MobileAppBanner = () => {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 ring-1 ring-amber-400/40 text-amber-300 text-[10px] font-bold uppercase tracking-[0.16em]"
+                        className="lb-pill-featured"
                     >
                         <Sparkles className="w-3 h-3" />
                         Próximamente · Q2 2026
@@ -500,7 +500,7 @@ export const MobileAppBanner = () => {
 
                         <Link
                             to="/mobile-app"
-                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-cyan-950 font-bold text-[12.5px] transition-colors shadow-[0_6px_20px_-4px_rgba(34,211,238,0.5)]"
+                            className="lb-btn-primary text-[13px]"
                             data-testid="banner-mobile-cta"
                         >
                             Más info <ChevronRight className="w-4 h-4" />

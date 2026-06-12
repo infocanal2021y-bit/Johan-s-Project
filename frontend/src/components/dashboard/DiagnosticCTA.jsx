@@ -41,7 +41,7 @@ export const DiagnosticCTA = () => {
             animate={{ opacity: 1, y: 0 }}
             onClick={handleClick}
             data-testid="dashboard-diagnostic-cta"
-            className="w-full text-left group relative overflow-hidden rounded-2xl ring-1 ring-cyan-500/20 bg-gradient-to-br from-slate-900/70 via-[#0a1c3d] to-slate-950 hover:ring-cyan-400/40 hover:shadow-[0_8px_30px_-8px_rgba(34,211,238,0.25)] transition-all"
+            className="lb-card-glow w-full text-left group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/70 via-[#0a1c3d] to-slate-950 hover:shadow-[0_18px_50px_-12px_rgba(0,212,255,0.45)] hover:-translate-y-[1px] transition-all duration-300"
         >
             {/* Background blobs */}
             <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-cyan-500/12 blur-3xl" />
@@ -86,15 +86,15 @@ export const DiagnosticCTA = () => {
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {!loading && data && (
                         blocked ? (
-                            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-500/15 ring-1 ring-rose-500/40 text-rose-300 text-[10px] font-bold uppercase tracking-wider">
+                            <span className="hidden sm:inline-flex lb-badge lb-badge-error">
                                 <ShieldAlert className="w-3 h-3" /> {data.blocker_count} bloqueo{data.blocker_count === 1 ? '' : 's'}
                             </span>
                         ) : pending > 0 ? (
-                            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 ring-1 ring-amber-500/40 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                            <span className="hidden sm:inline-flex lb-badge lb-badge-pending">
                                 <AlertTriangle className="w-3 h-3" /> {pending} pendiente{pending === 1 ? '' : 's'}
                             </span>
                         ) : (
-                            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/40 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+                            <span className="hidden sm:inline-flex lb-badge lb-badge-approved">
                                 <CheckCircle2 className="w-3 h-3" /> Al día
                             </span>
                         )
