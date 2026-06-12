@@ -9,6 +9,126 @@ import {
 import { WaitlistCounter } from './WaitlistCounter';
 
 
+// ─── Walking business figure — premium SVG silhouette ──────────────
+const WalkingFigure = () => (
+    <div className="relative pointer-events-none select-none" aria-hidden="true">
+        {/* Soft shadow under feet */}
+        <motion.div
+            animate={{ scaleX: [1, 0.92, 1], opacity: [0.55, 0.4, 0.55] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-[78px] h-[14px] rounded-[50%] bg-black blur-md"
+        />
+
+        {/* Subtle bob during walk */}
+        <motion.div
+            animate={{ y: [0, -2, 0] }}
+            transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative"
+        >
+            <svg viewBox="0 0 110 220" width="110" height="220" className="drop-shadow-[0_18px_24px_rgba(0,0,0,0.55)]">
+                <defs>
+                    {/* Body: dark navy with cyan rim light */}
+                    <linearGradient id="figBody" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#0a1a2e" />
+                        <stop offset="55%" stopColor="#0f2545" />
+                        <stop offset="100%" stopColor="#1a3a6b" />
+                    </linearGradient>
+                    {/* Skin / head: warm subtle */}
+                    <linearGradient id="figHead" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#3a4a5e" />
+                        <stop offset="100%" stopColor="#1f2937" />
+                    </linearGradient>
+                    {/* Cyan accent for rim & device glow */}
+                    <linearGradient id="figRim" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#0099ff" stopOpacity="0.2" />
+                    </linearGradient>
+                </defs>
+
+                {/* Head */}
+                <ellipse cx="48" cy="22" rx="11" ry="13" fill="url(#figHead)" />
+                {/* Head rim light */}
+                <path d="M40,15 Q42,8 50,9" stroke="url(#figRim)" strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.7" />
+
+                {/* Neck */}
+                <rect x="44" y="33" width="8" height="6" fill="#1f2937" />
+
+                {/* Torso — suit jacket */}
+                <path d="M30,40 L66,40 L70,110 L26,110 Z" fill="url(#figBody)" />
+                {/* Shirt collar V */}
+                <path d="M44,40 L48,55 L52,40 Z" fill="#e5e7eb" opacity="0.85" />
+                {/* Tie */}
+                <path d="M47,50 L49,50 L50,72 L48,76 L46,72 Z" fill="#22d3ee" opacity="0.85" />
+                {/* Suit center line */}
+                <line x1="48" y1="55" x2="48" y2="105" stroke="#0a1a2e" strokeWidth="0.8" />
+                {/* Rim light on right shoulder */}
+                <path d="M62,42 L68,75" stroke="url(#figRim)" strokeWidth="1.3" strokeLinecap="round" opacity="0.65" />
+
+                {/* Back arm (left side, slightly behind body, mid-swing back) */}
+                <motion.g
+                    animate={{ rotate: [12, -8, 12] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ transformOrigin: '30px 50px' }}
+                >
+                    <rect x="22" y="48" width="8" height="42" rx="3.5" fill="#0a1a2e" />
+                    {/* Hand */}
+                    <circle cx="26" cy="92" r="4.5" fill="#374151" />
+                </motion.g>
+
+                {/* Front arm (right side, extended TOWARD phone — points up-right). Subtle reach pulse */}
+                <motion.g
+                    animate={{ rotate: [-22, -18, -22] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ transformOrigin: '66px 50px' }}
+                >
+                    {/* Upper arm */}
+                    <rect x="64" y="46" width="8" height="34" rx="3.5" fill="url(#figBody)" transform="rotate(35 68 63)" />
+                    {/* Forearm reaching forward */}
+                    <rect x="78" y="48" width="7.5" height="36" rx="3.5" fill="#10243f" transform="rotate(72 82 66)" />
+                    {/* Hand at tip — slight white glow indicating tap */}
+                    <circle cx="100" cy="58" r="5" fill="#1f2937" />
+                    <motion.circle
+                        cx="100" cy="58" r="6"
+                        fill="none"
+                        stroke="#22d3ee"
+                        strokeWidth="1.2"
+                        opacity="0"
+                        animate={{ opacity: [0, 0.9, 0], scale: [0.6, 2.4, 2.6] }}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut', delay: 1.5 }}
+                        style={{ transformOrigin: '100px 58px' }}
+                    />
+                </motion.g>
+
+                {/* Pants — split into 2 legs that swing in opposition */}
+                <motion.g
+                    animate={{ rotate: [-9, 9, -9] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ transformOrigin: '42px 112px' }}
+                >
+                    <path d="M30,110 L46,110 L44,188 L34,188 Z" fill="#0a1a2e" />
+                    {/* Shoe */}
+                    <ellipse cx="38" cy="194" rx="9" ry="4.5" fill="#000" />
+                    <ellipse cx="38" cy="192" rx="8" ry="3" fill="#1f2937" />
+                </motion.g>
+                <motion.g
+                    animate={{ rotate: [9, -9, 9] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ transformOrigin: '54px 112px' }}
+                >
+                    <path d="M50,110 L66,110 L62,188 L52,188 Z" fill="#10243f" />
+                    {/* Shoe */}
+                    <ellipse cx="57" cy="194" rx="9" ry="4.5" fill="#000" />
+                    <ellipse cx="57" cy="192" rx="8" ry="3" fill="#1f2937" />
+                </motion.g>
+
+                {/* Floor scuff highlight */}
+                <ellipse cx="48" cy="198" rx="22" ry="2" fill="#22d3ee" opacity="0.08" />
+            </svg>
+        </motion.div>
+    </div>
+);
+
+
 // ─── Shared mini status bar ───────────────────────────────────────
 const MiniStatusBar = () => (
     <div className="flex items-center justify-between text-white text-[7.5px] font-bold opacity-90 mb-2">
@@ -518,9 +638,22 @@ export const MobileAppBanner = () => {
                     </motion.div>
                 </div>
 
-                {/* ── Right phone mockup (centered, visible on all screens) ───── */}
-                <div className="relative flex items-center justify-center mt-4 lg:mt-0 lg:pl-6 lg:pr-2 lg:py-6 mx-auto pb-8">
-                    <BannerPhone />
+                {/* ── Right stage: walking figure + centered phone ───── */}
+                <div className="relative flex items-end justify-center mt-4 lg:mt-0 lg:pl-8 lg:pr-4 lg:py-6 mx-auto pb-10 min-h-[430px] lg:min-w-[460px]">
+                    {/* Walking figure — left of phone on tablet+desktop, below on mobile */}
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
+                        className="hidden sm:block absolute left-0 bottom-6 lg:bottom-8 z-20"
+                    >
+                        <WalkingFigure />
+                    </motion.div>
+
+                    {/* Phone — centered on the stage */}
+                    <div className="relative z-10 sm:ml-16 lg:ml-20">
+                        <BannerPhone />
+                    </div>
                 </div>
             </div>
         </motion.div>

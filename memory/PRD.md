@@ -241,6 +241,38 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot. El CTA "Más info" turquesa con glow ahora es lo PRIMERO que ve el usuario, el badge "PRÓXIMAMENTE Q2 2026" pasó de amber tenue a turquesa brillante, el badge "2 PENDIENTES" ahora es amarillo dorado vibrante. Sistema reutilizable disponible globalmente para próximos componentes.
 
+### Iteration 74.9 — Personaje caminando hacia el teléfono (Mobile App Banner)
+
+**Pedido:** Reposicionar el teléfono al centro de la escena. Añadir personaje business 3D/vector caminando hacia él, mano extendida, animación sutil de caminar + pulse al tocar. Posición lateral-izquierda. Premium tipo Stripe/Revolut/Apple.
+
+**Implementado en `MobileAppBanner.jsx` → componente `WalkingFigure`:**
+
+- **SVG silueta business institucional** (110×220 viewbox):
+  - Cabeza: ellipse con gradient `figHead` (slate)
+  - Torso: chaqueta trapezoidal con gradient `figBody` (navy → blue)
+  - Cuello camisa V blanco + corbata cyan (#22d3ee)
+  - Rim light cyan sutil en hombro derecho y cabeza
+  - 2 brazos animados por separado con `motion.g` y `transformOrigin`:
+    - Brazo trasero: swing 12° ↔ -8° (1.4s loop)
+    - Brazo delantero: reach hacia el teléfono (-22° ↔ -18°, 2.4s loop), con anillo cyan pulse animado scale 0.6→2.6 + opacity 0→0.9→0 (2.2s loop, delay 1.5s) = efecto "tap"
+  - 2 piernas en swing opuesto 1.4s loop con zapatos elipses
+  - Sombra elíptica blur bajo los pies con scaleX animada
+  - Floor scuff highlight cyan sutil
+  - Drop-shadow externo `0_18px_24px_rgba(0,0,0,0.55)`
+- Bob vertical sutil del cuerpo entero (`y: [0,-2,0]` 0.7s)
+
+**Layout reformado:**
+- Stage container: `flex items-end justify-center min-h-[430px] lg:min-w-[460px]`
+- Figura: `absolute left-0 bottom-6 lg:bottom-8` con entrada `x: -30 → 0` (delay 0.4s)
+- Teléfono: `relative z-10 sm:ml-16 lg:ml-20` (centrado en stage, separado de la figura)
+- Responsive:
+  - Mobile (`<sm`): figura oculta (`hidden sm:block`), solo teléfono
+  - Tablet+ (`≥sm`): figura visible a la izquierda, teléfono a la derecha del personaje
+  - Desktop (`lg`): más espacio y separación
+
+**Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
+
+
 
 
 
