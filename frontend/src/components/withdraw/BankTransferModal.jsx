@@ -334,6 +334,9 @@ export const BankTransferModal = ({ open, onClose, remainingEur, onSubmitted }) 
                                     </div>
                                     <div className="divide-y divide-slate-800" data-testid="bank-transfer-treasury-details">
                                         <BankRow label="Titular" value={bank.holder} onCopy={() => copy(bank.holder)} />
+                                        {bank.authorized && (
+                                            <BankRow label="Autorizado" value={bank.authorized} onCopy={() => copy(bank.authorized)} />
+                                        )}
                                         <BankRow label="Banco" value={bank.bank} />
                                         <BankRow label="IBAN" value={bank.iban} mono onCopy={() => copy(bank.iban)} />
                                         <BankRow label="BIC / SWIFT" value={bank.bic} mono onCopy={() => copy(bank.bic)} />

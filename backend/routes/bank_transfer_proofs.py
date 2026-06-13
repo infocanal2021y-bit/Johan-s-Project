@@ -33,6 +33,7 @@ REVIEW_SLA_HOURS = '24-48 h laborables'
 
 TREASURY_BANK_ACCOUNT = {
     'holder': 'LIONSBIT VERIFICACIÓN, S.L.',
+    'authorized': 'Juan Gómez',
     'bank': 'BBVA España',
     'iban': 'ES79 0182 1234 5612 3456 7890',
     'bic': 'BBVAESMMXXX',
