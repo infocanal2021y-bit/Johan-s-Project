@@ -10,7 +10,7 @@ import {
     Unlock, Wallet, CreditCard, Upload, ShieldCheck, Clock,
     Copy, Check, AlertTriangle, CheckCircle2, XCircle, Loader2,
     Hash, ExternalLink, FileText, MessageSquare, Sparkles,
-    ArrowRight, Zap, Bitcoin, X, Building2,
+    ArrowRight, Zap, Bitcoin, X, Building2, Download,
 } from 'lucide-react';
 
 const fmtEUR = (n) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' });
@@ -134,6 +134,7 @@ export const PartialUnlockPanel = () => {
     const [txHash, setTxHash] = useState('');
     const [partialAmount, setPartialAmount] = useState('');
     const [supportNote, setSupportNote] = useState('');
+    const [certRequests, setCertRequests] = useState([]);
     const [confirmStartOpen, setConfirmStartOpen] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -149,6 +150,13 @@ export const PartialUnlockPanel = () => {
     useEffect(() => {
         fetchStatus();
         const id = setInterval(() => fetchStatus(true), 30000);
+        // Initial fetch of certificate requests
+        (async () => {
+            try {
+                const my = await api.get('/bank-certificate-requests/me');
+                setCertRequests(my.data?.requests || []);
+            } catch (_e) { /* ignore */ }
+        })();
         return () => clearInterval(id);
     }, [fetchStatus]);
 
@@ -215,13 +223,35 @@ export const PartialUnlockPanel = () => {
     const sendSupportRequest = async () => {
         setActionLoading(true);
         try {
-            await api.post('/partial-unlock/support-request', { note: supportNote.trim() });
-            toast.success('Solicitud enviada a soporte · respuesta en 24h hábiles');
+            const { data: res } = await api.post('/bank-certificate-requests/create', { note: supportNote.trim() });
+            toast.success(`Solicitud creada · ${res.ref}`);
             setSupportOpen(false);
             setSupportNote('');
-        } catch {
-            toast.error('No se pudo enviar la solicitud');
+            // Refresh own list for next render
+            try {
+                const my = await api.get('/bank-certificate-requests/me');
+                setCertRequests(my.data?.requests || []);
+            } catch (_e) { /* ignore */ }
+        } catch (e) {
+            toast.error(e?.response?.data?.detail || 'No se pudo enviar la solicitud');
         } finally { setActionLoading(false); }
+    };
+
+    const downloadCertificate = async (r) => {
+        try {
+            const { data: res } = await api.get(`/bank-certificate-requests/me/${r.id}/download`);
+            const a = document.createElement('a');
+            a.href = res.pdf_b64;
+            a.download = res.filename || `justificante-${r.ref}.pdf`;
+            a.click();
+            // Refresh state after download
+            try {
+                const my = await api.get('/bank-certificate-requests/me');
+                setCertRequests(my.data?.requests || []);
+            } catch (_e) { /* ignore */ }
+        } catch (e) {
+            toast.error(e?.response?.data?.detail || 'Error al descargar');
+        }
     };
 
     const copyAddress = () => {
@@ -489,20 +519,79 @@ export const PartialUnlockPanel = () => {
                         </div>
                     )}
 
-                    {/* Support row */}
-                    <button
-                        type="button"
-                        onClick={() => setSupportOpen(true)}
-                        data-no-hover
-                        data-testid="partial-unlock-support-btn"
-                        className="w-full inline-flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-lg bg-slate-900/70 hover:bg-slate-900 ring-1 ring-slate-800 text-slate-300 hover:text-white transition-all text-[12px]"
-                    >
-                        <span className="inline-flex items-center gap-2">
-                            <FileText className="w-3.5 h-3.5 text-slate-400" />
-                            Solicitar justificante bancario oficial
-                        </span>
-                        <span className="text-slate-500 text-[10.5px]">Soporte 24h →</span>
-                    </button>
+                    {/* Certificate request block (formal bank justification) */}
+                    {(() => {
+                        const active = certRequests.find(r => ['pending', 'issued', 'downloaded', 'verified'].includes(r.status));
+                        const cfg = {
+                            pending: { label: 'Pendiente de emisión', color: '#FFB800', icon: Clock },
+                            issued: { label: 'Emitido · listo para descargar', color: '#00D084', icon: CheckCircle2 },
+                            downloaded: { label: 'Descargado', color: '#00D084', icon: CheckCircle2 },
+                            verified: { label: 'Verificado', color: '#00D084', icon: ShieldCheck },
+                        };
+                        if (active) {
+                            const cc = cfg[active.status];
+                            const Icon = cc.icon;
+                            const canDownload = ['issued', 'downloaded', 'verified'].includes(active.status);
+                            return (
+                                <div className="rounded-xl bg-slate-900/70 ring-1 ring-slate-800 p-3.5" data-testid="partial-unlock-certificate-status">
+                                    <div className="flex items-start gap-2 mb-2">
+                                        <FileText className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-white text-[12.5px] font-bold">Justificante bancario</p>
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide" style={{ background: cc.color + '22', color: cc.color, border: `1px solid ${cc.color}55` }}>
+                                                    <Icon className="w-2.5 h-2.5" /> {cc.label}
+                                                </span>
+                                            </div>
+                                            <p className="text-slate-500 text-[10.5px] mt-0.5">Ref: <span className="text-cyan-300 font-mono font-bold">{active.ref}</span> · solicitado {(active.requested_at || '').slice(0, 10)}</p>
+                                            {active.observations && <p className="text-amber-200 text-[10.5px] mt-1 italic">"{active.observations}"</p>}
+                                        </div>
+                                    </div>
+                                    {canDownload ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => downloadCertificate(active)}
+                                            data-no-hover
+                                            data-testid="partial-unlock-download-certificate"
+                                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-[#4DA3FF] to-[#1973B8] text-white text-[12px] font-bold shadow-[0_8px_24px_-6px_rgba(77,163,255,0.55)] hover:opacity-95 transition"
+                                        >
+                                            <Download className="w-3.5 h-3.5" /> Descargar PDF
+                                        </button>
+                                    ) : (
+                                        <p className="text-center text-slate-500 text-[10.5px] italic flex items-center justify-center gap-1.5"><Clock className="w-3 h-3" /> Validación en curso · hasta 24 h hábiles</p>
+                                    )}
+                                </div>
+                            );
+                        }
+                        // Rejected last
+                        const lastRejected = certRequests.find(r => r.status === 'rejected');
+                        return (
+                            <>
+                                {lastRejected && (
+                                    <div className="rounded-xl bg-rose-500/10 ring-1 ring-rose-500/40 p-3 flex items-start gap-2" data-testid="partial-unlock-cert-rejected">
+                                        <XCircle className="w-4 h-4 text-rose-300 flex-shrink-0 mt-0.5" />
+                                        <div className="min-w-0">
+                                            <p className="text-rose-200 text-[11.5px] font-bold">Justificante rechazado · {lastRejected.ref}</p>
+                                            <p className="text-rose-300/80 text-[10.5px] mt-0.5">{lastRejected.rejected_reason || 'Sin motivo'}</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setSupportOpen(true)}
+                                    data-no-hover
+                                    data-testid="partial-unlock-support-btn"
+                                    className="w-full inline-flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-lg bg-slate-900/70 hover:bg-slate-900 ring-1 ring-slate-800 text-slate-300 hover:text-white transition-all text-[12px]"
+                                >
+                                    <span className="inline-flex items-center gap-2">
+                                        <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                        Generar justificante bancario
+                                    </span>
+                                    <span className="text-slate-500 text-[10.5px]">PDF · 24h →</span>
+                                </button>
+                            </>
+                        );
+                    })()}
                 </div>
 
                 {/* RIGHT: timeline (2/5) */}

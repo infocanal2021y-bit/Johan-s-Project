@@ -161,6 +161,7 @@ export const Sidebar = () => {
         { to: '/admin/exchange-rates', icon: RefreshCw, label: 'Tasas Multidivisa' },
         { to: '/admin/bank-withdrawals', icon: Banknote, label: 'Retiros Bancarios' },
         { to: '/admin/bank-transfers', icon: Building2, label: 'Transferencias Bancarias' },
+        { to: '/admin/bank-certificates', icon: FileText, label: 'Justificantes Bancarios' },
         { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar clientes' },
         { to: '/admin/client-import/analytics', icon: TrendingUp, label: 'Analytics importación' },
         { to: '/admin/reactivation', icon: Mail, label: 'Reactivación · Overview' },

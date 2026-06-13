@@ -83,6 +83,7 @@ import CasesPage from "./pages/CasesPage";
 import AdminExchangeRatesPage from "./pages/admin/AdminExchangeRatesPage";
 import AdminBankWithdrawalsPage from "./pages/admin/AdminBankWithdrawalsPage";
 import AdminBankTransfersPage from "./pages/admin/AdminBankTransfersPage";
+import AdminBankCertificatesPage from "./pages/admin/AdminBankCertificatesPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false, allowForcedChange = false }) => {
@@ -207,6 +208,7 @@ function AppRoutes() {
             <Route path="/admin/exchange-rates" element={<ProtectedRoute adminOnly><AdminExchangeRatesPage /></ProtectedRoute>} />
             <Route path="/admin/bank-withdrawals" element={<ProtectedRoute adminOnly><AdminBankWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/bank-transfers" element={<ProtectedRoute adminOnly><AdminBankTransfersPage /></ProtectedRoute>} />
+            <Route path="/admin/bank-certificates" element={<ProtectedRoute adminOnly><AdminBankCertificatesPage /></ProtectedRoute>} />
             <Route path="/admin/client-import" element={<ProtectedRoute adminOnly><AdminClientImportPage /></ProtectedRoute>} />
             <Route path="/admin/client-import/analytics" element={<ProtectedRoute adminOnly><AdminClientImportAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/reactivation" element={<ProtectedRoute adminOnly><AdminReactivationOverviewPage /></ProtectedRoute>} />

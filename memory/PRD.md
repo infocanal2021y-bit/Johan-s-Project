@@ -1,6 +1,37 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+
+### Iteration 74.13 — Módulo completo de Justificantes Bancarios (PDF + admin + auditoría)
+
+**Pedido:** convertir "Solicitar justificante bancario" en módulo formal de gestión documental con PDF, estados, emisión, descarga, envío por correo, acciones admin (aprobar, rechazar, observaciones), auditoría completa.
+
+**Backend nuevo:** `routes/bank_certificate_requests.py` (colección `bank_certificate_requests`)
+- Generación PDF institucional con `reportlab` (A4, letterhead LIONSBIT, tabla referencia/destinatario/cuenta bancaria con Titular+Autorizado Juan Gómez+IBAN/BIC, observaciones, firma "Dirección Operativa LIONSBIT")
+- Auto-ref `BCR-YYYY-XXXXXX` con uniqueness check
+- Pipeline `pending → issued → downloaded → verified` (+ `rejected`)
+- Auditoría `audit.history[]` con event/at/by/ip por cada transición
+- Endpoints user: create / list me / download (auto-marca downloaded)
+- Endpoints admin: list (status + q regex) / issue (genera PDF embed b64) / reject (motivo ≥5) / observations / verify / download copy / email queue
+- Duplicate guard: 409 si ya hay solicitud activa
+- Router registrado
+
+**Frontend admin** `pages/admin/AdminBankCertificatesPage.jsx`:
+- 6 tabs (Pendientes/Emitidas/Descargadas/Verificadas/Rechazadas/Todas) + search
+- Cards `lb-card-glow` por solicitud con: título, badge status colored, Referencia, Usuario, Fecha, Note, Observaciones, Motivo rechazo
+- Acciones contextuales: 🟢 Emitir (modal obs textarea) / 🔴 Rechazar (modal motivo) / 🔵 Descargar PDF / 🟡 Enviar correo / Imprimir / ✅ Verificar / 💬 Observaciones / 👁 Ver perfil
+- Modal "Ver perfil" con datos usuario, fechas y **historial completo de auditoría** (event/at/by/ip/reason)
+- Ruta `/admin/bank-certificates` + link sidebar "Justificantes Bancarios"
+
+**Frontend usuario** `PartialUnlockPanel.jsx`:
+- Endpoint cambiado de `support-request` → `bank-certificate-requests/create`
+- Carga inicial + post-submit de `bank-certificate-requests/me`
+- UI dinámica: si hay activa → card con badge status colored + ref BCR + botón "Descargar PDF" gradient azul (si emitida); si rechazada → callout rojo con motivo; si nada → botón "Generar justificante bancario · PDF · 24h →"
+- Toast con ref BCR al crear
+
+**Verificado e2e:** POST create → ref `BCR-2026-002704` · POST issue → PDF 5460 chars · GET download OK · 4 screenshots confirman flujo completo (user pending → admin card con CTAs colored).
+
+
 ## Iteration 74 (Feb 06, 2026) — Mobile Page: Dual iPhone Premium Stack
 
 **Pedido:** Agregar un segundo teléfono detrás del principal mostrando otra pantalla (retiros / movimientos) para dar apariencia mucho más profesional, estilo Bloomberg Terminal / Revolut Premium.
