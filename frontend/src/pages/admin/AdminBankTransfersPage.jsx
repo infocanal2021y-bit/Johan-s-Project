@@ -53,7 +53,10 @@ const AdminBankTransfersPage = () => {
         }
     };
 
-    useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [filter]);
+    useEffect(() => {
+        fetchList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filter]);
 
     const clearFilters = () => {
         setSearch(''); setAmountMin(''); setAmountMax(''); setDateFrom(''); setDateTo('');

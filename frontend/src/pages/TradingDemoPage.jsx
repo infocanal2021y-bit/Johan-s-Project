@@ -93,6 +93,7 @@ export const TradingDemoPage = () => {
             setPositions(posRes.data);
         } catch { /* silent */ }
         finally { setLoading(false); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchHistory = useCallback(async () => {

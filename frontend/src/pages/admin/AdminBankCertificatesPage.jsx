@@ -49,7 +49,10 @@ const AdminBankCertificatesPage = () => {
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [filter]);
+    useEffect(() => {
+        fetchList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filter]);
 
     const issue = async () => {
         if (!issuingFor) return;
