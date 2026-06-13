@@ -335,6 +335,46 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía 4 screenshots — botón nuevo aparece debajo del cripto con gradient azul, modal abre con datos bancarios completos + form + amount prefilled, panel admin lista correctamente con filtros y CTAs aceptar/rechazar. Backend curl tests OK.
 
+### Iteration 74.12 — Transferencia bancaria: 11 mejoras premium
+
+**Pedido:** TRF auto-ref, timeline 5 etapas, vista previa con zoom, historial, notificaciones, SLA 24-48h, detección duplicados, comentarios admin, descarga, auditoría, filtros admin premium.
+
+**Backend (`bank_transfer_proofs.py` rewrite):**
+1. **Tracking ref TRF-YYYY-XXXXXX** auto-generado (uniqueness check)
+2. **Proof hash SHA-256** (primeros 4KB) para detección de duplicados → 409 con TRF original
+3. **Auditoría completa**: `audit.{submitted_ip, submitted_ua, submitted_at, approved_at, approved_by_email, approved_ip, rejected_at, rejected_by_email, rejected_ip, rejected_reason}` (IP extraída de X-Forwarded-For)
+4. **Endpoint user download**: `GET /bank-transfer-proofs/me/{id}/file`
+5. **Filtros admin**: `status`, `q` (regex sobre email/name/tracking_ref/case_code/reference/holder), `amount_min`, `amount_max`, `date_from`, `date_to`
+6. **SLA en config**: `review_sla: '24-48 h laborables'` devuelto en treasury-account + submit response
+7. Notificación al usuario al recibir: "Comprobante recibido · TRF · SLA 24-48h"
+
+**Frontend usuario (`BankTransferModal.jsx` rewrite):**
+1. **PipelineTimeline** — 5 etapas (Recibida → En revisión → Verificada → Aprobado → Retiro habilitado) con progress bar gradient amber→green, círculos con glow + Check/Loader según estado
+2. **Vista previa lightbox** — modal full-screen con zoom (botones +/- 25%), cambiar archivo, descargar PDF, indicador de zoom %
+3. **Card de comprobante** subido con thumb + nombre + acciones (Vista previa, Cambiar)
+4. **Tabla historial completa**: Fecha / Referencia (TRF) / Monto / Estado (badge) / Acciones (ver + descargar) — descargas usando endpoint `/me/{id}/file`
+5. **Form deshabilitado** automáticamente si hay solicitud activa (in_review o approved) con badge "Ya existe una solicitud activa"
+6. **Banner rojo** si última fue rechazada — incluye `Motivo del rechazo` literal
+7. **SLA visible** debajo del botón con ícono Clock
+8. **Subtítulo institucional**: "Si ya realizó la transferencia, suba su comprobante para iniciar la validación administrativa."
+
+**Frontend admin (`AdminBankTransfersPage.jsx` enhancements):**
+1. **Filtros premium** en Card separada: search input (email/ref/TRF), amount min/max, date from/to
+2. Botones "Limpiar filtros" + "Aplicar" (gradient cyan)
+3. **Nueva columna TRF** en cyan font-mono
+4. **Detail modal** muestra ahora sección "Auditoría" completa: fecha subida, IP subida, aprobado el/por/IP, rechazado el/por/IP
+5. **Botón "Descargar comprobante"** en detail modal
+
+**Bug fix encontrado:** `generate_case_code` requería `user_email` kwarg (fixed).
+
+**End-to-end verificado vía curl + screenshot:**
+- Submit OK → TRF-2026-828727 generado
+- Duplicate detection OK → 409 con referencia original
+- Audit IP capturado: 34.170.12.145
+- Admin list + detail con auditoría visible y botón descarga
+- Filtros UI desplegados correctamente
+
+
 
 
 
