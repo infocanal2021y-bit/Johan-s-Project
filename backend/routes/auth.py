@@ -385,7 +385,13 @@ async def request_password_reset(data: PasswordResetRequest, request: Request):
     }
     await db.password_resets.insert_one(reset_request)
 
-    reset_link = f"{APP_BASE_URL}/reset-password?token={reset_token}"
+    # Use the request origin dynamically so the reset link works on any domain (preview, production, custom)
+    origin = (
+        request.headers.get('origin')
+        or (request.headers.get('referer') or '').split('?')[0].rstrip('/')
+        or APP_BASE_URL
+    )
+    reset_link = f"{origin}/reset-password?token={reset_token}"
     await _send_password_reset_email(user['email'], user['name'], reset_link, reset_token)
 
     return {'message': 'If the email exists, a reset link has been sent'}
