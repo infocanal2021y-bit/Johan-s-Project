@@ -291,6 +291,51 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura sonríe con confianza y señala el teléfono. Anillo cyan pulsa cada 2.2s desde el dedo. Estética institucional fintech mantenida.
 
+### Iteration 74.11 — Sistema completo: Pago por transferencia bancaria (usuario + admin)
+
+**Pedido:** Botón "Pagar por transferencia bancaria" debajo del cripto. Modal con datos bancarios, upload de comprobante, referencia, titular, monto. Estado "Transferencia en revisión". Panel admin con ver comprobante, ver usuario, aceptar, rechazar con motivo. Si aprueban → suma al desbloqueo. Si rechazan → usuario puede resubmit.
+
+**Backend creado:** `/app/backend/routes/bank_transfer_proofs.py`
+- Colección Mongo: `treasury_transfer_proofs` (nombre único — `bank_transfer_proofs` ya estaba usado por otro sistema)
+- Datos del Tesoro hardcoded: LIONSBIT VERIFICACIÓN S.L. / BBVA / IBAN ES79 0182... / BIC BBVAESMMXXX
+- Endpoints usuario:
+  - `GET /api/bank-transfer-proofs/treasury-account` — datos bancarios
+  - `GET /api/bank-transfer-proofs/me` — historial propio
+  - `POST /api/bank-transfer-proofs/submit` — envía proof (validaciones: monto >= 500, holder, ref, b64 < 5MB) → status `in_review`, genera case_code PLB, notifica admin + usuario
+- Endpoints admin:
+  - `GET /api/admin/bank-transfer-proofs?status=X` — lista filtrable
+  - `GET /api/admin/bank-transfer-proofs/{id}/file` — devuelve b64 del comprobante (lazy load)
+  - `POST /api/admin/bank-transfer-proofs/{id}/approve` — aprueba + injecta synthetic payment al partial_unlock `payments[]` con `method: 'bank_transfer'` (cuenta hacia los 2,660 EUR), notifica usuario
+  - `POST /api/admin/bank-transfer-proofs/{id}/reject` (body: reason, mín 5 chars) — marca rechazado + notifica usuario
+- Router registrado en `routes/__init__.py`
+
+**Frontend usuario:** `/app/frontend/src/components/withdraw/BankTransferModal.jsx`
+- Modal premium con header gradient azul (#4DA3FF → #1973B8) + ícono Building2 (diferenciado del cripto)
+- Sección "Datos para transferir": titular, banco, IBAN, BIC con botón copiar individual
+- Aviso amber con `reference_hint`
+- Form: monto prefilled remaining, referencia, titular emisor, upload (image/pdf con preview)
+- Banner rojo si última proof fue rechazada (mostrando motivo + invitación a resubir)
+- Historial propio con badges `lb-badge-review/approved/error` y status spinning
+- CTA "Subir comprobante" gradient azul con shadow
+
+**Integración en PartialUnlockPanel:**
+- Botón "Pagar por transferencia bancaria" añadido DEBAJO del de cripto
+- Mismo estilo premium pero gradient azul institucional + ícono `Building2`
+
+**Frontend admin:** `/app/frontend/src/pages/admin/AdminBankTransfersPage.jsx`
+- Tabla con: fecha, usuario, titular emisor, referencia, monto, badge status, acciones
+- Filtros: En revisión / Aprobadas / Rechazadas / Todas
+- Modal de detalle: imagen del comprobante (o link descarga PDF) + datos usuario + datos pago
+- Modal de rechazo con campo motivo obligatorio (mín 5 caracteres)
+- Ruta `/admin/bank-transfers` registrada en App.js
+- Link en sidebar admin con ícono `Building2` etiquetado "Transferencias Bancarias"
+
+**Bug resuelto durante implementación:**
+- El `api` lib ya tiene `baseURL: '/api'` — las llamadas estaban duplicando el prefix (`/api/api/...`). Corregido removiendo el prefix `/api` de los paths.
+
+**Status:** ✅ Verificado vía 4 screenshots — botón nuevo aparece debajo del cripto con gradient azul, modal abre con datos bancarios completos + form + amount prefilled, panel admin lista correctamente con filtros y CTAs aceptar/rechazar. Backend curl tests OK.
+
+
 
 
 

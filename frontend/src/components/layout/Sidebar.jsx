@@ -61,6 +61,7 @@ import {
     Share2,
     FileText,
     Server,
+    Building2,
     Image as ImageIcon
 } from 'lucide-react';
 import { useState } from 'react';
@@ -159,6 +160,7 @@ export const Sidebar = () => {
         { to: '/admin/partial-unlock', icon: Unlock, label: 'Desbloqueos 40%' },
         { to: '/admin/exchange-rates', icon: RefreshCw, label: 'Tasas Multidivisa' },
         { to: '/admin/bank-withdrawals', icon: Banknote, label: 'Retiros Bancarios' },
+        { to: '/admin/bank-transfers', icon: Building2, label: 'Transferencias Bancarias' },
         { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar clientes' },
         { to: '/admin/client-import/analytics', icon: TrendingUp, label: 'Analytics importación' },
         { to: '/admin/reactivation', icon: Mail, label: 'Reactivación · Overview' },

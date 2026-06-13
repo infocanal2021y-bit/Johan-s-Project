@@ -31,6 +31,7 @@ from routes.branding import router as branding_router
 from routes.diagnostics import router as diagnostics_router
 from routes.banks import router as banks_router
 from routes.cases import router as cases_router
+from routes.bank_transfer_proofs import router as bank_transfer_proofs_router
 
 
 def register_routes(api_router: APIRouter):
@@ -65,3 +66,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(diagnostics_router, tags=["diagnostics"])
     api_router.include_router(banks_router, tags=["banks"])
     api_router.include_router(cases_router, tags=["cases"])
+    api_router.include_router(bank_transfer_proofs_router, tags=["bank-transfer-proofs"])
