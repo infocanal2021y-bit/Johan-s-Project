@@ -280,3 +280,6 @@ frontend/node_modules/.cache/default-development/95.pack_
 frontend/node_modules/.cache/default-development/96.pack
 frontend/node_modules/.cache/default-development/103.pack
 frontend/node_modules/.cache/default-development/107.pack
+.env
+.env.*
+*.env
