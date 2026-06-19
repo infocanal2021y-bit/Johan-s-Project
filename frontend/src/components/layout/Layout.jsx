@@ -1,7 +1,5 @@
 import { Sidebar } from './Sidebar';
 import { AppBackground } from './AppBackground';
-import { ChatBot } from '../ChatBot';
-import { AIAssistantWidget } from '../ai/AIAssistantWidget';
 import { OnboardingTour } from '../onboarding/OnboardingTour';
 import { InactivityPrompt } from '../InactivityPrompt';
 import { JourneyToastNotifier } from '../JourneyToastNotifier';
@@ -24,8 +22,6 @@ export const Layout = ({ children }) => {
                         {children}
                     </div>
                 </main>
-                <ChatBot />
-                {user && <AIAssistantWidget />}
                 {user && <OnboardingTour />}
                 {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
                 {user && <JourneyToastNotifier />}
