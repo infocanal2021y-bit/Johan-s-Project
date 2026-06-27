@@ -17,16 +17,17 @@ export default function ForcePasswordChangePage() {
     const [showNext, setShowNext] = useState(false);
     const [busy, setBusy] = useState(false);
 
-    // Password strength
+    // Password strength (informational)
     const len = next.length;
     const hasLetter = /[a-zA-Z]/.test(next);
     const hasNumber = /\d/.test(next);
     const strong = len >= 8 && hasLetter && hasNumber;
+    const valid = len >= 8; // minimum requirement for submission
 
     const submit = async (e) => {
         e.preventDefault();
-        if (!strong) {
-            toast.error('La nueva contraseña debe tener al menos 8 caracteres, incluir letras y números');
+        if (!valid) {
+            toast.error('La contraseña debe tener al menos 8 caracteres');
             return;
         }
         if (next !== confirm) {
@@ -147,9 +148,9 @@ export default function ForcePasswordChangePage() {
                                     })}
                                 </div>
                                 <div className="flex items-center gap-3 text-[10.5px]">
-                                    <span className={len >= 8 ? 'text-emerald-400' : 'text-slate-500'}>✓ 8+ caracteres</span>
-                                    <span className={hasLetter ? 'text-emerald-400' : 'text-slate-500'}>✓ Letras</span>
-                                    <span className={hasNumber ? 'text-emerald-400' : 'text-slate-500'}>✓ Números</span>
+                                    <span className={len >= 8 ? 'text-emerald-400' : 'text-slate-500'}>✓ 8+ caracteres (requerido)</span>
+                                    <span className={hasLetter ? 'text-emerald-400' : 'text-slate-500'}>+ Letras</span>
+                                    <span className={hasNumber ? 'text-emerald-400' : 'text-slate-500'}>+ Números</span>
                                 </div>
                             </div>
                         )}
@@ -177,7 +178,7 @@ export default function ForcePasswordChangePage() {
 
                     <Button
                         type="submit"
-                        disabled={busy || !strong || next !== confirm || !current}
+                        disabled={busy || !valid || next !== confirm || !current}
                         data-testid="force-password-change-submit"
                         className="w-full h-11 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold tracking-wider shadow-lg shadow-cyan-500/20"
                     >
