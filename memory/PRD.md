@@ -1,6 +1,33 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 75 (Feb 07, 2026) — Global Search Bar (⌘/Ctrl+K)
+
+**Pedido:** Barra de búsqueda global en el header que permita localizar expedientes desde cualquier página por: código PLB, nombre de cliente, correo electrónico o referencia de pago. Al seleccionar un resultado, debe abrir directamente el expediente correspondiente.
+
+**Backend nuevo** `routes/global_search.py`:
+- Endpoint `GET /api/search/global?q=...` (role-aware).
+- **Admin** → busca en TODOS los casos + usuarios (regex sobre `code`, `entity_ref`, `summary`, `user_email` en `cases`; `name`, `email`, `id` en `users`). Enriquecido con nombre del cliente por caso.
+- **Usuario regular** → solo sus propios casos.
+- Devuelve `{cases[], users[], count, is_admin}` con `nav_path` y `type_label` pre-calculados.
+- ENTITY_NAV extendido para cubrir `bank_transfer_proof` y `bank_certificate`.
+- Registrado en `routes/__init__.py`.
+
+**Frontend nuevo** `components/search/GlobalSearchBar.jsx`:
+- Trigger flotante fijo (top-right, z-60, glass-morphism) con atajo `⌘/Ctrl + K`.
+- Modal command-palette centrado (backdrop blur), debounce 250 ms.
+- Resultados agrupados: **Clientes** (admin) + **Expedientes** con code, tipo, referencia, resumen, estado (pill colored) y ArrowRight hover.
+- Placeholder adaptativo según rol (admin ve "cliente, email, referencia…").
+- ESC para cerrar. Data-testids: `global-search-trigger`, `global-search-input`, `gsearch-user-{id}`, `gsearch-case-{code}`.
+
+**Integración**:
+- Añadido a `Layout.jsx` (solo si `user` está autenticado).
+- `AdminUsersPage.jsx` ahora lee `?q=` desde `useSearchParams` y auto-rellena su búsqueda interna, permitiendo deep-link desde el Global Search.
+
+**Verificado:** curl e2e con admin retorna correctamente para "PLB" (4 casos), "Lamberti" (1 usuario), "WD-260603" (1 caso vía entity_ref), "admi" (casos + usuarios). Screenshot confirma UI de resultados con nombre del cliente, referencia, tipo y estado.
+
+
+
 
 ### Iteration 74.13 — Módulo completo de Justificantes Bancarios (PDF + admin + auditoría)
 

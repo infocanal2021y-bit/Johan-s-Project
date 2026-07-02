@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
@@ -183,9 +184,15 @@ export const AdminUsersPage = () => {
         }
     };
 
-    // Load users once on mount. Intentionally no deps to avoid refetch loops.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Load users once on mount.
     useEffect(() => { fetchUsers(); }, []);
+
+    // Support ?q= query param from Global Search deep-link
+    const [searchParams] = useSearchParams();
+    useEffect(() => {
+        const q = searchParams.get('q');
+        if (q) setSearch(q);
+    }, [searchParams]);
 
     const [healthFilter, setHealthFilter] = useState('all');  // all | green | yellow | red
     const [bulkOpen, setBulkOpen] = useState(false);
