@@ -330,7 +330,20 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
-### Iteration 74.12 — Reemplazo del muñeco por cara de león animada (Jun 7, 2026)
+### Iteration 74.13 — León con artwork del usuario + rugido visual al hover (Jun 7, 2026)
+
+**Pedido:** Reemplazar el león SVG por la imagen que subió el usuario (cabeza de león blanco sobre negro, perfil) y que reaccione al pasar el mouse con un "rugido visual".
+
+**Implementado:**
+- Imagen procesada con PIL: JPG blanco-sobre-negro → PNG transparente (luminancia→alpha, threshold <30 para limpiar ruido JPG, crop a bbox). Guardada en `/app/frontend/public/assets/lion-head.png`.
+- `MobileAppBanner.jsx` → `LionFace` reescrito como componente con estado `roaring` (hover):
+  - **Idle:** bob flotante suave (y 0↔-5, 3.2s), glow cyan ambiental pulsante, sombra elíptica animada, drop-shadow cyan sutil.
+  - **Rugido (hover):** shake feroz (rotate ±2.5°) + scale 1.12, glow cambia a ámbar intenso, 3 anillos de onda expansiva dorados (scale 0.55→2.3 loop escalonado), 3 arcos de ondas de sonido cyan saliendo del hocico hacia el teléfono, drop-shadow dorado.
+  - Imagen volteada (`scaleX(-1)`) para que el león mire hacia el teléfono. testid `lion-mascot`.
+
+**Status:** ✅ Verificado vía screenshots (idle + hover) — ambos estados renderizan correctamente.
+
+### Iteration 74.12 — Reemplazo del muñeco por cara de león animada SVG (REEMPLAZADO por artwork del usuario en 74.13) (Jun 7, 2026)
 
 **Pedido:** Cambiar el muñeco animado (WalkingFigure) por la cara de un león animado.
 

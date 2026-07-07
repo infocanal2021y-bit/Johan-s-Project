@@ -9,150 +9,93 @@ import {
 import { WaitlistCounter } from './WaitlistCounter';
 
 
-// ─── Animated lion face — golden LIONSBIT mascot ────────────────────
-const LionFace = () => (
-    <div className="relative pointer-events-none select-none" aria-hidden="true">
-        {/* Soft shadow below */}
-        <motion.div
-            animate={{ scaleX: [1, 0.9, 1], opacity: [0.5, 0.35, 0.5] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-[-8px] w-[110px] h-[16px] rounded-[50%] bg-black blur-md"
-        />
-
-        {/* Ambient golden glow behind the mane */}
-        <motion.div
-            animate={{ opacity: [0.25, 0.45, 0.25], scale: [1, 1.06, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute inset-0 m-auto w-[150px] h-[150px] rounded-full bg-amber-500/30 blur-2xl"
-        />
-
-        {/* Gentle floating bob */}
-        <motion.div
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-            className="relative"
+// ─── Animated lion head — LIONSBIT mascot (user artwork) ───────────
+const LionFace = () => {
+    const [roaring, setRoaring] = useState(false);
+    return (
+        <div
+            className="relative select-none cursor-pointer"
+            aria-hidden="true"
+            data-testid="lion-mascot"
+            onMouseEnter={() => setRoaring(true)}
+            onMouseLeave={() => setRoaring(false)}
         >
-            <svg viewBox="0 0 200 200" width="185" height="185" className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.55)]">
-                <defs>
-                    <radialGradient id="lionMane" cx="50%" cy="45%" r="60%">
-                        <stop offset="0%" stopColor="#b45309" />
-                        <stop offset="55%" stopColor="#92400e" />
-                        <stop offset="100%" stopColor="#451a03" />
-                    </radialGradient>
-                    <radialGradient id="lionFace" cx="50%" cy="40%" r="65%">
-                        <stop offset="0%" stopColor="#fbbf24" />
-                        <stop offset="60%" stopColor="#f59e0b" />
-                        <stop offset="100%" stopColor="#b45309" />
-                    </radialGradient>
-                    <linearGradient id="lionMuzzle" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#fde68a" />
-                        <stop offset="100%" stopColor="#fbbf24" />
-                    </linearGradient>
-                    <linearGradient id="lionRim" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.85" />
-                        <stop offset="100%" stopColor="#0099ff" stopOpacity="0.15" />
-                    </linearGradient>
-                </defs>
+            {/* Soft shadow below */}
+            <motion.div
+                animate={{ scaleX: [1, 0.9, 1], opacity: [0.5, 0.35, 0.5] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute left-1/2 -translate-x-1/2 bottom-[-10px] w-[120px] h-[16px] rounded-[50%] bg-black blur-md pointer-events-none"
+            />
 
-                {/* Mane — outer spiked crown, breathes slowly */}
-                <motion.g
-                    animate={{ scale: [1, 1.035, 1] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: '100px 100px' }}
-                >
-                    <path
-                        d="M100,12
-                           L113,28 L132,18 L138,38 L160,34 L158,56 L180,60 L169,78 L188,92
-                           L170,104 L182,124 L161,128 L164,150 L143,146 L138,168 L120,156
-                           L108,174 L100,160 L92,174 L80,156 L62,168 L57,146 L36,150
-                           L39,128 L18,124 L30,104 L12,92 L31,78 L20,60 L42,56 L40,34
-                           L62,38 L68,18 L87,28 Z"
-                        fill="url(#lionMane)"
+            {/* Ambient glow behind the mane — intensifies during the roar */}
+            <motion.div
+                animate={roaring
+                    ? { opacity: 0.8, scale: 1.25 }
+                    : { opacity: [0.25, 0.45, 0.25], scale: [1, 1.06, 1] }}
+                transition={roaring
+                    ? { duration: 0.3 }
+                    : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                className={`absolute inset-0 m-auto w-[150px] h-[150px] rounded-full blur-2xl pointer-events-none ${roaring ? 'bg-amber-400/50' : 'bg-cyan-500/25'}`}
+            />
+
+            {/* Roar shockwave rings */}
+            <AnimatePresence>
+                {roaring && [0, 1, 2].map((i) => (
+                    <motion.span
+                        key={`roar-ring-${i}`}
+                        initial={{ opacity: 0.75, scale: 0.55 }}
+                        animate={{ opacity: 0, scale: 2.3 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.35, ease: 'easeOut' }}
+                        className="absolute inset-0 m-auto w-[150px] h-[150px] rounded-full border-2 border-amber-400/70 pointer-events-none"
                     />
-                    {/* Inner mane ring — darker depth */}
-                    <circle cx="100" cy="96" r="62" fill="#78350f" opacity="0.55" />
-                    {/* Mane rim light (cyan, matches banner) */}
-                    <path d="M52,42 Q75,18 112,22" stroke="url(#lionRim)" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6" />
-                </motion.g>
+                ))}
+            </AnimatePresence>
 
-                {/* Ears */}
-                <circle cx="58" cy="52" r="14" fill="#d97706" />
-                <circle cx="58" cy="52" r="7" fill="#92400e" />
-                <circle cx="142" cy="52" r="14" fill="#d97706" />
-                <circle cx="142" cy="52" r="7" fill="#92400e" />
+            {/* Sound-wave arcs by the muzzle (lion faces right, toward the phone) */}
+            <AnimatePresence>
+                {roaring && [0, 1, 2].map((i) => (
+                    <motion.span
+                        key={`roar-wave-${i}`}
+                        initial={{ opacity: 0, x: 0, scale: 0.6 }}
+                        animate={{ opacity: [0, 0.9, 0], x: 26 + i * 14, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.18, ease: 'easeOut' }}
+                        className="absolute right-[-6px] top-[52%] w-[16px] h-[26px] rounded-r-full border-r-2 border-t-2 border-b-2 border-cyan-300/80 border-l-0 pointer-events-none"
+                        style={{ borderLeft: 'none' }}
+                    />
+                ))}
+            </AnimatePresence>
 
-                {/* Head */}
-                <ellipse cx="100" cy="100" rx="52" ry="55" fill="url(#lionFace)" />
-                {/* Forehead fur marks */}
-                <path d="M92,54 Q100,64 108,54" stroke="#b45309" strokeWidth="2.4" fill="none" strokeLinecap="round" opacity="0.7" />
-                <path d="M96,48 Q100,56 104,48" stroke="#b45309" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5" />
-
-                {/* Eyebrows */}
-                <path d="M70,80 Q80,74 90,79" stroke="#78350f" strokeWidth="3" fill="none" strokeLinecap="round" />
-                <path d="M110,79 Q120,74 130,80" stroke="#78350f" strokeWidth="3" fill="none" strokeLinecap="round" />
-
-                {/* Eyes — blink */}
-                <motion.g
-                    animate={{ scaleY: [1, 1, 0.08, 1, 1] }}
-                    transition={{ duration: 4.2, repeat: Infinity, times: [0, 0.42, 0.47, 0.52, 1], ease: 'easeInOut' }}
-                    style={{ transformOrigin: '100px 92px' }}
-                >
-                    <ellipse cx="80" cy="92" rx="7.5" ry="9" fill="#fef3c7" />
-                    <ellipse cx="120" cy="92" rx="7.5" ry="9" fill="#fef3c7" />
-                    <circle cx="81" cy="93" r="4.6" fill="#451a03" />
-                    <circle cx="121" cy="93" r="4.6" fill="#451a03" />
-                    <circle cx="82.6" cy="91" r="1.6" fill="#ffffff" />
-                    <circle cx="122.6" cy="91" r="1.6" fill="#ffffff" />
-                </motion.g>
-
-                {/* Muzzle */}
-                <ellipse cx="100" cy="126" rx="26" ry="20" fill="url(#lionMuzzle)" />
-                {/* Nose */}
-                <path d="M92,116 L108,116 L100,127 Z" fill="#78350f" />
-                <path d="M94,117 Q100,114 106,117" stroke="#fbbf24" strokeWidth="1" fill="none" opacity="0.5" />
-                {/* Philtrum + mouth */}
-                <line x1="100" y1="127" x2="100" y2="133" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
-                <path d="M88,134 Q94,141 100,133 Q106,141 112,134" stroke="#78350f" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-                {/* Chin */}
-                <ellipse cx="100" cy="146" rx="9" ry="5" fill="#fde68a" opacity="0.7" />
-
-                {/* Whisker dots */}
-                <circle cx="84" cy="126" r="1.1" fill="#92400e" />
-                <circle cx="80" cy="131" r="1.1" fill="#92400e" />
-                <circle cx="116" cy="126" r="1.1" fill="#92400e" />
-                <circle cx="120" cy="131" r="1.1" fill="#92400e" />
-
-                {/* Whiskers — subtle twitch */}
-                <motion.g
-                    animate={{ rotate: [0, 1.6, 0, -1, 0] }}
-                    transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: '100px 128px' }}
-                >
-                    <path d="M76,124 Q60,120 48,122" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
-                    <path d="M76,130 Q60,131 47,135" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
-                    <path d="M124,124 Q140,120 152,122" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
-                    <path d="M124,130 Q140,131 153,135" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
-                </motion.g>
-
-                {/* Cheek highlights — cyan accents to tie into banner palette */}
-                <ellipse cx="70" cy="108" rx="4" ry="2.4" fill="#22d3ee" opacity="0.14" />
-                <ellipse cx="130" cy="108" rx="4" ry="2.4" fill="#22d3ee" opacity="0.14" />
-
-                {/* Sparkle pulse near the mane (connection vibe with the phone) */}
-                <motion.circle
-                    cx="168" cy="58" r="5"
-                    fill="none"
-                    stroke="#22d3ee"
-                    strokeWidth="1.2"
-                    opacity="0"
-                    animate={{ opacity: [0, 0.9, 0], scale: [0.6, 2.2, 2.4] }}
-                    transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut', delay: 1.2 }}
-                    style={{ transformOrigin: '168px 58px' }}
+            {/* Lion artwork — gentle idle bob · fierce shake + scale on roar */}
+            <motion.div
+                animate={roaring
+                    ? { y: [0, -7, 0], rotate: [0, -2.5, 2.5, -1.5, 1.5, 0], scale: 1.12 }
+                    : { y: [0, -5, 0], rotate: 0, scale: 1 }}
+                transition={roaring
+                    ? { duration: 0.55, repeat: Infinity, ease: 'easeInOut' }
+                    : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                className="relative"
+            >
+                <img
+                    src="/assets/lion-head.png"
+                    alt=""
+                    width={185}
+                    height={200}
+                    draggable={false}
+                    className="pointer-events-none"
+                    style={{
+                        transform: 'scaleX(-1)',
+                        filter: roaring
+                            ? 'drop-shadow(0 0 18px rgba(251,191,36,0.55)) drop-shadow(0 18px 28px rgba(0,0,0,0.55))'
+                            : 'drop-shadow(0 0 10px rgba(34,211,238,0.25)) drop-shadow(0 18px 28px rgba(0,0,0,0.55))',
+                        transition: 'filter 0.3s ease',
+                    }}
                 />
-            </svg>
-        </motion.div>
-    </div>
-);
+            </motion.div>
+        </div>
+    );
+};
 
 
 // ─── Shared mini status bar ───────────────────────────────────────
