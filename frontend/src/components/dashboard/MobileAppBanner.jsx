@@ -9,139 +9,146 @@ import {
 import { WaitlistCounter } from './WaitlistCounter';
 
 
-// ─── Walking business figure — premium SVG silhouette ──────────────
-const WalkingFigure = () => (
+// ─── Animated lion face — golden LIONSBIT mascot ────────────────────
+const LionFace = () => (
     <div className="relative pointer-events-none select-none" aria-hidden="true">
-        {/* Soft shadow under feet */}
+        {/* Soft shadow below */}
         <motion.div
-            animate={{ scaleX: [1, 0.92, 1], opacity: [0.55, 0.4, 0.55] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-[78px] h-[14px] rounded-[50%] bg-black blur-md"
+            animate={{ scaleX: [1, 0.9, 1], opacity: [0.5, 0.35, 0.5] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-[-8px] w-[110px] h-[16px] rounded-[50%] bg-black blur-md"
         />
 
-        {/* Subtle bob during walk */}
+        {/* Ambient golden glow behind the mane */}
         <motion.div
-            animate={{ y: [0, -2, 0] }}
-            transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ opacity: [0.25, 0.45, 0.25], scale: [1, 1.06, 1] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute inset-0 m-auto w-[150px] h-[150px] rounded-full bg-amber-500/30 blur-2xl"
+        />
+
+        {/* Gentle floating bob */}
+        <motion.div
+            animate={{ y: [0, -5, 0] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
             className="relative"
         >
-            <svg viewBox="0 0 110 220" width="110" height="220" className="drop-shadow-[0_18px_24px_rgba(0,0,0,0.55)]">
+            <svg viewBox="0 0 200 200" width="185" height="185" className="drop-shadow-[0_18px_28px_rgba(0,0,0,0.55)]">
                 <defs>
-                    {/* Body: dark navy with cyan rim light */}
-                    <linearGradient id="figBody" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#0a1a2e" />
-                        <stop offset="55%" stopColor="#0f2545" />
-                        <stop offset="100%" stopColor="#1a3a6b" />
+                    <radialGradient id="lionMane" cx="50%" cy="45%" r="60%">
+                        <stop offset="0%" stopColor="#b45309" />
+                        <stop offset="55%" stopColor="#92400e" />
+                        <stop offset="100%" stopColor="#451a03" />
+                    </radialGradient>
+                    <radialGradient id="lionFace" cx="50%" cy="40%" r="65%">
+                        <stop offset="0%" stopColor="#fbbf24" />
+                        <stop offset="60%" stopColor="#f59e0b" />
+                        <stop offset="100%" stopColor="#b45309" />
+                    </radialGradient>
+                    <linearGradient id="lionMuzzle" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fde68a" />
+                        <stop offset="100%" stopColor="#fbbf24" />
                     </linearGradient>
-                    {/* Skin / head: warm subtle */}
-                    <linearGradient id="figHead" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#3a4a5e" />
-                        <stop offset="100%" stopColor="#1f2937" />
-                    </linearGradient>
-                    {/* Cyan accent for rim & device glow */}
-                    <linearGradient id="figRim" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#0099ff" stopOpacity="0.2" />
+                    <linearGradient id="lionRim" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.85" />
+                        <stop offset="100%" stopColor="#0099ff" stopOpacity="0.15" />
                     </linearGradient>
                 </defs>
 
-                {/* Head */}
-                <ellipse cx="48" cy="22" rx="11" ry="13" fill="url(#figHead)" />
-                {/* Hair / top shadow */}
-                <path d="M37,18 Q42,8 54,9 Q60,11 59,18 Q56,14 48,14 Q42,14 37,18 Z" fill="#0a1220" opacity="0.85" />
-                {/* Head rim light */}
-                <path d="M40,15 Q42,8 50,9" stroke="url(#figRim)" strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.7" />
-                {/* Face — eyes */}
-                <ellipse cx="44" cy="23" rx="0.9" ry="1.4" fill="#e5e7eb" />
-                <ellipse cx="52" cy="23" rx="0.9" ry="1.4" fill="#e5e7eb" />
-                {/* Smile — gentle confident curve */}
-                <path d="M43.5,27 Q48,30.5 52.5,27" stroke="#e5e7eb" strokeWidth="1.1" fill="none" strokeLinecap="round" />
-                {/* Cheek warmth — subtle */}
-                <ellipse cx="42.5" cy="26.5" rx="1.2" ry="0.8" fill="#22d3ee" opacity="0.18" />
-                <ellipse cx="53.5" cy="26.5" rx="1.2" ry="0.8" fill="#22d3ee" opacity="0.18" />
-
-                {/* Neck */}
-                <rect x="44" y="33" width="8" height="6" fill="#1f2937" />
-
-                {/* Torso — suit jacket */}
-                <path d="M30,40 L66,40 L70,110 L26,110 Z" fill="url(#figBody)" />
-                {/* Shirt collar V */}
-                <path d="M44,40 L48,55 L52,40 Z" fill="#e5e7eb" opacity="0.85" />
-                {/* Tie */}
-                <path d="M47,50 L49,50 L50,72 L48,76 L46,72 Z" fill="#22d3ee" opacity="0.85" />
-                {/* Suit center line */}
-                <line x1="48" y1="55" x2="48" y2="105" stroke="#0a1a2e" strokeWidth="0.8" />
-                {/* Rim light on right shoulder */}
-                <path d="M62,42 L68,75" stroke="url(#figRim)" strokeWidth="1.3" strokeLinecap="round" opacity="0.65" />
-
-                {/* Back arm (left side, slightly behind body, mid-swing back) */}
+                {/* Mane — outer spiked crown, breathes slowly */}
                 <motion.g
-                    animate={{ rotate: [12, -8, 12] }}
-                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: '30px 50px' }}
+                    animate={{ scale: [1, 1.035, 1] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ transformOrigin: '100px 100px' }}
                 >
-                    <rect x="22" y="48" width="8" height="42" rx="3.5" fill="#0a1a2e" />
-                    {/* Hand */}
-                    <circle cx="26" cy="92" r="4.5" fill="#374151" />
-                </motion.g>
-
-                {/* Front arm (right side, extended TOWARD phone — points up-right). Subtle reach pulse */}
-                <motion.g
-                    animate={{ rotate: [-22, -18, -22] }}
-                    transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: '66px 50px' }}
-                >
-                    {/* Upper arm */}
-                    <rect x="64" y="46" width="8" height="34" rx="3.5" fill="url(#figBody)" transform="rotate(35 68 63)" />
-                    {/* Forearm reaching forward */}
-                    <rect x="78" y="48" width="7.5" height="36" rx="3.5" fill="#10243f" transform="rotate(72 82 66)" />
-                    {/* Hand — fist + extended index finger pointing UP-RIGHT toward the phone */}
-                    <g transform="translate(100 58) rotate(-25)">
-                        {/* Palm / fist */}
-                        <ellipse cx="0" cy="0" rx="4.5" ry="3.5" fill="#374151" />
-                        {/* Index finger pointing forward */}
-                        <rect x="2" y="-1.6" width="9" height="3.2" rx="1.6" fill="#3a4a5e" />
-                        {/* Finger tip light highlight */}
-                        <circle cx="11" cy="0" r="1.6" fill="#4b5563" />
-                        {/* Cyan dot on the tip — connection vibe */}
-                        <circle cx="11" cy="0" r="1" fill="#22d3ee" opacity="0.85" />
-                    </g>
-                    <motion.circle
-                        cx="111" cy="53" r="6"
-                        fill="none"
-                        stroke="#22d3ee"
-                        strokeWidth="1.2"
-                        opacity="0"
-                        animate={{ opacity: [0, 0.9, 0], scale: [0.6, 2.4, 2.6] }}
-                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut', delay: 1.5 }}
-                        style={{ transformOrigin: '111px 53px' }}
+                    <path
+                        d="M100,12
+                           L113,28 L132,18 L138,38 L160,34 L158,56 L180,60 L169,78 L188,92
+                           L170,104 L182,124 L161,128 L164,150 L143,146 L138,168 L120,156
+                           L108,174 L100,160 L92,174 L80,156 L62,168 L57,146 L36,150
+                           L39,128 L18,124 L30,104 L12,92 L31,78 L20,60 L42,56 L40,34
+                           L62,38 L68,18 L87,28 Z"
+                        fill="url(#lionMane)"
                     />
+                    {/* Inner mane ring — darker depth */}
+                    <circle cx="100" cy="96" r="62" fill="#78350f" opacity="0.55" />
+                    {/* Mane rim light (cyan, matches banner) */}
+                    <path d="M52,42 Q75,18 112,22" stroke="url(#lionRim)" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6" />
                 </motion.g>
 
-                {/* Pants — split into 2 legs that swing in opposition */}
+                {/* Ears */}
+                <circle cx="58" cy="52" r="14" fill="#d97706" />
+                <circle cx="58" cy="52" r="7" fill="#92400e" />
+                <circle cx="142" cy="52" r="14" fill="#d97706" />
+                <circle cx="142" cy="52" r="7" fill="#92400e" />
+
+                {/* Head */}
+                <ellipse cx="100" cy="100" rx="52" ry="55" fill="url(#lionFace)" />
+                {/* Forehead fur marks */}
+                <path d="M92,54 Q100,64 108,54" stroke="#b45309" strokeWidth="2.4" fill="none" strokeLinecap="round" opacity="0.7" />
+                <path d="M96,48 Q100,56 104,48" stroke="#b45309" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5" />
+
+                {/* Eyebrows */}
+                <path d="M70,80 Q80,74 90,79" stroke="#78350f" strokeWidth="3" fill="none" strokeLinecap="round" />
+                <path d="M110,79 Q120,74 130,80" stroke="#78350f" strokeWidth="3" fill="none" strokeLinecap="round" />
+
+                {/* Eyes — blink */}
                 <motion.g
-                    animate={{ rotate: [-9, 9, -9] }}
-                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: '42px 112px' }}
+                    animate={{ scaleY: [1, 1, 0.08, 1, 1] }}
+                    transition={{ duration: 4.2, repeat: Infinity, times: [0, 0.42, 0.47, 0.52, 1], ease: 'easeInOut' }}
+                    style={{ transformOrigin: '100px 92px' }}
                 >
-                    <path d="M30,110 L46,110 L44,188 L34,188 Z" fill="#0a1a2e" />
-                    {/* Shoe */}
-                    <ellipse cx="38" cy="194" rx="9" ry="4.5" fill="#000" />
-                    <ellipse cx="38" cy="192" rx="8" ry="3" fill="#1f2937" />
-                </motion.g>
-                <motion.g
-                    animate={{ rotate: [9, -9, 9] }}
-                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: '54px 112px' }}
-                >
-                    <path d="M50,110 L66,110 L62,188 L52,188 Z" fill="#10243f" />
-                    {/* Shoe */}
-                    <ellipse cx="57" cy="194" rx="9" ry="4.5" fill="#000" />
-                    <ellipse cx="57" cy="192" rx="8" ry="3" fill="#1f2937" />
+                    <ellipse cx="80" cy="92" rx="7.5" ry="9" fill="#fef3c7" />
+                    <ellipse cx="120" cy="92" rx="7.5" ry="9" fill="#fef3c7" />
+                    <circle cx="81" cy="93" r="4.6" fill="#451a03" />
+                    <circle cx="121" cy="93" r="4.6" fill="#451a03" />
+                    <circle cx="82.6" cy="91" r="1.6" fill="#ffffff" />
+                    <circle cx="122.6" cy="91" r="1.6" fill="#ffffff" />
                 </motion.g>
 
-                {/* Floor scuff highlight */}
-                <ellipse cx="48" cy="198" rx="22" ry="2" fill="#22d3ee" opacity="0.08" />
+                {/* Muzzle */}
+                <ellipse cx="100" cy="126" rx="26" ry="20" fill="url(#lionMuzzle)" />
+                {/* Nose */}
+                <path d="M92,116 L108,116 L100,127 Z" fill="#78350f" />
+                <path d="M94,117 Q100,114 106,117" stroke="#fbbf24" strokeWidth="1" fill="none" opacity="0.5" />
+                {/* Philtrum + mouth */}
+                <line x1="100" y1="127" x2="100" y2="133" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
+                <path d="M88,134 Q94,141 100,133 Q106,141 112,134" stroke="#78350f" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+                {/* Chin */}
+                <ellipse cx="100" cy="146" rx="9" ry="5" fill="#fde68a" opacity="0.7" />
+
+                {/* Whisker dots */}
+                <circle cx="84" cy="126" r="1.1" fill="#92400e" />
+                <circle cx="80" cy="131" r="1.1" fill="#92400e" />
+                <circle cx="116" cy="126" r="1.1" fill="#92400e" />
+                <circle cx="120" cy="131" r="1.1" fill="#92400e" />
+
+                {/* Whiskers — subtle twitch */}
+                <motion.g
+                    animate={{ rotate: [0, 1.6, 0, -1, 0] }}
+                    transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ transformOrigin: '100px 128px' }}
+                >
+                    <path d="M76,124 Q60,120 48,122" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
+                    <path d="M76,130 Q60,131 47,135" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
+                    <path d="M124,124 Q140,120 152,122" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
+                    <path d="M124,130 Q140,131 153,135" stroke="#fde68a" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.75" />
+                </motion.g>
+
+                {/* Cheek highlights — cyan accents to tie into banner palette */}
+                <ellipse cx="70" cy="108" rx="4" ry="2.4" fill="#22d3ee" opacity="0.14" />
+                <ellipse cx="130" cy="108" rx="4" ry="2.4" fill="#22d3ee" opacity="0.14" />
+
+                {/* Sparkle pulse near the mane (connection vibe with the phone) */}
+                <motion.circle
+                    cx="168" cy="58" r="5"
+                    fill="none"
+                    stroke="#22d3ee"
+                    strokeWidth="1.2"
+                    opacity="0"
+                    animate={{ opacity: [0, 0.9, 0], scale: [0.6, 2.2, 2.4] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut', delay: 1.2 }}
+                    style={{ transformOrigin: '168px 58px' }}
+                />
             </svg>
         </motion.div>
     </div>
@@ -657,16 +664,16 @@ export const MobileAppBanner = () => {
                     </motion.div>
                 </div>
 
-                {/* ── Right stage: walking figure + centered phone ───── */}
+                {/* ── Right stage: lion face + centered phone ───── */}
                 <div className="relative flex items-end justify-center mt-4 lg:mt-0 lg:pl-8 lg:pr-4 lg:py-6 mx-auto pb-10 min-h-[430px] lg:min-w-[460px]">
-                    {/* Walking figure — left of phone on tablet+desktop, below on mobile */}
+                    {/* Lion face — left of phone on tablet+desktop, hidden on mobile */}
                     <motion.div
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
-                        className="hidden sm:block absolute left-0 bottom-6 lg:bottom-8 z-20"
+                        className="hidden sm:block absolute left-0 bottom-16 lg:bottom-20 z-20"
                     >
-                        <WalkingFigure />
+                        <LionFace />
                     </motion.div>
 
                     {/* Phone — centered on the stage */}

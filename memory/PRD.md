@@ -330,7 +330,19 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
-### Iteration 74.10 — Personaje: sonrisa + dedo señalando el teléfono
+### Iteration 74.12 — Reemplazo del muñeco por cara de león animada (Jun 7, 2026)
+
+**Pedido:** Cambiar el muñeco animado (WalkingFigure) por la cara de un león animado.
+
+**Implementado en `MobileAppBanner.jsx`:** componente `WalkingFigure` eliminado y sustituido por `LionFace`:
+- SVG 200×200 cara de león dorada (paleta amber/gold a juego con la marca LIONSBIT): melena en corona con puntas (gradient radial #b45309→#451a03), orejas, cara con gradient dorado, hocico, nariz, bigotes, barbilla.
+- Animaciones framer-motion: parpadeo de ojos (blink cada ~4.2s con scaleY), respiración de la melena (scale 1↔1.035), bob flotante suave (y 0↔-5), twitch de bigotes, glow ámbar ambiental pulsante detrás, sombra elíptica animada debajo, pulse cyan de "conexión" hacia el teléfono.
+- Acentos rim-light cyan (#22d3ee) para integrarse con la paleta del banner.
+- Layout intacto: misma posición `absolute left-0` junto al teléfono (bottom ajustado a 16/20), oculto en móvil (`hidden sm:block`).
+
+**Status:** ✅ Verificado vía screenshot en el dashboard — cara de león dorada animada junto al teléfono.
+
+### Iteration 74.10 — Personaje: sonrisa + dedo señalando el teléfono (REEMPLAZADO por león en 74.12)
 
 **Pedido:** Que el muñeco se vea sonriendo y señalando la aplicación.
 
