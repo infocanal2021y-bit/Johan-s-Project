@@ -114,6 +114,7 @@ export const Sidebar = () => {
         { to: '/wallet/vault', icon: Boxes, label: 'Vault Blockchain' },
         { to: '/mobile-app', icon: Smartphone, label: 'App Móvil · Próximamente' },
         { to: '/cases', icon: FolderKanban, label: 'Mis Casos PLB' },
+        { to: '/messages', icon: MessageSquare, label: 'Centro de Mensajes' },
         { to: '/notifications', icon: Bell, label: 'Centro de Notificaciones' },
         { to: '/achievements', icon: Trophy, label: 'Logros' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },

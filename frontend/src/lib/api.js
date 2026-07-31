@@ -109,6 +109,12 @@ export const notificationsAPI = {
     markAllAsRead: () => api.put('/notifications/read-all'),
 };
 
+// Secure Messages API
+export const messagesAPI = {
+    getInbox: (params) => api.get('/messages/inbox', { params }),
+    markTicketSeen: (ticketId) => api.post(`/messages/tickets/${ticketId}/seen`),
+};
+
 // Feedback API
 export const feedbackAPI = {
     submit: (data) => api.post('/feedback', data),

@@ -16,6 +16,7 @@ import { WithdrawPage } from "./pages/WithdrawPage";
 import { TransferPage } from "./pages/TransferPage";
 import { KYCPage } from "./pages/KYCPage";
 import { SupportPage } from "./pages/SupportPage";
+import MessageCenterPage from "./pages/MessageCenterPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 // New Crypto/Finance Pages
@@ -149,6 +150,7 @@ function AppRoutes() {
             <Route path="/transfer" element={<ProtectedRoute><TransferPage /></ProtectedRoute>} />
             <Route path="/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><MessageCenterPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             
             {/* Crypto/Finance Routes */}

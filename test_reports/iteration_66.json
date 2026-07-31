@@ -1,0 +1,37 @@
+{
+  "summary": "Tested Secure Message Center feature end-to-end (backend + frontend). Wrote pytest suite covering inbox unification, kind/unread filters, ticket unread lifecycle (create -> admin reply -> unread=true -> /seen -> unread=false), 404 on missing ticket, and broadcast-to-inbox propagation. All 7 backend tests pass (100%). Executed UI flow via Playwright: /messages loads, 4 filter tabs render with unread badges, new-message dialog validates (rejects <3 char subject / <10 char body) and creates a ticket with PLB case code toast, new ticket appears at top of inbox, ticket-thread opens with correct bubbles, reply sending works, notification click opens notice-detail. Fixed one real bug found during UI testing: user-side reply from Message Center was returning 422 because TicketReply pydantic model required ticket_id in body while the frontend only sends {message} (ticket_id is already in the URL path).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/support/tickets/{id}/reply and /api/admin/support/tickets/{id}/reply", "issue": "TicketReply model required ticket_id in body while ID already comes from URL path — caused 422 from the Message Center UI reply. Fixed by making ticket_id Optional in /app/backend/models.py."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_secure_message_center.py",
+    "/app/test_reports/pytest/msgcenter.xml"
+  ],
+  "action_items": [
+    "Confirm the models.py change (TicketReply.ticket_id -> Optional) is acceptable; no other callers depend on ticket_id being required in body."
+  ],
+  "critical_code_review_comments": [
+    "MessageCenterPage.jsx: NoticeDetail effect calls /notifications/{id}/read for both 'broadcast' and 'notification' kinds — verify backend accepts marking a broadcast-notification via this same endpoint (it appears to, since broadcasts are stored in the notifications collection with broadcast:true).",
+    "secure_messages.py: string comparison of ISO timestamps for unread logic ('created_at' > 'user_last_seen_at') works only because both are ISO 8601 UTC — okay, but a datetime parse would be safer and immune to timezone-suffix drift.",
+    "secure_messages.py: inbox fetches up to 300 notifications; for the admin (~300 login notifications) the client rendered 196+ items in the notification tab, which is heavy for React — consider server-side pagination for future scale."
+  ],
+  "updated_files": [
+    "/app/backend/models.py",
+    "/app/backend/tests/test_secure_message_center.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin admi@paylionsbit.es / LionsBit2026! (as documented). Temp test user registered per-run via /api/auth/register with TEST_msgctr_* prefix; left in DB (safe, TEST_ prefix).",
+  "seed_data_creation": "One test ticket 'TEST_UI ticket asunto' created via UI as admin; several TEST_msgctr_* users + a TEST_broadcast_msg created via backend tests. All prefixed TEST_ for easy cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Message Center endpoints are stable. /api/messages/inbox returns items[], unread_counts{ticket,broadcast,notification,total}, totals_by_kind{...}, total. /api/messages/tickets/{id}/seen returns {ok:true} or 404. Ticket unread=true only when a from_admin=true reply exists after user_last_seen_at. Frontend page /messages uses testids: message-center-page, inbox-filter-{all|ticket|broadcast|notification}, inbox-item-{id}, unread-dot-{id}, ticket-thread, ticket-reply-input, ticket-reply-send-btn, notice-detail, new-message-btn, new-message-dialog, new-message-subject, new-message-category, new-message-body, new-message-submit, inbox-refresh-btn, inbox-list, inbox-detail-pane, inbox-empty, inbox-back-btn. Sidebar link at line 117 of Sidebar.jsx points to /messages.",
+  "rca of the issue": "Bug: user reply from Message Center returned 422 'Field required ticket_id'. Cause: shared pydantic TicketReply model marked ticket_id as required, but /support/tickets/{ticket_id}/reply already binds ticket_id from path; frontend supportAPI.replyToTicket only sends {message}. Reproduction: log in as user, POST /api/support/tickets/{id}/reply with body {\"message\":\"foo\"} -> 422. Fix applied: ticket_id: Optional[str] = None in /app/backend/models.py. Endpoint continues to work for both callers (admin and user); tests updated accordingly."
+}

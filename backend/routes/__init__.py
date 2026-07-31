@@ -34,6 +34,7 @@ from routes.cases import router as cases_router
 from routes.bank_transfer_proofs import router as bank_transfer_proofs_router
 from routes.bank_certificate_requests import router as bank_certificate_requests_router
 from routes.global_search import router as global_search_router
+from routes.secure_messages import router as secure_messages_router
 
 
 def register_routes(api_router: APIRouter):
@@ -71,3 +72,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(bank_transfer_proofs_router, tags=["bank-transfer-proofs"])
     api_router.include_router(bank_certificate_requests_router, tags=["bank-certificates"])
     api_router.include_router(global_search_router, tags=["global-search"])
+    api_router.include_router(secure_messages_router, tags=["secure-messages"])

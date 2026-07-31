@@ -155,7 +155,7 @@ class SupportTicket(BaseModel):
     category: str = Field(default='general')
 
 class TicketReply(BaseModel):
-    ticket_id: str
+    ticket_id: Optional[str] = None
     message: str = Field(..., min_length=1)
 
 class PasswordResetRequest(BaseModel):
