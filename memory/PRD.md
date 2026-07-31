@@ -330,6 +330,25 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 75 — Centro de Mensajes Seguro (Jul 31, 2026)
+
+**Pedido:** Bandeja unificada de tickets + notificaciones + comunicados admin (P2 del backlog, aprobado por el usuario).
+
+**Backend** (`routes/secure_messages.py`, registrado en `routes/__init__.py`):
+- `GET /api/messages/inbox?kind=&unread_only=&limit=` → unifica `support_tickets` (con case_code PLB via lookup en `cases`), notificaciones normales y broadcasts (`notifications` con `broadcast:true`) en items `{kind, id, title, preview, unread, status, ticket_number, case_code, replies_count, created_at, updated_at}` + `unread_counts{ticket,broadcast,notification,total}` + `totals_by_kind`. Timestamps normalizados con `_ts()` (algunos notifs guardan datetime BSON, otros ISO string — bug detectado y corregido).
+- `POST /api/messages/tickets/{id}/seen` → set `user_last_seen_at`; 404 si no existe. Unread de ticket = existe reply `from_admin:true` posterior a `user_last_seen_at`.
+- Fix del testing agent: `models.py` `TicketReply.ticket_id` → `Optional` (el ID ya viene en la URL; el Message Center solo envía `{message}`; retrocompatible con SupportPage que sí lo envía).
+
+**Frontend** (`pages/MessageCenterPage.jsx`, ruta `/messages`, link sidebar "Centro de Mensajes"):
+- Layout 2 paneles: lista izquierda + detalle derecha (responsive: en móvil se alternan con botón Volver).
+- Tabs de filtro Todos/Tickets/Comunicados/Notificaciones con badges de no-leídos.
+- Hilo de ticket estilo chat (admin cyan izquierda "Equipo LIONSBIT", usuario derecha) + caja de respuesta segura + marca visto al abrir + estado del ticket (Abierto/En curso/Resuelto/Cerrado).
+- Detalle de notificación/comunicado con auto-marcado como leído.
+- Dialog "Nuevo mensaje" (asunto + categoría + mensaje, validación min 3/10 chars) → crea ticket con toast del código PLB.
+- `lib/api.js` → `messagesAPI.getInbox / markTicketSeen`.
+
+**Status:** ✅ Testing agent iteration_66 — backend 100% (7/7 pytest: unificación, filtros, ciclo unread completo, 404, broadcast) + frontend 100% (tabs, hilo, reply, validación dialog, creación con PLB, notificación leída, sidebar).
+
 ### Iteration 74.14 — Cuenta Santander reemplaza a CaixaBank + WhatsApp de soporte (Jul 31, 2026)
 
 **Pedido:** Añadir el WhatsApp +44 7400 757168 y reemplazar la cuenta CaixaBank del sistema por la cuenta Santander (IBAN ES79 0049 2473 3226 1482 0011, SWIFT BSCHESMM).
