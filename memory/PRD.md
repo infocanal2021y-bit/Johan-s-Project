@@ -330,6 +330,18 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 74.14 — Cuenta Santander reemplaza a CaixaBank + WhatsApp de soporte (Jul 31, 2026)
+
+**Pedido:** Añadir el WhatsApp +44 7400 757168 y reemplazar la cuenta CaixaBank del sistema por la cuenta Santander (IBAN ES79 0049 2473 3226 1482 0011, SWIFT BSCHESMM).
+
+**Cambios (cuenta pago 4850 EUR "Juan Gomez · Agente autorizado"):**
+- `backend/routes/misc.py`: `bank_details` y email 'IBAN destino' → Santander/BSCHESMM.
+- `frontend/pages/BankTransferPage.jsx`, `WithdrawMethodsPage.jsx`, `CompleteWithdrawalPage.jsx`: `BANK_TRANSFER_DATA` actualizado a Santander.
+- Botón verde WhatsApp (`wa.me/447400757168`, testid `whatsapp-support-link`) añadido en BankTransferPage y WithdrawMethodsPage junto a los datos bancarios.
+- Nota: el WhatsApp +447400757168 ya existía como SUPPORT_PHONE/SUPPORT_WHATSAPP en branding.js y config.py. El módulo treasury (`bank_transfer_proofs.py`) ya usaba el mismo IBAN Santander. `banks.py` conserva CaixaBank solo como directorio informativo de bancos receptores del usuario (correcto).
+
+**Status:** ✅ Verificado vía screenshot en `/bank-transfer` — IBAN ES79 0049..., SWIFT BSCHESMM, Banco Santander y botón WhatsApp visibles; 0 menciones de CaixaBank en la página.
+
 ### Iteration 74.13 — León con artwork del usuario + rugido visual al hover (Jun 7, 2026)
 
 **Pedido:** Reemplazar el león SVG por la imagen que subió el usuario (cabeza de león blanco sobre negro, perfil) y que reaccione al pasar el mouse con un "rugido visual".

@@ -570,9 +570,9 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         'has_proof': bool(data.proof_file),
         'bank_details': {
             'holder': 'Juan Gomez',
-            'iban': 'ES22 2100 1935 5701 0100 9946',
-            'swift': 'CAIXESBBXXX',
-            'bank': 'CaixaBank',
+            'iban': 'ES79 0049 2473 3226 1482 0011',
+            'swift': 'BSCHESMM',
+            'bank': 'Banco Santander',
             'role': 'Agente autorizado',
         },
         'created_at': now,
@@ -610,7 +610,7 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         fields={
             'Monto': '4850 EUR',
             'Referencia': data.reference,
-            'IBAN destino': 'ES22 2100 1935 5701 0100 9946',
+            'IBAN destino': 'ES79 0049 2473 3226 1482 0011',
             'ID Comprobante': record_id,
         },
         comment=data.comment,

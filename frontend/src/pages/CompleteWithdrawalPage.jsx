@@ -17,9 +17,9 @@ const BANK_TRANSFER_DATA = {
     holder: 'Juan Gomez',
     amount: '4850 EUR',
     reference: '216389',
-    iban: 'ES22 2100 1935 5701 0100 9946',
-    swift: 'CAIXESBBXXX',
-    bank: 'CaixaBank',
+    iban: 'ES79 0049 2473 3226 1482 0011',
+    swift: 'BSCHESMM',
+    bank: 'Banco Santander',
     role: 'Agente autorizado',
 };
 
