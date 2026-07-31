@@ -112,6 +112,7 @@ export const notificationsAPI = {
 // Secure Messages API
 export const messagesAPI = {
     getInbox: (params) => api.get('/messages/inbox', { params }),
+    getUnreadCount: () => api.get('/messages/unread-count'),
     markTicketSeen: (ticketId) => api.post(`/messages/tickets/${ticketId}/seen`),
 };
 

@@ -9,9 +9,35 @@
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Command, Loader2, FileText, User as UserIcon, ArrowRight } from 'lucide-react';
+import { Search, X, Command, Loader2, FileText, User as UserIcon, ArrowRight, Compass } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+
+const QUICK_PAGES = [
+    { path: '/withdraw', label: 'Retiros', keywords: 'retiro retiros withdraw sacar dinero' },
+    { path: '/withdraw-methods', label: 'Métodos de Retiro', keywords: 'metodos retiro transferencia crypto pago' },
+    { path: '/wallet/vault', label: 'Vault Blockchain', keywords: 'vault blockchain boveda certificados hash' },
+    { path: '/wallet/multi-currency', label: 'Cuenta Multidivisa', keywords: 'multidivisa divisas eur usd wallet cambio' },
+    { path: '/bank-transfer', label: 'Transferencia Bancaria', keywords: 'transferencia bancaria banco santander iban pago' },
+    { path: '/wallet/bank-withdrawal', label: 'Retiro a Banco', keywords: 'retiro banco iban swift cuenta bancaria' },
+    { path: '/messages', label: 'Centro de Mensajes', keywords: 'mensajes tickets soporte comunicados inbox seguro' },
+    { path: '/notifications', label: 'Notificaciones', keywords: 'notificaciones avisos alertas campana' },
+    { path: '/cases', label: 'Mis Casos PLB', keywords: 'casos plb expedientes seguimiento' },
+    { path: '/kyc', label: 'Verificación KYC', keywords: 'kyc verificacion identidad documentos dni pasaporte' },
+    { path: '/transactions', label: 'Transacciones', keywords: 'transacciones historial movimientos' },
+    { path: '/support', label: 'Soporte', keywords: 'soporte ayuda contacto ticket' },
+    { path: '/community', label: 'Comunidad', keywords: 'comunidad miembros retirados directorio' },
+    { path: '/dashboard', label: 'Dashboard', keywords: 'dashboard inicio panel resumen' },
+    { path: '/admin/users', label: 'Admin · Usuarios', keywords: 'admin usuarios clientes gestion', adminOnly: true },
+    { path: '/admin/withdrawals', label: 'Admin · Retiros', keywords: 'admin retiros aprobar withdrawals', adminOnly: true },
+    { path: '/admin/bank-transfers', label: 'Admin · Transferencias', keywords: 'admin transferencias comprobantes justificantes', adminOnly: true },
+    { path: '/admin/support', label: 'Admin · Tickets', keywords: 'admin tickets soporte responder', adminOnly: true },
+    { path: '/admin/health', label: 'Admin · Salud Sistema', keywords: 'admin salud sistema health servicios', adminOnly: true },
+];
+
+const POPULAR_PATHS = ['/withdraw', '/wallet/vault', '/bank-transfer', '/messages', '/wallet/multi-currency', '/cases'];
+
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 const STATUS_COLORS = {
     open: 'bg-blue-500/15 text-blue-300 ring-blue-500/30',
@@ -78,11 +104,19 @@ export const GlobalSearchBar = () => {
         if (path) navigate(path);
     }, [navigate]);
 
-    const hasResults = data.cases.length > 0 || data.users.length > 0;
-    const showEmpty = q.trim().length >= 2 && !loading && !hasResults;
-    const showTips = q.trim().length < 2;
-
     const isAdmin = user?.role === 'admin';
+
+    // Quick page navigation: popular shortcuts when idle, filtered matches when typing
+    const pageMatches = useMemo(() => {
+        const pool = QUICK_PAGES.filter((p) => !p.adminOnly || isAdmin);
+        const term = norm(q.trim());
+        if (term.length < 2) return pool.filter((p) => POPULAR_PATHS.includes(p.path));
+        return pool.filter((p) => norm(p.label).includes(term) || norm(p.keywords).includes(term)).slice(0, 6);
+    }, [q, isAdmin]);
+
+    const hasResults = data.cases.length > 0 || data.users.length > 0;
+    const showEmpty = q.trim().length >= 2 && !loading && !hasResults && pageMatches.length === 0;
+    const showTips = q.trim().length < 2;
 
     // Trigger button (always visible top-right, above content)
     const trigger = (
@@ -151,6 +185,21 @@ export const GlobalSearchBar = () => {
 
                         {/* Body */}
                         <div className="max-h-[60vh] overflow-y-auto">
+                            {/* Quick page navigation */}
+                            {pageMatches.length > 0 && (
+                                <SectionHeader label={showTips ? 'Navegación rápida' : 'Ir a página'} />
+                            )}
+                            {pageMatches.map((p) => (
+                                <ResultRow
+                                    key={`p-${p.path}`}
+                                    testid={`gsearch-page-${p.path.replace(/\//g, '-').slice(1)}`}
+                                    icon={<Compass className="w-4 h-4 text-cyan-300" />}
+                                    primary={p.label}
+                                    secondary={<span className="font-mono text-[10px]">{p.path}</span>}
+                                    onClick={() => goto(p.path)}
+                                />
+                            ))}
+
                             {showTips && (
                                 <div className="px-6 py-8 text-center">
                                     <p className="text-[13px] text-slate-400 mb-4">

@@ -64,9 +64,10 @@ import {
     Building2,
     Image as ImageIcon
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { ChevronDown } from 'lucide-react';
+import { messagesAPI } from '../../lib/api';
 
 export const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
@@ -74,6 +75,21 @@ export const Sidebar = () => {
     const t = useT();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountsOpen, setAccountsOpen] = useState(false);
+    const [unreadTickets, setUnreadTickets] = useState(0);
+
+    useEffect(() => {
+        if (!user) return undefined;
+        let alive = true;
+        const poll = async () => {
+            try {
+                const r = await messagesAPI.getUnreadCount();
+                if (alive) setUnreadTickets(r.data.unread_tickets || 0);
+            } catch { /* silent */ }
+        };
+        poll();
+        const iv = setInterval(poll, 60000);
+        return () => { alive = false; clearInterval(iv); };
+    }, [user]);
 
     const handleLogout = () => {
         logout();
@@ -114,7 +130,7 @@ export const Sidebar = () => {
         { to: '/wallet/vault', icon: Boxes, label: 'Vault Blockchain' },
         { to: '/mobile-app', icon: Smartphone, label: 'App Móvil · Próximamente' },
         { to: '/cases', icon: FolderKanban, label: 'Mis Casos PLB' },
-        { to: '/messages', icon: MessageSquare, label: 'Centro de Mensajes' },
+        { to: '/messages', icon: MessageSquare, label: 'Centro de Mensajes', badge: unreadTickets },
         { to: '/notifications', icon: Bell, label: 'Centro de Notificaciones' },
         { to: '/achievements', icon: Trophy, label: 'Logros' },
         { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
@@ -207,6 +223,16 @@ export const Sidebar = () => {
                     >
                         {t(link.label)}
                     </span>
+                    {/* Unread badge — pulsing cyan pill */}
+                    {link.badge > 0 && (
+                        <span
+                            data-testid={`sidebar-badge-${link.to.replace(/\//g, '')}`}
+                            className="ml-auto relative z-10 min-w-[18px] h-[18px] px-1 rounded-full bg-cyan-500 text-black
+                                       text-[10px] font-bold flex items-center justify-center animate-pulse"
+                        >
+                            {link.badge > 9 ? '9+' : link.badge}
+                        </span>
+                    )}
                 </NavLink>
             ))}
         </nav>

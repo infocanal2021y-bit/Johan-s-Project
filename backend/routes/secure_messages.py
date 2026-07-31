@@ -117,6 +117,17 @@ async def get_secure_inbox(
     }
 
 
+@router.get("/messages/unread-count")
+async def get_unread_count(current_user: dict = Depends(get_current_user)):
+    """Lightweight badge counter: tickets with a new admin reply."""
+    tickets = await db.support_tickets.find(
+        {'user_id': current_user['id']},
+        {'_id': 0, 'replies.from_admin': 1, 'replies.created_at': 1, 'user_last_seen_at': 1}
+    ).to_list(200)
+    unread_tickets = sum(1 for t in tickets if _ticket_unread(t))
+    return {'unread_tickets': unread_tickets}
+
+
 @router.post("/messages/tickets/{ticket_id}/seen")
 async def mark_ticket_seen(ticket_id: str, current_user: dict = Depends(get_current_user)):
     """Mark a ticket thread as seen by the user (clears its unread state)."""

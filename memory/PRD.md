@@ -330,6 +330,17 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 76 — Navegación Rápida en buscador + badge de tickets en Sidebar (Jul 31, 2026)
+
+**Pedido:** (1) El buscador global Ctrl+K debe sugerir páginas (Retiros, Vault...) para llegar en un clic. (2) Aviso visual en el sidebar cuando llegue una respuesta nueva del equipo a un ticket.
+
+**Implementado:**
+- `GlobalSearchBar.jsx`: array `QUICK_PAGES` (14 páginas user + 5 admin-only con flag `adminOnly`) con keywords normalizados (sin acentos via `norm()`). En estado idle muestra 6 atajos populares ("Navegación rápida"); al escribir filtra por label/keywords ("Ir a página", máx 6) encima de los resultados de casos/clientes. Rows con icono Compass cyan, testid `gsearch-page-{path}`. `showEmpty` considera pageMatches. BUG corregido durante el desarrollo: TDZ (`showEmpty` referenciaba `pageMatches` antes de su declaración) + duplicado de `isAdmin` — ambos arreglados reordenando declaraciones.
+- Backend `secure_messages.py`: nuevo `GET /api/messages/unread-count` → `{unread_tickets}` (proyección ligera, solo replies/user_last_seen_at).
+- `Sidebar.jsx`: poll cada 60s a `messagesAPI.getUnreadCount()`; el link "Centro de Mensajes" acepta `badge` y `NavLinks` renderiza pill cyan pulsante (`animate-pulse`, 9+ cap, testid `sidebar-badge-messages`) para cualquier link con badge>0.
+
+**Status:** ✅ Verificado e2e vía curl (0→1 tras admin reply, →0 tras /seen) y screenshots (badge "1" visible, 6 atajos idle, "retiros"→2 matches, click navega a /withdraw).
+
 ### Iteration 75 — Centro de Mensajes Seguro (Jul 31, 2026)
 
 **Pedido:** Bandeja unificada de tickets + notificaciones + comunicados admin (P2 del backlog, aprobado por el usuario).
