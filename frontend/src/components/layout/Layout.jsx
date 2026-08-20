@@ -4,6 +4,7 @@ import { OnboardingTour } from '../onboarding/OnboardingTour';
 import { InactivityPrompt } from '../InactivityPrompt';
 import { JourneyToastNotifier } from '../JourneyToastNotifier';
 import { GlobalSearchBar } from '../search/GlobalSearchBar';
+import { WhatsAppFloatButton } from '../WhatsAppFloatButton';
 import { useInactivityDetector } from '../../hooks/useInactivityDetector';
 import { useActivityTracker } from '../../hooks/useActivityTracker';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,7 @@ export const Layout = ({ children }) => {
                 {user && <OnboardingTour />}
                 {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
                 {user && <JourneyToastNotifier />}
+                {user && <WhatsAppFloatButton />}
             </div>
         </div>
     );

@@ -330,6 +330,9 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 79.1 — Botón flotante de WhatsApp global (Aug 20, 2026)
+- `components/WhatsAppFloatButton.jsx` montado en Layout (solo usuarios logueados): botón verde flotante bottom-right z-60, ping animado, expande al hover mostrando "WhatsApp · +44 7400 757168", abre wa.me/447400757168. Testid `whatsapp-float-btn`. Verificado por screenshot (visible en dashboard, hover OK, href correcto).
+
 ### Iteration 79 — Aviso Entregas + Página Estado de Servicios (Aug 20, 2026)
 
 **1. Aviso Entregas** (`fx2026_import.py` `_send_welcome_batch`): al terminar el envío masivo, TODOS los admins reciben notificación in-app "Bienvenidas FX2026 completadas" + email resumen (plantilla oficial) con entregados/fallidos/total. Verificado ejecutando el batch con lista vacía: notif creada + emails sent a admi@ y admin.backup@paylionsbit.es.
