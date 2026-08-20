@@ -27,6 +27,7 @@ const QUICK_PAGES = [
     { path: '/transactions', label: 'Transacciones', keywords: 'transacciones historial movimientos' },
     { path: '/support', label: 'Soporte', keywords: 'soporte ayuda contacto ticket' },
     { path: '/community', label: 'Comunidad', keywords: 'comunidad miembros retirados directorio' },
+    { path: '/status', label: 'Estado de Servicios', keywords: 'estado servicios status incidencias monitorizacion' },
     { path: '/dashboard', label: 'Dashboard', keywords: 'dashboard inicio panel resumen' },
     { path: '/admin/users', label: 'Admin · Usuarios', keywords: 'admin usuarios clientes gestion', adminOnly: true },
     { path: '/admin/withdrawals', label: 'Admin · Retiros', keywords: 'admin retiros aprobar withdrawals', adminOnly: true },

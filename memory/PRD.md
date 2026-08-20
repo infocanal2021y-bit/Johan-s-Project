@@ -330,6 +330,16 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 79 — Aviso Entregas + Página Estado de Servicios (Aug 20, 2026)
+
+**1. Aviso Entregas** (`fx2026_import.py` `_send_welcome_batch`): al terminar el envío masivo, TODOS los admins reciben notificación in-app "Bienvenidas FX2026 completadas" + email resumen (plantilla oficial) con entregados/fallidos/total. Verificado ejecutando el batch con lista vacía: notif creada + emails sent a admi@ y admin.backup@paylionsbit.es.
+
+**2. Estado de Servicios** (`routes/service_status.py` + `pages/ServiceStatusPage.jsx`, ruta `/status`, link sidebar "Estado de Servicios" + atajo en buscador global):
+- `GET /api/system/status` (autenticado): 6 componentes — Banca Core & Pagos (check colección accounts + latencia), MT5 Hub (demo_accounts), Base de Datos (ping mongo, degraded si >250ms), Notificaciones Email (Resend key + ratio fallos 24h de email_logs), Tipos de Cambio (fetch live er-api timeout 5s, degraded→caché fresca <2h), Vault Blockchain (interno, operational estático — MOCKED). Overall = peor estado. Guarda snapshot en `status_snapshots` (cap 400) y devuelve últimos 60 para historial.
+- Frontend estilo statuspage: banner overall (verde/ámbar/rojo), filas con dot + latencia + detalle, mini-barras de historial por componente, auto-refresh 60s, botón Actualizar. Testids: service-status-page, status-overall-banner, status-component-{key}.
+
+**Status:** ✅ Verificado — curl (overall operational, 6 componentes con latencias) + screenshot (página completa renderizada) + test del aviso admin.
+
 ### Iteration 78.2 — Panel FX2026 en admin + alta de johanspotify67 (Aug 20, 2026)
 
 - **Panel FX2026** (`components/admin/FX2026BatchCard.jsx`, montado arriba en AdminUsersPage): stats importados/bienvenidas enviadas/pendientes + botones Importar / Enviar bienvenidas (con confirm) / refresh; barra de progreso con poll cada 5s mientras el batch corre; reporte final enviados/fallidos (`fx2026-final-report`). Verificado por screenshot (624/0/624, tabla de usuarios carga 1000 OK — el "0" inicial era solo timing del debounce).

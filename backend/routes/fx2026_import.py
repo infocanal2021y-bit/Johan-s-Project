@@ -141,6 +141,22 @@ async def _send_welcome_batch(users):
     _send_state['finished_at'] = _now()
     logging.info(f"fx2026 welcome batch done: {_send_state}")
 
+    # Notify every admin (in-app + email) with the delivery summary
+    try:
+        summary = (f"Envío masivo FX2026 finalizado: {_send_state['sent']} entregados, "
+                   f"{_send_state['failed']} fallidos de {_send_state['total']}.")
+        admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(20)
+        for a in admins:
+            await create_notification(a['id'], 'Bienvenidas FX2026 completadas', summary)
+            content = f"""
+                <h2 style="color: #10b981; margin: 0 0 20px 0;">Env&iacute;o masivo completado</h2>
+                <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">{summary}</p>
+                <p style="color: #94a3b8; font-size: 13px;">Puede ver el detalle en el panel Lote FX2026 (Admin &rarr; Usuarios).</p>
+            """
+            await send_email(a['email'], 'Resumen: bienvenidas FX2026 enviadas', get_email_template(content))
+    except Exception as e:
+        logging.error(f"fx2026 admin summary notification failed: {e}")
+
 
 @router.post("/admin/fx2026/send-welcome")
 async def fx2026_send_welcome(data: dict = None, admin: dict = Depends(get_admin_user)):

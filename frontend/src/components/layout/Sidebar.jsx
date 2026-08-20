@@ -150,6 +150,7 @@ export const Sidebar = () => {
         { to: '/investment-comparator', icon: Scale, label: 'Comparador' },
         { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
         { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
+        { to: '/status', icon: Activity, label: 'Estado de Servicios' },
     ];
 
     const adminLinks = [
