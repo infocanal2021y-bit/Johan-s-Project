@@ -5,6 +5,7 @@ import { InactivityPrompt } from '../InactivityPrompt';
 import { JourneyToastNotifier } from '../JourneyToastNotifier';
 import { GlobalSearchBar } from '../search/GlobalSearchBar';
 import { WhatsAppFloatButton } from '../WhatsAppFloatButton';
+import { DiagnosticModal } from '../diagnostics/DiagnosticModal';
 import { useInactivityDetector } from '../../hooks/useInactivityDetector';
 import { useActivityTracker } from '../../hooks/useActivityTracker';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +30,7 @@ export const Layout = ({ children }) => {
                 {user && <InactivityPrompt show={showPrompt} onDismiss={dismiss} />}
                 {user && <JourneyToastNotifier />}
                 {user && <WhatsAppFloatButton />}
+                {user && <DiagnosticModal />}
             </div>
         </div>
     );

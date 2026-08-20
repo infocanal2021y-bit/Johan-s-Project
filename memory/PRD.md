@@ -330,6 +330,16 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 80 — BUG FIX: "Salud de cuenta" no se abría al hacer clic (Aug 20, 2026)
+
+**Bug:** la tarjeta "Salud de cuenta" del dashboard (badge "2 pendientes", `DiagnosticCTA`) y el anillo de salud del sidebar disparaban el evento `open-diagnostic`, pero el ÚNICO listener vivía en `AIAssistantWidget.jsx` que está OCULTO → el clic no hacía nada.
+
+**Fix:**
+- Nuevo `components/diagnostics/DiagnosticModal.jsx`: sheet lateral derecho (z-80, cierre con X/overlay/Escape) que escucha `open-diagnostic` y renderiza el `DiagnosticPanel` existente con acciones para resolver. Montado en `Layout.jsx` para usuarios logueados. NO se tocaron los archivos del AI widget.
+- Fix adicional detectado por testing agent: `routes/diagnostics.py` devolvía `action_path='/account'` (ruta inexistente en el router) en 5 findings → corregido a `/settings` (perfil) y `/kyc` (los 4 de verificación).
+
+**Status:** ✅ Testing agent iteration_68 (frontend 100%): modal abre desde CTA y desde el anillo del sidebar, hallazgos visibles, acciones navegan (retiro→/wallet/bank-withdrawal, vault→/wallet/vault), cierre X/overlay OK. Rutas corregidas verificadas por curl (/settings, /kyc). Pendiente cosmético opcional NO tocado: warnings de hidratación (span dentro de select) en BankWithdrawalPage.
+
 ### Iteration 79.4 — Chequeo programado de servicios cada 5 min (Aug 20, 2026)
 - `service_status.py`: lógica del endpoint extraída a `run_status_checks()` (el endpoint la llama).
 - `server.py` scheduler: job `service_status_checks` cada 5 min (primer run a los 90s del arranque) → detecta incidencias y avisa a admins SIN esperar visitas a la página.

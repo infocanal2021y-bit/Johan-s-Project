@@ -75,7 +75,7 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
             'Datos personales incompletos',
             f"Faltan: {', '.join(missing_profile_fields)}. Completa tu perfil para agilizar verificaciones.",
             action_label='Completar perfil',
-            action_path='/account',
+            action_path='/settings',
             meta={'missing': missing_profile_fields},
         ))
 
@@ -91,7 +91,7 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
             'KYC en revisión',
             'Tus documentos están siendo revisados por nuestro equipo. Te avisaremos por email.',
             action_label='Ver estado',
-            action_path='/account',
+            action_path='/kyc',
         ))
     elif kyc_status in ('rejected', 'denied'):
         findings.append(_f(
@@ -99,7 +99,7 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
             'KYC rechazado',
             'Tu verificación fue rechazada. Revisa el motivo y vuelve a subir los documentos.',
             action_label='Volver a verificar',
-            action_path='/account',
+            action_path='/kyc',
         ))
     elif not has_docs:
         findings.append(_f(
@@ -107,7 +107,7 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
             'Faltan documentos de identidad',
             'No has subido tu documentación KYC. Es obligatorio para retirar fondos y operar.',
             action_label='Subir documentos',
-            action_path='/account',
+            action_path='/kyc',
         ))
     else:
         findings.append(_f(
@@ -115,7 +115,7 @@ async def my_diagnostics(user: dict = Depends(get_current_user)):
             'Verificación incompleta',
             'Hay documentos pendientes de subir o de aprobar para finalizar tu KYC.',
             action_label='Continuar verificación',
-            action_path='/account',
+            action_path='/kyc',
         ))
 
     # ── 3) ACCOUNT STATUS ────────────────────────────────────────
