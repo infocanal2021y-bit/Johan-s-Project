@@ -152,7 +152,7 @@ function AppRoutes() {
             <Route path="/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><MessageCenterPage /></ProtectedRoute>} />
-            <Route path="/status" element={<ProtectedRoute><ServiceStatusPage /></ProtectedRoute>} />
+            <Route path="/status" element={<ServiceStatusPage />} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             
             {/* Crypto/Finance Routes */}

@@ -330,6 +330,10 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 79.3 — Aviso de incidencias a admins + Estado público (Aug 20, 2026)
+- **Aviso Incidencias** (`service_status.py`): al ABRIRSE una incidencia (componente pasa a degraded/down), todos los admins reciben notificación in-app "⚠ Incidencia: {componente}" + email con plantilla oficial (send_email_background para no bloquear el endpoint). Solo al abrir, no en cada check (sin spam). Verificado e2e: 50 email_logs failed simulados → componente email degraded → incidencia abierta + notif admin + email sent → limpieza → incidencia cerrada automáticamente (duración 20s) → overall operational. Datos de simulación limpiados.
+- **Estado Público**: `GET /api/system/status` ya sin auth. Ruta `/status` en App.js sin ProtectedRoute. `ServiceStatusPage.jsx` → componente `Shell`: con sesión usa Layout normal; sin sesión muestra shell público (header LIONSBIT + link "Iniciar sesión", testids public-status-shell / public-status-login-link). Verificado por screenshot sin login: banner + 6 componentes + historial visibles.
+
 ### Iteration 79.2 — WhatsApp prellenado + Historial de incidencias (Aug 20, 2026)
 - `WhatsAppFloatButton.jsx`: href ahora `wa.me/447400757168?text=Hola, soy {nombre} ({email}). Necesito ayuda con mi cuenta.` (identificación instantánea del cliente). Verificado por href en screenshot.
 - `service_status.py`: tracking de incidencias en colección `status_incidents` — al fallar un componente se abre incidencia {component, status, detail, started_at}; si cambia severidad se actualiza; al recuperarse se cierra con ended_at + duration_seconds. Endpoint devuelve últimas 20 en `incidents`.

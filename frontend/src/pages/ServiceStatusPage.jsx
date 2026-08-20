@@ -1,11 +1,41 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/button';
+import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import {
-    CheckCircle2, AlertTriangle, XCircle, RefreshCw, Loader2, Activity, Clock,
+    CheckCircle2, AlertTriangle, XCircle, RefreshCw, Loader2, Activity, Clock, ShieldCheck, LogIn,
 } from 'lucide-react';
+
+const Shell = ({ children }) => {
+    const { user } = useAuth();
+    if (user) return <Layout>{children}</Layout>;
+    return (
+        <div className="min-h-screen" style={{ background: '#072146' }} data-testid="public-status-shell">
+            <header className="border-b border-slate-800/70 bg-slate-950/40">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <ShieldCheck className="w-6 h-6 text-cyan-400" />
+                        <div>
+                            <p className="text-white font-bold text-sm tracking-wide">LIONSBIT</p>
+                            <p className="text-slate-500 text-[10px] uppercase tracking-widest -mt-0.5">Verificación</p>
+                        </div>
+                    </div>
+                    <Link
+                        to="/login"
+                        data-testid="public-status-login-link"
+                        className="inline-flex items-center gap-1.5 text-cyan-300 text-sm font-medium hover:text-cyan-200 transition-colors"
+                    >
+                        <LogIn className="w-4 h-4" /> Iniciar sesión
+                    </Link>
+                </div>
+            </header>
+            <div className="px-4 py-8">{children}</div>
+        </div>
+    );
+};
 
 const STATUS_META = {
     operational: { label: 'Operativo', color: 'text-emerald-400', dot: 'bg-emerald-400', bar: 'bg-emerald-500', Icon: CheckCircle2 },
@@ -55,11 +85,11 @@ export default function ServiceStatusPage() {
 
     if (loading && !data) {
         return (
-            <Layout>
+            <Shell>
                 <div className="flex items-center justify-center py-32">
                     <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
                 </div>
-            </Layout>
+            </Shell>
         );
     }
 
@@ -67,7 +97,7 @@ export default function ServiceStatusPage() {
     const OverallIcon = STATUS_META[data?.overall || 'operational'].Icon;
 
     return (
-        <Layout>
+        <Shell>
             <div className="max-w-4xl mx-auto space-y-6" data-testid="service-status-page">
                 <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -170,6 +200,6 @@ export default function ServiceStatusPage() {
                     Comprobación automática cada 60 segundos · Las barras muestran el historial de las últimas verificaciones
                 </p>
             </div>
-        </Layout>
+        </Shell>
     );
 }

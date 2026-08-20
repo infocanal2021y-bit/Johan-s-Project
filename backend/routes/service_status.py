@@ -3,9 +3,10 @@ import time
 from datetime import datetime, timezone, timedelta
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from config import db, RESEND_API_KEY
-from services.auth import get_current_user
+from services.notifications import create_notification
+from services.email import send_email_background, get_email_template
 
 router = APIRouter()
 
@@ -72,7 +73,8 @@ async def _check_collection(coll: str) -> dict:
 
 
 @router.get("/system/status")
-async def get_service_status(current_user: dict = Depends(get_current_user)):
+async def get_service_status():
+    """Public statuspage endpoint — no auth required (transparency for clients)."""
     db_check = await _check_database()
     email_check = await _check_email()
     fx_check = await _check_exchange_rates()
@@ -107,6 +109,21 @@ async def get_service_status(current_user: dict = Depends(get_current_user)):
                 'ended_at': None,
                 'duration_seconds': None,
             })
+            # Alert admins immediately (in-app + email) so they react before clients
+            try:
+                label = 'CAÍDO' if c['status'] == DOWN else 'DEGRADADO'
+                msg = f"Incidencia abierta: {c['name']} está {label}. {c.get('detail') or ''}".strip()
+                admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(20)
+                for a in admins:
+                    await create_notification(a['id'], f"⚠ Incidencia: {c['name']}", msg)
+                    content = f"""
+                        <h2 style=\"color: #f59e0b; margin: 0 0 20px 0;\">Incidencia detectada</h2>
+                        <p style=\"color: #cbd5e1; font-size: 15px; line-height: 1.6;\">{msg}</p>
+                        <p style=\"color: #94a3b8; font-size: 13px;\">Consulte la p&aacute;gina Estado de Servicios para el seguimiento en tiempo real.</p>
+                    """
+                    send_email_background(a['email'], f"Incidencia: {c['name']} — LIONSBIT", get_email_template(content))
+            except Exception:
+                pass
         elif c['status'] != OPERATIONAL and open_inc and open_inc.get('status') != c['status']:
             await db.status_incidents.update_one({'id': open_inc['id']}, {'$set': {'status': c['status'], 'detail': c.get('detail')}})
         elif c['status'] == OPERATIONAL and open_inc:
