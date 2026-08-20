@@ -91,6 +91,34 @@ async def get_service_status(current_user: dict = Depends(get_current_user)):
     order = {DOWN: 2, DEGRADED: 1, OPERATIONAL: 0}
     overall = max((c['status'] for c in components), key=lambda s: order[s])
 
+    # ---- Incident tracking: open on failure, close (with duration) on recovery
+    now = _now_iso()
+    for c in components:
+        open_inc = await db.status_incidents.find_one({'component': c['key'], 'ended_at': None}, {'_id': 0})
+        if c['status'] != OPERATIONAL and not open_inc:
+            import uuid
+            await db.status_incidents.insert_one({
+                'id': str(uuid.uuid4()),
+                'component': c['key'],
+                'component_name': c['name'],
+                'status': c['status'],
+                'detail': c.get('detail'),
+                'started_at': now,
+                'ended_at': None,
+                'duration_seconds': None,
+            })
+        elif c['status'] != OPERATIONAL and open_inc and open_inc.get('status') != c['status']:
+            await db.status_incidents.update_one({'id': open_inc['id']}, {'$set': {'status': c['status'], 'detail': c.get('detail')}})
+        elif c['status'] == OPERATIONAL and open_inc:
+            started = datetime.fromisoformat(open_inc['started_at'])
+            duration = int((datetime.now(timezone.utc) - started).total_seconds())
+            await db.status_incidents.update_one(
+                {'id': open_inc['id']},
+                {'$set': {'ended_at': now, 'duration_seconds': duration}}
+            )
+
+    incidents = await db.status_incidents.find({}, {'_id': 0}).sort('started_at', -1).limit(20).to_list(20)
+
     snapshot = {
         'created_at': _now_iso(),
         'overall': overall,
@@ -111,4 +139,5 @@ async def get_service_status(current_user: dict = Depends(get_current_user)):
         'checked_at': snapshot['created_at'],
         'components': components,
         'history': history_docs,
+        'incidents': incidents,
     }

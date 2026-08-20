@@ -1,12 +1,14 @@
 import { useState } from 'react';
-
-const WA_URL = 'https://wa.me/447400757168';
+import { useAuth } from '../context/AuthContext';
 
 export const WhatsAppFloatButton = () => {
     const [hover, setHover] = useState(false);
+    const { user } = useAuth();
+    const msg = `Hola, soy ${user?.name || 'cliente de LIONSBIT'} (${user?.email || ''}). Necesito ayuda con mi cuenta.`;
+    const waUrl = `https://wa.me/447400757168?text=${encodeURIComponent(msg)}`;
     return (
         <a
-            href={WA_URL}
+            href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
             data-testid="whatsapp-float-btn"

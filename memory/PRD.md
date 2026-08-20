@@ -330,6 +330,11 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 79.2 — WhatsApp prellenado + Historial de incidencias (Aug 20, 2026)
+- `WhatsAppFloatButton.jsx`: href ahora `wa.me/447400757168?text=Hola, soy {nombre} ({email}). Necesito ayuda con mi cuenta.` (identificación instantánea del cliente). Verificado por href en screenshot.
+- `service_status.py`: tracking de incidencias en colección `status_incidents` — al fallar un componente se abre incidencia {component, status, detail, started_at}; si cambia severidad se actualiza; al recuperarse se cierra con ended_at + duration_seconds. Endpoint devuelve últimas 20 en `incidents`.
+- `ServiceStatusPage.jsx`: sección "Historial de incidencias" con estado (Degradado/Caído), badge "En curso" para abiertas, fecha y duración formateada (s/min/h); vacío muestra mensaje positivo. `formatDuration` helper. Verificado con incidencia simulada (abierta manualmente → cerrada automáticamente por el check con duración 17 min → visible en UI → limpiada después).
+
 ### Iteration 79.1 — Botón flotante de WhatsApp global (Aug 20, 2026)
 - `components/WhatsAppFloatButton.jsx` montado en Layout (solo usuarios logueados): botón verde flotante bottom-right z-60, ping animado, expande al hover mostrando "WhatsApp · +44 7400 757168", abre wa.me/447400757168. Testid `whatsapp-float-btn`. Verificado por screenshot (visible en dashboard, hover OK, href correcto).
 

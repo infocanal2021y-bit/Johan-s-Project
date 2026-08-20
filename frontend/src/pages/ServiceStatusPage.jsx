@@ -19,6 +19,13 @@ const OVERALL_META = {
     down: { text: 'Incidencia activa en uno o más servicios', cls: 'bg-red-500/10 border-red-500/30 text-red-300' },
 };
 
+const formatDuration = (secs) => {
+    if (secs == null) return '—';
+    if (secs < 60) return `${secs} s`;
+    if (secs < 3600) return `${Math.round(secs / 60)} min`;
+    return `${Math.floor(secs / 3600)} h ${Math.round((secs % 3600) / 60)} min`;
+};
+
 const HistoryBars = ({ history, componentKey }) => (
     <div className="flex items-end gap-[3px] h-6" title="Historial de comprobaciones recientes">
         {history.map((h, i) => {
@@ -121,6 +128,42 @@ export default function ServiceStatusPage() {
                             </motion.div>
                         );
                     })}
+                </div>
+
+                {/* Incident history */}
+                <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5" data-testid="status-incidents">
+                    <h2 className="text-white text-base font-semibold flex items-center gap-2 mb-4">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" /> Historial de incidencias
+                    </h2>
+                    {(data?.incidents || []).length === 0 ? (
+                        <p className="text-slate-500 text-sm flex items-center gap-2" data-testid="status-no-incidents">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Sin incidencias registradas. Todos los servicios han funcionado con normalidad.
+                        </p>
+                    ) : (
+                        <div className="space-y-3">
+                            {data.incidents.map((inc) => {
+                                const meta = STATUS_META[inc.status] || STATUS_META.degraded;
+                                const ongoing = !inc.ended_at;
+                                return (
+                                    <div key={inc.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800" data-testid={`incident-${inc.id}`}>
+                                        <span className={`mt-1.5 w-2 h-2 rounded-full ${meta.dot} ${ongoing ? 'animate-pulse' : ''}`} />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-slate-200 text-sm font-medium">
+                                                {inc.component_name}
+                                                <span className={`ml-2 text-[10px] font-bold uppercase ${meta.color}`}>{meta.label}</span>
+                                                {ongoing && <span className="ml-2 text-[10px] font-bold uppercase text-red-300 bg-red-500/15 px-1.5 py-0.5 rounded">En curso</span>}
+                                            </p>
+                                            {inc.detail && <p className="text-slate-500 text-xs mt-0.5">{inc.detail}</p>}
+                                            <p className="text-slate-600 text-xs mt-1">
+                                                {new Date(inc.started_at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                {!ongoing && <span> · Duración: {formatDuration(inc.duration_seconds)}</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 <p className="text-slate-600 text-xs text-center">
