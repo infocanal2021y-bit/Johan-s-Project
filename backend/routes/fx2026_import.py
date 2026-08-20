@@ -20,6 +20,8 @@ router = APIRouter()
 DATA_PATH = '/app/backend/data/fx2026_users.json'
 BATCH_TAG = 'fx2026_xlsx'
 PASSWORD = 'FX2026'
+# Existing accounts explicitly requested by the owner to be reset to FX2026 on import
+FORCE_RESET_EMAILS = {'johanspotify67@gmail.com'}
 
 _send_state = {'running': False, 'sent': 0, 'failed': 0, 'total': 0, 'started_at': None, 'finished_at': None}
 
@@ -76,6 +78,15 @@ async def fx2026_import(admin: dict = Depends(get_admin_user)):
             {'_id': 0, 'id': 1}
         )
         if existing:
+            if r['email'] in FORCE_RESET_EMAILS:
+                await db.users.update_one({'id': existing['id']}, {'$set': {
+                    'password': hash_password(PASSWORD),
+                    'must_change_password': True,
+                    'phone': r.get('phone'),
+                    'country_code': 'ES',
+                    'country_name': 'España',
+                    'import_source': BATCH_TAG,
+                }})
             skipped += 1
             continue
         user_id = str(uuid.uuid4())

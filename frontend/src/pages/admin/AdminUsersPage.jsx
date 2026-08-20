@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
+import { FX2026BatchCard } from '../../components/admin/FX2026BatchCard';
 import { adminAPI } from '../../lib/api';
 import { safeApiCall } from '../../lib/diagnostics';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -484,6 +485,9 @@ export const AdminUsersPage = () => {
                         </Button>
                     </div>
                 </motion.div>
+
+                {/* FX2026 batch: import + welcome email progress */}
+                <FX2026BatchCard />
 
                 {/* Health filter chips + bulk-notify */}
                 <div className="flex flex-wrap items-center gap-2" data-testid="health-filter-bar">

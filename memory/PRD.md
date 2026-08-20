@@ -330,6 +330,11 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 78.2 — Panel FX2026 en admin + alta de johanspotify67 (Aug 20, 2026)
+
+- **Panel FX2026** (`components/admin/FX2026BatchCard.jsx`, montado arriba en AdminUsersPage): stats importados/bienvenidas enviadas/pendientes + botones Importar / Enviar bienvenidas (con confirm) / refresh; barra de progreso con poll cada 5s mientras el batch corre; reporte final enviados/fallidos (`fx2026-final-report`). Verificado por screenshot (624/0/624, tabla de usuarios carga 1000 OK — el "0" inicial era solo timing del debounce).
+- **johanspotify67@gmail.com** (tel 8295689585): ya existía desde abril con otra contraseña → a petición explícita del usuario: password reseteada a FX2026 (bcrypt), must_change_password true, teléfono actualizado, país España, tag fx2026_xlsx (recibirá bienvenida). Login FX2026 verificado OK. Añadido al bundle JSON (1002) y a `FORCE_RESET_EMAILS` en `fx2026_import.py` para que el import de producción también lo resetee. Batch ahora: 625 pendientes.
+
 ### Iteration 78.1 — Cambio obligatorio de contraseña para importados FX2026 (Aug 20, 2026)
 
 **Pedido:** Forzar a los 624 importados a cambiar FX2026 en su primer inicio de sesión.
