@@ -330,6 +330,21 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 78 — Bienvenida masiva FX2026: endpoints de producción (Aug 20, 2026)
+
+**Pedido:** Enviar email de bienvenida real a los 624 importados con plantilla oficial, contraseña FX2026 y link de la app.
+
+**Descubrimiento crítico:** los 624 usuarios solo existen en la DB de PREVIEW. `paylionsbit.es` (producción, APP_BASE_URL usado en todos los emails) rechaza login FX2026 → enviar emails ahora sería un desastre (nadie podría entrar). El redeploy solo copia código, NO datos. El admin SÍ existe en producción (login OK vía API externa).
+
+**Solución implementada (`routes/fx2026_import.py` + datos en `backend/data/fx2026_users.json` — viajan con el código al redesplegar):**
+- `POST /api/admin/fx2026/import` (admin-only): import idempotente de los 1001 usuarios bundled contra la DB del entorno donde corre (mismo flujo: bcrypt FX2026, España, provision finance, notif bienvenida, tag import_source).
+- `POST /api/admin/fx2026/send-welcome`: con `{"test_email":"x@y"}` envía 1 email de prueba; sin body lanza batch en background (throttle 0.6s por límite Resend, ~7min para 624) solo a usuarios del batch sin `fx2026_welcome_sent_at` (re-ejecutable, no duplica). Email: plantilla oficial `get_email_template`, credenciales (email + FX2026 destacada), botón "Acceder a mi cuenta" → `{APP_BASE_URL}/login`, recomendación de cambiar contraseña + KYC.
+- `GET /api/admin/fx2026/status`: imported/welcome_sent/welcome_pending + progreso del batch.
+
+**Verificado en preview:** status 624/0/624 · import idempotente (created 0, skipped 1001) · test email a admi@paylionsbit.es → sent:true.
+
+**PENDIENTE (requiere acción del usuario):** 1) Usuario redespliega a producción. 2) Agente llama `fx2026/import` en `https://paylionsbit.es/api` con credenciales admin (crea los ~624+ en DB producción). 3) Agente dispara `send-welcome` en producción. NO enviar el batch desde preview antes del paso 2.
+
 ### Iteration 77 — Importación masiva de usuarios FX2026 (Aug 20, 2026)
 
 **Pedido:** Importar ~995 usuarios desde `Todos_Nombres_Correos_Telefonos.xlsx` (nombre, correo, teléfono). País España, contraseña FX2026 (hash seguro), idempotente (no duplicar ni sobrescribir), e integrados al mismo sistema de notificaciones por email.
