@@ -75,6 +75,12 @@ async def _check_collection(coll: str) -> dict:
 @router.get("/system/status")
 async def get_service_status():
     """Public statuspage endpoint — no auth required (transparency for clients)."""
+    return await run_status_checks()
+
+
+async def run_status_checks() -> dict:
+    """Full component check + incident lifecycle. Called by the endpoint AND the
+    5-minute scheduler job so incidents are detected without page visits."""
     db_check = await _check_database()
     email_check = await _check_email()
     fx_check = await _check_exchange_rates()

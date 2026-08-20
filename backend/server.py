@@ -420,6 +420,17 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Service status checks every 5 minutes (detects incidents without page visits)
+    from routes.service_status import run_status_checks
+    scheduler.add_job(
+        run_status_checks,
+        IntervalTrigger(minutes=5),
+        id='service_status_checks',
+        name='Run service status checks + incident detection',
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=90),
+        replace_existing=True,
+    )
+
     
     scheduler.start()
     logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s), self-keepalive (4min)")

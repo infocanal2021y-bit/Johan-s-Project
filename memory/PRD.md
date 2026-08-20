@@ -330,6 +330,11 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 79.4 — Chequeo programado de servicios cada 5 min (Aug 20, 2026)
+- `service_status.py`: lógica del endpoint extraída a `run_status_checks()` (el endpoint la llama).
+- `server.py` scheduler: job `service_status_checks` cada 5 min (primer run a los 90s del arranque) → detecta incidencias y avisa a admins SIN esperar visitas a la página.
+- Verificado: job registrado en el scheduler (visto en /admin/health) + snapshot nuevo creado automáticamente a los ~90s sin tráfico (9→10 snapshots).
+
 ### Iteration 79.3 — Aviso de incidencias a admins + Estado público (Aug 20, 2026)
 - **Aviso Incidencias** (`service_status.py`): al ABRIRSE una incidencia (componente pasa a degraded/down), todos los admins reciben notificación in-app "⚠ Incidencia: {componente}" + email con plantilla oficial (send_email_background para no bloquear el endpoint). Solo al abrir, no en cada check (sin spam). Verificado e2e: 50 email_logs failed simulados → componente email degraded → incidencia abierta + notif admin + email sent → limpieza → incidencia cerrada automáticamente (duración 20s) → overall operational. Datos de simulación limpiados.
 - **Estado Público**: `GET /api/system/status` ya sin auth. Ruta `/status` en App.js sin ProtectedRoute. `ServiceStatusPage.jsx` → componente `Shell`: con sesión usa Layout normal; sin sesión muestra shell público (header LIONSBIT + link "Iniciar sesión", testids public-status-shell / public-status-login-link). Verificado por screenshot sin login: banner + 6 componentes + historial visibles.
