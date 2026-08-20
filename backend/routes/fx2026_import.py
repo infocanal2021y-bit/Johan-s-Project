@@ -54,8 +54,9 @@ def _welcome_html(name: str, email: str) -> str:
             O copie este enlace en su navegador: <a href="{login_url}" style="color: #06b6d4;">{login_url}</a>
         </p>
         <p style="color: #94a3b8; font-size: 13px; line-height: 1.6;">
-            Por su seguridad, le recomendamos cambiar la contrase&ntilde;a desde su perfil tras el primer inicio de sesi&oacute;n
-            y completar la verificaci&oacute;n KYC para desbloquear todas las funciones.
+            Por su seguridad, el sistema le pedir&aacute; establecer una contrase&ntilde;a personal nueva en su primer
+            inicio de sesi&oacute;n. Le recomendamos tambi&eacute;n completar la verificaci&oacute;n KYC para
+            desbloquear todas las funciones.
         </p>
     """
     return get_email_template(content)
@@ -96,6 +97,7 @@ async def fx2026_import(admin: dict = Depends(get_admin_user)):
             'registration_ip': 'bulk-import',
             'registration_country': 'España',
             'import_source': BATCH_TAG,
+            'must_change_password': True,
             'created_at': now,
         })
         await provision_full_user_finance(user_id)

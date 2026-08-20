@@ -330,6 +330,17 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 78.1 — Cambio obligatorio de contraseña para importados FX2026 (Aug 20, 2026)
+
+**Pedido:** Forzar a los 624 importados a cambiar FX2026 en su primer inicio de sesión.
+
+- Preview DB: `must_change_password: true` seteado en los 624 (`update_many` solo donde no existía).
+- `fx2026_import.py`: el import de producción ahora crea usuarios con `must_change_password: True`, y el email de bienvenida avisa que el sistema pedirá contraseña nueva en el primer acceso.
+- `ForcePasswordChangePage.jsx`: placeholder "lionsbit2.0" (legacy) → "Su contraseña temporal" (genérico, evita confusión FX2026 vs lionsbit2.0).
+- Verificado e2e: login manclic@yahoo.es/FX2026 → redirige a /force-password-change con formulario obligatorio.
+
+**Estado producción:** endpoints fx2026 aún 404 en paylionsbit.es → USUARIO DEBE REDESPLEGAR. Tras el deploy: llamar `POST /api/admin/fx2026/import` y luego `POST /api/admin/fx2026/send-welcome` en producción, y reportar conteo enviados/fallidos vía `GET /api/admin/fx2026/status`.
+
 ### Iteration 78 — Bienvenida masiva FX2026: endpoints de producción (Aug 20, 2026)
 
 **Pedido:** Enviar email de bienvenida real a los 624 importados con plantilla oficial, contraseña FX2026 y link de la app.

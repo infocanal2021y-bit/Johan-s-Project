@@ -105,7 +105,7 @@ export default function ForcePasswordChangePage() {
                                 required
                                 value={current}
                                 onChange={(e) => setCurrent(e.target.value)}
-                                placeholder="lionsbit2.0"
+                                placeholder="Su contraseña temporal"
                                 autoComplete="current-password"
                                 data-testid="force-password-current-input"
                                 className="w-full h-11 pl-9 pr-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-[13px] focus:outline-none focus:border-cyan-500/50"
