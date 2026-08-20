@@ -1,0 +1,34 @@
+{
+  "summary": "Backend testing of FX2026 bulk-imported users (import_source='fx2026_xlsx'). All 10 pytest cases PASS. Confirmed: (1) imported users login with FX2026, (2) bcrypt-hashed passwords (starts with $2), wrong password returns 401, (3) country_name='España', country_code='ES', role='user', account_status='active', import_source='fx2026_xlsx' persisted in DB, (4) auto-provisioned checking account present in accounts collection, (5) idempotency preserved – gsalazar1@gmail.com preserved (no import_source, no FX2026 password) and admin admi@paylionsbit.es fully intact with role=admin, (6) CRITICAL email pipeline integration verified – POST /api/admin/broadcast with audience='single' targeting an imported user returned success/recipients=1/in_app_sent=1/emails_queued=1, in-app notification appeared in GET /api/notifications, and email_logs collection recorded the send with status='sent' using the same send_email_background/Resend pipeline used platform-wide, (7) welcome in-app notification present for imported user.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/users", "issue": "Hard-capped at 1000 users with no search/pagination; with ~3270 users, most imported accounts are invisible via this endpoint. Admin UI listings/searches will silently miss users. Consider adding server-side pagination + search (email/name) filter."},
+      {"endpoint": "GET /api/auth/me", "issue": "Does not expose country_name/country_code/import_source; frontend cannot easily localize UI or show origin for imported users without extra calls."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_fx2026_import_notifications.py",
+    "/app/test_reports/pytest/fx2026_results.xml"
+  ],
+  "action_items": [
+    "Consider adding pagination + search to GET /api/admin/users (currently limited to first 1000 out of 3270).",
+    "Optional: expose country/import_source in /auth/me if the frontend needs to differentiate imported users."
+  ],
+  "critical_code_review_comments": [
+    "routes/admin.py::admin_get_users limits to 1000 with no search — will hide the majority of imported users in admin UI listings.",
+    "services/email.py properly logs every send to email_logs collection with status; broadcast reuses this pipeline so imported users are fully integrated.",
+    "scripts/import_fx2026_users.py idempotency verified: pre-existing users NOT overwritten (gsalazar1 kept its own password, no import_source flag)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_fx2026_import_notifications.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "not tested (skip per request)"},
+  "test_credentials": "Admin admi@paylionsbit.es / LionsBit2026! ; Imported users manclic@yahoo.es / FX2026 and way3058@gmail.com / FX2026 ; Preexisting gsalazar1@gmail.com (own password, not FX2026)",
+  "seed_data_creation": "Created transient broadcast notifications with title prefix TEST_FX2026_BC_* to one imported user (manclic@yahoo.es). Left in place for audit; can be cleaned by deleting notifications and email_logs where broadcast=true and title starts with TEST_FX2026_BC_.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "FX2026 import (624 created, 377 skipped) is fully validated end-to-end including the critical shared email pipeline (Resend + email_logs). Reusable regression tests are in /app/backend/tests/test_fx2026_import_notifications.py and use DB access (MongoDB) for data verification because /api/admin/users is capped at 1000 with no search. If main agent adds pagination/search to /admin/users, update the test to use API instead of direct DB.",
+  "rca of the issue": "N/A – no bugs found. The user's critical requirement (imported users integrated into the same email notification system as everyone else) is confirmed: broadcast uses send_email_background → Resend and writes to email_logs; a test broadcast to an imported user produced an email_logs row with status='sent'."
+}

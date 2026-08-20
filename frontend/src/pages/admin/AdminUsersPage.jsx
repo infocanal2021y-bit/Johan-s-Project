@@ -173,9 +173,10 @@ export const AdminUsersPage = () => {
     const [historyData, setHistoryData] = useState(null);
     const [historyLoading, setHistoryLoading] = useState(false);
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (searchTerm = '') => {
         try {
-            const response = await adminAPI.getUsers();
+            const params = searchTerm && searchTerm.trim() ? { search: searchTerm.trim(), limit: 2000 } : { limit: 1000 };
+            const response = await adminAPI.getUsers(params);
             setUsers(response.data);
         } catch (error) {
             toast.error('Error al cargar usuarios');
@@ -186,6 +187,12 @@ export const AdminUsersPage = () => {
 
     // Load users once on mount.
     useEffect(() => { fetchUsers(); }, []);
+
+    // Debounced server-side search so imported users beyond the page cap are findable
+    useEffect(() => {
+        const t = setTimeout(() => { fetchUsers(search); }, 350);
+        return () => clearTimeout(t);
+    }, [search]);
 
     // Support ?q= query param from Global Search deep-link
     const [searchParams] = useSearchParams();

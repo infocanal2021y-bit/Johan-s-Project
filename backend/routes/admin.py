@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 import uuid
 import os
+import re
 import logging
 import asyncio
 
@@ -28,17 +29,37 @@ router = APIRouter()
 # ==================== ADMIN ROUTES ====================
 
 @router.get("/admin/users")
-async def admin_get_users(admin: dict = Depends(get_admin_user)):
+async def admin_get_users(
+    search: Optional[str] = None,
+    limit: int = 1000,
+    admin: dict = Depends(get_admin_user),
+):
     """Get all users with their accounts + computed health status.
 
     Health is a single-glance indicator for the admin:
       • green  → all good (accounts ok + verified + has logged in)
       • yellow → has accounts but pending action (KYC pending OR no login OR must_change_password)
       • red    → critical: missing internal accounts OR account_status='suspended'/'rejected'
+
+    `search` (optional) does a server-side case-insensitive match on name/email so
+    users beyond the default page cap are still findable (DB now holds 3k+ accounts).
     """
-    users = await db.users.aggregate([
+    limit = max(1, min(limit, 2000))
+    match: dict = {}
+    if search and search.strip():
+        term = re.escape(search.strip())
+        match = {'$or': [
+            {'name':  {'$regex': term, '$options': 'i'}},
+            {'email': {'$regex': term, '$options': 'i'}},
+        ]}
+
+    pipeline = []
+    if match:
+        pipeline.append({'$match': match})
+    pipeline += [
         {'$project': {'_id': 0, 'password': 0}},
-        {'$limit': 1000},
+        {'$sort': {'created_at': -1}},
+        {'$limit': limit},
         {'$lookup': {
             'from': 'accounts',
             'localField': 'id',
@@ -49,7 +70,8 @@ async def admin_get_users(admin: dict = Depends(get_admin_user)):
             'total_balance_usd': {'$sum': '$accounts.balance_usd'},
             'total_balance_eur': {'$sum': '$accounts.balance_eur'}
         }}
-    ]).to_list(1000)
+    ]
+    users = await db.users.aggregate(pipeline).to_list(limit)
 
     # Clean up accounts array to remove _id + compute health per user
     for user in users:

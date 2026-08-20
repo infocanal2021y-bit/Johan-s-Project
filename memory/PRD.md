@@ -330,6 +330,19 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 77 — Importación masiva de usuarios FX2026 (Aug 20, 2026)
+
+**Pedido:** Importar ~995 usuarios desde `Todos_Nombres_Correos_Telefonos.xlsx` (nombre, correo, teléfono). País España, contraseña FX2026 (hash seguro), idempotente (no duplicar ni sobrescribir), e integrados al mismo sistema de notificaciones por email.
+
+**Implementado (`backend/scripts/import_fx2026_users.py`):**
+- Parseo del Excel (hoja "Contactos", 1037 filas): 1001 correos únicos válidos, 33 duplicados en archivo, 3 vacíos. Filas con dos correos (`a@x / b@y`) → se usa el primero.
+- Por cada correo NO existente (chequeo case-insensitive): crea user con `hash_password('FX2026')` (bcrypt), country_name='España'/country_code='ES', phone del Excel, role='user', account_status='active', `import_source='fx2026_xlsx'`; llama `provision_full_user_finance` (checking+savings+wallet) + notificación in-app de bienvenida. Mismo flujo que `/auth/register`.
+- **Resultado: 624 creados, 377 ya existían (omitidos sin tocar).** Admin intacto. 0 contraseñas en texto plano (624/624 bcrypt), 624/624 con cuenta checking.
+
+**Fix relacionado (escala 3270 usuarios):** `GET /api/admin/users` estaba limitado a 1000 sin búsqueda → los importados no eran visibles. Añadidos params `search` (regex case-insensitive server-side sobre name/email) y `limit` (máx 2000), ordenado por created_at desc. `import re` añadido. Frontend `AdminUsersPage.jsx`: búsqueda con debounce 350ms que consulta el backend; `lib/api.js` `getUsers(params)`.
+
+**Status:** ✅ Testing agent iteration_67 — backend 100% (10/10): login FX2026 OK, bcrypt, España, checking account, idempotencia (gsalazar1 preexistente conserva su pw, admin intacto), **pipeline de email verificado** (broadcast individual → notificación in-app + email_logs status='sent' vía Resend). Búsqueda admin verificada e2e (curl + screenshot: "manclic" encuentra a Javier Moya Andres).
+
 ### Iteration 76 — Navegación Rápida en buscador + badge de tickets en Sidebar (Jul 31, 2026)
 
 **Pedido:** (1) El buscador global Ctrl+K debe sugerir páginas (Retiros, Vault...) para llegar en un clic. (2) Aviso visual en el sidebar cuando llegue una respuesta nueva del equipo a un ticket.

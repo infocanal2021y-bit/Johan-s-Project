@@ -125,7 +125,7 @@ export const feedbackAPI = {
 
 // Admin API
 export const adminAPI = {
-    getUsers: () => api.get('/admin/users'),
+    getUsers: (params) => api.get('/admin/users', { params }),
     getTransactions: (status) => api.get('/admin/transactions', { params: { status } }),
     getPendingWithdrawals: () => api.get('/admin/withdrawals/pending'),
     getAllWithdrawals: () => api.get('/admin/withdrawals/all'),
