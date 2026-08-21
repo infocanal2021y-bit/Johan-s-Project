@@ -431,6 +431,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Smart email queue: retry quota-rejected emails every 15 minutes
+    from services.email import process_email_queue
+    scheduler.add_job(
+        process_email_queue,
+        IntervalTrigger(minutes=15),
+        id='email_queue_retry',
+        name='Retry quota-rejected emails from smart queue',
+        replace_existing=True,
+    )
+
     
     scheduler.start()
     logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (15min, max 30/day), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s), self-keepalive (4min)")

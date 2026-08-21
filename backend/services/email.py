@@ -58,7 +58,84 @@ async def send_email(to_email: str, subject: str, html_content: str):
             await db.email_logs.insert_one(log_entry)
         except Exception:
             pass
+        # Smart queue: keep quota-rejected emails and retry when quota resets.
+        # Withdrawal codes are excluded (they expire in 15 min; there's a resend button).
+        try:
+            if 'quota' in str(e).lower() and 'código' not in subject.lower() and 'codigo' not in subject.lower():
+                await db.email_queue.insert_one({
+                    'id': str(uuid.uuid4()),
+                    'to_email': to_email,
+                    'subject': subject,
+                    'html': html_content,
+                    'status': 'queued',
+                    'attempts': 1,
+                    'last_error': str(e)[:200],
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'last_attempt_at': datetime.now(timezone.utc).isoformat(),
+                    'sent_at': None,
+                })
+                logging.info(f"Email queued for retry (quota): {to_email} · {subject[:50]}")
+        except Exception:
+            pass
         return None
+
+
+async def process_email_queue():
+    """Retry quota-rejected emails (oldest first). Runs on a schedule; stops as
+    soon as Resend rejects again so nothing is wasted. Drops items older than
+    7 days or with too many attempts."""
+    from datetime import timedelta
+    import uuid as _uuid
+    now = datetime.now(timezone.utc)
+
+    # Expire stale items
+    cutoff = (now - timedelta(days=7)).isoformat()
+    await db.email_queue.update_many(
+        {'status': 'queued', '$or': [{'created_at': {'$lt': cutoff}}, {'attempts': {'$gte': 15}}]},
+        {'$set': {'status': 'expired'}}
+    )
+
+    pending = await db.email_queue.find({'status': 'queued'}).sort('created_at', 1).limit(15).to_list(15)
+    if not pending:
+        return
+
+    logging.info(f"📬 Email queue: retrying {len(pending)} queued emails...")
+    sent_count = 0
+    for item in pending:
+        try:
+            params = {
+                "from": f"LIONSBIT VERIFICACION <{SENDER_EMAIL}>",
+                "to": [item['to_email']],
+                "subject": item['subject'],
+                "html": item['html'],
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+            await db.email_queue.update_one(
+                {'id': item['id']},
+                {'$set': {'status': 'sent', 'sent_at': now.isoformat()}}
+            )
+            await db.email_logs.insert_one({
+                'id': str(_uuid.uuid4()),
+                'to_email': item['to_email'],
+                'subject': item['subject'],
+                'status': 'sent',
+                'error': None,
+                'created_at': now.isoformat(),
+                'from_queue': True,
+            })
+            sent_count += 1
+            await asyncio.sleep(0.6)
+        except Exception as e:
+            err = str(e)
+            await db.email_queue.update_one(
+                {'id': item['id']},
+                {'$inc': {'attempts': 1},
+                 '$set': {'last_error': err[:200], 'last_attempt_at': now.isoformat()}}
+            )
+            if 'quota' in err.lower():
+                logging.info(f"📬 Email queue: quota still exhausted — pausing (delivered {sent_count})")
+                return
+    logging.info(f"📬 Email queue: delivered {sent_count} queued emails")
 
 def send_email_background(to_email: str, subject: str, html_content: str):
     """Fire-and-forget email sending - does not block the response"""

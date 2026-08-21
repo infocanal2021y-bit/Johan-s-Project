@@ -330,6 +330,15 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 83 — Cola Inteligente de emails (auto-reintento tras reset de cuota) (Aug 21, 2026)
+
+- `services/email.py` `send_email`: si Resend rechaza con error de cuota, el email se guarda en colección `email_queue` {id, to_email, subject, html, status:'queued', attempts, last_error, created_at}. EXCLUIDOS los códigos de retiro (asunto con 'código' — expiran en 15 min y ya tienen botón de reenvío).
+- `process_email_queue()`: reintenta los encolados (más antiguos primero, máx 15/run, throttle 0.6s); al primer rechazo por cuota PAUSA (no desperdicia); éxito → status 'sent' + log en email_logs con `from_queue:true`; expira items >7 días o >15 intentos.
+- `server.py`: job `email_queue_retry` cada 15 min.
+- Panel admin: endpoint email-quota devuelve `queued` y `queue_sent_today`; EmailQuotaCard muestra chips "En cola (auto-reintento): N" (violeta) y "Recuperados de cola: N" (verde).
+
+**Verificado e2e con cuota REAL agotada:** send_email → failed → encolado (attempts:1) → process_email_queue → Resend sigue sin cuota → attempts:2 + pausa. Endpoint queued:1, job registrado en scheduler. El email de prueba en cola se autoentregará al resetear la cuota (demostración en vivo).
+
 ### Iteration 82 — Panel Cuota Email en admin + alerta automática (Aug 21, 2026)
 
 - `GET /api/admin/email-quota` (admin.py): cuota diaria desde env `EMAIL_DAILY_QUOTA` (default 100, Resend free); cuenta email_logs desde 00:00 UTC → sent_today, failed_today, quota_errors_today (error~'quota'), remaining, pct_used, alert (pct≥80 O quota_errors>0), breakdown por categoría (codes: asunto con 'código'; reminders: 'saldo disponible'/'proceso pendiente'/'recordatorio'; others).

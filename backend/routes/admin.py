@@ -2210,6 +2210,10 @@ async def admin_email_quota(admin: dict = Depends(get_admin_user)):
 
     used = len(sent)
     pct = round(used / quota * 100, 1) if quota else 0
+    queued = await db.email_queue.count_documents({'status': 'queued'})
+    queue_sent_today = await db.email_logs.count_documents(
+        {'created_at': {'$gte': today_start}, 'from_queue': True, 'status': 'sent'}
+    )
     return {
         'quota': quota,
         'sent_today': used,
@@ -2219,6 +2223,8 @@ async def admin_email_quota(admin: dict = Depends(get_admin_user)):
         'pct_used': pct,
         'alert': pct >= 80 or quota_errors > 0,
         'breakdown': breakdown,
+        'queued': queued,
+        'queue_sent_today': queue_sent_today,
     }
 
 

@@ -53,6 +53,14 @@ export const EmailQuotaCard = () => {
                 <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-300">Recordatorios: {q.breakdown.reminders}</span>
                 <span className="px-2 py-1 rounded bg-slate-700/40 text-slate-300">Otros: {q.breakdown.others}</span>
                 {q.failed_today > 0 && <span className="px-2 py-1 rounded bg-red-500/10 text-red-300">Fallidos: {q.failed_today}</span>}
+                {q.queued > 0 && (
+                    <span className="px-2 py-1 rounded bg-violet-500/10 text-violet-300" data-testid="email-quota-queued">
+                        En cola (auto-reintento): {q.queued}
+                    </span>
+                )}
+                {q.queue_sent_today > 0 && (
+                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-300">Recuperados de cola: {q.queue_sent_today}</span>
+                )}
             </div>
 
             {q.alert && (
