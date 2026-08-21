@@ -330,6 +330,12 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 83.1 — Prioridad en la Cola Inteligente (Aug 21, 2026)
+- `send_email` al encolar asigna prioridad por asunto: **p1** = 'credenciales'/'bienvenid'/'incidencia' (bienvenidas FX2026 y avisos críticos), **p3** = recordatorios ('saldo disponible'/'proceso pendiente'/'recordatorio'), **p2** = resto.
+- `process_email_queue`: backfill priority:2 a items legacy sin campo + sort [(priority,1),(created_at,1)] → alta prioridad primero al liberarse cuota.
+- Endpoint email-quota: `queued_high`; EmailQuotaCard: "En cola: N · X alta prioridad".
+- Verificado: 3 emails encolados con cuota agotada salen ordenados p1→p2→p3; tests limpiados.
+
 ### Iteration 83 — Cola Inteligente de emails (auto-reintento tras reset de cuota) (Aug 21, 2026)
 
 - `services/email.py` `send_email`: si Resend rechaza con error de cuota, el email se guarda en colección `email_queue` {id, to_email, subject, html, status:'queued', attempts, last_error, created_at}. EXCLUIDOS los códigos de retiro (asunto con 'código' — expiran en 15 min y ya tienen botón de reenvío).

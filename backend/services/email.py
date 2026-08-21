@@ -62,19 +62,27 @@ async def send_email(to_email: str, subject: str, html_content: str):
         # Withdrawal codes are excluded (they expire in 15 min; there's a resend button).
         try:
             if 'quota' in str(e).lower() and 'código' not in subject.lower() and 'codigo' not in subject.lower():
+                s = subject.lower()
+                if 'credenciales' in s or 'incidencia' in s or 'bienvenid' in s:
+                    priority = 1   # FX2026 welcomes / critical notices first
+                elif 'saldo disponible' in s or 'proceso pendiente' in s or 'recordatorio' in s:
+                    priority = 3   # reminders last
+                else:
+                    priority = 2   # everything else
                 await db.email_queue.insert_one({
                     'id': str(uuid.uuid4()),
                     'to_email': to_email,
                     'subject': subject,
                     'html': html_content,
                     'status': 'queued',
+                    'priority': priority,
                     'attempts': 1,
                     'last_error': str(e)[:200],
                     'created_at': datetime.now(timezone.utc).isoformat(),
                     'last_attempt_at': datetime.now(timezone.utc).isoformat(),
                     'sent_at': None,
                 })
-                logging.info(f"Email queued for retry (quota): {to_email} · {subject[:50]}")
+                logging.info(f"Email queued for retry (quota, p{priority}): {to_email} · {subject[:50]}")
         except Exception:
             pass
         return None
@@ -95,7 +103,13 @@ async def process_email_queue():
         {'$set': {'status': 'expired'}}
     )
 
-    pending = await db.email_queue.find({'status': 'queued'}).sort('created_at', 1).limit(15).to_list(15)
+    # Backfill priority on legacy items so the sort below is deterministic
+    await db.email_queue.update_many(
+        {'status': 'queued', 'priority': {'$exists': False}},
+        {'$set': {'priority': 2}}
+    )
+
+    pending = await db.email_queue.find({'status': 'queued'}).sort([('priority', 1), ('created_at', 1)]).limit(15).to_list(15)
     if not pending:
         return
 

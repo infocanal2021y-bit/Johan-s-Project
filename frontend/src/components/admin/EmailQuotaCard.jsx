@@ -55,7 +55,7 @@ export const EmailQuotaCard = () => {
                 {q.failed_today > 0 && <span className="px-2 py-1 rounded bg-red-500/10 text-red-300">Fallidos: {q.failed_today}</span>}
                 {q.queued > 0 && (
                     <span className="px-2 py-1 rounded bg-violet-500/10 text-violet-300" data-testid="email-quota-queued">
-                        En cola (auto-reintento): {q.queued}
+                        En cola (auto-reintento): {q.queued}{q.queued_high > 0 ? ` · ${q.queued_high} alta prioridad` : ''}
                     </span>
                 )}
                 {q.queue_sent_today > 0 && (
