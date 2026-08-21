@@ -33,7 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
-from services.email import send_email_background, get_email_template
+from services.email import send_email, send_email_background, get_email_template
 from services.case_codes import generate_case_code, update_case_status
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
@@ -101,6 +101,39 @@ def _timeline_entry(status: str, actor_role: str, actor: Optional[dict] = None, 
 # ══════════════════════════════════════════════════════════════════
 #  CONFIG / METADATA
 # ══════════════════════════════════════════════════════════════════
+
+def _code_email_html(user_name: str, code: str, case_code: str, from_amount: float,
+                     from_cur: str, net_out: float, to_cur: str, bank_name: str,
+                     bank_holder: str, country: str) -> str:
+    content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Hola <strong style="color:#1973B8;">{user_name}</strong>,</p>
+        <p style="color:#e2e8f0;font-size:15px;">
+            Hemos recibido tu solicitud de retiro a {COUNTRY_BANKS[country]['flag']} {COUNTRY_BANKS[country]['name']}.
+            Confirma con el código:
+        </p>
+        <div style="text-align:center;margin:30px 0;">
+            <div style="display:inline-block;background:#072146;border:2px solid #1973B8;border-radius:14px;padding:24px 38px;">
+                <p style="color:#7CB1E5;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0 0 8px 0;">Tu código</p>
+                <p style="color:#fff;font-family:monospace;font-size:36px;font-weight:bold;letter-spacing:8px;margin:0;">{code}</p>
+            </div>
+        </div>
+        <p style="color:#cbd5e1;font-size:13px;line-height:1.6;">
+            Resumen: <strong style="color:#fff">{from_amount:,.2f} {from_cur}</strong> →
+            <strong style="color:#10b981">{_round(net_out, to_cur):,.2f} {to_cur}</strong>
+            a {bank_name} (titular: {bank_holder}).
+        </p>
+        <div style="background:linear-gradient(135deg,#0a1c3d 0%,#072146 100%);border:1px solid #1973B8;border-radius:12px;padding:16px;margin:20px 0;text-align:center;">
+            <p style="color:#7dd3fc;font-size:10px;text-transform:uppercase;letter-spacing:2px;margin:0 0 4px 0;font-weight:bold;">Tu caso PLB</p>
+            <p style="color:#fff;font-family:monospace;font-size:18px;font-weight:bold;letter-spacing:2px;margin:0;">{case_code or '—'}</p>
+            <p style="color:#94a3b8;font-size:11px;margin:6px 0 0 0;">Cita este código en cualquier contacto con soporte.</p>
+        </div>
+        <p style="color:#f59e0b;font-size:12px;background:rgba(245,158,11,0.1);padding:14px;border-radius:8px;border-left:4px solid #f59e0b;margin-top:24px;">
+            ⏱ Este código expira en <strong>15 minutos</strong>. Si no fuiste tú, ignora este email y
+            contacta inmediatamente a soporte.
+        </p>
+    """
+    return get_email_template(content, "Código de confirmación · Retiro")
+
 
 @router.get("/bank-withdrawal/config")
 async def get_config(user: dict = Depends(get_current_user)):
@@ -225,39 +258,22 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
          '$set': {'updated_at': now}},
     )
 
-    # Send code via email
+    # Send code via email (awaited so we can report delivery status to the UI)
+    email_sent = False
     try:
-        content = f"""
-            <p style="color:#e2e8f0;font-size:16px;">Hola <strong style="color:#1973B8;">{user.get('name') or user.get('email')}</strong>,</p>
-            <p style="color:#e2e8f0;font-size:15px;">
-                Hemos recibido tu solicitud de retiro a {COUNTRY_BANKS[country]['flag']} {COUNTRY_BANKS[country]['name']}.
-                Confirma con el código:
-            </p>
-            <div style="text-align:center;margin:30px 0;">
-                <div style="display:inline-block;background:#072146;border:2px solid #1973B8;border-radius:14px;padding:24px 38px;">
-                    <p style="color:#7CB1E5;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0 0 8px 0;">Tu código</p>
-                    <p style="color:#fff;font-family:monospace;font-size:36px;font-weight:bold;letter-spacing:8px;margin:0;">{code}</p>
-                </div>
-            </div>
-            <p style="color:#cbd5e1;font-size:13px;line-height:1.6;">
-                Resumen: <strong style="color:#fff">{amount:,.2f} {from_cur}</strong> →
-                <strong style="color:#10b981">{_round(net_out, to_cur):,.2f} {to_cur}</strong>
-                a {bank_name} (titular: {bank_holder}).
-            </p>
-            <div style="background:linear-gradient(135deg,#0a1c3d 0%,#072146 100%);border:1px solid #1973B8;border-radius:12px;padding:16px;margin:20px 0;text-align:center;">
-                <p style="color:#7dd3fc;font-size:10px;text-transform:uppercase;letter-spacing:2px;margin:0 0 4px 0;font-weight:bold;">Tu caso PLB</p>
-                <p style="color:#fff;font-family:monospace;font-size:18px;font-weight:bold;letter-spacing:2px;margin:0;">{case_code}</p>
-                <p style="color:#94a3b8;font-size:11px;margin:6px 0 0 0;">Cita este código en cualquier contacto con soporte.</p>
-            </div>
-            <p style="color:#f59e0b;font-size:12px;background:rgba(245,158,11,0.1);padding:14px;border-radius:8px;border-left:4px solid #f59e0b;margin-top:24px;">
-                ⏱ Este código expira en <strong>15 minutos</strong>. Si no fuiste tú, ignora este email y
-                contacta inmediatamente a soporte.
-            </p>
-        """
-        html = get_email_template(content, "Código de confirmación · Retiro")
-        send_email_background(user.get('email'), f"🔐 Código {code} · Confirma tu retiro · LIONSBIT", html)
+        html = _code_email_html(
+            user.get('name') or user.get('email'), code, case_code,
+            amount, from_cur, net_out, to_cur, bank_name, bank_holder, country,
+        )
+        result = await send_email(user.get('email'), f"🔐 Código {code} · Confirma tu retiro · LIONSBIT", html)
+        email_sent = result is not None
     except Exception:
         pass
+
+    await db.bank_withdrawal_requests.update_one(
+        {'id': req_id},
+        {'$set': {'last_code_sent_at': _now_iso(), 'last_code_email_sent': email_sent}}
+    )
 
     masked = (user.get('email') or '')
     if '@' in masked:
@@ -270,6 +286,7 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
         'reference': reference,
         'case_code': case_code,
         'masked_email': masked,
+        'email_sent': email_sent,
         'expires_at': code_expires_at,
         'preview': {
             'from_amount': _round(amount, from_cur),
@@ -281,6 +298,70 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
             'fee_amount': _round(fee_amount, to_cur),
         },
     }
+
+
+@router.post("/bank-withdrawal/{request_id}/resend-code")
+async def resend_code(request_id: str, user: dict = Depends(get_current_user)):
+    """Regenerate the 6-digit confirmation code, reset expiry and re-send it by email.
+
+    Only for the request owner while status='awaiting_code'. Rate-limited to
+    one resend per 60 seconds.
+    """
+    rec = await db.bank_withdrawal_requests.find_one({'id': request_id, 'user_id': user['id']})
+    if not rec:
+        raise HTTPException(404, 'Solicitud no encontrada')
+    if rec['status'] != 'awaiting_code':
+        raise HTTPException(400, f"Esta solicitud ya está en estado: {rec['status']}")
+
+    last_sent = rec.get('last_code_sent_at')
+    if last_sent:
+        elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(last_sent.replace('Z', '+00:00'))).total_seconds()
+        if elapsed < 60:
+            raise HTTPException(429, f'Espera {int(60 - elapsed)}s antes de reenviar el código.')
+
+    code = _gen_code()
+    code_expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    now = _now_iso()
+
+    case_row = await db.cases.find_one({'entity_type': 'withdrawal', 'entity_id': request_id}, {'_id': 0, 'case_code': 1})
+    html = _code_email_html(
+        user.get('name') or user.get('email'), code,
+        (case_row or {}).get('case_code'),
+        rec['from_amount'], rec['from_currency'], rec['net_to_amount'], rec['to_currency'],
+        rec['bank_name'], rec['bank_holder'], rec['country'],
+    )
+    result = await send_email(user.get('email'), f"🔐 Código {code} · Confirma tu retiro · LIONSBIT", html)
+    email_sent = result is not None
+
+    update = {
+        'code_expires_at': code_expires_at,
+        'code_attempts': 0,
+        'last_code_sent_at': now,
+        'last_code_email_sent': email_sent,
+        'updated_at': now,
+    }
+    if email_sent:
+        # Only rotate the active code if the new one actually reached the outbox
+        update['confirmation_code_hash'] = code
+    await db.bank_withdrawal_requests.update_one(
+        {'id': request_id},
+        {'$set': update,
+         '$push': {'status_timeline': _timeline_entry(
+             'awaiting_code', 'user', user,
+             'Código reenviado por email' if email_sent else 'Reenvío de código falló (email no entregado)')}},
+    )
+
+    if not email_sent:
+        return {
+            'ok': False, 'sent': False,
+            'message': 'No se pudo enviar el email en este momento. Inténtalo de nuevo en unos minutos o contacta a soporte.',
+        }
+
+    masked = (user.get('email') or '')
+    if '@' in masked:
+        local, domain = masked.split('@', 1)
+        masked = (local[:2] + '***' + local[-1:]) + '@' + domain
+    return {'ok': True, 'sent': True, 'masked_email': masked, 'expires_at': code_expires_at}
 
 
 @router.post("/bank-withdrawal/{request_id}/confirm-code")

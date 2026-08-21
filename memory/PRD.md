@@ -330,6 +330,21 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 81 — BUG FIX: código de confirmación de retiros no llega (Aug 21, 2026)
+
+**Bug reportado:** retiros a banco local atascados en "Esperando código" (ej. producción: WD-260821-E5B028, WD-260821-26644B); el email con el código nunca llega.
+
+**ROOT CAUSE (verificada en email_logs):** `"You have reached your daily email sending quota"` — la cuota diaria de Resend (plan gratuito ~100/día) está agotada. El código se GENERA bien; Resend rechaza el envío. Agravantes: (1) `initiate` usaba `send_email_background` → fallo SILENCIOSO, la UI decía "Código enviado" aunque falló; (2) NO existía endpoint ni botón de reenvío → retiro atascado para siempre (código expira en 15 min). **Consumo de cuota:** 61 de los ~73 emails sent/día son recordatorios automáticos "Tiene saldo disponible para retirar" (job user_reminders) — compiten con los códigos críticos. NO se tocó ese job (usuario pidió scope estricto); pendiente decisión del usuario: upgrade Resend o limitar recordatorios.
+
+**Fixes (`bank_withdrawals.py` + `BankWithdrawalPage.jsx`):**
+- Helper `_code_email_html(...)` extraído (mismo template).
+- `initiate`: `await send_email` (ya no background) → respuesta incluye `email_sent:bool`; guarda `last_code_sent_at`/`last_code_email_sent`. UI: toast warning + aviso ámbar `wd-email-failed-warning` si falló.
+- NUEVO `POST /bank-withdrawal/{id}/resend-code`: owner + awaiting_code only, rate-limit 60s (429), regenera código + resetea expiry/attempts, envía email; si el envío falla devuelve **200 {sent:false, message}** (NO 502 — el ingress de K8s reemplazaba el JSON por HTML Bad Gateway y el toast salía vacío; corregido tras hallazgo del testing agent) y NO rota el código activo; timeline registra el reenvío/fallo.
+- UI: `ResendCodeButton` (cooldown 60s) en paso 3 del wizard Y en el DetailModal de retiros atascados en awaiting_code (sección ámbar con input + confirmar inline, testids wd-detail-awaiting-code / wd-detail-code-input / wd-detail-confirm-btn / wd-resend-code-btn).
+
+**Status:** ✅ Testing agent iteration_69 (backend+frontend): email_sent refleja resultado real, 429 en cooldown, no-rotación si falla, confirm-code intacto, UI warning/cooldown/toast OK. Fix 502→200 verificado por curl (JSON con mensaje llega intacto). Cosmético NO tocado: hydration warnings de selects (sin span literal encontrado, LOW).
+**⚠ ACCIÓN USUARIO:** los códigos llegarán cuando la cuota Resend se libere (reset diario) o haga upgrade en resend.com. El envío de 625 bienvenidas FX2026 TAMBIÉN requiere plan superior a 100/día.
+
 ### Iteration 80 — BUG FIX: "Salud de cuenta" no se abría al hacer clic (Aug 20, 2026)
 
 **Bug:** la tarjeta "Salud de cuenta" del dashboard (badge "2 pendientes", `DiagnosticCTA`) y el anillo de salud del sidebar disparaban el evento `open-diagnostic`, pero el ÚNICO listener vivía en `AIAssistantWidget.jsx` que está OCULTO → el clic no hacía nada.

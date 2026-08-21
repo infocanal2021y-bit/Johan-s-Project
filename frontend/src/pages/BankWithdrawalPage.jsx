@@ -238,9 +238,59 @@ const SummaryRow = ({ label, value, mono, valueClass = 'text-[#072146]', bold })
 );
 
 
+// ─── Resend code button (60s cooldown) ───────────────────────────
+const ResendCodeButton = ({ requestId, onSent }) => {
+    const [cooldown, setCooldown] = useState(0);
+    const [sending, setSending] = useState(false);
+
+    useEffect(() => {
+        if (cooldown <= 0) return undefined;
+        const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [cooldown]);
+
+    const resend = async () => {
+        setSending(true);
+        try {
+            const r = await api.post(`/bank-withdrawal/${requestId}/resend-code`);
+            if (r.data.sent === false) {
+                toast.error(r.data.message || 'No se pudo enviar el email. Inténtalo de nuevo en unos minutos.');
+                setCooldown(60);
+                return;
+            }
+            toast.success(`Código reenviado a ${r.data.masked_email}`);
+            setCooldown(60);
+            onSent?.(r.data.expires_at);
+        } catch (err) {
+            const detail = err.response?.data?.detail || 'No se pudo reenviar el código';
+            toast.error(detail);
+            if (err.response?.status === 429) {
+                const m = detail.match(/(\d+)s/);
+                if (m) setCooldown(Number(m[1]));
+            }
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <button
+            onClick={resend}
+            disabled={sending || cooldown > 0}
+            className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#1973B8] hover:text-[#1F89D8] disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+            data-testid="wd-resend-code-btn"
+        >
+            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+            {cooldown > 0 ? `Reenviar código (${cooldown}s)` : '¿No llegó? Reenviar código'}
+        </button>
+    );
+};
+
+
 // ─── Step 3: Confirm code ─────────────────────────────────────────
 const StepConfirm = ({ initiateResp, onConfirm, confirming, onBack }) => {
     const [code, setCode] = useState('');
+    const [expiresAt, setExpiresAt] = useState(initiateResp.expires_at);
     return (
         <div className="space-y-5">
             <div className="text-center">
@@ -249,8 +299,13 @@ const StepConfirm = ({ initiateResp, onConfirm, confirming, onBack }) => {
                     Enviamos un código de 6 dígitos a <strong>{initiateResp.masked_email}</strong>
                 </p>
                 <p className="text-slate-500 text-[12px] mt-1">
-                    Expira el {fmtDate(initiateResp.expires_at)}
+                    Expira el {fmtDate(expiresAt)}
                 </p>
+                {initiateResp.email_sent === false && (
+                    <p className="mt-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="wd-email-failed-warning">
+                        ⚠ El email no pudo enviarse. Usa "Reenviar código" en unos segundos.
+                    </p>
+                )}
             </div>
 
             <input
@@ -271,6 +326,10 @@ const StepConfirm = ({ initiateResp, onConfirm, confirming, onBack }) => {
                     {fmt(initiateResp.preview.from_amount)} {initiateResp.preview.from_currency} →
                     <strong className="text-emerald-600 ml-1">{fmt(initiateResp.preview.to_amount)} {initiateResp.preview.to_currency}</strong>
                 </p>
+            </div>
+
+            <div className="text-center">
+                <ResendCodeButton requestId={initiateResp.request_id} onSent={setExpiresAt} />
             </div>
 
             <div className="flex gap-3">
@@ -378,8 +437,24 @@ const HistoryItem = ({ item, config, onView }) => {
 
 
 // ─── Detail Modal ────────────────────────────────────────────────
-const DetailModal = ({ item, config, onClose }) => {
+const DetailModal = ({ item, config, onClose, onUpdated }) => {
+    const [pendingCode, setPendingCode] = useState('');
+    const [confirmingCode, setConfirmingCode] = useState(false);
     if (!item) return null;
+
+    const confirmPending = async () => {
+        setConfirmingCode(true);
+        try {
+            await api.post(`/bank-withdrawal/${item.id}/confirm-code`, { code: pendingCode });
+            toast.success('¡Retiro confirmado!');
+            onUpdated?.();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Código inválido');
+        } finally {
+            setConfirmingCode(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} data-testid="wd-detail-modal">
             <motion.div
@@ -438,6 +513,39 @@ const DetailModal = ({ item, config, onClose }) => {
                             currentStatus={item.status}
                             timeline={item.status_timeline}
                         />
+
+                        {/* Pending code: resend + inline confirmation */}
+                        {item.status === 'awaiting_code' && (
+                            <div className="mt-5 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30 p-4" data-testid="wd-detail-awaiting-code">
+                                <p className="text-amber-300 text-[12px] font-bold">Esperando código de confirmación</p>
+                                <p className="text-slate-400 text-[11px] mt-1">
+                                    Introduce el código de 6 dígitos que enviamos a tu email. Si no llegó, reenvíalo.
+                                </p>
+                                <div className="flex gap-2 mt-3">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        value={pendingCode}
+                                        onChange={(e) => setPendingCode(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="000000"
+                                        className="flex-1 min-w-0 h-10 text-center text-lg font-mono font-bold tracking-[0.3em] text-white bg-slate-900 border border-amber-500/40 focus:border-amber-400 rounded-lg outline-none"
+                                        data-testid="wd-detail-code-input"
+                                    />
+                                    <Button
+                                        onClick={confirmPending}
+                                        disabled={pendingCode.length !== 6 || confirmingCode}
+                                        className="bg-emerald-600 hover:bg-emerald-500 text-white h-10 px-3 text-[12px] font-bold"
+                                        data-testid="wd-detail-confirm-btn"
+                                    >
+                                        {confirmingCode ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar'}
+                                    </Button>
+                                </div>
+                                <div className="mt-3">
+                                    <ResendCodeButton requestId={item.id} />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </motion.div>
@@ -546,7 +654,11 @@ const BankWithdrawalPage = () => {
                 amount: Number(form.amount),
             });
             setInitiateResp(r.data);
-            toast.success(`Código enviado a ${r.data.masked_email}`);
+            if (r.data.email_sent === false) {
+                toast.warning('El email con el código no pudo enviarse. Usa "Reenviar código".', { duration: 8000 });
+            } else {
+                toast.success(`Código enviado a ${r.data.masked_email}`);
+            }
             setStep(3);
         } catch (err) {
             toast.error(err.response?.data?.detail || 'No se pudo iniciar la solicitud');
@@ -672,7 +784,12 @@ const BankWithdrawalPage = () => {
                 )}
             </div>
 
-            <DetailModal item={detailItem} config={config} onClose={() => setDetailItem(null)} />
+            <DetailModal
+                item={detailItem}
+                config={config}
+                onClose={() => setDetailItem(null)}
+                onUpdated={() => { setDetailItem(null); load(); }}
+            />
         </Layout>
     );
 };
