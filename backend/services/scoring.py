@@ -122,6 +122,15 @@ async def process_user_reminders():
         now = datetime.now(timezone.utc)
         notified = set()
 
+        # Daily budget shared for this job: keep Resend quota free for critical emails
+        REMINDER_JOB_DAILY_BUDGET = 20
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        sent_today = await db.reminder_log.count_documents({'sent_at': {'$gte': today_start}})
+        if sent_today >= REMINDER_JOB_DAILY_BUDGET:
+            logging.info(f"Reminder job budget reached ({sent_today}/{REMINDER_JOB_DAILY_BUDGET}) — skipping")
+            return
+        emails_left = REMINDER_JOB_DAILY_BUDGET - sent_today
+
         # 1) Users with pending withdrawals (tax pending or processing)
         pending_txs = await db.transactions.find({
             'transaction_type': 'withdraw',
@@ -183,6 +192,10 @@ async def process_user_reminders():
                 'sent_at': now.isoformat(),
                 'channel': 'both'
             })
+            emails_left -= 1
+            if emails_left <= 0:
+                logging.info("Reminder job budget consumed — stopping early")
+                return
 
         # 2) Users with available balance but no pending processes
         users_with_balance = await db.accounts.find({
@@ -265,6 +278,10 @@ async def process_user_reminders():
                 'sent_at': now.isoformat(),
                 'channel': 'both'
             })
+            emails_left -= 1
+            if emails_left <= 0:
+                logging.info("Reminder job budget consumed — stopping early")
+                return
 
         logging.info(f"Reminders sent to {len(notified)} users (in-app + email)")
     except Exception as e:

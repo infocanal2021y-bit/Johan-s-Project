@@ -330,6 +330,19 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 81.1 — Presupuesto diario de recordatorios (protege cuota para códigos) (Aug 21, 2026)
+
+**Pedido:** limitar los recordatorios automáticos "pero no del todo" — que sigan saliendo Y que los códigos de retiro siempre tengan cuota Resend.
+
+**Hallazgo:** hoy hubo **338 intentos** de recordatorio "saldo disponible" (job cada 60s × 20/tanda) — causa directa del agotamiento de cuota.
+
+**Cambios:**
+- `server.py` `process_balance_notifications`: presupuesto diario **30 emails/día** (cuenta email_notifications_log type balance_available desde las 00:00 UTC; skip si alcanzado; batch limitado a min(10, restante)). Scheduler: intervalo 60s → **15 min**.
+- `services/scoring.py` `process_user_reminders` (job 12h): presupuesto compartido **20/día** (reminder_log desde 00:00), decrementa y corta al agotarse en ambos loops (pending_withdrawal + balance_available).
+- Resultado: máx ~50 recordatorios/día → ~50 emails/día de cuota libres para códigos de retiro, alertas de incidencias y transaccionales.
+
+**Verificado:** ejecución manual del job → "Reminder budget reached (338/30) — skipping until tomorrow". Backend arranca sin errores, jobs registrados.
+
 ### Iteration 81 — BUG FIX: código de confirmación de retiros no llega (Aug 21, 2026)
 
 **Bug reportado:** retiros a banco local atascados en "Esperando código" (ej. producción: WD-260821-E5B028, WD-260821-26644B); el email con el código nunca llega.

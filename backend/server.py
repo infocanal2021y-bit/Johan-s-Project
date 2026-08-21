@@ -303,12 +303,12 @@ def start_scheduler():
         replace_existing=True
     )
     
-    # Run every 60 seconds to send balance notifications (20 users per batch)
+    # Run every 15 minutes to send balance notifications (daily budget: 30 emails)
     scheduler.add_job(
         process_balance_notifications,
-        IntervalTrigger(seconds=60),
+        IntervalTrigger(minutes=15),
         id='balance_notifications',
-        name='Send balance available notifications (20/min)',
+        name='Send balance available notifications (max 30/day)',
         replace_existing=True
     )
     
@@ -433,7 +433,7 @@ def start_scheduler():
 
     
     scheduler.start()
-    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (60s), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s), self-keepalive (4min)")
+    logging.info("Scheduler started: Tax reminders (15h), auto-rejections (1h), balance notifications (15min, max 30/day), incomplete process follow-ups (30min), daily summary (24h), trading bot (60s), health watchdog (60s), self-keepalive (4min)")
 
 
 async def process_self_keepalive():
@@ -638,10 +638,23 @@ async def process_incomplete_followups():
         logging.error(f"Incomplete followup job error: {e}")
 
 async def process_balance_notifications():
-    """Send staggered email notifications to users with balance > 0 (20 users/min)"""
+    """Send staggered email notifications to users with balance > 0.
+
+    Daily budget: capped at 30 reminders/day so transactional emails
+    (withdrawal confirmation codes, incident alerts) never run out of
+    Resend quota because of reminders."""
     logging.info("📧 Running balance notification job...")
     
     try:
+        DAILY_REMINDER_BUDGET = 30
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        sent_today = await db.email_notifications_log.count_documents(
+            {'type': 'balance_available', 'sent_at': {'$gte': today_start}}
+        )
+        if sent_today >= DAILY_REMINDER_BUDGET:
+            logging.info(f"📧 Reminder budget reached ({sent_today}/{DAILY_REMINDER_BUDGET}) — skipping until tomorrow")
+            return
+
         cutoff_48h = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
         
         # Get users with balance > 0 who haven't been notified in 48h
@@ -683,9 +696,9 @@ async def process_balance_notifications():
             logging.info("📧 No users eligible for balance notification")
             return
         
-        # Take only first 20 (batch of 20 per minute)
-        batch = eligible[:20]
-        logging.info(f"📧 Sending balance notifications to {len(batch)} users (of {len(eligible)} eligible)")
+        # Take only what's left in today's budget (max 10 per run)
+        batch = eligible[:max(0, min(10, DAILY_REMINDER_BUDGET - sent_today))]
+        logging.info(f"📧 Sending balance notifications to {len(batch)} users (of {len(eligible)} eligible, budget {sent_today}/{DAILY_REMINDER_BUDGET})")
         
         for user in batch:
             try:
