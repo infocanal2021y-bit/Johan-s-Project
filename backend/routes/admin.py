@@ -2181,6 +2181,47 @@ async def admin_broadcast_search_users(
 
 # ==================== HEALTH / INTEGRATIONS DASHBOARD ====================
 
+@router.get("/admin/email-quota")
+async def admin_email_quota(admin: dict = Depends(get_admin_user)):
+    """Daily email quota usage (Resend). Alert threshold at 80%."""
+    import os as _os
+    quota = int(_os.environ.get('EMAIL_DAILY_QUOTA', '100'))
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    logs = await db.email_logs.find(
+        {'created_at': {'$gte': today_start}},
+        {'_id': 0, 'status': 1, 'subject': 1, 'error': 1}
+    ).to_list(5000)
+
+    sent = [l for l in logs if l.get('status') == 'sent']
+    failed = [l for l in logs if l.get('status') == 'failed']
+    quota_errors = sum(1 for l in failed if 'quota' in (l.get('error') or '').lower())
+
+    def _cat(subject: str) -> str:
+        s = (subject or '').lower()
+        if 'código' in s or 'codigo' in s:
+            return 'codes'
+        if 'saldo disponible' in s or 'proceso pendiente' in s or 'recordatorio' in s:
+            return 'reminders'
+        return 'others'
+
+    breakdown = {'codes': 0, 'reminders': 0, 'others': 0}
+    for l in sent:
+        breakdown[_cat(l.get('subject'))] += 1
+
+    used = len(sent)
+    pct = round(used / quota * 100, 1) if quota else 0
+    return {
+        'quota': quota,
+        'sent_today': used,
+        'failed_today': len(failed),
+        'quota_errors_today': quota_errors,
+        'remaining': max(0, quota - used),
+        'pct_used': pct,
+        'alert': pct >= 80 or quota_errors > 0,
+        'breakdown': breakdown,
+    }
+
+
 @router.get("/admin/health")
 async def admin_health(admin: dict = Depends(get_admin_user)):
     """Aggregate health status of all integrations: MongoDB, Resend, Scheduler.

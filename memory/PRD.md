@@ -330,6 +330,14 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 82 — Panel Cuota Email en admin + alerta automática (Aug 21, 2026)
+
+- `GET /api/admin/email-quota` (admin.py): cuota diaria desde env `EMAIL_DAILY_QUOTA` (default 100, Resend free); cuenta email_logs desde 00:00 UTC → sent_today, failed_today, quota_errors_today (error~'quota'), remaining, pct_used, alert (pct≥80 O quota_errors>0), breakdown por categoría (codes: asunto con 'código'; reminders: 'saldo disponible'/'proceso pendiente'/'recordatorio'; others).
+- Alerta automática (dentro de `run_status_checks`, job 5 min): si pct≥80 O hay rechazos por cuota → notificación in-app a todos los admins "⚠ Cuota de email en riesgo", 1 vez por día UTC (flag en colección `system_flags` {key:'email_quota_alert', date}).
+- `components/admin/EmailQuotaCard.jsx` montado en AdminDashboardPage (tras KPIs secundarios): barra de progreso (verde<60/ámbar<80/rojo≥80), enviados/restantes, chips de desglose, banner rojo de alerta con recomendación de ampliar plan Resend. Testids: email-quota-card/-pct/-alert/-sent/-remaining/-refresh.
+
+**Verificado:** curl endpoint (63/100, alert:true por 216 quota_errors) · ejecución manual de run_status_checks → notif admin creada + flag diario · screenshot dashboard admin con tarjeta completa y alerta visible.
+
 ### Iteration 81.1 — Presupuesto diario de recordatorios (protege cuota para códigos) (Aug 21, 2026)
 
 **Pedido:** limitar los recordatorios automáticos "pero no del todo" — que sigan saliendo Y que los códigos de retiro siempre tengan cuota Resend.

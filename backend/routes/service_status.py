@@ -157,6 +157,33 @@ async def run_status_checks() -> dict:
     history_docs = await db.status_snapshots.find({}, {'_id': 0}).sort('created_at', -1).limit(60).to_list(60)
     history_docs.reverse()
 
+    # ---- Email quota 80% alert: notify admins once per UTC day
+    try:
+        import os as _os
+        quota = int(_os.environ.get('EMAIL_DAILY_QUOTA', '100'))
+        day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        sent_today = await db.email_logs.count_documents({'created_at': {'$gte': day_start}, 'status': 'sent'})
+        quota_errors = await db.email_logs.count_documents({
+            'created_at': {'$gte': day_start}, 'status': 'failed',
+            'error': {'$regex': 'quota', '$options': 'i'},
+        })
+        pct = sent_today / quota * 100 if quota else 0
+        if pct >= 80 or quota_errors > 0:
+            today_key = day_start[:10]
+            already = await db.system_flags.find_one({'key': 'email_quota_alert', 'date': today_key})
+            if not already:
+                await db.system_flags.insert_one({'key': 'email_quota_alert', 'date': today_key, 'created_at': _now_iso()})
+                admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1}).to_list(20)
+                body = (f'Resend rechazó {quota_errors} emails hoy por cuota agotada.'
+                        if quota_errors > 0 else f'Hoy se han enviado {sent_today} de {quota} emails.')
+                for a in admins:
+                    await create_notification(
+                        a['id'], '⚠ Cuota de email en riesgo',
+                        f'{body} Los códigos de retiro podrían no llegar. Considere ampliar el plan de Resend.'
+                    )
+    except Exception:
+        pass
+
     return {
         'overall': overall,
         'checked_at': snapshot['created_at'],

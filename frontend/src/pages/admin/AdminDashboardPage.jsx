@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
+import { EmailQuotaCard } from '../../components/admin/EmailQuotaCard';
 import { adminAPI } from '../../lib/api';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -236,6 +237,9 @@ export const AdminDashboardPage = () => {
                     <KpiCard icon={Bitcoin}     label="Pagos cripto"        value={stats.cryptoPending}      sub="Pendientes de validar"                color="rose"    to="/admin/crypto-payments" loading={loading} testId="kpi-crypto-pending" />
                     <KpiCard icon={AlertTriangle} label="Suspendidos"       value={stats.suspendedUsers}     sub="Cuentas bloqueadas"                   color="slate"   to="/admin/users"          loading={loading} testId="kpi-suspended" />
                 </div>
+
+                {/* ── Email quota ───────────────────────────────── */}
+                <EmailQuotaCard />
 
                 {/* ── Pending Withdrawals Action Panel ──────────── */}
                 {pendingWithdrawals.length > 0 && (
