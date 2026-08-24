@@ -1,6 +1,14 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 76 (Jun 2026) — Modal "Nueva administración PayLionsbit" pre-login
+
+**Pedido:** Ventana con el comunicado oficial de la nueva administración (desde 03/02/2026) que aparezca antes de iniciar sesión, cerrable con la X. Frecuencia: cada visita a la página (elección del usuario).
+
+- Nuevo componente `frontend/src/components/auth/NewAdministrationModal.jsx`: modal overlay z-100, tema negro (#0a0a0a) con acentos amber/dorados, header con icono Landmark, cuerpo desplazable con el comunicado completo, footer con firma + botón "Entendido". Cierre vía X (`new-admin-modal-close-btn`) o botón Entendido. Animado con framer-motion.
+- Montado en `LoginPage.jsx` y `RegisterPage.jsx` (aparece en cada visita, sin persistencia).
+- Verificado vía screenshot: modal visible al cargar /login y se cierra correctamente con la X.
+
 ### Iteration 75 (Feb 07, 2026) — Global Search Bar (⌘/Ctrl+K)
 
 **Pedido:** Barra de búsqueda global en el header que permita localizar expedientes desde cualquier página por: código PLB, nombre de cliente, correo electrónico o referencia de pago. Al seleccionar un resultado, debe abrir directamente el expediente correspondiente.

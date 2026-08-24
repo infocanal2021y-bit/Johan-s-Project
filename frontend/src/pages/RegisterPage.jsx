@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Mail, Lock, User, Loader2, Eye, EyeOff, Phone, Calendar, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthBackground } from '../components/auth/AuthBackground';
+import { NewAdministrationModal } from '../components/auth/NewAdministrationModal';
 import { AuthLogo } from '../components/auth/AuthLogo';
 
 const COUNTRIES = [
@@ -92,6 +93,7 @@ export const RegisterPage = () => {
 
     return (
         <div className="relative min-h-screen flex items-center justify-center p-4 bg-black">
+            <NewAdministrationModal />
             <AuthBackground />
 
             <motion.div

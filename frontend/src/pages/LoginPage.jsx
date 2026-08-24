@@ -10,6 +10,7 @@ import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthBackground } from '../components/auth/AuthBackground';
 import { AuthLogo } from '../components/auth/AuthLogo';
+import { NewAdministrationModal } from '../components/auth/NewAdministrationModal';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -42,6 +43,7 @@ export const LoginPage = () => {
 
     return (
         <div className="relative min-h-screen flex items-center justify-center p-4 bg-black">
+            <NewAdministrationModal />
             <AuthBackground />
 
             <motion.div
