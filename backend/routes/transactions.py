@@ -212,6 +212,12 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         # Add tax fields for withdrawal
         transaction['tax_required'] = TAX_AMOUNT
         transaction['tax_paid'] = 0.0
+        transaction['status_timeline'] = [{
+            'at': now,
+            'status': 'pending_tax',
+            'status_label': 'Solicitud recibida · Impuesto pendiente',
+            'actor_role': 'user',
+        }]
         
         # Add banking info to the transaction
         if tx_data.banking_info:
@@ -687,6 +693,7 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
         )
     
     # Check if tax is fully paid
+    timeline_entry = None
     if new_tax_paid >= tax_required:
         if transaction['transaction_type'] == 'transfer':
             # For transfers, release funds to recipient
@@ -714,6 +721,12 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
             # For withdrawals, change status to pending (awaiting admin approval)
             update_fields['status'] = 'pending'
             update_fields['tax_completed_at'] = datetime.now(timezone.utc).isoformat()
+            timeline_entry = {
+                'at': update_fields['tax_completed_at'],
+                'status': 'pending',
+                'status_label': 'Impuesto completado · Pendiente de aprobación',
+                'actor_role': 'user',
+            }
             
             await create_notification(current_user['id'], 'Tax Payment Complete - Withdrawal Processing',
                 f'Tax payment complete! Your withdrawal of {transaction["amount"]} {transaction["currency"]} is now being processed. You will be notified once approved.')
@@ -741,7 +754,10 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
                 'created_at': datetime.now(timezone.utc).isoformat()
             })
     
-    await db.transactions.update_one({'id': transaction_id}, {'$set': update_fields})
+    tx_update = {'$set': update_fields}
+    if timeline_entry:
+        tx_update['$push'] = {'status_timeline': timeline_entry}
+    await db.transactions.update_one({'id': transaction_id}, tx_update)
     
     updated_tx = await db.transactions.find_one({'id': transaction_id}, {'_id': 0})
     return updated_tx

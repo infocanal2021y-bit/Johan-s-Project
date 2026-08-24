@@ -11,10 +11,83 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
-import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock, ChevronRight } from 'lucide-react';
+import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock, ChevronRight, History, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 import { WithdrawalProgressBar } from '../components/WithdrawalProgressBar';
+
+const WD_STAGES = [
+    { status: 'pending_tax', label: 'Solicitud recibida · Impuesto pendiente', color: '#f97316' },
+    { status: 'pending', label: 'Impuesto completado · Pendiente de aprobación', color: '#1973B8' },
+    { status: 'processing', label: 'Procesando', color: '#06b6d4' },
+    { status: 'transfer_in_progress', label: 'Transferencia en proceso', color: '#f59e0b' },
+    { status: 'completed', label: 'Completado', color: '#10b981' },
+];
+
+const fmtExact = (iso) => !iso ? null : new Date(iso).toLocaleString('es-ES', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
+
+const WithdrawTimeline = ({ tx }) => {
+    let entries = tx.status_timeline || [];
+    if (entries.length === 0) {
+        entries = [{ at: tx.created_at, status: 'pending_tax' }];
+        if (tx.tax_completed_at) entries.push({ at: tx.tax_completed_at, status: 'pending' });
+        if (tx.status === 'completed') entries.push({ at: tx.completed_at || tx.released_at, status: 'completed' });
+        if (tx.status === 'rejected') entries.push({ at: tx.completed_at, status: 'rejected' });
+    }
+    const isRejected = tx.status === 'rejected';
+    const currentIdx = WD_STAGES.findIndex((s) => s.status === tx.status);
+
+    return (
+        <div className="space-y-3" data-testid="withdraw-timeline">
+            {WD_STAGES.map((stage, i) => {
+                const entry = entries.find((e) => e.status === stage.status);
+                const reached = !isRejected && (Boolean(entry) || (currentIdx >= 0 && i <= currentIdx));
+                const isCurrent = !isRejected && i === currentIdx;
+                return (
+                    <div key={stage.status} className="flex items-start gap-3" data-testid={`wd-timeline-step-${stage.status}`}>
+                        <div className="flex flex-col items-center">
+                            <div
+                                className={`w-3.5 h-3.5 rounded-full mt-1 ring-2 ${reached ? '' : 'ring-slate-700 bg-slate-800'}`}
+                                style={reached ? { background: stage.color, boxShadow: `0 0 0 3px ${stage.color}33` } : {}}
+                            />
+                            {i < WD_STAGES.length - 1 && <div className={`w-px h-6 mt-1 ${reached ? 'bg-slate-500' : 'bg-slate-800'}`} />}
+                        </div>
+                        <div className="-mt-0.5">
+                            <p className={`text-[13px] font-bold ${reached ? 'text-white' : 'text-slate-600'}`}>
+                                {stage.label}
+                                {isCurrent && <Clock className="inline w-3 h-3 ml-1.5 text-amber-400" style={{ animation: 'spin 4s linear infinite' }} />}
+                            </p>
+                            {entry?.at && (
+                                <p className="text-[11px] text-amber-400/90 mt-0.5 tabular-nums" data-testid={`wd-timeline-time-${stage.status}`}>
+                                    {fmtExact(entry.at)}
+                                </p>
+                            )}
+                            {entry?.note && <p className="text-[11px] text-slate-400 italic mt-0.5">"{entry.note}"</p>}
+                        </div>
+                    </div>
+                );
+            })}
+            {isRejected && (
+                <div className="flex items-start gap-3 pt-3 border-t border-slate-800">
+                    <XCircle className="w-4 h-4 text-rose-400 mt-0.5" />
+                    <div>
+                        <p className="text-rose-300 text-[13px] font-bold">Rechazado</p>
+                        {entries.filter((e) => e.status === 'rejected').map((e, i) => (
+                            <div key={i}>
+                                {e.at && <p className="text-[11px] text-slate-400 mt-0.5 tabular-nums">{fmtExact(e.at)}</p>}
+                                {(e.note || tx.rejection_reason) && (
+                                    <p className="text-[11px] text-slate-400 italic mt-0.5">"{e.note || tx.rejection_reason}"</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const TransactionsPage = () => {
     const navigate = useNavigate();
@@ -22,6 +95,7 @@ export const TransactionsPage = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [taxDialogOpen, setTaxDialogOpen] = useState(false);
+    const [timelineTx, setTimelineTx] = useState(null);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [downloadingReceipt, setDownloadingReceipt] = useState(null);
 
@@ -313,6 +387,18 @@ export const TransactionsPage = () => {
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <div className="flex items-center gap-2 justify-end">
+                                                                {/* Timeline button - for withdrawals */}
+                                                                {tx.transaction_type === 'withdraw' && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => setTimelineTx(tx)}
+                                                                        className="border-amber-500/40 hover:bg-amber-500/10 text-amber-400"
+                                                                        data-testid={`view-timeline-btn-${tx.id}`}
+                                                                    >
+                                                                        <History className="w-4 h-4" />
+                                                                    </Button>
+                                                                )}
                                                                 {/* Complete Process Button - for processing withdrawals */}
                                                                 {tx.status === 'processing' && tx.transaction_type === 'withdraw' && (
                                                                     <Button
@@ -357,6 +443,29 @@ export const TransactionsPage = () => {
                     </Card>
                 </motion.div>
             </div>
+
+            {/* Withdrawal Timeline Dialog */}
+            <Dialog open={Boolean(timelineTx)} onOpenChange={(o) => !o && setTimelineTx(null)}>
+                <DialogContent className="bg-[#0a0a0a] border-amber-500/20 max-w-md" data-testid="withdraw-timeline-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <History className="w-5 h-5 text-amber-400" />
+                            Línea de tiempo del retiro
+                        </DialogTitle>
+                    </DialogHeader>
+                    {timelineTx && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="font-mono text-cyan-400 text-xs">{timelineTx.transaction_reference || timelineTx.id.slice(0, 12)}</span>
+                                <span className="text-white font-bold tabular-nums">
+                                    {Number(timelineTx.amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })} {timelineTx.currency}
+                                </span>
+                            </div>
+                            <WithdrawTimeline tx={timelineTx} />
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* Tax Payment Dialog - ONLY CRYPTO */}
             <Dialog open={taxDialogOpen} onOpenChange={setTaxDialogOpen}>

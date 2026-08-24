@@ -196,7 +196,15 @@ async def admin_approve_withdrawal(transaction_id: str, admin: dict = Depends(ge
     
     new_balance = account[balance_field] - tx['amount']
     await db.accounts.update_one({'id': tx['account_id']}, {'$set': {balance_field: new_balance}})
-    await db.transactions.update_one({'id': transaction_id}, {'$set': {'status': 'completed'}})
+    await db.transactions.update_one({'id': transaction_id}, {
+        '$set': {'status': 'completed'},
+        '$push': {'status_timeline': {
+            'at': datetime.now(timezone.utc).isoformat(),
+            'status': 'completed',
+            'status_label': 'Retiro aprobado y completado',
+            'actor_role': 'admin',
+        }},
+    })
     
     await create_notification(tx['user_id'], 'Withdrawal Approved',
         f'Your withdrawal of {tx["amount"]} {tx["currency"]} has been approved.')
@@ -220,7 +228,15 @@ async def admin_reject_withdrawal(transaction_id: str, admin: dict = Depends(get
     if not tx:
         raise HTTPException(status_code=404, detail='Pending withdrawal not found')
     
-    await db.transactions.update_one({'id': transaction_id}, {'$set': {'status': 'rejected'}})
+    await db.transactions.update_one({'id': transaction_id}, {
+        '$set': {'status': 'rejected'},
+        '$push': {'status_timeline': {
+            'at': datetime.now(timezone.utc).isoformat(),
+            'status': 'rejected',
+            'status_label': 'Retiro rechazado',
+            'actor_role': 'admin',
+        }},
+    })
     
     await create_notification(tx['user_id'], 'Withdrawal Rejected',
         f'Your withdrawal of {tx["amount"]} {tx["currency"]} has been rejected.')
@@ -276,8 +292,6 @@ async def admin_update_withdrawal_status(data: AdminUpdateWithdrawalStatus, admi
     if data.status == 'rejected' and data.rejection_reason:
         update_data['rejection_reason'] = data.rejection_reason
     
-    await db.transactions.update_one({'id': data.transaction_id}, {'$set': update_data})
-    
     # Status messages in Spanish
     status_messages = {
         'pending': 'Pendiente de Aprobación',
@@ -286,6 +300,17 @@ async def admin_update_withdrawal_status(data: AdminUpdateWithdrawalStatus, admi
         'completed': 'Completado',
         'rejected': 'Rechazado'
     }
+    
+    await db.transactions.update_one({'id': data.transaction_id}, {
+        '$set': update_data,
+        '$push': {'status_timeline': {
+            'at': datetime.now(timezone.utc).isoformat(),
+            'status': data.status,
+            'status_label': status_messages[data.status],
+            'actor_role': 'admin',
+            'note': data.rejection_reason if data.status == 'rejected' else None,
+        }},
+    })
     
     # Create notification for user
     await create_notification(

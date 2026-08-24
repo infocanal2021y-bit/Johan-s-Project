@@ -1,6 +1,13 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 81 (Jun 2026) — Línea de tiempo visual del retiro (flujo clásico)
+
+- El flujo Retiro a Banco ya tenía timeline visual (`BankWithdrawalPage.jsx` DetailModal). Esta iteración añade timeline al flujo clásico de retiros (transactions).
+- **Backend** — `status_timeline` en transacciones withdraw: entrada inicial `pending_tax` al crear (`transactions.py`); `$push` de `pending` al completar impuesto (pay-tax, var `timeline_entry`); `$push` en `admin.py` approve (`completed`), reject (`rejected`) y `update-status` (cualquier estado, con `note`=rejection_reason). Cada entrada: `{at, status, status_label, actor_role, note?}`.
+- **Frontend** `TransactionsPage.jsx`: nuevo botón History (`view-timeline-btn-{id}`) en filas de retiro → Dialog "Línea de tiempo del retiro" (`withdraw-timeline-dialog`) con componente `WithdrawTimeline`: 5 etapas (pending_tax → pending → processing → transfer_in_progress → completed) con dot coloreado, conector, hora exacta dd mmm yyyy HH:MM:SS en dorado (`wd-timeline-time-{status}`), reloj animado en etapa activa, nota del admin, y bloque terminal rojo para rechazados. Fallback para txs legacy sin timeline (sintetiza de created_at/tax_completed_at/completed_at).
+- Verificado e2e: tx fake con 3 etapas → dialog muestra horas exactas por screenshot; PUT update-status → completed añadió la 4ª entrada con timestamp vía `$push`. Cleanup completo (tx borrada + 1200 EUR revertidos).
+
 ### Iteration 80 (Jun 2026) — Email de cambio de etapa en retiros
 
 - Nueva `send_withdrawal_stage_email(...)` en `services/email.py` (@safe_email): pill de estado con el color de la etapa, tabla (Referencia · Nuevo estado · Importe · Banco/método · Tiempo estimado · Observación) y botón dorado "Consultar estado de la operación". Asunto: "Actualización de su retiro {ref}: {etapa}" o "Retiro {ref} rechazado" (con aviso de fondos devueltos).
