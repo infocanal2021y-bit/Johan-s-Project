@@ -1,6 +1,13 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 80 (Jun 2026) — Email de cambio de etapa en retiros
+
+- Nueva `send_withdrawal_stage_email(...)` en `services/email.py` (@safe_email): pill de estado con el color de la etapa, tabla (Referencia · Nuevo estado · Importe · Banco/método · Tiempo estimado · Observación) y botón dorado "Consultar estado de la operación". Asunto: "Actualización de su retiro {ref}: {etapa}" o "Retiro {ref} rechazado" (con aviso de fondos devueltos).
+- `routes/bank_withdrawals.py`: `admin_advance` ahora envía el email en cada avance (received → conversion_done → compliance_review → transfer_in_progress) con ETA por etapa y nota del admin; `admin_reject` envía el email de rechazo con motivo. `admin_complete` ya enviaba su propio email (sin cambios).
+- Flujo clásico (transactions/admin.py) ya cubría todas sus etapas por email (solicitud recibida iter-79, impuesto completado → pending, aprobado, rechazado) — verificado, sin cambios.
+- Verificado e2e: 2 solicitudes fake → advance (compliance_review) y reject vía endpoints admin → ambos emails `sent` en email_logs. Cleanup completo (docs borrados + refund de 500 EUR revertido del wallet admin).
+
 ### Iteration 79 (Jun 2026) — Email automático "Hemos recibido su solicitud de retiro"
 
 - Nueva función `send_withdrawal_request_received_email(...)` en `services/email.py` (decorada con `@safe_email`): plantilla en español con saludo por nombre, tabla resumen (Referencia · Fecha dd/mm/YYYY HH:MM UTC · Importe solicitado · Comisión/cargo · Importe a recibir · Banco/método · Estado) y botón dorado "Consultar estado de la operación" → `{APP_BASE_URL}/transactions`. Asunto: "Hemos recibido su solicitud de retiro".

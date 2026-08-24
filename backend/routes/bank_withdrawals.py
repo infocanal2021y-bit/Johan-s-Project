@@ -33,7 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
-from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email
+from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email, send_withdrawal_stage_email
 from services.case_codes import generate_case_code, update_case_status
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
@@ -593,6 +593,27 @@ async def admin_advance(request_id: str, payload: dict, admin: dict = Depends(ge
     except Exception:
         pass
 
+    _eta = {
+        'received': 'Procesamiento inmediato',
+        'conversion_done': '~5 min',
+        'compliance_review': '1-3 horas',
+        'transfer_in_progress': '1-2 días hábiles',
+        'completed': '2-5 días hábiles',
+    }
+    import asyncio as _asyncio
+    _asyncio.create_task(send_withdrawal_stage_email(
+        user_email=rec.get('user_email'),
+        user_name=rec.get('user_name') or rec.get('user_email'),
+        reference=rec['reference'],
+        status_label=STATUS_LABELS[next_status]['label'],
+        status_color=STATUS_LABELS[next_status]['color'],
+        amount_text=f"{float(rec['net_to_amount']):,.2f} {rec['to_currency']}",
+        bank_text=f"{rec['bank_name']} · {rec.get('country_name', '')}".strip(' ·'),
+        eta_text=_eta.get(next_status),
+        note=note,
+        cta_path='/wallet/bank-withdrawal',
+    ))
+
     fresh = await db.bank_withdrawal_requests.find_one(
         {'id': request_id}, {'_id': 0, 'confirmation_code_hash': 0}
     )
@@ -709,6 +730,20 @@ async def admin_reject(request_id: str, payload: dict, admin: dict = Depends(get
         )
     except Exception:
         pass
+
+    import asyncio as _asyncio
+    _asyncio.create_task(send_withdrawal_stage_email(
+        user_email=rec.get('user_email'),
+        user_name=rec.get('user_name') or rec.get('user_email'),
+        reference=rec['reference'],
+        status_label=STATUS_LABELS['rejected']['label'],
+        status_color=STATUS_LABELS['rejected']['color'],
+        amount_text=f"{float(rec['from_amount']):,.2f} {rec['from_currency']}",
+        bank_text=f"{rec['bank_name']} · {rec.get('country_name', '')}".strip(' ·'),
+        note=note,
+        rejected=True,
+        cta_path='/wallet/bank-withdrawal',
+    ))
 
     fresh = await db.bank_withdrawal_requests.find_one(
         {'id': request_id}, {'_id': 0, 'confirmation_code_hash': 0}

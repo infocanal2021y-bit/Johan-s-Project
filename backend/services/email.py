@@ -359,6 +359,72 @@ async def send_withdrawal_request_received_email(
     await send_email(user_email, "Hemos recibido su solicitud de retiro", html)
 
 
+@safe_email
+async def send_withdrawal_stage_email(
+    user_email: str,
+    user_name: str,
+    reference: str,
+    status_label: str,
+    status_color: str,
+    amount_text: str,
+    bank_text: str,
+    eta_text: str = None,
+    note: str = None,
+    rejected: bool = False,
+    cta_path: str = '/transactions',
+):
+    """Notifica al usuario cada avance de etapa de su retiro."""
+    header = 'Retiro rechazado' if rejected else 'Actualización de su retiro'
+    intro = (
+        'Lamentamos informarle que su solicitud de retiro ha sido <strong style="color:#ef4444;">rechazada</strong>. Los fondos han sido devueltos a su saldo.'
+        if rejected else
+        'Su solicitud de retiro ha avanzado a una nueva etapa.'
+    )
+    rows = [
+        ('Referencia', reference),
+        ('Nuevo estado', f'<span style="color:{status_color};">{status_label}</span>'),
+        ('Importe', amount_text),
+        ('Banco / método', bank_text),
+    ]
+    if eta_text:
+        rows.append(('Tiempo estimado', eta_text))
+    if note:
+        rows.append(('Observación', note))
+    rows_html = ''.join(
+        f"""<tr>
+            <td style="padding: 10px 14px; color: #94a3b8; font-size: 13px; border-bottom: 1px solid #334155;">{label}</td>
+            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: bold; border-bottom: 1px solid #334155; text-align: right;">{value}</td>
+        </tr>"""
+        for label, value in rows
+    )
+    content = f"""
+        <h2 style="color: white; margin: 0 0 16px 0;">Hola, {user_name}:</h2>
+        <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">{intro}</p>
+        <div style="text-align: center; margin-bottom: 24px;">
+            <span style="display: inline-block; background: {status_color}22; border: 1px solid {status_color}; color: {status_color}; padding: 8px 24px; border-radius: 999px; font-weight: bold; font-size: 14px;">
+                {status_label}
+            </span>
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 28px;">
+            {rows_html}
+        </table>
+        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 28px 0;">
+            Puede consultar el progreso de su solicitud directamente desde su cuenta PayLionsbit.
+        </p>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <a href="{APP_BASE_URL}{cta_path}" style="display: inline-block; background: linear-gradient(135deg, #F0B90B, #d19e06); color: #0f172a; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                Consultar estado de la operación
+            </a>
+        </div>
+    """
+    html = get_email_template(content, title=header)
+    subject = (
+        f"Retiro {reference} rechazado" if rejected
+        else f"Actualización de su retiro {reference}: {status_label}"
+    )
+    await send_email(user_email, subject, html)
+
+
 async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
     """Send email notification for withdrawal status changes"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")
