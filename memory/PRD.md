@@ -1,6 +1,12 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 78 (Jun 2026) — Publicación de comunicados por admin + envío por email (cola inteligente)
+
+- **Backend** `routes/communications.py`: nuevo `POST /api/admin/communications` (admin-only via `get_admin_user`). Payload `{title, body, send_email=true}`. El body se divide en párrafos por saltos de línea; slug autogenerado (`slugify + hex6`); inserta en `official_communications` con `created_by`/`created_at`. Si `send_email`: construye HTML con `get_email_template` y hace `insert_many` directo en `email_queue` con `priority: 2`, `status: 'queued'`, `source: 'communication:{slug}'` para TODOS los usuarios reales (filtro `is_demo != true` y email no terminado en `@test.com` → 2972 destinatarios actuales de 3270). El scheduler existente (cada 15 min, 15/run, respeta cuota Resend) los envía gradualmente.
+- **Frontend** `CommunicationsPage.jsx`: botón "Nuevo Comunicado" (`new-communication-btn`, solo admin via `useAuth`) abre Dialog con título, textarea (párrafos separados por línea en blanco), checkbox "Enviar por correo a todos los usuarios" (activado por defecto) y botón publicar. Al publicar: toast con nº de correos encolados + prepend a la lista. Testids: `communication-title-input`, `communication-body-input`, `communication-send-email-checkbox`, `communication-publish-btn`.
+- Verificado: publicación e2e via curl (send_email=false, luego borrado el doc de prueba), filtro de destinatarios validado contra DB, UI del dialog verificada por screenshot. NO se encolaron emails reales en pruebas para no spamear a los 2972 usuarios.
+
 ### Iteration 77 (Jun 2026) — Fondo login con león + Historial de Comunicados
 
 **1. Fondo Login Unificado:** `components/auth/AuthBackground.jsx` reescrito para replicar el `AppBackground` interno: base negra pura, marca de agua del león (`/lionsbit-logo.jpg`, opacity 0.07, grayscale + screen blend), glows radiales azules, franja de gradiente superior, orbe ámbar animado y viñeta. Afecta a todas las páginas de auth (login, registro, forgot, reset). Eliminada la imagen de ciudad de Unsplash. Verificado vía screenshot.
