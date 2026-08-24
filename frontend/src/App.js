@@ -17,6 +17,7 @@ import { TransferPage } from "./pages/TransferPage";
 import { KYCPage } from "./pages/KYCPage";
 import { SupportPage } from "./pages/SupportPage";
 import MessageCenterPage from "./pages/MessageCenterPage";
+import CommunicationsPage from "./pages/CommunicationsPage";
 import ServiceStatusPage from "./pages/ServiceStatusPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
@@ -152,6 +153,7 @@ function AppRoutes() {
             <Route path="/kyc" element={<ProtectedRoute><KYCPage /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><MessageCenterPage /></ProtectedRoute>} />
+            <Route path="/communications" element={<ProtectedRoute><CommunicationsPage /></ProtectedRoute>} />
             <Route path="/status" element={<ServiceStatusPage />} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             

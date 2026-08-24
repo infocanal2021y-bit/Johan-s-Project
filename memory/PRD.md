@@ -1,6 +1,16 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 77 (Jun 2026) — Fondo login con león + Historial de Comunicados
+
+**1. Fondo Login Unificado:** `components/auth/AuthBackground.jsx` reescrito para replicar el `AppBackground` interno: base negra pura, marca de agua del león (`/lionsbit-logo.jpg`, opacity 0.07, grayscale + screen blend), glows radiales azules, franja de gradiente superior, orbe ámbar animado y viñeta. Afecta a todas las páginas de auth (login, registro, forgot, reset). Eliminada la imagen de ciudad de Unsplash. Verificado vía screenshot.
+
+**2. Historial de Comunicados:**
+- Backend nuevo `routes/communications.py`: `GET /api/communications` (autenticado) lee de colección `official_communications`, con seed idempotente (upsert por `slug`) del comunicado "Nueva administración PayLionsbit" (03/02/2026, 6 párrafos). Registrado en `routes/__init__.py`.
+- Frontend nuevo `pages/CommunicationsPage.jsx` en ruta protegida `/communications`: cabecera con Megaphone, cards acordeón (primera abierta por defecto) con título, fecha formateada es-ES, cuerpo y firma dorada. Testids: `communications-page`, `communication-card-{slug}`, `communication-toggle-{slug}`, `communication-body-{slug}`.
+- Enlace sidebar "Comunicados Oficiales" (icono Megaphone) bajo Centro de Mensajes.
+- Verificado e2e: curl (count 1, 6 párrafos) + screenshot logueado como admin.
+
 ### Iteration 76 (Jun 2026) — Modal "Nueva administración PayLionsbit" pre-login
 
 **Pedido:** Ventana con el comunicado oficial de la nueva administración (desde 03/02/2026) que aparezca antes de iniciar sesión, cerrable con la X. Frecuencia: cada visita a la página (elección del usuario).
