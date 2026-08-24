@@ -1,6 +1,14 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 79 (Jun 2026) — Email automático "Hemos recibido su solicitud de retiro"
+
+- Nueva función `send_withdrawal_request_received_email(...)` en `services/email.py` (decorada con `@safe_email`): plantilla en español con saludo por nombre, tabla resumen (Referencia · Fecha dd/mm/YYYY HH:MM UTC · Importe solicitado · Comisión/cargo · Importe a recibir · Banco/método · Estado) y botón dorado "Consultar estado de la operación" → `{APP_BASE_URL}/transactions`. Asunto: "Hemos recibido su solicitud de retiro".
+- **Call site 1** `routes/transactions.py` (flujo withdraw principal): tras `insert_one` del tx, `asyncio.create_task(...)` con ref TRX, neto = importe (impuesto se abona aparte), fee_text = "Impuesto de procesamiento: 250.00 EUR (se abona por separado)", estado "Pendiente de impuesto", banco de `banking_info`.
+- **Call site 2** `routes/bank_withdrawals.py` `confirm_code` (Retiro a Banco tras OTP): ref del request, importe origen, neto convertido, comisión FX (`fx_fee_amount` + pct), banco + país, estado = label de `conversion_done`.
+- Si falla por cuota Resend, cae automáticamente en la Smart Email Queue existente (P2).
+- Verificado e2e: retiro real de prueba vía POST /api/transactions → email_logs status `sent`; tx de prueba y flag temporal del admin limpiados después.
+
 ### Iteration 78 (Jun 2026) — Publicación de comunicados por admin + envío por email (cola inteligente)
 
 - **Backend** `routes/communications.py`: nuevo `POST /api/admin/communications` (admin-only via `get_admin_user`). Payload `{title, body, send_email=true}`. El body se divide en párrafos por saltos de línea; slug autogenerado (`slugify + hex6`); inserta en `official_communications` con `created_by`/`created_at`. Si `send_email`: construye HTML con `get_email_template` y hace `insert_many` directo en `email_queue` con `priority: 2`, `status: 'queued'`, `source: 'communication:{slug}'` para TODOS los usuarios reales (filtro `is_demo != true` y email no terminado en `@test.com` → 2972 destinatarios actuales de 3270). El scheduler existente (cada 15 min, 15/run, respeta cuota Resend) los envía gradualmente.

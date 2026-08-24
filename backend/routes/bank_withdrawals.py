@@ -33,7 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
-from services.email import send_email, send_email_background, get_email_template
+from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email
 from services.case_codes import generate_case_code, update_case_status
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
@@ -438,6 +438,20 @@ async def confirm_code(request_id: str, payload: dict, user: dict = Depends(get_
         )
     except Exception:
         pass
+
+    # Confirmation email: "Hemos recibido su solicitud de retiro"
+    import asyncio as _asyncio
+    _asyncio.create_task(send_withdrawal_request_received_email(
+        user_email=user.get('email'),
+        user_name=user.get('name') or user.get('email'),
+        reference=rec['reference'],
+        requested_at=now,
+        amount_text=f"{amount:,.2f} {from_cur}",
+        net_text=f"{float(rec['net_to_amount']):,.2f} {to_cur}",
+        fee_text=f"{float(rec['fx_fee_amount']):,.2f} {to_cur} ({rec['fx_fee_pct']}% conversión)",
+        method_text=f"{rec['bank_name']} · {rec.get('country_name', '')}".strip(' ·'),
+        status_text=STATUS_LABELS.get('conversion_done', {}).get('label', 'Conversión completada'),
+    ))
 
     # Audit conversion in currency_conversions for unified history
     await db.currency_conversions.insert_one({

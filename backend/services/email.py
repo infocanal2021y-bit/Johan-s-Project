@@ -302,6 +302,63 @@ async def _build_balance_email_content(user_name: str, amount: float, currency: 
     """
 
 @safe_email
+@safe_email
+async def send_withdrawal_request_received_email(
+    user_email: str,
+    user_name: str,
+    reference: str,
+    requested_at: str,
+    amount_text: str,
+    net_text: str,
+    fee_text: str,
+    method_text: str,
+    status_text: str,
+):
+    """Confirmación 'Hemos recibido su solicitud de retiro' con resumen completo."""
+    try:
+        dt = datetime.fromisoformat(requested_at.replace('Z', '+00:00'))
+        date_str = dt.strftime('%d/%m/%Y %H:%M UTC')
+    except Exception:
+        date_str = requested_at
+
+    rows = [
+        ('Referencia', reference),
+        ('Fecha', date_str),
+        ('Importe solicitado', amount_text),
+        ('Comisión / cargo', fee_text or 'No aplica'),
+        ('Importe a recibir', net_text),
+        ('Banco / método', method_text),
+        ('Estado', status_text),
+    ]
+    rows_html = ''.join(
+        f"""<tr>
+            <td style="padding: 10px 14px; color: #94a3b8; font-size: 13px; border-bottom: 1px solid #334155;">{label}</td>
+            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: bold; border-bottom: 1px solid #334155; text-align: right;">{value}</td>
+        </tr>"""
+        for label, value in rows
+    )
+
+    content = f"""
+        <h2 style="color: white; margin: 0 0 16px 0;">Hola, {user_name}:</h2>
+        <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            Hemos recibido correctamente su solicitud de retiro por <strong style="color: #F0B90B;">{amount_text}</strong>.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 28px;">
+            {rows_html}
+        </table>
+        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 28px 0;">
+            Puede consultar el progreso de su solicitud directamente desde su cuenta PayLionsbit.
+        </p>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <a href="{APP_BASE_URL}/transactions" style="display: inline-block; background: linear-gradient(135deg, #F0B90B, #d19e06); color: #0f172a; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                Consultar estado de la operación
+            </a>
+        </div>
+    """
+    html = get_email_template(content, title="Solicitud de Retiro Recibida")
+    await send_email(user_email, "Hemos recibido su solicitud de retiro", html)
+
+
 async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
     """Send email notification for withdrawal status changes"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")

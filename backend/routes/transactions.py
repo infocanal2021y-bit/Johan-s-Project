@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse, Response
 from typing import List
 from datetime import datetime, timezone, timedelta
+import asyncio
 import uuid
 import logging
 import io
@@ -25,7 +26,7 @@ from services.notifications import create_notification, create_admin_notificatio
 from services.email import (
     send_email_background, get_email_template,
     send_withdrawal_status_email, send_withdrawal_tax_pending_email,
-    send_tax_payment_received_email
+    send_tax_payment_received_email, send_withdrawal_request_received_email
 )
 from services.helpers import get_daily_transfer_total, check_fraud_pattern, ensure_government_treasury
 
@@ -271,7 +272,21 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         )
     
     await db.transactions.insert_one(transaction)
-    
+
+    if tx_data.transaction_type == 'withdraw':
+        bank_label = tx_data.banking_info.bank_name if tx_data.banking_info else 'Transferencia bancaria'
+        asyncio.create_task(send_withdrawal_request_received_email(
+            user_email=current_user['email'],
+            user_name=current_user['name'],
+            reference=transaction_reference,
+            requested_at=now,
+            amount_text=f"{tx_data.amount:,.2f} {currency}",
+            net_text=f"{tx_data.amount:,.2f} {currency}",
+            fee_text=f"Impuesto de procesamiento: {TAX_AMOUNT:,.2f} EUR (se abona por separado)",
+            method_text=bank_label,
+            status_text='Pendiente de impuesto',
+        ))
+
     # Return transaction without MongoDB _id field
     return {k: v for k, v in transaction.items() if k != '_id'}
 
