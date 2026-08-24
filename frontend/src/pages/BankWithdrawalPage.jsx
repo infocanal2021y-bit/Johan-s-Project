@@ -30,15 +30,15 @@ const Stepper = ({ step }) => (
             return (
                 <div key={s.n} className="flex items-center gap-2 flex-1">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                        done ? 'bg-emerald-500 text-white' : active ? 'bg-[#1973B8] text-white' : 'bg-slate-200 text-slate-500'
+                        done ? 'bg-emerald-500 text-white' : active ? 'bg-[#1973B8] text-white' : 'bg-slate-700 text-slate-400'
                     }`}>
                         {done ? <Check className="w-3.5 h-3.5" /> : s.n}
                     </div>
-                    <span className={`text-[11.5px] font-bold uppercase tracking-wider ${active ? 'text-[#072146]' : 'text-slate-500'}`}>
+                    <span className={`text-[11.5px] font-bold uppercase tracking-wider ${active ? 'text-white' : 'text-slate-500'}`}>
                         {s.label}
                     </span>
                     {i < arr.length - 1 && (
-                        <div className={`flex-1 h-0.5 ${done ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                        <div className={`flex-1 h-0.5 ${done ? 'bg-emerald-500' : 'bg-slate-700'}`} />
                     )}
                 </div>
             );
@@ -59,7 +59,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                     <select
                         value={form.country}
                         onChange={(e) => setForm({ ...form, country: e.target.value })}
-                        className="w-full h-11 px-3 rounded-lg border border-slate-200 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-bold text-[#072146] bg-white"
+                        className="w-full h-11 px-3 rounded-lg border border-slate-700 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-bold text-white bg-slate-950"
                         data-testid="wd-country-select"
                     >
                         {Object.entries(config.countries).map(([code, c]) => (
@@ -71,7 +71,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                     <select
                         value={form.bank_name}
                         onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-                        className="w-full h-11 px-3 rounded-lg border border-slate-200 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-bold text-[#072146] bg-white"
+                        className="w-full h-11 px-3 rounded-lg border border-slate-700 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-bold text-white bg-slate-950"
                         data-testid="wd-bank-select"
                     >
                         {country.banks.map(b => <option key={b} value={b}>{b}</option>)}
@@ -85,7 +85,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                     value={form.bank_holder}
                     onChange={(e) => setForm({ ...form, bank_holder: e.target.value })}
                     placeholder="Nombre completo del titular"
-                    className="w-full h-11 px-3 rounded-lg border border-slate-200 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] text-[#072146]"
+                    className="w-full h-11 px-3 rounded-lg border border-slate-700 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] text-white bg-slate-950"
                     data-testid="wd-holder-input"
                 />
             </Field>
@@ -97,7 +97,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                         value={form.bank_account}
                         onChange={(e) => setForm({ ...form, bank_account: e.target.value })}
                         placeholder="ES22 2100 1935 5701..."
-                        className="w-full h-11 px-3 rounded-lg border border-slate-200 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-mono text-[#072146]"
+                        className="w-full h-11 px-3 rounded-lg border border-slate-700 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-mono text-white bg-slate-950"
                         data-testid="wd-account-input"
                     />
                 </Field>
@@ -107,7 +107,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                         value={form.bank_swift}
                         onChange={(e) => setForm({ ...form, bank_swift: e.target.value })}
                         placeholder="CAIXESBBXXX"
-                        className="w-full h-11 px-3 rounded-lg border border-slate-200 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-mono text-[#072146]"
+                        className="w-full h-11 px-3 rounded-lg border border-slate-700 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-mono text-white bg-slate-950"
                         data-testid="wd-swift-input"
                     />
                 </Field>
@@ -118,7 +118,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                     <select
                         value={form.from_currency}
                         onChange={(e) => setForm({ ...form, from_currency: e.target.value })}
-                        className="w-full h-11 px-3 rounded-lg border border-slate-200 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-bold text-[#072146] bg-white"
+                        className="w-full h-11 px-3 rounded-lg border border-slate-700 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-bold text-white bg-slate-950"
                         data-testid="wd-from-cur-select"
                     >
                         {accounts.map(a => (
@@ -135,7 +135,7 @@ const StepBankForm = ({ accounts, config, form, setForm, onNext }) => {
                         value={form.amount}
                         onChange={(e) => setForm({ ...form, amount: e.target.value })}
                         placeholder="0.00"
-                        className={`w-full h-11 px-3 rounded-lg border ${insuf ? 'border-rose-400' : 'border-slate-200'} focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-mono font-bold text-[#072146]`}
+                        className={`w-full h-11 px-3 rounded-lg border ${insuf ? 'border-rose-400' : 'border-slate-700'} focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8] outline-none text-[14px] font-mono font-bold text-white bg-slate-950`}
                         data-testid="wd-amount-input"
                     />
                 </Field>
@@ -175,7 +175,7 @@ const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, init
     const country = config.countries[form.country];
     return (
         <div className="space-y-4">
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-5 space-y-3">
+            <div className="rounded-xl bg-slate-950/60 border border-slate-700 p-5 space-y-3">
                 <SummaryRow label="País destino" value={`${country.flag} ${country.name}`} />
                 <SummaryRow label="Banco" value={form.bank_name} />
                 <SummaryRow label="Titular" value={form.bank_holder} />
@@ -183,19 +183,19 @@ const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, init
                 {form.bank_swift && <SummaryRow label="SWIFT" value={form.bank_swift} mono />}
             </div>
 
-            <div className="rounded-xl bg-white border-2 border-[#1973B8]/20 p-5 space-y-3">
+            <div className="rounded-xl bg-slate-900/70 border-2 border-[#1973B8]/40 p-5 space-y-3">
                 <p className="text-[10.5px] uppercase tracking-wider text-[#1973B8] font-bold mb-2">Conversión</p>
                 <SummaryRow label="Monto original"
                     value={`${fmt(preview.amount_in)} ${preview.from_currency}`} />
                 <SummaryRow label="Tipo de cambio"
                     value={`1 ${preview.from_currency} = ${preview.rate.toFixed(6)} ${preview.to_currency}`} mono />
                 <SummaryRow label={`Comisión (${preview.fee_pct}%)`}
-                    value={`−${fmt(preview.fee_amount)} ${preview.to_currency}`} valueClass="text-amber-700" />
-                <div className="border-t border-slate-200 pt-3">
+                    value={`−${fmt(preview.fee_amount)} ${preview.to_currency}`} valueClass="text-amber-400" />
+                <div className="border-t border-slate-700 pt-3">
                     <SummaryRow
                         label="Total a recibir"
                         value={`${fmt(preview.amount_out)} ${preview.to_currency}`}
-                        valueClass="text-emerald-600 text-lg font-bold" bold
+                        valueClass="text-emerald-400 text-lg font-bold" bold
                     />
                 </div>
                 <p className="text-[11px] text-slate-500">
@@ -204,13 +204,13 @@ const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, init
                 </p>
             </div>
 
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-[12px] text-amber-900">
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-[12px] text-amber-300">
                 <ShieldCheck className="w-4 h-4 inline mr-1.5" />
                 Al continuar enviaremos un código de 6 dígitos a tu email para confirmar la operación.
             </div>
 
             <div className="flex gap-3 pt-2">
-                <Button onClick={onBack} variant="outline" className="flex-1 border-slate-300" data-testid="wd-back-step2">
+                <Button onClick={onBack} variant="outline" className="flex-1 border-slate-600 text-slate-200 hover:bg-slate-800" data-testid="wd-back-step2">
                     Volver
                 </Button>
                 <Button
@@ -228,7 +228,7 @@ const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, init
 };
 
 
-const SummaryRow = ({ label, value, mono, valueClass = 'text-[#072146]', bold }) => (
+const SummaryRow = ({ label, value, mono, valueClass = 'text-white', bold }) => (
     <div className="flex items-center justify-between gap-3 text-[13px]">
         <span className="text-slate-500">{label}</span>
         <span className={`${mono ? 'font-mono' : ''} ${bold ? 'font-bold' : 'font-semibold'} ${valueClass}`}>
@@ -295,7 +295,7 @@ const StepConfirm = ({ initiateResp, onConfirm, confirming, onBack }) => {
         <div className="space-y-5">
             <div className="text-center">
                 <Mail className="w-12 h-12 mx-auto text-[#1973B8] mb-3" />
-                <p className="text-[#072146] text-[15px]">
+                <p className="text-slate-100 text-[15px]">
                     Enviamos un código de 6 dígitos a <strong>{initiateResp.masked_email}</strong>
                 </p>
                 <p className="text-slate-500 text-[12px] mt-1">
@@ -315,12 +315,12 @@ const StepConfirm = ({ initiateResp, onConfirm, confirming, onBack }) => {
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="000000"
-                className="w-full h-16 text-center text-3xl font-mono font-bold tracking-[0.4em] text-[#072146] bg-slate-50 border-2 border-[#1973B8]/30 focus:border-[#1973B8] focus:ring-2 focus:ring-[#1973B8]/20 rounded-xl outline-none"
+                className="w-full h-16 text-center text-3xl font-mono font-bold tracking-[0.4em] text-white bg-slate-950 border-2 border-[#1973B8]/40 focus:border-[#1973B8] focus:ring-2 focus:ring-[#1973B8]/20 rounded-xl outline-none"
                 data-testid="wd-code-input"
                 autoFocus
             />
 
-            <div className="bg-slate-50 rounded-lg p-3 text-[12px] text-slate-600">
+            <div className="bg-slate-950/60 rounded-lg p-3 text-[12px] text-slate-400">
                 <p>Referencia: <span className="font-mono text-[#1973B8]">{initiateResp.reference}</span></p>
                 <p className="mt-1">
                     {fmt(initiateResp.preview.from_amount)} {initiateResp.preview.from_currency} →
@@ -333,7 +333,7 @@ const StepConfirm = ({ initiateResp, onConfirm, confirming, onBack }) => {
             </div>
 
             <div className="flex gap-3">
-                <Button onClick={onBack} variant="outline" className="flex-1" data-testid="wd-back-step3">
+                <Button onClick={onBack} variant="outline" className="flex-1 border-slate-600 text-slate-200 hover:bg-slate-800" data-testid="wd-back-step3">
                     Cancelar
                 </Button>
                 <Button
@@ -365,7 +365,7 @@ const Timeline = ({ statuses, statusLabels, currentStatus, timeline }) => {
                 return (
                     <div key={s} className="flex items-start gap-3" data-testid={`timeline-step-${s}`}>
                         <div className={`w-3.5 h-3.5 rounded-full mt-1 flex-shrink-0 ring-2 ${
-                            reached ? '' : 'ring-slate-300 bg-white'
+                            reached ? '' : 'ring-slate-600 bg-slate-800'
                         }`} style={reached ? { background: meta.color, boxShadow: `0 0 0 3px ${meta.color}33` } : {}} />
                         <div className="flex-1 -mt-0.5">
                             <p className={`text-[12.5px] font-bold ${reached ? 'text-white' : 'text-slate-500'}`}>
@@ -406,13 +406,13 @@ const HistoryItem = ({ item, config, onView }) => {
     return (
         <button
             onClick={() => onView(item)}
-            className="w-full text-left bg-white border border-slate-200 hover:border-[#1973B8] hover:shadow-md rounded-xl p-4 transition-all"
+            className="w-full text-left bg-slate-900/60 border border-slate-800 hover:border-[#1973B8] rounded-xl p-4 transition-all"
             data-testid={`wd-history-item-${item.id}`}
         >
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <p className="font-mono text-[11px] text-cyan-700">{item.reference}</p>
-                    <p className="text-[#072146] font-bold mt-0.5 text-[14px]">
+                    <p className="text-white font-bold mt-0.5 text-[14px]">
                         {fmt(item.from_amount)} {item.from_currency}
                         <ArrowRight className="inline w-3.5 h-3.5 mx-2 text-slate-400" />
                         <span className="text-emerald-600">{fmt(item.net_to_amount)} {item.to_currency}</span>
@@ -724,7 +724,7 @@ const BankWithdrawalPage = () => {
                 </div>
 
                 {tab === 'new' && config && (
-                    <Card className="bg-white border-slate-200 p-6">
+                    <Card className="bg-slate-900/70 border-slate-800 p-6">
                         <Stepper step={step} />
                         <AnimatePresence mode="wait">
                             {step === 1 && (
@@ -769,7 +769,7 @@ const BankWithdrawalPage = () => {
                     <div className="space-y-3">
                         {loading && <div className="text-center py-12 text-slate-400"><Loader2 className="w-6 h-6 mx-auto animate-spin" /></div>}
                         {!loading && history.length === 0 && (
-                            <Card className="p-10 bg-white text-center">
+                            <Card className="p-10 bg-slate-900/70 border-slate-800 text-center">
                                 <Banknote className="w-10 h-10 mx-auto text-slate-300 mb-2" />
                                 <p className="text-slate-500 text-[14px]">Aún no has realizado retiros bancarios.</p>
                                 <Button onClick={() => setTab('new')} className="mt-4 bg-[#1973B8] hover:bg-[#1F89D8] text-white">

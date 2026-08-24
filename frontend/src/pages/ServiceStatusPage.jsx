@@ -13,7 +13,7 @@ const Shell = ({ children }) => {
     const { user } = useAuth();
     if (user) return <Layout>{children}</Layout>;
     return (
-        <div className="min-h-screen" style={{ background: '#072146' }} data-testid="public-status-shell">
+        <div className="min-h-screen" style={{ background: '#000000' }} data-testid="public-status-shell">
             <header className="border-b border-slate-800/70 bg-slate-950/40">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">

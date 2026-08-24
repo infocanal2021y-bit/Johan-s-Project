@@ -423,7 +423,7 @@ export const Sidebar = () => {
                 variant="ghost"
                 size="icon"
                 className="fixed top-3 left-3 z-50 lg:hidden w-11 h-11 rounded-lg shadow-md text-white touch-manipulation"
-                style={{ background: '#072146', border: '1px solid rgba(255,255,255,0.12)' }}
+                style={{ background: '#050505', border: '1px solid rgba(255,255,255,0.12)' }}
                 onClick={() => setMobileOpen(!mobileOpen)}
                 data-testid="mobile-menu-btn"
             >
@@ -443,7 +443,7 @@ export const Sidebar = () => {
                 className={`fixed inset-y-0 left-0 z-40 w-64 border-r transform transition-transform duration-300 lg:hidden ${
                     mobileOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
-                style={{ background: '#072146', borderColor: 'rgba(255,255,255,0.08)' }}
+                style={{ background: '#050505', borderColor: 'rgba(255,255,255,0.08)' }}
             >
                 <SidebarContent />
             </aside>
@@ -451,7 +451,7 @@ export const Sidebar = () => {
             {/* Sidebar - Desktop */}
             <aside
                 className="hidden lg:block fixed inset-y-0 left-0 w-64 border-r"
-                style={{ background: '#072146', borderColor: 'rgba(255,255,255,0.08)' }}
+                style={{ background: '#050505', borderColor: 'rgba(255,255,255,0.08)' }}
             >
                 <SidebarContent />
             </aside>

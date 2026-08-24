@@ -41,7 +41,7 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#072146]">
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-black">
             <AuthBackground />
 
             <motion.div

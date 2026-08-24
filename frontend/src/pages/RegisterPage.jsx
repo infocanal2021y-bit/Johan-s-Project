@@ -91,7 +91,7 @@ export const RegisterPage = () => {
     const inputCls = "pl-10 bg-slate-950/50 border-slate-800 focus:border-[#1973B8] focus:ring-1 focus:ring-[#1973B8]/40 text-white placeholder:text-slate-600";
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center p-4 bg-[#072146]">
+        <div className="relative min-h-screen flex items-center justify-center p-4 bg-black">
             <AuthBackground />
 
             <motion.div

@@ -330,6 +330,16 @@ Imports añadidos: `QRCodeSVG`, `Bitcoin`, `X`
 
 **Status:** ✅ Verificado vía screenshot — figura caminando con efecto tap visible junto al teléfono centrado. Estética premium fintech sin caricatura.
 
+### Iteration 84 — Tema oscuro wizard retiro + fondo NEGRO completo con león (Aug 24, 2026)
+
+**Pedido:** (1) Ver el wizard 'Retiro a banco local' con fondo oscuro sin perder funciones/contenido + preview. (2) Fondo negro completo en toda la app conservando el león degradado.
+
+**Implementado:**
+- `BankWithdrawalPage.jsx`: conversión completa a oscuro — inputs/selects `bg-slate-950 text-white border-slate-700`, tarjetas `bg-slate-900/70`, resumen `bg-slate-950/60`, caja ámbar translúcida, SummaryRow default text-white, total emerald-400, steps/timeline/history/empty-state oscuros, botones outline `border-slate-600 text-slate-200 hover:bg-slate-800` (Volver paso 2 Y Cancelar paso 3 — este último lo detectó el testing agent como claro y se corrigió). Acento BBVA #1973B8 conservado.
+- **Negro completo**: `Layout.jsx` y `AppBackground.jsx` base #000000 (glows azules conservados, vignette negro, top strip suavizado); león watermark ahora `mixBlendMode:screen, opacity:0.07, brightness 1.6` (MÁS visible sobre negro); `Sidebar.jsx` #050505 (3 spots); `LoginPage/RegisterPage` bg-black (mantienen su AuthBackground de ciudad); shell público de `ServiceStatusPage` #000000.
+
+**Status:** ✅ Testing agent iteration_70 (frontend): login/registro OK, tema negro global sin texto ilegible en dashboard/messages/status/admin, wizard 3 pasos funcional completo en oscuro (incluido initiate + paso código + resend btn), historial + modal detalle legibles, selects con opciones visibles, datos de prueba limpiados. Único bug (botón Cancelar paso 3 claro) corregido tras el reporte. Opcionales NO hechos: unificar AuthBackground del login con el león (el login usa foto de ciudad, decisión del usuario), hydration warnings de spans en options (cosmético preexistente).
+
 ### Iteration 83.1 — Prioridad en la Cola Inteligente (Aug 21, 2026)
 - `send_email` al encolar asigna prioridad por asunto: **p1** = 'credenciales'/'bienvenid'/'incidencia' (bienvenidas FX2026 y avisos críticos), **p3** = recordatorios ('saldo disponible'/'proceso pendiente'/'recordatorio'), **p2** = resto.
 - `process_email_queue`: backfill priority:2 a items legacy sin campo + sort [(priority,1),(created_at,1)] → alta prioridad primero al liberarse cuota.

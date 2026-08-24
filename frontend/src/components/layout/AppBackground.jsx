@@ -11,8 +11,8 @@ export const AppBackground = () => (
         className="fixed inset-0 overflow-hidden pointer-events-none"
         style={{ zIndex: 0 }}
     >
-        {/* Deep navy base */}
-        <div className="absolute inset-0" style={{ background: '#072146' }} />
+        {/* Pure black base */}
+        <div className="absolute inset-0" style={{ background: '#000000' }} />
 
         {/* Subtle radial glow (top-left) */}
         <div
@@ -31,7 +31,7 @@ export const AppBackground = () => (
             className="absolute inset-x-0 top-0 h-[280px]"
             style={{
                 background:
-                    'linear-gradient(180deg, rgba(0, 68, 129, 0.55) 0%, rgba(7, 33, 70, 0) 100%)',
+                    'linear-gradient(180deg, rgba(0, 68, 129, 0.35) 0%, rgba(0, 0, 0, 0) 100%)',
             }}
         />
 
@@ -49,9 +49,9 @@ export const AppBackground = () => (
                     maxWidth: '900px',
                     maxHeight: '900px',
                     objectFit: 'contain',
-                    opacity: 0.04,
-                    filter: 'grayscale(100%) brightness(2)',
-                    mixBlendMode: 'overlay',
+                    opacity: 0.07,
+                    filter: 'grayscale(100%) brightness(1.6)',
+                    mixBlendMode: 'screen',
                 }}
             />
         </div>
@@ -61,7 +61,7 @@ export const AppBackground = () => (
             className="absolute inset-0"
             style={{
                 background:
-                    'radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(7, 33, 70, 0.45) 100%)',
+                    'radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.6) 100%)',
             }}
         />
     </div>
