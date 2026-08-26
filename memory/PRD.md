@@ -1,6 +1,13 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 83 (Jun 2026) — Botón de menú "Pagos con Criptomonedas"
+
+- `Sidebar.jsx`: nuevo enlace "Pagos con Criptomonedas" (icono Bitcoin) → `/withdraw-methods#crypto-payments`, justo debajo de "Metodos de Retiro".
+- `WithdrawMethodsPage.jsx`: la sección "Criptomonedas / Pagos" ahora tiene `id="crypto-payments"` (scroll-mt-24) y muestra las 5 wallets oficiales (BTC, BTC SafePal, ETH, BNB, USDT vía `GET /api/crypto-wallets`) usando el componente `CryptoWalletCard` existente (QR toggle + copiar dirección, testids `crypto-card-{key}`, grid `crypto-wallets-grid`) + banner de advertencia de red. useEffect hace scrollIntoView suave cuando el hash es `#crypto-payments`.
+- Bug corregido durante la implementación: import duplicado de `api` rompía la compilación (arreglado).
+- Verificado por screenshot: botón visible en sidebar, navegación con auto-scroll, 5 wallets renderizadas.
+
 ### Iteration 82 (Jun 2026) — Eliminada cuenta Santander · Solo pagos con criptomonedas
 
 - **Alcance (confirmado por usuario):** quitar la opción de pagar por transferencia bancaria (Santander) en todos los lugares; página /bank-transfer oculta por completo con su enlace del menú. Los bancos DESTINO del flujo "Retiro a Banco" NO se tocaron (ahí el usuario recibe dinero).

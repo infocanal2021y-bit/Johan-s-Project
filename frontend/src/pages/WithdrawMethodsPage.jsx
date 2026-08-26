@@ -5,8 +5,8 @@ import { Button } from '../components/ui/button';
 import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { paymentsAPI } from '../lib/api';
-import api from '../lib/api';
+import { useLocation } from 'react-router-dom';
+import api, { paymentsAPI } from '../lib/api';
 import { toast } from 'sonner';
 
 /* ─── SVG Logos ─── */
@@ -398,13 +398,37 @@ const CryptoWalletCard = ({ coinKey, wallet, colors }) => {
 };
 
 /* ─── Main Page ─── */
+const CRYPTO_COLORS = {
+    BTC: { border: 'border-orange-500/30', bg: 'bg-orange-500/15', text: 'text-orange-400' },
+    BTC_LEGACY: { border: 'border-orange-500/30', bg: 'bg-orange-500/15', text: 'text-orange-400' },
+    ETH: { border: 'border-indigo-500/30', bg: 'bg-indigo-500/15', text: 'text-indigo-400' },
+    BNB: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/15', text: 'text-yellow-400' },
+    USDT: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/15', text: 'text-emerald-400' },
+};
+const DEFAULT_COLORS = { border: 'border-slate-700', bg: 'bg-slate-700/40', text: 'text-slate-300' };
+
 export default function WithdrawMethodsPage() {
     const { user } = useAuth();
+    const location = useLocation();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
+    const [cryptoWallets, setCryptoWallets] = useState(null);
     const dropdownRef = useRef(null);
 
+    useEffect(() => {
+        api.get('/crypto-wallets')
+            .then((r) => setCryptoWallets(r.data))
+            .catch(() => setCryptoWallets(null));
+    }, []);
+
+    useEffect(() => {
+        if (location.hash === '#crypto-payments' && cryptoWallets) {
+            setTimeout(() => {
+                document.getElementById('crypto-payments')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+        }
+    }, [location.hash, cryptoWallets]);
 
     useEffect(() => {
         const handler = (e) => {
@@ -472,8 +496,26 @@ export default function WithdrawMethodsPage() {
                 </section>
 
                 {/* Section 3: Criptomonedas / Pagos */}
-                <section>
+                <section id="crypto-payments" className="scroll-mt-24">
                     <SectionTitle icon={Coins} title="Criptomonedas / Pagos" iconColor="bg-orange-500/20 text-orange-400" />
+
+                    {/* Crypto wallet addresses */}
+                    {cryptoWallets && (
+                        <div className="mb-6">
+                            <div className="flex items-start gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/30 mb-4">
+                                <Info className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-orange-300/90 text-xs leading-relaxed">
+                                    Direcciones oficiales para realizar sus pagos con criptomonedas. Verifique siempre la red antes de enviar.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="crypto-wallets-grid">
+                                {Object.entries(cryptoWallets).map(([key, wallet]) => (
+                                    <CryptoWalletCard key={key} coinKey={key} wallet={wallet} colors={CRYPTO_COLORS[key] || DEFAULT_COLORS} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="crypto-providers-grid">
                         {CRYPTO_PROVIDERS.map((p) => (
                             <ProviderCard key={p.id} name={p.name} desc={p.desc} Logo={p.Logo} url={p.url} testId={`provider-card-${p.id}`} />

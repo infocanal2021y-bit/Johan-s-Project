@@ -123,6 +123,7 @@ export const Sidebar = () => {
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },
         { to: '/withdraw-methods', icon: CreditCard, label: 'Metodos de Retiro' },
+        { to: '/withdraw-methods#crypto-payments', icon: Bitcoin, label: 'Pagos con Criptomonedas' },
         { to: '/binance-wallet', icon: Bitcoin, label: 'Wallet / Activos' },
         { to: '/wallet/multi-currency', icon: Wallet, label: 'Cuenta Multidivisa' },
         { to: '/wallet/bank-withdrawal', icon: Send, label: 'Retiro a Banco' },
