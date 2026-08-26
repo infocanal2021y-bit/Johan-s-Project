@@ -1,6 +1,16 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 85 (Jun 2026) — Auto-avance de retiro por pago confirmado + alerta sonora admin
+
+**1. Vincular pago y retiro (auto-avance):**
+- `crypto_monitor.py` `_process_confirmed_intent(intent)`: cuando un intent con `context='withdrawal:{tx_id}'` pasa a `confirmed`, busca la transacción; si es withdraw en `pending_tax`, la avanza a `pending` (tax_paid completo, tax_completed_at, timeline entry actor `system` "Pago cripto confirmado en blockchain"). Notifica al usuario (in-app) y crea `admin_notifications` tipo `withdrawal_auto_advanced`. Se invoca dentro de `_notify` cuando variant='confirmed' (cubre tanto detección automática como resolución manual del admin).
+- Verificado e2e con TXID real de mempool.space: intent→confirmed (14740 conf) → tx pasó de pending_tax a pending con timeline system + notif admin + email `sent`. Datos limpiados.
+
+**2. Alerta sonora admin (AdminCryptoMonitorPage.jsx):**
+- Poll reducido a 15s. Compara stats con `prevStats` ref: si sube `total` → sonido ascendente (2 tonos) + toast "Nuevo pago cripto registrado"; si sube `incidents` → sonido de alarma (4 tonos) + toast error. Sonido vía Web Audio API (sin assets).
+- Botón toggle Volume2/VolumeX (`sound-toggle-btn`), persiste en localStorage `cryptoMonitorSound`. Verificado por screenshot (toggle + toast funcionan).
+
 ### Iteration 84 (Jun 2026) — Detección automática de pagos cripto en blockchain
 
 **Backend** `routes/crypto_monitor.py`:

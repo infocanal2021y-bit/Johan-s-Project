@@ -198,6 +198,46 @@ async def _fetch_usdt_txs(client: httpx.AsyncClient, address: str):
 
 # ─── Core checker ───
 
+async def _process_confirmed_intent(intent):
+    """Auto-avanza el retiro asociado cuando el pago cripto se confirma."""
+    ctx = intent.get('context') or ''
+    if not ctx.startswith('withdrawal:'):
+        return
+    tx_id = ctx.split(':', 1)[1]
+    tx = await db.transactions.find_one({'id': tx_id})
+    if not tx or tx.get('transaction_type') != 'withdraw' or tx.get('status') != 'pending_tax':
+        return
+    now = _now().isoformat()
+    ref = tx.get('transaction_reference') or tx_id[:12]
+    await db.transactions.update_one({'id': tx_id}, {
+        '$set': {'status': 'pending', 'tax_paid': tx.get('tax_required', 0), 'tax_completed_at': now},
+        '$push': {'status_timeline': {
+            'at': now, 'status': 'pending',
+            'status_label': 'Impuesto completado · Pago cripto confirmado en blockchain',
+            'actor_role': 'system',
+        }},
+    })
+    try:
+        await create_notification(
+            intent['user_id'], 'Retiro avanzado automáticamente',
+            f'Su pago cripto fue confirmado en blockchain y su retiro {ref} avanzó a: Pendiente de aprobación.',
+        )
+    except Exception:
+        pass
+    await db.admin_notifications.insert_one({
+        'id': str(uuid.uuid4()),
+        'type': 'withdrawal_auto_advanced',
+        'user_id': intent['user_id'],
+        'user_email': intent['user_email'],
+        'user_name': intent['user_name'],
+        'message': f'Retiro {ref} avanzado automáticamente: pago cripto confirmado ({intent["detected_amount"]} {intent["coin_name"]}, TXID {str(intent.get("txid"))[:16]}...)',
+        'intent_id': intent['id'],
+        'read': False,
+        'created_at': now,
+    })
+    logging.info(f'crypto monitor: retiro {ref} auto-avanzado por pago confirmado (intent {intent["id"]})')
+
+
 async def _notify(intent, variant, note=None):
     labels = {
         'detected': ('Pago detectado en blockchain',
@@ -210,6 +250,11 @@ async def _notify(intent, variant, note=None):
                     'No se detectó su pago en 24h. Si ya pagó, contacte a soporte con su TXID.'),
     }
     title, msg = labels[variant]
+    if variant == 'confirmed':
+        try:
+            await _process_confirmed_intent(intent)
+        except Exception as e:
+            logging.error(f'crypto monitor: auto-advance failed: {e}')
     try:
         await create_notification(intent['user_id'], title, msg)
     except Exception:

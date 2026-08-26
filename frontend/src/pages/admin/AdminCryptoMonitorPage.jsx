@@ -1,10 +1,31 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Layout } from '../../components/layout/Layout';
 import api from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import { StatusPill } from '../../components/crypto/CryptoPaymentMonitor';
-import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck } from 'lucide-react';
+import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX } from 'lucide-react';
+
+const playAlert = (kind) => {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const tones = kind === 'incident' ? [[880, 0], [660, 0.18], [880, 0.36], [660, 0.54]] : [[523, 0], [784, 0.18]];
+        tones.forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + delay + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.16);
+            osc.start(ctx.currentTime + delay);
+            osc.stop(ctx.currentTime + delay + 0.2);
+        });
+        setTimeout(() => ctx.close(), 1500);
+    } catch { /* audio not available */ }
+};
 
 const TABS = [
     { key: 'all', label: 'Todos' },
@@ -27,10 +48,29 @@ export default function AdminCryptoMonitorPage() {
     const [loading, setLoading] = useState(true);
     const [checking, setChecking] = useState(false);
     const [resolving, setResolving] = useState(null);
+    const [soundOn, setSoundOn] = useState(() => localStorage.getItem('cryptoMonitorSound') !== 'off');
+    const prevStats = useRef(null);
+    const soundOnRef = useRef(soundOn);
+    soundOnRef.current = soundOn;
 
     const load = useCallback((group) => {
         api.get(`/admin/crypto-monitor?status_group=${group}`)
-            .then((r) => setData(r.data))
+            .then((r) => {
+                const s = r.data.stats || {};
+                const prev = prevStats.current;
+                if (prev) {
+                    if ((s.total || 0) > (prev.total || 0)) {
+                        if (soundOnRef.current) playAlert('new');
+                        toast.info('Nuevo pago cripto registrado', { description: 'Un usuario declaró un nuevo pago.' });
+                    }
+                    if ((s.incidents || 0) > (prev.incidents || 0)) {
+                        if (soundOnRef.current) playAlert('incident');
+                        toast.error('Incidencia en pago cripto', { description: 'Revise la pestaña Incidencias.' });
+                    }
+                }
+                prevStats.current = s;
+                setData(r.data);
+            })
             .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
@@ -38,9 +78,17 @@ export default function AdminCryptoMonitorPage() {
     useEffect(() => {
         setLoading(true);
         load(tab);
-        const iv = setInterval(() => load(tab), 30000);
+        const iv = setInterval(() => load(tab), 15000);
         return () => clearInterval(iv);
     }, [tab, load]);
+
+    const toggleSound = () => {
+        const next = !soundOn;
+        setSoundOn(next);
+        localStorage.setItem('cryptoMonitorSound', next ? 'on' : 'off');
+        if (next) playAlert('new');
+        toast.success(next ? 'Alertas sonoras activadas' : 'Alertas sonoras silenciadas');
+    };
 
     const runCheck = async () => {
         setChecking(true);
@@ -83,10 +131,17 @@ export default function AdminCryptoMonitorPage() {
                             <p className="text-sm text-slate-400 font-light">Detección automática en blockchain · BTC y USDT</p>
                         </div>
                     </div>
-                    <Button onClick={runCheck} disabled={checking} className="bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25" data-testid="run-check-btn">
-                        {checking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                        Verificar blockchain ahora
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={toggleSound} variant="outline"
+                            className={`border ${soundOn ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20' : 'border-slate-700 text-slate-400 bg-slate-900 hover:bg-slate-800'}`}
+                            data-testid="sound-toggle-btn" title={soundOn ? 'Alertas sonoras activadas' : 'Alertas sonoras silenciadas'}>
+                            {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                        </Button>
+                        <Button onClick={runCheck} disabled={checking} className="bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25" data-testid="run-check-btn">
+                            {checking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                            Verificar blockchain ahora
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="monitor-stats">
