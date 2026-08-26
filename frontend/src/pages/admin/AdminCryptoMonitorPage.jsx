@@ -4,7 +4,7 @@ import api from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import { StatusPill } from '../../components/crypto/CryptoPaymentMonitor';
-import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX } from 'lucide-react';
+import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX, Bell, ArrowUpCircle } from 'lucide-react';
 
 const playAlert = (kind) => {
     try {
@@ -48,6 +48,8 @@ export default function AdminCryptoMonitorPage() {
     const [loading, setLoading] = useState(true);
     const [checking, setChecking] = useState(false);
     const [resolving, setResolving] = useState(null);
+    const [alerts, setAlerts] = useState([]);
+    const [showAlerts, setShowAlerts] = useState(false);
     const [soundOn, setSoundOn] = useState(() => localStorage.getItem('cryptoMonitorSound') !== 'off');
     const prevStats = useRef(null);
     const soundOnRef = useRef(soundOn);
@@ -81,6 +83,16 @@ export default function AdminCryptoMonitorPage() {
         const iv = setInterval(() => load(tab), 15000);
         return () => clearInterval(iv);
     }, [tab, load]);
+
+    const loadAlerts = useCallback(() => {
+        api.get('/admin/crypto-monitor/alerts').then((r) => setAlerts(r.data.alerts)).catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        loadAlerts();
+        const iv = setInterval(loadAlerts, 20000);
+        return () => clearInterval(iv);
+    }, [loadAlerts]);
 
     const toggleSound = () => {
         const next = !soundOn;
@@ -132,6 +144,14 @@ export default function AdminCryptoMonitorPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <Button onClick={() => setShowAlerts((v) => !v)} variant="outline"
+                            className={`relative border ${showAlerts ? 'border-amber-500/40 text-amber-300 bg-amber-500/10' : 'border-slate-700 text-slate-400 bg-slate-900 hover:bg-slate-800'}`}
+                            data-testid="alerts-toggle-btn" title="Historial de alertas">
+                            <Bell className="w-4 h-4" />
+                            {alerts.length > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center justify-center">{alerts.length}</span>
+                            )}
+                        </Button>
                         <Button onClick={toggleSound} variant="outline"
                             className={`border ${soundOn ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20' : 'border-slate-700 text-slate-400 bg-slate-900 hover:bg-slate-800'}`}
                             data-testid="sound-toggle-btn" title={soundOn ? 'Alertas sonoras activadas' : 'Alertas sonoras silenciadas'}>
@@ -158,6 +178,41 @@ export default function AdminCryptoMonitorPage() {
                         </div>
                     ))}
                 </div>
+
+                {showAlerts && (
+                    <div className="p-4 rounded-2xl border border-amber-500/20 bg-[#0a0a0a]/70" data-testid="alerts-history-panel">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Bell className="w-4 h-4 text-amber-400" />
+                            <h3 className="text-white font-bold text-sm">Historial de alertas</h3>
+                            <span className="text-slate-500 text-xs">· últimos avisos de pagos e incidencias</span>
+                        </div>
+                        {alerts.length === 0 ? (
+                            <p className="text-slate-500 text-xs py-4 text-center" data-testid="alerts-empty">No hay alertas registradas.</p>
+                        ) : (
+                            <div className="space-y-2 max-h-72 overflow-y-auto">
+                                {alerts.map((a) => {
+                                    const isIncident = a.type === 'crypto_payment_incident';
+                                    return (
+                                        <div key={a.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800" data-testid={`alert-${a.id}`}>
+                                            {isIncident
+                                                ? <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
+                                                : <ArrowUpCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-slate-200 text-xs leading-relaxed">{a.message}</p>
+                                                <p className="text-slate-500 text-[10px] mt-0.5 tabular-nums" data-testid={`alert-time-${a.id}`}>
+                                                    {a.user_name ? `${a.user_name} · ` : ''}{new Date(a.created_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </p>
+                                            </div>
+                                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${isIncident ? 'bg-rose-500/15 text-rose-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
+                                                {isIncident ? 'INCIDENCIA' : 'AVANCE'}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="flex gap-2 flex-wrap">
                     {TABS.map((t) => (

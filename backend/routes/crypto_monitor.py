@@ -504,6 +504,16 @@ async def admin_resolve(intent_id: str, payload: ResolvePayload, admin: dict = D
     return {'ok': True, 'status': new_status}
 
 
+@router.get("/admin/crypto-monitor/alerts")
+async def admin_alerts(admin: dict = Depends(get_admin_user)):
+    """Historial de avisos de pagos e incidencias cripto con hora exacta."""
+    alerts = await db.admin_notifications.find(
+        {'type': {'$in': ['crypto_payment_incident', 'withdrawal_auto_advanced']}},
+        {'_id': 0},
+    ).sort('created_at', -1).to_list(50)
+    return {'alerts': alerts}
+
+
 @router.post("/admin/crypto-monitor/run-check")
 async def admin_run_check(admin: dict = Depends(get_admin_user)):
     await check_crypto_payments()

@@ -1,6 +1,12 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 86 (Jun 2026) — Historial de alertas admin (pagos e incidencias)
+
+- Backend: `GET /admin/crypto-monitor/alerts` en `crypto_monitor.py` devuelve las últimas 50 `admin_notifications` de tipo `crypto_payment_incident` y `withdrawal_auto_advanced`, ordenadas por fecha desc.
+- Frontend `AdminCryptoMonitorPage.jsx`: botón campana (`alerts-toggle-btn`) con badge del nº de alertas → panel colapsable "Historial de alertas" (`alerts-history-panel`, poll 20s). Cada alerta muestra icono (rojo incidencia / verde avance), mensaje, usuario y hora exacta dd mmm yyyy HH:MM:SS (`alert-time-{id}`), con badge INCIDENCIA/AVANCE.
+- Verificado por screenshot con 2 alertas demo (incidencia + avance) mostrando hora con segundos; datos demo limpiados.
+
 ### Iteration 85 (Jun 2026) — Auto-avance de retiro por pago confirmado + alerta sonora admin
 
 **1. Vincular pago y retiro (auto-avance):**
