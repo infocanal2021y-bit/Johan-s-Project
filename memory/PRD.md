@@ -1,6 +1,14 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 87 (Jun 2026) — UX de pago cripto: avisos por red + instrucciones + soporte
+
+- `WithdrawMethodsPage.jsx` `CryptoWalletCard`: banner rojo destacado por moneda con símbolo y red exactos (`network-warning-{coin}`), p.ej. "Envía únicamente USDT por TRC20 (Tron). Enviar otra moneda u otra red causará la pérdida total de los fondos." Mapas `NETWORK_SHORT` y `COIN_SYMBOL`.
+- Bloque "Cómo pagar en 4 pasos" (`crypto-instructions`, pasos `crypto-step-1..4`) sobre la lista de wallets + botón "¿Dudas? Contactar soporte por WhatsApp" (`crypto-support-btn`, wa.me con nombre/email prellenados) reemplazando el aviso genérico anterior.
+- `CryptoPaymentMonitor.jsx` DeclareModal: aviso reforzado a rojo con símbolo específico de la moneda seleccionada.
+- Combinado con lo ya existente: seguimiento en tiempo real (poll 15s + barra de confirmaciones) y confirmación automática (monitor blockchain iter-84/85).
+- Verificado por screenshot: aviso USDT exacto "Envía únicamente USDT por TRC20 (Tron)...", instrucciones y botón de soporte visibles.
+
 ### Iteration 86 (Jun 2026) — Historial de alertas admin (pagos e incidencias)
 
 - Backend: `GET /admin/crypto-monitor/alerts` en `crypto_monitor.py` devuelve las últimas 50 `admin_notifications` de tipo `crypto_payment_incident` y `withdrawal_auto_advanced`, ordenadas por fecha desc.

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -347,10 +347,21 @@ const CopyField = ({ label, value, testId }) => {
 };
 
 /* ─── Crypto Wallet Card with QR ─── */
+const NETWORK_SHORT = {
+    BTC: 'la red Bitcoin',
+    BTC_LEGACY: 'la red Bitcoin (Legacy)',
+    ETH: 'la red Ethereum (ERC20)',
+    BNB: 'BNB Smart Chain (BEP20)',
+    USDT: 'TRC20 (Tron)',
+};
+const COIN_SYMBOL = { BTC: 'BTC', BTC_LEGACY: 'BTC', ETH: 'ETH', BNB: 'BNB', USDT: 'USDT' };
+
 const CryptoWalletCard = ({ coinKey, wallet, colors }) => {
     const [copied, setCopied] = useState(false);
     const [showQR, setShowQR] = useState(false);
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(wallet.address)}&size=180x180&bgcolor=0f172a&color=e2e8f0`;
+    const symbol = COIN_SYMBOL[coinKey] || wallet.name;
+    const netShort = NETWORK_SHORT[coinKey] || wallet.network;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(wallet.address);
@@ -378,6 +389,14 @@ const CryptoWalletCard = ({ coinKey, wallet, colors }) => {
                 >
                     {showQR ? 'Ocultar QR' : 'Ver QR'}
                 </button>
+            </div>
+
+            {/* Prominent network warning */}
+            <div className="flex items-start gap-2 p-2.5 mb-3 rounded-lg bg-red-500/10 border border-red-500/40" data-testid={`network-warning-${coinKey}`}>
+                <AlertTriangle className="w-4 h-4 text-red-400 mt-px flex-shrink-0" />
+                <p className="text-red-300 text-[11px] leading-relaxed font-semibold">
+                    Envía únicamente {symbol} por {netShort}. Enviar otra moneda u otra red causará la pérdida total de los fondos.
+                </p>
             </div>
 
             {showQR && (
@@ -503,12 +522,35 @@ export default function WithdrawMethodsPage() {
                     {/* Crypto wallet addresses */}
                     {cryptoWallets && (
                         <div className="mb-6">
-                            <div className="flex items-start gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/30 mb-4">
-                                <Info className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-orange-300/90 text-xs leading-relaxed">
-                                    Direcciones oficiales para realizar sus pagos con criptomonedas. Verifique siempre la red antes de enviar.
-                                </p>
+                            {/* Clear step-by-step instructions */}
+                            <div className="mb-4 p-4 rounded-2xl border border-amber-500/25 bg-amber-500/[0.04]" data-testid="crypto-instructions">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Info className="w-4 h-4 text-amber-400" />
+                                    <h3 className="text-white font-bold text-sm">Cómo pagar en 4 pasos</h3>
+                                </div>
+                                <ol className="space-y-2">
+                                    {[
+                                        'Elija la moneda y copie la dirección oficial (o escanee el QR).',
+                                        'Envíe el importe usando ÚNICAMENTE la red indicada en cada tarjeta.',
+                                        'Pulse "He realizado el pago" e indique el monto exacto (y el TXID si lo tiene).',
+                                        'Siga el estado en tiempo real: el sistema confirma su pago automáticamente.',
+                                    ].map((step, i) => (
+                                        <li key={i} className="flex items-start gap-2.5 text-slate-300 text-xs leading-relaxed" data-testid={`crypto-step-${i + 1}`}>
+                                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold flex-shrink-0">{i + 1}</span>
+                                            {step}
+                                        </li>
+                                    ))}
+                                </ol>
+                                <a
+                                    href={`https://wa.me/447400757168?text=${encodeURIComponent(`Hola, soy ${user?.name || 'cliente'} (${user?.email || ''}). Necesito ayuda con mi pago en criptomonedas.`)}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 mt-4 px-3.5 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/25 transition-colors"
+                                    data-testid="crypto-support-btn"
+                                >
+                                    <Zap className="w-3.5 h-3.5" /> ¿Dudas? Contactar soporte por WhatsApp
+                                </a>
                             </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="crypto-wallets-grid">
                                 {Object.entries(cryptoWallets).map(([key, wallet]) => (
                                     <CryptoWalletCard key={key} coinKey={key} wallet={wallet} colors={CRYPTO_COLORS[key] || DEFAULT_COLORS} />

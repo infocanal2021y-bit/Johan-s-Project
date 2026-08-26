@@ -124,9 +124,9 @@ const DeclareModal = ({ open, onOpenChange, coins, onCreated, context }) => {
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-[11px] text-orange-300/80 flex items-start gap-1.5">
-                                <AlertTriangle className="w-3.5 h-3.5 mt-px flex-shrink-0" />
-                                Envíe únicamente por la red {selected.network}. Otras redes causarán pérdida de fondos.
+                            <p className="text-[11px] text-red-300 font-semibold flex items-start gap-1.5 p-2 rounded-lg bg-red-500/10 border border-red-500/40">
+                                <AlertTriangle className="w-3.5 h-3.5 mt-px flex-shrink-0 text-red-400" />
+                                Envíe únicamente {selected.name} por {selected.network}. Enviar otra moneda u otra red causará la pérdida total de los fondos.
                             </p>
                         </div>
                     )}
