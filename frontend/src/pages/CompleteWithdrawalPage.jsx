@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { transactionsAPI, paymentsAPI } from '../lib/api';
 import { toast } from 'sonner';
 import api from '../lib/api';
+import { CryptoPaymentMonitor } from '../components/crypto/CryptoPaymentMonitor';
 
 const BANK_TRANSFER_DATA = {
     holder: 'Juan Gomez',
@@ -326,6 +327,11 @@ export default function CompleteWithdrawalPage() {
                         {cryptoWallets && Object.entries(cryptoWallets).map(([key, wallet]) => (
                             <CryptoAddressCard key={key} coinKey={key} wallet={wallet} />
                         ))}
+                    </div>
+
+                    {/* Automatic blockchain detection */}
+                    <div className="mb-6 p-4 rounded-2xl border border-amber-500/15 bg-[#0a0a0a]/60">
+                        <CryptoPaymentMonitor context={`withdrawal:${transactionId}`} />
                     </div>
 
                     {/* Confirm Button */}

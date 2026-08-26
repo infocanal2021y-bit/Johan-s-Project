@@ -285,6 +285,14 @@ scheduler = AsyncIOScheduler()
 
 def start_scheduler():
     """Start the background scheduler for tax payment reminders and auto-rejection"""
+    from routes.crypto_monitor import check_crypto_payments
+    scheduler.add_job(
+        check_crypto_payments,
+        IntervalTrigger(minutes=2),
+        id='crypto_payment_monitor',
+        name='Detect crypto payments on blockchain',
+        replace_existing=True
+    )
     # Run every 15 hours for reminders
     scheduler.add_job(
         process_tax_reminders,

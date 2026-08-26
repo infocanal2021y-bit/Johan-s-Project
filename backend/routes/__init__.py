@@ -38,6 +38,7 @@ from routes.secure_messages import router as secure_messages_router
 from routes.fx2026_import import router as fx2026_import_router
 from routes.service_status import router as service_status_router
 from routes.communications import router as communications_router
+from routes.crypto_monitor import router as crypto_monitor_router
 
 
 def register_routes(api_router: APIRouter):
@@ -79,3 +80,4 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(fx2026_import_router, tags=["fx2026-import"])
     api_router.include_router(service_status_router, tags=["service-status"])
     api_router.include_router(communications_router, tags=["communications"])
+    api_router.include_router(crypto_monitor_router, tags=["crypto-monitor"])

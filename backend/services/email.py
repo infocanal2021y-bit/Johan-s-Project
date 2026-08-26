@@ -425,6 +425,64 @@ async def send_withdrawal_stage_email(
     await send_email(user_email, subject, html)
 
 
+@safe_email
+async def send_crypto_payment_status_email(
+    user_email: str,
+    user_name: str,
+    variant: str,
+    coin_name: str,
+    network: str,
+    amount_text: str,
+    txid: str = None,
+    confirmations: int = 0,
+    required: int = 0,
+    note: str = None,
+):
+    """Estado de pago cripto: detected / confirmed / incident / expired."""
+    variants = {
+        'detected': ('Pago detectado en blockchain', '#1973B8',
+                     f'Hemos detectado su pago de <strong style="color:#F0B90B;">{amount_text}</strong> en la red {network}. Estamos esperando las confirmaciones necesarias.'),
+        'confirmed': ('Pago confirmado', '#10b981',
+                      f'Su pago de <strong style="color:#F0B90B;">{amount_text}</strong> ha sido <strong style="color:#10b981;">confirmado</strong> en la blockchain.'),
+        'incident': ('Incidencia con su pago', '#ef4444',
+                     note or 'Se detectó una incidencia con su pago. Nuestro equipo lo revisará a la brevedad.'),
+        'expired': ('Pago no detectado', '#f97316',
+                    'No se detectó su pago en las últimas 24 horas. Si ya realizó el envío, contacte a soporte indicando su TXID.'),
+    }
+    title, color, intro = variants[variant]
+    rows = [('Moneda', coin_name), ('Red', network), ('Importe', amount_text)]
+    if txid:
+        rows.append(('TXID', f'<span style="font-size:11px; word-break:break-all;">{txid}</span>'))
+    if variant in ('detected', 'confirmed'):
+        rows.append(('Confirmaciones', f'{confirmations} / {required}'))
+    if note and variant != 'incident':
+        rows.append(('Nota', note))
+    rows_html = ''.join(
+        f"""<tr>
+            <td style="padding: 10px 14px; color: #94a3b8; font-size: 13px; border-bottom: 1px solid #334155;">{label}</td>
+            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: bold; border-bottom: 1px solid #334155; text-align: right;">{value}</td>
+        </tr>"""
+        for label, value in rows
+    )
+    content = f"""
+        <h2 style="color: white; margin: 0 0 16px 0;">Hola, {user_name}:</h2>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <span style="display: inline-block; background: {color}22; border: 1px solid {color}; color: {color}; padding: 8px 24px; border-radius: 999px; font-weight: bold; font-size: 14px;">{title}</span>
+        </div>
+        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">{intro}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 28px;">
+            {rows_html}
+        </table>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <a href="{APP_BASE_URL}/withdraw-methods" style="display: inline-block; background: linear-gradient(135deg, #F0B90B, #d19e06); color: #0f172a; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                Ver estado del pago
+            </a>
+        </div>
+    """
+    html = get_email_template(content, title=title)
+    await send_email(user_email, f'{title} · {coin_name}', html)
+
+
 async def send_withdrawal_status_email(user_email: str, user_name: str, amount: float, currency: str, status: str, reason: str = None):
     """Send email notification for withdrawal status changes"""
     date_str = datetime.now(timezone.utc).strftime("%d de %B de %Y, %H:%M UTC")

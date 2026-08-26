@@ -1,6 +1,23 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 84 (Jun 2026) — Detección automática de pagos cripto en blockchain
+
+**Backend** `routes/crypto_monitor.py`:
+- Modelo `crypto_payment_intents`: usuario declara pago (coin + monto exacto + TXID opcional). Estados: waiting → detected → confirming → confirmed / incident / expired / cancelled / rejected. Timeline con timestamps.
+- Vigilancia en blockchain vía APIs gratuitas: BTC/BTC_LEGACY (mempool.space, 2 conf), USDT TRC20 (TronGrid, 19 conf). ETH/BNB DESHABILITADOS (enabled=false, address=null) hasta habilitar verificación — no se pueden seleccionar.
+- Job APScheduler `crypto_payment_monitor` cada 2 min (`server.py`) + trigger al crear intent + endpoint admin run-check. Lock para evitar solapamiento.
+- Detección: match por TXID declarado o por (dirección + monto ±1% + ventana temporal). Valida monto: < esperado→incidencia "incomplete"; TXID ya usado→incidencia "duplicate" (también bloqueado al crear, 409). Cuenta confirmaciones en tiempo real.
+- Notificaciones automáticas (in-app + email `send_crypto_payment_status_email` con pill de estado, TXID, confirmaciones): detected, confirmed, incident, expired. Incidencias también crean `admin_notifications`.
+- Endpoints: GET /crypto-monitor/config, POST/GET /crypto-monitor/intents(+/my, /cancel), GET /admin/crypto-monitor?status_group=pending|confirmed|incidents|all (con stats), POST /admin/crypto-monitor/{id}/resolve (confirm|reject), POST /admin/crypto-monitor/run-check.
+
+**Frontend**:
+- `components/crypto/CryptoPaymentMonitor.jsx`: botón "He realizado el pago" → modal (moneda con redes habilitadas seleccionables + deshabilitadas grises "Red no habilitada", QR + dirección + red + aviso, monto exacto, TXID opcional). Lista de intents del usuario con StatusPill, barra de confirmaciones en vivo (poll 15s), TXID + link a explorer, monto recibido, incidencias, cancelar. Integrado en WithdrawMethodsPage (sección cripto) y CompleteWithdrawalPage.
+- `pages/admin/AdminCryptoMonitorPage.jsx` (ruta /admin/crypto-monitor, sidebar "Monitor Blockchain" icono Radar): stats cards (pendientes/confirmados/incidencias/total), tabs por grupo, lista con datos completos + botones Confirmar/Rechazar manual + "Verificar blockchain ahora".
+
+**Verificado**: config (BTC/USDT enabled con dirección, ETH/BNB disabled sin dirección, tol 1%), crear intent BTC OK, ETH rechazado (red no habilitada), TXID duplicado→409, panel admin con stats, cancelar OK. API mempool.space en vivo devuelve 25 txs reales de la dirección BTC oficial. Screenshots: modal declaración (QR + redes deshabilitadas) y panel admin.
+- NOTA: cambios en PREVIEW; requiere redeploy para producción. ETH/BNB se habilitan cambiando `enabled:True` + añadiendo lógica de fetch (Etherscan key) en COINS.
+
 ### Iteration 83 (Jun 2026) — Botón de menú "Pagos con Criptomonedas"
 
 - `Sidebar.jsx`: nuevo enlace "Pagos con Criptomonedas" (icono Bitcoin) → `/withdraw-methods#crypto-payments`, justo debajo de "Metodos de Retiro".

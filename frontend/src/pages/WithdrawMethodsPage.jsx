@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import api, { paymentsAPI } from '../lib/api';
+import { CryptoPaymentMonitor } from '../components/crypto/CryptoPaymentMonitor';
 import { toast } from 'sonner';
 
 /* ─── SVG Logos ─── */
@@ -513,6 +514,13 @@ export default function WithdrawMethodsPage() {
                                     <CryptoWalletCard key={key} coinKey={key} wallet={wallet} colors={CRYPTO_COLORS[key] || DEFAULT_COLORS} />
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Automatic blockchain payment detection */}
+                    {cryptoWallets && (
+                        <div className="mb-6 p-4 rounded-2xl border border-amber-500/15 bg-[#0a0a0a]/60">
+                            <CryptoPaymentMonitor context="withdraw-methods" />
                         </div>
                     )}
 
