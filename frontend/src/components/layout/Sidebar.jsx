@@ -119,7 +119,6 @@ export const Sidebar = () => {
     ];
     const userLinksBottom = [
         { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
-        { to: '/bank-transfer', icon: Banknote, label: 'Transferencia Bancaria' },
         { to: '/bitcoin-outputs', icon: Hash, label: 'Bitcoin Outputs' },
         { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
         { to: '/withdraw', icon: Upload, label: 'Withdraw' },

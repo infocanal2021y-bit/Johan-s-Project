@@ -35,7 +35,6 @@ import { RealTimeMarketPage } from "./pages/RealTimeMarketPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import BinanceWalletPage from "./pages/BinanceWalletPage";
 import WithdrawMethodsPage from "./pages/WithdrawMethodsPage";
-import BankTransferPage from "./pages/BankTransferPage";
 import CompleteWithdrawalPage from "./pages/CompleteWithdrawalPage";
 import BitcoinOutputsPage from "./pages/BitcoinOutputsPage";
 import { TradingDemoPage } from "./pages/TradingDemoPage";
@@ -171,7 +170,7 @@ function AppRoutes() {
             <Route path="/achievements" element={<ProtectedRoute><AchievementsPage /></ProtectedRoute>} />
             <Route path="/binance-wallet" element={<ProtectedRoute><BinanceWalletPage /></ProtectedRoute>} />
             <Route path="/withdraw-methods" element={<ProtectedRoute><WithdrawMethodsPage /></ProtectedRoute>} />
-            <Route path="/bank-transfer" element={<ProtectedRoute><BankTransferPage /></ProtectedRoute>} />
+            <Route path="/bank-transfer" element={<Navigate to="/withdraw-methods" replace />} />
             <Route path="/complete-withdrawal/:transactionId" element={<ProtectedRoute><CompleteWithdrawalPage /></ProtectedRoute>} />
             <Route path="/bitcoin-outputs" element={<ProtectedRoute><BitcoinOutputsPage /></ProtectedRoute>} />
             <Route path="/trading-demo" element={<ProtectedRoute><TradingDemoPage /></ProtectedRoute>} />

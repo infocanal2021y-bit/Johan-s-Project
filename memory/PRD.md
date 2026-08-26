@@ -1,6 +1,18 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 82 (Jun 2026) — Eliminada cuenta Santander · Solo pagos con criptomonedas
+
+- **Alcance (confirmado por usuario):** quitar la opción de pagar por transferencia bancaria (Santander) en todos los lugares; página /bank-transfer oculta por completo con su enlace del menú. Los bancos DESTINO del flujo "Retiro a Banco" NO se tocaron (ahí el usuario recibe dinero).
+- `Sidebar.jsx`: eliminado enlace "Transferencia Bancaria" (/bank-transfer).
+- `App.js`: ruta `/bank-transfer` → `<Navigate to="/withdraw-methods" replace />` (import BankTransferPage eliminado; el archivo de la página se conserva sin usar).
+- `GlobalSearchBar.jsx`: shortcut de transferencia bancaria reemplazado por "Metodos de Pago"; `/bank-transfer` quitado de POPULAR_PATHS.
+- `CompleteWithdrawalPage.jsx`: eliminada la tarjeta y la sección detalle "Transferencia Bancaria"; solo queda el método Criptomonedas (grid 1 col, texto actualizado). El flujo cripto con subida de comprobante sigue intacto.
+- `WithdrawMethodsPage.jsx`: eliminado método 'bank-transfer' de PAYMENT_METHODS, Santander de BANK_PROVIDERS, componente SantanderLogo, BANK_TRANSFER_DATA (IBAN ES79 0049...), los 2 dialogs (detalle bancario + subir comprobante), estados y handlers asociados y el check `checkBankTransferAccess`.
+- Backend intacto (bank_transfer_proofs, admin/bank-transfers siguen para que el admin revise comprobantes históricos).
+- Verificado por screenshot: sidebar sin enlace, redirect funciona, /withdraw-methods sin rastro de Santander/transferencia, webpack compila OK.
+- NOTA: cambios solo en PREVIEW; el usuario debe redesplegar para llevarlos a producción (https://kyc-verification-9.emergentagent.host).
+
 ### Iteration 81 (Jun 2026) — Línea de tiempo visual del retiro (flujo clásico)
 
 - El flujo Retiro a Banco ya tenía timeline visual (`BankWithdrawalPage.jsx` DetailModal). Esta iteración añade timeline al flujo clásico de retiros (transactions).

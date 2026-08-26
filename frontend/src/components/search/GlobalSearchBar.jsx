@@ -18,7 +18,7 @@ const QUICK_PAGES = [
     { path: '/withdraw-methods', label: 'Métodos de Retiro', keywords: 'metodos retiro transferencia crypto pago' },
     { path: '/wallet/vault', label: 'Vault Blockchain', keywords: 'vault blockchain boveda certificados hash' },
     { path: '/wallet/multi-currency', label: 'Cuenta Multidivisa', keywords: 'multidivisa divisas eur usd wallet cambio' },
-    { path: '/bank-transfer', label: 'Transferencia Bancaria', keywords: 'transferencia bancaria banco santander iban pago' },
+    { path: '/withdraw-methods', label: 'Metodos de Pago', keywords: 'metodos de pago criptomonedas crypto pagar' },
     { path: '/wallet/bank-withdrawal', label: 'Retiro a Banco', keywords: 'retiro banco iban swift cuenta bancaria' },
     { path: '/messages', label: 'Centro de Mensajes', keywords: 'mensajes tickets soporte comunicados inbox seguro' },
     { path: '/notifications', label: 'Notificaciones', keywords: 'notificaciones avisos alertas campana' },
@@ -36,7 +36,7 @@ const QUICK_PAGES = [
     { path: '/admin/health', label: 'Admin · Salud Sistema', keywords: 'admin salud sistema health servicios', adminOnly: true },
 ];
 
-const POPULAR_PATHS = ['/withdraw', '/wallet/vault', '/bank-transfer', '/messages', '/wallet/multi-currency', '/cases'];
+const POPULAR_PATHS = ['/withdraw', '/wallet/vault', '/messages', '/wallet/multi-currency', '/cases'];
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 

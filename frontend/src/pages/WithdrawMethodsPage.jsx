@@ -132,15 +132,6 @@ const AirwallexLogo = () => (
     </svg>
 );
 
-const SantanderLogo = () => (
-    <svg viewBox="0 0 780 500" className="w-full h-full">
-        <rect width="780" height="500" rx="40" fill="#EC0000" />
-        <circle cx="390" cy="210" r="100" fill="none" stroke="white" strokeWidth="8" />
-        <path d="M340,260 L390,160 L440,260" fill="none" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M360,220 L390,280 L420,220" fill="none" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-        <text x="390" y="400" textAnchor="middle" fill="white" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="52">Santander</text>
-    </svg>
-);
 
 const MexicoFlag = () => (
     <svg viewBox="0 0 60 40" className="w-full h-full rounded">
@@ -188,7 +179,6 @@ const BizumLogo = () => (
 
 /* ─── Data ─── */
 const PAYMENT_METHODS = [
-    { id: 'bank-transfer', name: 'Transferencia Bancaria', desc: 'Agente autorizado', Logo: BankTransferLogo, special: true },
     { id: 'visa', name: 'Visa', desc: 'Tarjeta de credito / debito', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', desc: 'Tarjeta de credito / debito', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
@@ -203,7 +193,6 @@ const CRYPTO_PROVIDERS = [
 
 const BANK_PROVIDERS = [
     { id: 'airwallex', name: 'Airwallex', desc: 'Cuenta empresarial', Logo: AirwallexLogo, url: 'https://www.airwallex.com/eu/es/business-account', disabled: true, brandColor: '#E94560' },
-    { id: 'santander', name: 'Banco Santander', desc: 'Banca tradicional', Logo: SantanderLogo, url: 'https://www.bancosantander.es/', disabled: true, brandColor: '#EC0000' },
 ];
 
 const INSTANT_PAYMENTS = [
@@ -264,15 +253,6 @@ const COUNTRY_BANKS = [
     },
 ];
 
-const BANK_TRANSFER_DATA = {
-    holder: 'Juan Gomez',
-    amount: '4850 EUR',
-    reference: '216389',
-    iban: 'ES79 0049 2473 3226 1482 0011',
-    swift: 'BSCHESMM',
-    bank: 'Banco Santander',
-    role: 'Agente autorizado',
-};
 
 /* ─── Reusable Card ─── */
 const MethodCard = ({ name, desc, Logo, onClick, testId }) => (
@@ -423,23 +403,8 @@ export default function WithdrawMethodsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
-    const [bankTransferOpen, setBankTransferOpen] = useState(false);
-    const [proofModalOpen, setProofModalOpen] = useState(false);
-    const [proofFile, setProofFile] = useState(null);
-    const [proofPreview, setProofPreview] = useState(null);
-    const [proofFilename, setProofFilename] = useState('');
-    const [proofComment, setProofComment] = useState('');
-    const [confirming, setConfirming] = useState(false);
-    const [confirmed, setConfirmed] = useState(false);
-    const [hasBankAccess, setHasBankAccess] = useState(true);
     const dropdownRef = useRef(null);
 
-    // Check bank transfer access
-    useEffect(() => {
-        paymentsAPI.checkBankTransferAccess()
-            .then(res => setHasBankAccess(res.data.has_access))
-            .catch(() => setHasBankAccess(true));
-    }, []);
 
     useEffect(() => {
         const handler = (e) => {
@@ -457,10 +422,6 @@ export default function WithdrawMethodsPage() {
     };
 
     const handleMethodClick = (method) => {
-        if (method.special && method.id === 'bank-transfer') {
-            setBankTransferOpen(true);
-            return;
-        }
         openModal(method.name);
     };
 
@@ -473,65 +434,9 @@ export default function WithdrawMethodsPage() {
         openModal(bankName);
     };
 
-    const handleProofFileChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-        if (!allowed.includes(file.type)) {
-            toast.error('Formato no permitido. Use JPG, PNG o PDF.');
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Archivo demasiado grande. Maximo 5MB.');
-            return;
-        }
-        setProofFilename(file.name);
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onloadend = () => { setProofFile(reader.result); setProofPreview(reader.result); };
-            reader.readAsDataURL(file);
-        } else {
-            const reader = new FileReader();
-            reader.onloadend = () => { setProofFile(reader.result); setProofPreview(null); };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleConfirmTransfer = async () => {
-        if (!proofFile) {
-            toast.error('Debe subir un comprobante.');
-            return;
-        }
-        setConfirming(true);
-        try {
-            await paymentsAPI.confirmBankTransfer({
-                reference: BANK_TRANSFER_DATA.reference,
-                comment: proofComment.trim() || null,
-                proof_file: proofFile,
-                proof_filename: proofFilename,
-            });
-            setConfirmed(true);
-            setProofModalOpen(false);
-            toast.success('Comprobante enviado correctamente.');
-        } catch (error) {
-            toast.error(error.response?.data?.detail || 'Error al enviar el comprobante');
-        } finally {
-            setConfirming(false);
-        }
-    };
-
-    const resetProofState = () => {
-        setProofFile(null);
-        setProofPreview(null);
-        setProofFilename('');
-        setProofComment('');
-    };
 
     // Filter payment methods based on access
-    const visiblePaymentMethods = PAYMENT_METHODS.filter(m => {
-        if (m.id === 'bank-transfer' && !hasBankAccess) return false;
-        return true;
-    });
+    const visiblePaymentMethods = PAYMENT_METHODS;
 
     return (
         <Layout>
@@ -696,183 +601,6 @@ export default function WithdrawMethodsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* ── Bank Transfer Detail Dialog ── */}
-            <Dialog open={bankTransferOpen} onOpenChange={(open) => { setBankTransferOpen(open); if (!open) setConfirmed(false); }}>
-                <DialogContent className="bg-slate-900 border-slate-700 max-w-lg max-h-[90vh] overflow-y-auto" data-testid="bank-transfer-dialog">
-                    <DialogHeader>
-                        <DialogTitle className="text-white flex items-center gap-2">
-                            <Banknote className="w-5 h-5 text-emerald-400" />
-                            Transferencia Bancaria
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-5">
-                        {/* Provider info */}
-                        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
-                            <p className="text-cyan-400 text-sm font-semibold mb-1">Proveedor de servicios de pago autorizado</p>
-                            <p className="text-slate-400 text-xs leading-relaxed">
-                                Las transferencias son procesadas a traves de un proveedor de servicios de pago autorizado, garantizando seguridad y correcta identificacion de la operacion.
-                            </p>
-                        </div>
-
-                        {/* Transfer details card */}
-                        <div className="space-y-3" data-testid="bank-transfer-details">
-                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Titular</p>
-                                <p className="text-white font-medium text-sm mt-0.5">{BANK_TRANSFER_DATA.holder}</p>
-                            </div>
-
-                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Monto</p>
-                                <p className="text-emerald-400 font-bold text-lg mt-0.5">{BANK_TRANSFER_DATA.amount}</p>
-                            </div>
-
-                            <CopyField label="Referencia obligatoria" value={BANK_TRANSFER_DATA.reference} testId="copy-reference-btn" />
-                            <CopyField label="IBAN" value={BANK_TRANSFER_DATA.iban} testId="copy-iban-btn" />
-
-                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">SWIFT / BIC</p>
-                                <p className="text-white font-mono text-sm mt-0.5">{BANK_TRANSFER_DATA.swift}</p>
-                            </div>
-
-                            <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                                <p className="text-[11px] text-slate-500 uppercase tracking-wider">Banco</p>
-                                <p className="text-slate-300 text-sm mt-0.5 leading-relaxed">{BANK_TRANSFER_DATA.bank} · {BANK_TRANSFER_DATA.role}</p>
-                            </div>
-
-                            {/* WhatsApp support */}
-                            <a
-                                href="https://wa.me/447400757168"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                data-testid="whatsapp-support-link"
-                                className="flex items-center gap-3 p-3 rounded-lg bg-[#25D366]/10 border border-[#25D366]/30 hover:bg-[#25D366]/15 transition-colors"
-                            >
-                                <svg viewBox="0 0 32 32" width="20" height="20" fill="#25D366" className="flex-shrink-0">
-                                    <path d="M16 .667C7.54.667.667 7.54.667 16c0 2.706.71 5.346 2.057 7.667L.667 31.333l7.87-2.023A15.26 15.26 0 0 0 16 31.333c8.46 0 15.333-6.873 15.333-15.333S24.46.667 16 .667zm0 28.11a12.7 12.7 0 0 1-6.48-1.77l-.464-.276-4.67 1.2 1.247-4.553-.303-.483A12.72 12.72 0 0 1 3.222 16C3.222 8.953 8.953 3.222 16 3.222S28.778 8.953 28.778 16 23.047 28.778 16 28.778zm7.01-9.55c-.384-.192-2.272-1.12-2.624-1.248-.352-.128-.608-.192-.864.192s-.992 1.248-1.216 1.504c-.224.256-.448.288-.832.096-.384-.192-1.622-.598-3.09-1.906-1.142-1.018-1.913-2.276-2.137-2.66-.224-.384-.024-.592.168-.783.173-.172.384-.448.577-.672.192-.224.256-.384.384-.64.128-.256.064-.48-.032-.672-.096-.192-.864-2.08-1.184-2.848-.312-.748-.63-.647-.864-.66l-.736-.012c-.256 0-.672.096-1.024.48-.352.384-1.344 1.312-1.344 3.2s1.376 3.712 1.568 3.968c.192.256 2.708 4.134 6.56 5.798.916.396 1.632.632 2.19.81.92.292 1.758.25 2.42.152.738-.11 2.272-.928 2.592-1.824.32-.896.32-1.664.224-1.824-.096-.16-.352-.256-.736-.448z" />
-                                </svg>
-                                <div className="min-w-0">
-                                    <p className="text-[#25D366] font-semibold text-xs">¿Dudas? Escríbenos por WhatsApp</p>
-                                    <p className="text-slate-400 text-[11px] font-mono mt-0.5">+44 7400 757168</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        {/* Confirm button */}
-                        {confirmed ? (
-                            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3" data-testid="transfer-confirmed-status">
-                                <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                                <div>
-                                    <p className="text-emerald-400 font-semibold text-sm">Comprobante enviado correctamente</p>
-                                    <p className="text-slate-400 text-xs mt-0.5">Estado: Pendiente de verificacion</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <Button
-                                onClick={() => { resetProofState(); setProofModalOpen(true); }}
-                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base"
-                                data-testid="confirm-transfer-btn"
-                            >
-                                <CheckCircle className="w-4 h-4 mr-2" /> Confirmar pago realizado
-                            </Button>
-                        )}
-
-                        {/* Info messages */}
-                        <div className="space-y-2">
-                            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                                <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-amber-300 text-xs leading-relaxed">
-                                    Utiliza la referencia proporcionada al realizar la transferencia para garantizar la correcta identificacion del pago.
-                                </p>
-                            </div>
-                            <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <Clock className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-slate-400 text-xs leading-relaxed">
-                                    Las transferencias pueden tardar entre 1 y 3 dias habiles en procesarse.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-            {/* ── Proof Upload Modal ── */}
-            <Dialog open={proofModalOpen} onOpenChange={(open) => { setProofModalOpen(open); }}>
-                <DialogContent className="bg-slate-900 border-slate-700 max-w-md" data-testid="proof-upload-dialog">
-                    <DialogHeader>
-                        <DialogTitle className="text-white flex items-center gap-2">
-                            <Upload className="w-5 h-5 text-cyan-400" />
-                            Subir Comprobante
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        {/* File upload */}
-                        <div className="space-y-2">
-                            <p className="text-slate-300 text-sm font-medium">Comprobante de transferencia</p>
-                            <label className="cursor-pointer block">
-                                <div className={`p-5 rounded-xl border-2 border-dashed transition-colors ${
-                                    proofFile ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700 hover:border-slate-500'
-                                }`}>
-                                    <div className="flex flex-col items-center gap-2">
-                                        {proofPreview ? (
-                                            <div className="relative">
-                                                <img src={proofPreview} alt="Comprobante" className="max-h-32 rounded-lg" />
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => { e.preventDefault(); resetProofState(); }}
-                                                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600"
-                                                    data-testid="remove-proof-btn"
-                                                >
-                                                    <X className="w-3 h-3 text-white" />
-                                                </button>
-                                            </div>
-                                        ) : proofFilename ? (
-                                            <div className="flex items-center gap-2">
-                                                <FileText className="w-8 h-8 text-cyan-400" />
-                                                <div>
-                                                    <p className="text-white text-sm font-medium">{proofFilename}</p>
-                                                    <button type="button" onClick={(e) => { e.preventDefault(); resetProofState(); }} className="text-red-400 text-xs hover:text-red-300">Eliminar</button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <Upload className="w-10 h-10 text-slate-500" />
-                                                <p className="text-sm text-slate-400 text-center">Haga clic para subir comprobante</p>
-                                                <p className="text-xs text-slate-600">JPG, PNG o PDF (max. 5MB)</p>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                                <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleProofFileChange} className="hidden" data-testid="proof-file-input" />
-                            </label>
-                        </div>
-
-                        {/* Comment */}
-                        <div className="space-y-2">
-                            <p className="text-slate-300 text-sm font-medium">Comentario o referencia adicional <span className="text-slate-600 text-xs">(opcional)</span></p>
-                            <textarea
-                                value={proofComment}
-                                onChange={(e) => setProofComment(e.target.value)}
-                                placeholder="Ej: Transferencia realizada desde cuenta BBVA..."
-                                className="w-full bg-slate-950/50 border border-slate-800 rounded-lg text-white text-sm p-3 min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-                                data-testid="proof-comment-input"
-                            />
-                        </div>
-
-                        {/* Submit */}
-                        <Button
-                            onClick={handleConfirmTransfer}
-                            disabled={confirming || !proofFile}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base disabled:opacity-40"
-                            data-testid="submit-proof-btn"
-                        >
-                            {confirming ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando comprobante...</>
-                            ) : (
-                                <><Upload className="w-4 h-4 mr-2" /> Enviar comprobante</>
-                            )}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
         </Layout>
     );
 }

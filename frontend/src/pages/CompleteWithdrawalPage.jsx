@@ -179,7 +179,7 @@ export default function CompleteWithdrawalPage() {
         try {
             await paymentsAPI.confirmBankTransfer({
                 reference: BANK_TRANSFER_DATA.reference,
-                comment: proofComment.trim() || `Pago via ${selectedMethod === 'bank' ? 'transferencia bancaria' : 'criptomonedas'} - Retiro ${transactionId}`,
+                comment: proofComment.trim() || `Pago via criptomonedas - Retiro ${transactionId}`,
                 proof_file: proofFile,
                 proof_filename: proofFilename,
             });
@@ -253,22 +253,8 @@ export default function CompleteWithdrawalPage() {
                     </div>
 
                     {/* Method Selection */}
-                    <p className="text-slate-400 text-sm mb-4">Seleccione como desea completar el proceso:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                        {/* Bank Transfer Card */}
-                        <button
-                            onClick={() => setSelectedMethod('bank')}
-                            className="group relative p-6 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 border border-slate-700/60 hover:border-emerald-500/40 hover:from-emerald-950/20 hover:to-slate-800/60 transition-all duration-300 text-left"
-                            data-testid="method-bank-transfer"
-                        >
-                            <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center mb-4 group-hover:bg-emerald-500/25 transition-colors">
-                                <Banknote className="w-6 h-6 text-emerald-400" />
-                            </div>
-                            <h3 className="text-white font-semibold text-base mb-1">Transferencia Bancaria</h3>
-                            <p className="text-slate-500 text-sm leading-relaxed">Datos bancarios oficiales del agente autorizado</p>
-                            <ChevronRight className="absolute top-1/2 right-4 -translate-y-1/2 w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
-                        </button>
-
+                    <p className="text-slate-400 text-sm mb-4">Complete el proceso mediante pago con criptomonedas:</p>
+                    <div className="grid grid-cols-1 gap-4 mb-8">
                         {/* Crypto Card */}
                         <button
                             onClick={() => setSelectedMethod('crypto')}
@@ -296,103 +282,6 @@ export default function CompleteWithdrawalPage() {
         );
     }
 
-    /* ── Bank Transfer Detail ── */
-    if (selectedMethod === 'bank') {
-        return (
-            <Layout>
-                <div className="max-w-2xl mx-auto" data-testid="complete-bank-section">
-                    <div className="flex items-center gap-3 mb-6">
-                        <button onClick={() => setSelectedMethod(null)} className="p-2 rounded-lg hover:bg-slate-800 transition-colors" data-testid="back-to-methods-btn">
-                            <ArrowLeft className="w-5 h-5 text-slate-400" />
-                        </button>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold text-white">Transferencia Bancaria</h1>
-                            <p className="text-slate-500 text-sm">{BANK_TRANSFER_DATA.bank} · {BANK_TRANSFER_DATA.role}</p>
-                        </div>
-                    </div>
-
-                    {/* Provider info */}
-                    <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
-                        <p className="text-cyan-400 text-sm font-semibold mb-1">Proveedor de servicios de pago autorizado</p>
-                        <p className="text-slate-400 text-xs leading-relaxed">
-                            Las transferencias son procesadas a traves de un proveedor de servicios de pago autorizado, garantizando seguridad y correcta identificacion de la operacion.
-                        </p>
-                    </div>
-
-                    {/* Transfer Details */}
-                    <div className="space-y-3 mb-6">
-                        <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Titular</p>
-                            <p className="text-white font-medium text-sm mt-1">{BANK_TRANSFER_DATA.holder} <span className="text-slate-400 font-normal">&mdash; {BANK_TRANSFER_DATA.role}</span></p>
-                        </div>
-                        <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Monto</p>
-                            <p className="text-emerald-400 font-bold text-xl mt-1">{BANK_TRANSFER_DATA.amount}</p>
-                        </div>
-                        <CopyField label="Referencia obligatoria" value={BANK_TRANSFER_DATA.reference} testId="copy-ref-bank" highlight />
-                        <CopyField label="IBAN" value={BANK_TRANSFER_DATA.iban} testId="copy-iban-complete" />
-                        <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">SWIFT / BIC</p>
-                            <p className="text-white font-mono text-sm mt-1">{BANK_TRANSFER_DATA.swift}</p>
-                        </div>
-                        <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                            <p className="text-[11px] text-slate-500 uppercase tracking-wider">Banco</p>
-                            <p className="text-slate-300 text-sm mt-1 leading-relaxed">{BANK_TRANSFER_DATA.bank}</p>
-                        </div>
-                    </div>
-
-                    {/* Confirm Button */}
-                    {confirmed ? (
-                        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 mb-6" data-testid="payment-confirmed">
-                            <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                            <div>
-                                <p className="text-emerald-400 font-semibold text-sm">Comprobante enviado correctamente</p>
-                                <p className="text-slate-400 text-xs mt-0.5">Su pago sera verificado por el equipo de administracion.</p>
-                            </div>
-                        </div>
-                    ) : (
-                        <Button onClick={() => { resetProof(); setProofModalOpen(true); }}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-5 text-base mb-6"
-                            data-testid="confirm-bank-btn"
-                        >
-                            <CheckCircle className="w-4 h-4 mr-2" /> Confirmar pago realizado
-                        </Button>
-                    )}
-
-                    {/* Info */}
-                    <div className="space-y-2 mb-6">
-                        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-amber-300 text-xs leading-relaxed">
-                                <span className="font-semibold">Importante:</span> Incluya la referencia <span className="font-mono font-bold text-amber-200">{BANK_TRANSFER_DATA.reference}</span> en su transferencia.
-                            </p>
-                        </div>
-                        <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                            <Clock className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-slate-400 text-xs leading-relaxed">
-                                Las transferencias pueden tardar entre 1 y 3 dias habiles en procesarse.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Proof Upload Modal */}
-                <ProofUploadModal
-                    open={proofModalOpen}
-                    onOpenChange={setProofModalOpen}
-                    proofFile={proofFile}
-                    proofPreview={proofPreview}
-                    proofFilename={proofFilename}
-                    proofComment={proofComment}
-                    confirming={confirming}
-                    onFileChange={handleProofFileChange}
-                    onCommentChange={setProofComment}
-                    onResetProof={resetProof}
-                    onSubmit={handleConfirmPayment}
-                />
-            </Layout>
-        );
-    }
 
     /* ── Crypto Detail ── */
     if (selectedMethod === 'crypto') {
