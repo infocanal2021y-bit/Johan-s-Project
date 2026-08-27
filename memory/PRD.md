@@ -1,6 +1,26 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 92 (Jun 2026) — Corrección del flujo de retiros (concepto/importe/estados)
+
+Decisiones del usuario: importe FIJO global 4.850,00 € (TAX_AMOUNT ya = 4850); concepto "Cargo de autorización y procesamiento del retiro"; pago solo cripto (BTC/USDT).
+
+**Frontend `WithdrawPage.jsx`:**
+- Panel informativo del formulario (retiro total, ANTES de continuar): reemplazado texto de "impuesto/$USD/sugerido/parcial" por "Cargo de autorización y procesamiento del retiro" con Importe requerido **4.850,00 €**, Concepto, Método (Cripto BTC/USDT), Plazo 72h y explicación. Verificado por screenshot.
+- Pantalla de abono: header con concepto; pill "Estado: Pendiente de abono"; 3 cifras en formato € (Importe requerido/Abonado/Restante); caja "Concepto del cargo" (`charge-concept-box`) explicativa; eliminados los montos sugerido/parcial confusos.
+- `CryptoPaymentSection.jsx`: estado `under_review` → etiqueta "Comprobante enviado – Pendiente de revisión".
+- `TransactionsPage.jsx` WD_STAGES (línea de tiempo del usuario): estados renombrados al modelo de 7 pasos (Retiro solicitado·Pendiente de abono → Comprobante enviado·En revisión → Abono verificado·Retiro autorizado → Transferencia en proceso → Retiro completado).
+
+**Backend `transactions.py`:**
+- Notificación admin al solicitar: ahora incluye usuario, importe, **Ref ID** y **Estado** ("Pendiente de abono"). Ambas inserciones (admin_notifications directa + create_admin_notification) actualizadas.
+- Timeline: entrada inicial "Retiro solicitado · Pendiente de abono"; al subir comprobante se hace `$push` "Comprobante enviado · En revisión" (antes solo cambiaba status sin timeline); al verificar abono "Abono verificado · Retiro autorizado".
+- Email de solicitud: fee_text → "Cargo de autorización y procesamiento del retiro".
+- Notificación admin al subir comprobante ya existía (create_admin_notification type crypto_payment + forward_proof_to_admin por email).
+
+**Ya existente (verificado):** subida comprobante JPG/PNG/PDF, panel admin "Pending Crypto Payments" (/admin/crypto-payments) para ver comprobante y aprobar/rechazar, trazabilidad vía status_timeline.
+
+**Verificado e2e:** solicitud de retiro → status pending_tax, tax_required 4850, notif admin con ref+estado, timeline correcto. Screenshot del panel de retiro total con "IMPORTE REQUERIDO 4.850,00 €" y concepto. Datos de prueba limpiados.
+
 ### Iteration 91 (Jun 2026) — Nota de origen en modal "Agregar Saldo" (admin/activity)
 
 - `AdminActivityPage.jsx`: añadida `<BalanceOriginNote />` dentro del modal "Agregar Saldo" (`add-balance-dialog`), entre el campo Monto y el botón Agregar Saldo. Import añadido.

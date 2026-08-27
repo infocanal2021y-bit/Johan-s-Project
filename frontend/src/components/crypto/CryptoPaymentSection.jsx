@@ -39,7 +39,7 @@ const PAYMENT_STATUS = {
     pending: { label: 'Pendiente', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/20' },
     confirming: { label: 'Confirmando', icon: Loader2, color: 'text-cyan-400', bg: 'bg-cyan-500/20', animate: true },
     confirmed: { label: 'Confirmado', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
-    under_review: { label: 'En Revisión', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/20' },
+    under_review: { label: 'Comprobante enviado – Pendiente de revisión', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/20' },
     approved: { label: 'Aprobado', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     rejected: { label: 'Rechazado', icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/20' },
 };

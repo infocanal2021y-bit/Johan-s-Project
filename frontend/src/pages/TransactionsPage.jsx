@@ -17,11 +17,11 @@ import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection'
 import { WithdrawalProgressBar } from '../components/WithdrawalProgressBar';
 
 const WD_STAGES = [
-    { status: 'pending_tax', label: 'Solicitud recibida · Impuesto pendiente', color: '#f97316' },
-    { status: 'pending', label: 'Impuesto completado · Pendiente de aprobación', color: '#1973B8' },
-    { status: 'processing', label: 'Procesando', color: '#06b6d4' },
+    { status: 'pending_tax', label: 'Retiro solicitado · Pendiente de abono', color: '#f97316' },
+    { status: 'crypto_payment_under_review', label: 'Comprobante enviado · En revisión', color: '#06b6d4' },
+    { status: 'pending', label: 'Abono verificado · Retiro autorizado', color: '#1973B8' },
     { status: 'transfer_in_progress', label: 'Transferencia en proceso', color: '#f59e0b' },
-    { status: 'completed', label: 'Completado', color: '#10b981' },
+    { status: 'completed', label: 'Retiro completado', color: '#10b981' },
 ];
 
 const fmtExact = (iso) => !iso ? null : new Date(iso).toLocaleString('es-ES', {

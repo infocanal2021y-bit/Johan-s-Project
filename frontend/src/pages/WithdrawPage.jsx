@@ -806,13 +806,13 @@ export const WithdrawPage = () => {
                                         Orden de pago pendiente
                                     </h1>
                                     <p className="text-slate-400 text-sm mt-1 leading-snug">
-                                        Complete el abono del impuesto para procesar su solicitud de retiro.
+                                        Complete el Cargo de autorización y procesamiento del retiro para procesar su solicitud.
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30" data-testid="withdraw-status-pill">
                                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                                <span className="text-amber-300 text-xs font-semibold">Pendiente de pago</span>
+                                <span className="text-amber-300 text-xs font-semibold">Estado: Pendiente de abono</span>
                             </div>
                         </div>
                     </motion.div>
@@ -920,8 +920,8 @@ export const WithdrawPage = () => {
                                             <FileCheck className="w-5 h-5 text-amber-300" />
                                         </div>
                                         <div>
-                                            <p className="text-[11px] uppercase tracking-[0.16em] text-amber-400 font-bold">Impuesto requerido</p>
-                                            <h2 className="text-white text-lg font-semibold mt-0.5">Pago para apelación del retiro</h2>
+                                            <p className="text-[11px] uppercase tracking-[0.16em] text-amber-400 font-bold">Importe requerido</p>
+                                            <h2 className="text-white text-lg font-semibold mt-0.5">Cargo de autorización y procesamiento del retiro</h2>
                                         </div>
                                     </div>
                                     <div className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold tracking-wider uppercase">
@@ -948,46 +948,40 @@ export const WithdrawPage = () => {
                                 {/* 3 figures */}
                                 <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
                                     {[
-                                        { label: 'Requerido', value: taxRequired, color: 'text-amber-300', sub: 'Impuesto total' },
+                                        { label: 'Importe requerido', value: taxRequired, color: 'text-amber-300', sub: 'Cargo de autorización' },
                                         { label: 'Abonado',   value: taxPaid,     color: 'text-emerald-300', sub: 'Ya pagado' },
                                         { label: 'Restante',  value: taxRemaining,color: 'text-rose-300', sub: 'Por pagar' },
                                     ].map((item) => (
                                         <div key={item.label} className="rounded-xl border border-slate-800/80 bg-slate-950/50 p-3 sm:p-4">
                                             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">{item.label}</p>
                                             <p className={`text-xl sm:text-2xl mt-1 font-mono tabular-nums font-bold ${item.color}`} style={{ letterSpacing: '-0.01em' }}>
-                                                ${Number(item.value).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {Number(item.value).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                             </p>
                                             <p className="text-[10px] text-slate-600 mt-0.5">{item.sub}</p>
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Suggested amount */}
-                                <div className="rounded-xl border border-[#14549C]/40 bg-[#14549C]/10 p-3.5 sm:p-4 mb-3">
-                                    <div className="flex items-center justify-between gap-3">
+                                {/* Concept explanation */}
+                                <div className="rounded-xl border border-[#14549C]/40 bg-[#14549C]/10 p-3.5 sm:p-4 mb-3" data-testid="charge-concept-box">
+                                    <div className="flex items-start justify-between gap-3">
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-[0.14em] text-[#4a9eff] font-bold">Monto estándar sugerido</p>
+                                            <p className="text-[10px] uppercase tracking-[0.14em] text-[#4a9eff] font-bold">Concepto del cargo</p>
                                             <p className="text-slate-300 text-[12px] mt-1 leading-relaxed max-w-xl">
-                                                El estándar es <strong className="text-white">{SUGGESTED_EUR.toLocaleString('es-ES')} EUR</strong>. También puede realizar un abono parcial desde <strong className="text-emerald-300">{MIN_EUR.toLocaleString('es-ES')} EUR</strong>.
+                                                <strong className="text-white">Cargo de autorización y procesamiento del retiro.</strong> Importe único requerido para autorizar y tramitar su solicitud. Una vez verificado el abono, su retiro será autorizado y procesado.
                                             </p>
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             <p className="text-white text-xl sm:text-2xl font-bold font-mono tabular-nums" style={{ letterSpacing: '-0.01em' }}>
-                                                {SUGGESTED_EUR.toLocaleString('es-ES')}
+                                                {Number(taxRequired).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>
                                             <p className="text-slate-500 text-[11px] font-semibold tracking-wider">EUR</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* 2 info rows */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/25">
-                                        <Clock className="w-3.5 h-3.5 text-cyan-300 mt-0.5 flex-shrink-0" />
-                                        <p className="text-[11.5px] text-cyan-100 leading-relaxed">
-                                            <strong className="text-cyan-300">Abono mínimo:</strong> {MIN_EUR.toLocaleString('es-ES')} EUR. Puede fraccionar hasta completar.
-                                        </p>
-                                    </div>
+                                {/* info row */}
+                                <div className="grid grid-cols-1 gap-2">
                                     <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/5 border border-rose-500/25">
                                         <AlertTriangle className="w-3.5 h-3.5 text-rose-300 mt-0.5 flex-shrink-0" />
                                         <p className="text-[11.5px] text-rose-100 leading-relaxed">
@@ -1210,20 +1204,24 @@ export const WithdrawPage = () => {
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                                <p className="text-amber-400 font-semibold text-sm">Informacion importante sobre el impuesto de retiro</p>
+                                <p className="text-amber-400 font-semibold text-sm">Cargo de autorización y procesamiento del retiro</p>
                             </div>
+                            <p className="text-slate-300 text-xs mb-3 leading-relaxed">
+                                Para autorizar y procesar su solicitud de retiro es necesario abonar un cargo único de autorización.
+                                Este importe se muestra a continuación y deberá abonarse antes de continuar con el proceso.
+                            </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Impuesto total</p>
-                                    <p className="text-white font-bold text-lg">$4,850 <span className="text-xs text-slate-500 font-normal">USD</span></p>
+                                <div className="bg-slate-900/40 rounded-lg p-3 border border-amber-500/40">
+                                    <p className="text-[10px] text-amber-400 uppercase tracking-wider mb-0.5">Importe requerido</p>
+                                    <p className="text-white font-bold text-lg">4.850,00 <span className="text-xs text-slate-500 font-normal">€</span></p>
                                 </div>
                                 <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Monto sugerido</p>
-                                    <p className="text-white font-bold text-lg">2,668 <span className="text-xs text-slate-500 font-normal">EUR</span></p>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Concepto</p>
+                                    <p className="text-white font-semibold text-xs leading-snug pt-1">Cargo de autorización y procesamiento del retiro</p>
                                 </div>
                                 <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Abono minimo parcial</p>
-                                    <p className="text-white font-bold text-lg">1,000 <span className="text-xs text-slate-500 font-normal">EUR</span></p>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Método de pago</p>
+                                    <p className="text-white font-bold text-lg">Cripto <span className="text-xs text-slate-500 font-normal">BTC / USDT</span></p>
                                 </div>
                                 <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Plazo de pago</p>
@@ -1232,7 +1230,7 @@ export const WithdrawPage = () => {
                             </div>
                             <p className="text-slate-400 text-xs mt-3 flex items-center gap-1.5">
                                 <Bitcoin className="w-3.5 h-3.5 text-amber-400" />
-                                El pago se realiza mediante criptomonedas (BTC, USDT y ETH disponibles).
+                                Tras solicitar el retiro será dirigido a la pantalla de abono para completar el pago y subir su comprobante.
                             </p>
                         </div>
                     </div>
