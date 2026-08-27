@@ -1,6 +1,15 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 95 (Jun 2026) — Aviso de abono en retiros bancarios + contador en vivo 72h
+
+**1. Aviso extendido a retiros bancarios:** `PendingAbonoBanner.jsx` ahora consulta también `/bank-withdrawal/list` y añade al banner los retiros bancarios en estado `conversion_done` (confirmados por OTP pero sin abonar). El botón enlaza a `/withdraw-methods?abono_ref=<ref>#crypto-payments`. Muestra "+N más" si hay varios pendientes (transactions + bank).
+- Backend `server.py process_tax_reminders`: añadido bloque que crea notificación in-app "Abono pendiente de su retiro bancario" para requests `conversion_done` (ventana 12h–66h, dedup por `last_reminder_sent` cada 12h).
+
+**2. Contador en vivo 72h:** hook `useCountdown` en `PendingAbonoBanner` actualiza cada segundo desde `created_at` (transactions) o `code_verified_at` (bank). Muestra `Tiempo restante: HH:MM:SS` (`abono-countdown`), en rojo si <12h, "Plazo expirado" al llegar a 0.
+
+**Verificado por screenshot:** banner detecta retiro bancario BW pendiente + contador decrementa en vivo (66:59:21 → 66:59:18). Datos de prueba limpiados.
+
 ### Iteration 94 (Jun 2026) — Recordatorio de abono + aviso pendiente + comprobante en historial
 
 **1. Recordatorio de abono (72h):** ya existía `process_tax_reminders` (cada 15h, email si >12h y quedan >6h) + `process_auto_rejections` (rechazo a 72h) para withdraws en `pending_tax`. Mejorado: ahora el recordatorio también crea una notificación in-app "Abono pendiente de su retiro" con importe y horas restantes.

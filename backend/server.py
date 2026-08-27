@@ -836,6 +836,39 @@ async def process_tax_reminders():
             except Exception as e:
                 logging.error(f"Error sending reminder for tx {tx.get('id')}: {str(e)}")
         
+        # Bank withdrawals pending abono (status conversion_done) — in-app reminder
+        try:
+            bank_pending = await db.bank_withdrawal_requests.find({
+                'status': 'conversion_done'
+            }, {'_id': 0, 'id': 1, 'user_id': 1, 'reference': 1, 'code_verified_at': 1, 'updated_at': 1, 'created_at': 1, 'last_reminder_sent': 1}).to_list(1000)
+            for bw in bank_pending:
+                start_iso = bw.get('code_verified_at') or bw.get('updated_at') or bw.get('created_at')
+                if not start_iso:
+                    continue
+                start_dt = datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+                hours_since = (datetime.now(timezone.utc) - start_dt).total_seconds() / 3600
+                hours_remaining = max(0, 72 - hours_since)
+                if not (hours_remaining > 6 and hours_since > 12):
+                    continue
+                last = bw.get('last_reminder_sent')
+                if last:
+                    hs = (datetime.now(timezone.utc) - datetime.fromisoformat(last.replace('Z', '+00:00'))).total_seconds() / 3600
+                    if hs < 12:
+                        continue
+                await create_notification(
+                    bw['user_id'],
+                    'Abono pendiente de su retiro bancario',
+                    f'Su retiro {bw.get("reference","")} requiere el Cargo de autorización y procesamiento del retiro de {TAX_AMOUNT:,.2f} EUR. '
+                    f'Le quedan aprox. {int(hours_remaining)} h para completar el abono en Pagos en Criptomonedas.'
+                )
+                await db.bank_withdrawal_requests.update_one(
+                    {'id': bw['id']},
+                    {'$set': {'last_reminder_sent': datetime.now(timezone.utc).isoformat()}}
+                )
+                reminders_sent += 1
+        except Exception as e:
+            logging.error(f"Error sending bank withdrawal abono reminders: {str(e)}")
+        
         logging.info(f"✅ Tax reminder job completed. Sent {reminders_sent} reminders.")
     
     except Exception as e:
