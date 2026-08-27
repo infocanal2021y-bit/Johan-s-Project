@@ -1,6 +1,12 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 97 (Jun 2026) — Auto-rechazo de retiros bancarios con abono expirado
+
+- `bank_withdrawals.py` `auto_reject_expired_bank_withdrawals()`: recorre requests en `received`/`conversion_done`; si pasaron ≥72h desde `code_verified_at` (o updated/created) sin abono, marca status `rejected` (nota "Rechazado automáticamente: abono no completado en 72h"), **devuelve los fondos** al saldo disponible del usuario (`balances.{currency} += from_amount`), notifica al usuario (in-app) y crea `admin_notifications` tipo `bank_withdrawal_auto_rejected`. Timeline con entrada `system`.
+- `server.py`: registrado job scheduler `bank_wd_auto_rejections` cada 1h.
+- Verificado e2e: WD-EXPIRED (80h) → rejected + reembolso de 700 € confirmado + notif admin; WD-RECENT (10h) → intacto en conversion_done. La ejecución también limpió los 12 retiros bancarios reales expirados preexistentes (rechazados + fondos devueltos, comportamiento correcto del feature). Artefactos de prueba revertidos.
+
 ### Iteration 96 (Jun 2026) — Panel admin de abonos pendientes + recordatorio final (<6h)
 
 **1. Panel Abonos Pendientes (admin):** nuevo `GET /admin/pending-abonos` (transactions.py) agrega retiros full (`pending_tax`) + bancarios (`conversion_done`) con `hours_remaining` (ventana 72h) y stats (total/urgent<6h/expired). Nueva página `AdminPendingAbonosPage.jsx` (ruta `/admin/pending-abonos`, sidebar "Abonos Pendientes" icono Receipt, poll 30s): stats cards + lista con badge tipo (Retiro/Retiro a Banco), referencia, usuario, importes, cargo requerido 4.850 € y tiempo restante coloreado (rojo <6h, ámbar <24h, verde). Testids: `admin-pending-abonos-page`, `abono-row-{id}`, `abono-remaining-{id}`.

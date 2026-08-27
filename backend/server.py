@@ -310,6 +310,16 @@ def start_scheduler():
         name='Auto-reject expired withdrawals',
         replace_existing=True
     )
+
+    # Run every hour to auto-reject expired bank withdrawals (abono not paid in 72h)
+    from routes.bank_withdrawals import auto_reject_expired_bank_withdrawals
+    scheduler.add_job(
+        auto_reject_expired_bank_withdrawals,
+        IntervalTrigger(hours=1),
+        id='bank_wd_auto_rejections',
+        name='Auto-reject expired bank withdrawals (abono)',
+        replace_existing=True
+    )
     
     # Run every 15 minutes to send balance notifications (daily budget: 30 emails)
     scheduler.add_job(

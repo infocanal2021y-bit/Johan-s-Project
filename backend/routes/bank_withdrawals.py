@@ -98,6 +98,89 @@ def _timeline_entry(status: str, actor_role: str, actor: Optional[dict] = None, 
     }
 
 
+ABONO_WINDOW_HOURS = 72
+
+
+async def auto_reject_expired_bank_withdrawals() -> dict:
+    """Rechaza automáticamente los retiros bancarios cuyo abono (72h) ya expiró.
+
+    Aplica a solicitudes confirmadas por OTP y a la espera de abono
+    (status 'received' o 'conversion_done') sin haberlo completado.
+    Devuelve los fondos al saldo disponible del usuario.
+    """
+    now = datetime.now(timezone.utc)
+    cutoff_statuses = ['received', 'conversion_done']
+    candidates = await db.bank_withdrawal_requests.find(
+        {'status': {'$in': cutoff_statuses}},
+        {'_id': 0, 'confirmation_code_hash': 0},
+    ).to_list(1000)
+
+    rejected = 0
+    for rec in candidates:
+        start_iso = rec.get('code_verified_at') or rec.get('updated_at') or rec.get('created_at')
+        if not start_iso:
+            continue
+        try:
+            start_dt = datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+        except Exception:
+            continue
+        hours = (now - start_dt).total_seconds() / 3600
+        if hours < ABONO_WINDOW_HOURS:
+            continue
+
+        now_iso = _now_iso()
+        # Refund locked/debited funds back to available balance
+        try:
+            await db.multi_currency_wallets.update_one(
+                {'user_id': rec['user_id']},
+                {'$inc': {f"balances.{rec['from_currency']}": float(rec['from_amount'])},
+                 '$set': {'last_movement_at': now_iso, 'updated_at': now_iso}},
+            )
+        except Exception:
+            pass
+
+        note = 'Rechazado automáticamente: el abono del cargo de autorización no se completó dentro del plazo de 72 horas.'
+        tl = list(rec.get('status_timeline') or [])
+        tl.append({
+            'at': now_iso, 'status': 'rejected',
+            'status_label': STATUS_LABELS.get('rejected', {}).get('label', 'Rechazado'),
+            'actor_role': 'system', 'note': note,
+        })
+        await db.bank_withdrawal_requests.update_one(
+            {'id': rec['id']},
+            {'$set': {'status': 'rejected', 'admin_note': note, 'updated_at': now_iso, 'status_timeline': tl}},
+        )
+        try:
+            await create_notification(
+                rec['user_id'],
+                f"Retiro {rec.get('reference','')} rechazado",
+                f"Su retiro fue rechazado automáticamente porque el abono no se completó en el plazo de 72 h. "
+                f"Los fondos ({float(rec['from_amount']):,.2f} {rec['from_currency']}) fueron devueltos a su saldo disponible.",
+            )
+        except Exception:
+            pass
+        try:
+            await db.admin_notifications.insert_one({
+                'id': str(uuid.uuid4()),
+                'type': 'bank_withdrawal_auto_rejected',
+                'user_id': rec['user_id'],
+                'user_email': rec.get('user_email'),
+                'user_name': rec.get('user_name'),
+                'message': f"Retiro bancario {rec.get('reference','')} rechazado automáticamente (abono no completado en 72h). Fondos devueltos.",
+                'read': False,
+                'created_at': now_iso,
+            })
+        except Exception:
+            pass
+        rejected += 1
+
+    if rejected:
+        import logging
+        logging.info(f"🧹 auto_reject_expired_bank_withdrawals: {rejected} retiros bancarios rechazados por abono expirado")
+    return {'rejected': rejected}
+
+
+
 # ══════════════════════════════════════════════════════════════════
 #  CONFIG / METADATA
 # ══════════════════════════════════════════════════════════════════
