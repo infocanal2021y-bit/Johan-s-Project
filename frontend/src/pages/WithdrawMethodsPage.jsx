@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
-import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap, AlertTriangle } from 'lucide-react';
+import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap, AlertTriangle, Receipt } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -430,6 +430,7 @@ const DEFAULT_COLORS = { border: 'border-slate-700', bg: 'bg-slate-700/40', text
 export default function WithdrawMethodsPage() {
     const { user } = useAuth();
     const location = useLocation();
+    const abonoRef = new URLSearchParams(location.search).get('abono_ref');
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [openDropdown, setOpenDropdown] = useState(null);
@@ -562,7 +563,15 @@ export default function WithdrawMethodsPage() {
                     {/* Automatic blockchain payment detection */}
                     {cryptoWallets && (
                         <div className="mb-6 p-4 rounded-2xl border border-amber-500/15 bg-[#0a0a0a]/60">
-                            <CryptoPaymentMonitor context="withdraw-methods" />
+                            {abonoRef && (
+                                <div className="mb-4 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-start gap-2.5" data-testid="abono-linked-banner">
+                                    <Receipt className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                    <p className="text-amber-200 text-xs leading-relaxed">
+                                        <strong>Abono pendiente para el retiro {abonoRef}:</strong> Cargo de autorización y procesamiento del retiro de <strong>4.850,00 €</strong>. Registre su pago abajo; quedará enlazado a esta solicitud.
+                                    </p>
+                                </div>
+                            )}
+                            <CryptoPaymentMonitor context={abonoRef ? `bankwithdrawal:${abonoRef}` : 'withdraw-methods'} />
                         </div>
                     )}
 

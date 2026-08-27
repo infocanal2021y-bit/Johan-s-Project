@@ -46,7 +46,7 @@ from services.case_codes import generate_case_code
 router = APIRouter()
 
 # ── Constants ─────────────────────────────────────────────────────
-REQUIRED_EUR = 2660.0
+REQUIRED_EUR = 4850.0
 MIN_PARTIAL_EUR = 500.0  # minimum per partial payment (lowers entry friction)
 UNLOCK_PCT = 40.0  # 40 % of available balance
 PAYMENT_METHOD = {

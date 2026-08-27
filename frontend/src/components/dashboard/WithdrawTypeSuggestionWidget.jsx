@@ -94,7 +94,7 @@ export const WithdrawTypeSuggestionWidget = ({ user }) => {
                         icon={Zap}
                         color="#4a9eff"
                         title="Parcial · 40%"
-                        fee="€2.660"
+                        fee="€4.850"
                         sub="Menor coste de activación"
                         testId="widget-option-partial"
                     />

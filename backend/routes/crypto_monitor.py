@@ -201,6 +201,9 @@ async def _fetch_usdt_txs(client: httpx.AsyncClient, address: str):
 async def _process_confirmed_intent(intent):
     """Auto-avanza el retiro asociado cuando el pago cripto se confirma."""
     ctx = intent.get('context') or ''
+    if ctx.startswith('bankwithdrawal:'):
+        await _advance_bank_withdrawal(intent, ctx.split(':', 1)[1])
+        return
     if not ctx.startswith('withdrawal:'):
         return
     tx_id = ctx.split(':', 1)[1]
@@ -236,6 +239,39 @@ async def _process_confirmed_intent(intent):
         'created_at': now,
     })
     logging.info(f'crypto monitor: retiro {ref} auto-avanzado por pago confirmado (intent {intent["id"]})')
+
+
+async def _advance_bank_withdrawal(intent, reference):
+    """Avanza un retiro bancario a revisión de cumplimiento cuando su abono cripto se confirma."""
+    rec = await db.bank_withdrawal_requests.find_one({'reference': reference})
+    if not rec or rec.get('status') not in ('conversion_done', 'received', 'awaiting_code'):
+        return
+    now = _now().isoformat()
+    tl = list(rec.get('status_timeline') or [])
+    tl.append({'at': now, 'status': 'compliance_review', 'actor': 'system',
+               'note': 'Abono verificado en blockchain · retiro autorizado a revisión de cumplimiento'})
+    await db.bank_withdrawal_requests.update_one({'id': rec['id']}, {
+        '$set': {'status': 'compliance_review', 'updated_at': now, 'status_timeline': tl},
+    })
+    try:
+        await create_notification(
+            intent['user_id'], 'Abono verificado · Retiro autorizado',
+            f'Su abono para el retiro {reference} fue confirmado en blockchain. Su retiro avanza a revisión de cumplimiento.',
+        )
+    except Exception:
+        pass
+    await db.admin_notifications.insert_one({
+        'id': str(uuid.uuid4()),
+        'type': 'withdrawal_auto_advanced',
+        'user_id': intent['user_id'],
+        'user_email': intent['user_email'],
+        'user_name': intent['user_name'],
+        'message': f'Retiro bancario {reference} avanzado automáticamente: abono cripto confirmado ({intent["detected_amount"]} {intent["coin_name"]}, TXID {str(intent.get("txid"))[:16]}...)',
+        'intent_id': intent['id'],
+        'read': False,
+        'created_at': now,
+    })
+    logging.info(f'crypto monitor: retiro bancario {reference} auto-avanzado (intent {intent["id"]})')
 
 
 async def _notify(intent, variant, note=None):

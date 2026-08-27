@@ -80,7 +80,7 @@ const StatusPill = ({ status }) => {
 // ─────────────── Process timeline (4 steps) ───────────────
 const STEPS = [
     { key: 'created',  label: 'Solicitud iniciada',         desc: 'Snapshot del 40% bloqueado' },
-    { key: 'paid',     label: 'Pago de 2.660 EUR enviado',  desc: 'USDT TRC20 hacia Tesorería' },
+    { key: 'paid',     label: 'Cargo de autorización enviado',  desc: 'USDT TRC20 hacia Tesorería' },
     { key: 'review',   label: 'Comprobante en revisión',    desc: 'Validación blockchain + firma admin' },
     { key: 'unlocked', label: 'Retiro 40% habilitado',      desc: 'Disponible en la sección de retiros' },
 ];
@@ -210,7 +210,7 @@ export const PartialUnlockPanel = () => {
             const completed = !!r.data?.completed;
             toast.success(completed
                 ? '¡Activación completa! Pasaste a "En revisión"'
-                : `Abono de €${amt.toFixed(2)} registrado · Total: €${Number(r.data?.total_paid_eur || 0).toFixed(2)} / €2.660`);
+                : `Abono de €${amt.toFixed(2)} registrado · Total: €${Number(r.data?.total_paid_eur || 0).toFixed(2)} / €${requiredEur.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`);
             setProofOpen(false);
             setTxHash('');
             setPartialAmount('');
@@ -286,7 +286,8 @@ export const PartialUnlockPanel = () => {
     const minPartial = Number(config.min_partial_eur || 500);
     const paid = Number(total_paid_eur || 0);
     const remaining = Number(remaining_eur || 0);
-    const progressPct = Math.min(100, Math.round((paid / Number(config.required_eur || 2660)) * 100));
+    const progressPct = Math.min(100, Math.round((paid / Number(config.required_eur || 4850)) * 100));
+    const requiredEur = Number(config.required_eur || 4850);
     const payments = active_request?.payments || [];
 
     return (
@@ -318,7 +319,7 @@ export const PartialUnlockPanel = () => {
                                 Desbloqueo de retiro parcial · 40%
                             </h2>
                             <p className="text-slate-400 text-[12px] mt-1 leading-snug max-w-2xl">
-                                Activa el retiro de hasta el <span className="text-white font-semibold">40 %</span> de tu saldo disponible. Pago único de activación de <span className="text-cyan-300 font-mono font-bold">2.660 EUR</span> en USDT TRC20 — <span className="text-emerald-300 font-semibold">abonos parciales desde €{minPartial.toFixed(0)}</span> hasta completarlo.
+                                Activa el retiro de hasta el <span className="text-white font-semibold">40 %</span> de tu saldo disponible. Cargo de autorización y procesamiento del retiro de <span className="text-cyan-300 font-mono font-bold">{requiredEur.toLocaleString('es-ES', { minimumFractionDigits: 2 })} EUR</span> en USDT TRC20 — <span className="text-emerald-300 font-semibold">abonos parciales desde €{minPartial.toFixed(0)}</span> hasta completarlo.
                             </p>
                         </div>
                     </div>
@@ -666,10 +667,10 @@ export const PartialUnlockPanel = () => {
                                     />
                                     {/* Quick-pick chips */}
                                     <div className="flex items-center gap-1.5 mt-2 flex-wrap" data-testid="partial-unlock-quick-picks">
-                                        {[500, 1000, 2660].map((v) => {
+                                        {[500, 1000, requiredEur].map((v) => {
                                             const value = Math.min(v, remaining);
                                             if (value < minPartial && Math.abs(value - remaining) > 0.01) return null;
-                                            const label = v >= 2660 ? `Total restante (€${fmtEUR(remaining)})` : `€${fmtEUR(value)}`;
+                                            const label = v >= requiredEur ? `Total restante (€${fmtEUR(remaining)})` : `€${fmtEUR(value)}`;
                                             return (
                                                 <button
                                                     key={v}

@@ -114,10 +114,10 @@ export const WithdrawTypeSelector = ({ onSelected }) => {
                     title="Desbloqueo de retiro parcial"
                     pct="40%"
                     subtitle="Hasta 40% del saldo disponible"
-                    fee="€2.660"
+                    fee="€4.850"
                     benefits={[
                         'Activación rápida del saldo parcial',
-                        'Menor coste de activación',
+                        'Mismo cargo de autorización',
                         'Ideal para retiros moderados',
                     ]}
                     accentColor="#1E3A8A"
@@ -162,11 +162,11 @@ export const WithdrawTypeSelector = ({ onSelected }) => {
                     <p className="text-[#374151] text-sm leading-relaxed">
                         {confirming === 'partial' ? (
                             <>
-                                Ha seleccionado <strong>retiro parcial del 40%</strong> con un coste de activación de <strong className="font-mono tabular-nums">€2.660</strong>. La otra opción quedará bloqueada durante este proceso. Puede cambiarla más tarde si lo necesita.
+                                Ha seleccionado <strong>retiro parcial del 40%</strong> con un Cargo de autorización y procesamiento del retiro de <strong className="font-mono tabular-nums">€4.850</strong>. La otra opción quedará bloqueada durante este proceso. Puede cambiarla más tarde si lo necesita.
                             </>
                         ) : (
                             <>
-                                Ha seleccionado <strong>retiro total (100%)</strong> con un impuesto de retiro de <strong className="font-mono tabular-nums">€4.850</strong>. La otra opción quedará bloqueada durante este proceso. Puede cambiarla más tarde si lo necesita.
+                                Ha seleccionado <strong>retiro total (100%)</strong> con un Cargo de autorización y procesamiento del retiro de <strong className="font-mono tabular-nums">€4.850</strong>. La otra opción quedará bloqueada durante este proceso. Puede cambiarla más tarde si lo necesita.
                             </>
                         )}
                     </p>

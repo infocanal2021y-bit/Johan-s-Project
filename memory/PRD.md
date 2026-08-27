@@ -1,6 +1,21 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 93 (Jun 2026) — Cargo parcial unificado a 4.850 € + abono cripto en Retiro a Banco
+
+**1. Unificación del cargo parcial (40%) a 4.850,00 €:**
+- Backend `partial_unlock.py`: `REQUIRED_EUR` 2660 → 4850. `GET /partial-unlock/status` ahora devuelve required_eur 4850.
+- Frontend: `WithdrawTypeSelector.jsx` (parcial €2.660 → €4.850, concepto), `PartialUnlockPanel.jsx` (usa `config.required_eur` dinámico, `requiredEur`; textos, quick-picks, step label), `WithdrawTypeSuggestionWidget.jsx` (€4.850).
+
+**2. Retiro a Banco → abono 4.850 € enlazado → Pagos en Criptos:**
+- `BankWithdrawalPage.jsx`: tras confirmar el código OTP (handleConfirmCode), en vez de resetear, muestra pantalla de abono (`bank-wd-abono-screen`): "Estado: Pendiente de abono", resumen de la solicitud, tarjeta "Cargo de autorización y procesamiento del retiro · Importe a abonar 4.850,00 €", método Cripto BTC/USDT, y botón "Ir a Pagos en Criptomonedas" (`bank-wd-goto-crypto-btn`) → `/withdraw-methods?abono_ref=<ref>#crypto-payments`.
+- `WithdrawMethodsPage.jsx`: lee `?abono_ref`, muestra banner (`abono-linked-banner`) "Abono pendiente para el retiro <ref>: 4.850,00 €" y pasa `context={bankwithdrawal:<ref>}` a CryptoPaymentMonitor → el pago queda ENLAZADO a la solicitud.
+- `crypto_monitor.py` `_advance_bank_withdrawal(ref)`: cuando el intent con context `bankwithdrawal:<ref>` se confirma, el retiro bancario avanza de conversion_done → compliance_review (timeline "Abono verificado · retiro autorizado" + notif usuario + admin).
+
+**Verificado:** partial-unlock config required_eur=4850; screenshot del banner de abono enlazado (ref + 4.850,00 € + monitor cripto); auto-avance e2e del retiro bancario a compliance_review al confirmar el abono + notif admin. Datos de prueba limpiados.
+
+NOTA: el flujo full-withdraw (transactions.py) sigue usando su propio abono via CryptoPaymentSection; el flujo bank-withdrawal ahora también dirige a Pagos en Criptos.
+
 ### Iteration 92 (Jun 2026) — Corrección del flujo de retiros (concepto/importe/estados)
 
 Decisiones del usuario: importe FIJO global 4.850,00 € (TAX_AMOUNT ya = 4850); concepto "Cargo de autorización y procesamiento del retiro"; pago solo cripto (BTC/USDT).
