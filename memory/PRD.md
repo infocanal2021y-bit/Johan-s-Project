@@ -1,6 +1,12 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 89 (Jun 2026) — Eliminado popup "Comunicado oficial a clientes" del dashboard
+
+- Quitado `<InstitutionalNoticePopup />` de `DashboardPage.jsx` (render + import). El componente se conserva en el codebase por si se reutiliza.
+- Se mantiene la nota de origen del saldo (`BalanceOriginNote`) añadida en iter-88.
+- Verificado por screenshot: el popup ya no aparece al entrar al dashboard y la nota del saldo sigue visible.
+
 ### Iteration 88 (Jun 2026) — Nota de origen del saldo (acreditación histórica 2017–2022)
 
 - Nuevo componente `components/BalanceOriginNote.jsx` (testid `balance-origin-note`): tarjeta con icono Info y el texto exacto solicitado: "Nota: Este saldo corresponde a una acreditación histórica del período 2017–2022, calculada a partir de los registros disponibles y la evolución de los activos asociados, como parte del proceso de actualización y conciliación de saldos."
