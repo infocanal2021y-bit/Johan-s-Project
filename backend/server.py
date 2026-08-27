@@ -814,6 +814,16 @@ async def process_tax_reminders():
                                 tx.get('tax_paid', 0),
                                 hours_remaining
                             )
+                            # Also create in-app notification
+                            try:
+                                await create_notification(
+                                    tx['user_id'],
+                                    'Abono pendiente de su retiro',
+                                    f'Su retiro tiene un Cargo de autorización y procesamiento pendiente de {tx.get("tax_required", TAX_AMOUNT):,.2f} EUR. '
+                                    f'Le quedan aprox. {int(hours_remaining)} h para completarlo antes de que se rechace automáticamente.'
+                                )
+                            except Exception:
+                                pass
                             
                             # Update last reminder sent time
                             await db.transactions.update_one(

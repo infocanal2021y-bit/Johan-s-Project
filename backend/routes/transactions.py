@@ -951,6 +951,34 @@ async def get_crypto_payment_status(
     
     return payments
 
+@router.get("/transactions/{transaction_id}/proof")
+async def get_my_transaction_proof(
+    transaction_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Return the uploaded proof + date for the user's own withdrawal."""
+    transaction = await db.transactions.find_one(
+        {'id': transaction_id, 'user_id': current_user['id']},
+        {'_id': 0, 'id': 1}
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail='Transaction not found')
+    payment = await db.crypto_payments.find_one(
+        {'transaction_id': transaction_id},
+        {'_id': 0, 'proof_image': 1, 'submitted_at': 1, 'status': 1, 'crypto_type': 1, 'txid': 1, 'amount_sent': 1}
+    )
+    if not payment:
+        return {'has_proof': False}
+    return {
+        'has_proof': bool(payment.get('proof_image')),
+        'proof_image': payment.get('proof_image'),
+        'submitted_at': payment.get('submitted_at'),
+        'status': payment.get('status'),
+        'crypto_type': payment.get('crypto_type'),
+        'txid': payment.get('txid'),
+        'amount_sent': payment.get('amount_sent'),
+    }
+
 @router.get("/admin/crypto-payments/{payment_id}/proof")
 async def admin_get_crypto_payment_proof(
     payment_id: str,

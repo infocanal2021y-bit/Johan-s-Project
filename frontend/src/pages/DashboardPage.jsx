@@ -21,6 +21,7 @@ import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/L
 import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 import { BalanceOriginNote } from '../components/BalanceOriginNote';
+import { PendingAbonoBanner } from '../components/PendingAbonoBanner';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -235,6 +236,7 @@ export const DashboardPage = () => {
     return (
         <Layout>
             <div className="max-w-7xl mx-auto space-y-8" data-testid="dashboard-page">
+                <PendingAbonoBanner />
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}

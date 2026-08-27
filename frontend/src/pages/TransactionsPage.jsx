@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
-import { transactionsAPI } from '../lib/api';
+import api, { transactionsAPI } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -27,6 +27,47 @@ const WD_STAGES = [
 const fmtExact = (iso) => !iso ? null : new Date(iso).toLocaleString('es-ES', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
 });
+
+const ProofBlock = ({ txId }) => {
+    const [proof, setProof] = useState(undefined);
+    useEffect(() => {
+        let active = true;
+        api.get(`/transactions/${txId}/proof`)
+            .then((r) => { if (active) setProof(r.data); })
+            .catch(() => { if (active) setProof(null); });
+        return () => { active = false; };
+    }, [txId]);
+
+    if (proof === undefined) return null;
+    if (!proof || !proof.has_proof) return null;
+
+    const isPdf = (proof.proof_image || '').startsWith('data:application/pdf');
+    return (
+        <div className="pt-4 border-t border-slate-800" data-testid="proof-block">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-2 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" /> Comprobante enviado
+            </p>
+            {isPdf ? (
+                <a href={proof.proof_image} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-cyan-300 text-xs hover:bg-slate-800"
+                    data-testid="proof-pdf-link">
+                    <FileText className="w-4 h-4" /> Ver comprobante (PDF)
+                </a>
+            ) : (
+                <a href={proof.proof_image} target="_blank" rel="noopener noreferrer" data-testid="proof-image-link">
+                    <img src={proof.proof_image} alt="Comprobante" className="max-h-48 rounded-lg border border-slate-700" />
+                </a>
+            )}
+            <div className="mt-2 space-y-0.5 text-[11px] text-slate-400">
+                {proof.submitted_at && (
+                    <p data-testid="proof-date">Enviado: <span className="text-slate-300">{new Date(proof.submitted_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></p>
+                )}
+                {proof.crypto_type && <p>Método: <span className="text-slate-300">{proof.crypto_type}</span>{proof.amount_sent ? ` · ${proof.amount_sent}` : ''}</p>}
+                {proof.txid && <p className="font-mono break-all">TXID: <span className="text-slate-300">{proof.txid}</span></p>}
+            </div>
+        </div>
+    );
+};
 
 const WithdrawTimeline = ({ tx }) => {
     let entries = tx.status_timeline || [];
@@ -462,6 +503,7 @@ export const TransactionsPage = () => {
                                 </span>
                             </div>
                             <WithdrawTimeline tx={timelineTx} />
+                            <ProofBlock txId={timelineTx.id} />
                         </div>
                     )}
                 </DialogContent>

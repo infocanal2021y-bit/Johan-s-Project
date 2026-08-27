@@ -1,6 +1,16 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 94 (Jun 2026) — Recordatorio de abono + aviso pendiente + comprobante en historial
+
+**1. Recordatorio de abono (72h):** ya existía `process_tax_reminders` (cada 15h, email si >12h y quedan >6h) + `process_auto_rejections` (rechazo a 72h) para withdraws en `pending_tax`. Mejorado: ahora el recordatorio también crea una notificación in-app "Abono pendiente de su retiro" con importe y horas restantes.
+
+**2. Aviso de abono pendiente (dashboard):** nuevo `components/PendingAbonoBanner.jsx` (testid `pending-abono-banner`) montado al inicio de `DashboardPage.jsx`: consulta `/transactions`, filtra withdraws `pending_tax` y muestra banner ámbar con referencia, importe 4.850,00 €, horas restantes (~72h countdown) y botón "Completar abono" (`pending-abono-cta`) → `/withdraw-methods#crypto-payments`. Se oculta si no hay pendientes.
+
+**3. Comprobante en historial:** nuevo `GET /transactions/{id}/proof` (usuario, sólo su propia tx) devuelve proof_image/submitted_at/status/crypto_type/txid/amount_sent desde `crypto_payments`. En `TransactionsPage.jsx` el modal de línea de tiempo del retiro ahora renderiza `ProofBlock` (testid `proof-block`): imagen o link PDF del comprobante + fecha de envío (`proof-date`), método y TXID.
+
+**Verificado e2e:** endpoint proof (has_proof true, datos), screenshot del banner en dashboard (ref + 4.850,00 € + ~71h) y del bloque "COMPROBANTE ENVIADO" en la timeline (imagen + fecha + método + TXID). Datos de prueba limpiados.
+
 ### Iteration 93 (Jun 2026) — Cargo parcial unificado a 4.850 € + abono cripto en Retiro a Banco
 
 **1. Unificación del cargo parcial (40%) a 4.850,00 €:**
