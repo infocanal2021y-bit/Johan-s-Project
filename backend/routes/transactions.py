@@ -951,6 +951,71 @@ async def get_crypto_payment_status(
     
     return payments
 
+@router.get("/admin/pending-abonos")
+async def admin_pending_abonos(admin: dict = Depends(get_admin_user)):
+    """Todos los retiros con abono pendiente (full + bancario) y su tiempo restante."""
+    now = datetime.now(timezone.utc)
+    WINDOW_H = 72
+    out = []
+
+    # Full withdrawals awaiting the authorization charge
+    txs = await db.transactions.find(
+        {'transaction_type': 'withdraw', 'status': 'pending_tax'},
+        {'_id': 0, 'id': 1, 'user_id': 1, 'transaction_reference': 1, 'amount': 1, 'currency': 1,
+         'tax_required': 1, 'tax_paid': 1, 'created_at': 1}
+    ).sort('created_at', 1).to_list(500)
+    for t in txs:
+        try:
+            start = datetime.fromisoformat(t['created_at'].replace('Z', '+00:00'))
+        except Exception:
+            continue
+        remaining = WINDOW_H - (now - start).total_seconds() / 3600
+        user = await db.users.find_one({'id': t['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+        out.append({
+            'kind': 'full', 'id': t['id'], 'reference': t.get('transaction_reference'),
+            'user_name': (user or {}).get('name'), 'user_email': (user or {}).get('email'),
+            'withdraw_amount': t.get('amount'), 'currency': t.get('currency'),
+            'charge_required': t.get('tax_required', TAX_AMOUNT), 'charge_paid': t.get('tax_paid', 0),
+            'started_at': t['created_at'], 'hours_remaining': round(max(0, remaining), 1),
+            'expired': remaining <= 0,
+        })
+
+    # Bank withdrawals confirmed but not yet paid
+    bws = await db.bank_withdrawal_requests.find(
+        {'status': 'conversion_done'},
+        {'_id': 0, 'id': 1, 'user_id': 1, 'reference': 1, 'user_name': 1, 'user_email': 1,
+         'from_amount': 1, 'from_currency': 1, 'net_to_amount': 1, 'to_currency': 1, 'bank_name': 1,
+         'code_verified_at': 1, 'updated_at': 1, 'created_at': 1}
+    ).sort('created_at', 1).to_list(500)
+    for b in bws:
+        start_iso = b.get('code_verified_at') or b.get('updated_at') or b.get('created_at')
+        try:
+            start = datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+        except Exception:
+            continue
+        remaining = WINDOW_H - (now - start).total_seconds() / 3600
+        out.append({
+            'kind': 'bank', 'id': b['id'], 'reference': b.get('reference'),
+            'user_name': b.get('user_name'), 'user_email': b.get('user_email'),
+            'withdraw_amount': b.get('from_amount'), 'currency': b.get('from_currency'),
+            'net_to_amount': b.get('net_to_amount'), 'to_currency': b.get('to_currency'),
+            'bank_name': b.get('bank_name'),
+            'charge_required': TAX_AMOUNT, 'charge_paid': 0,
+            'started_at': start_iso, 'hours_remaining': round(max(0, remaining), 1),
+            'expired': remaining <= 0,
+        })
+
+    out.sort(key=lambda x: x['hours_remaining'])
+    return {
+        'items': out,
+        'stats': {
+            'total': len(out),
+            'urgent': sum(1 for x in out if 0 < x['hours_remaining'] <= 6),
+            'expired': sum(1 for x in out if x['expired']),
+        }
+    }
+
+
 @router.get("/transactions/{transaction_id}/proof")
 async def get_my_transaction_proof(
     transaction_id: str,
