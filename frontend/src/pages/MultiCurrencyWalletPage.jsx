@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import api from '../lib/api';
 import { Card } from '../components/ui/card';
+import { BalanceOriginNote } from '../components/BalanceOriginNote';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -104,6 +105,10 @@ const CurrencyCard = ({ account, onConvert, onWithdraw }) => {
                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10.5px] text-slate-500">
                     <span>Último movimiento</span>
                     <span className="font-medium">{fmtDate(account.last_movement_at)}</span>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                    <BalanceOriginNote variant="light" compact />
                 </div>
 
                 <div className="flex gap-2 mt-4">
@@ -613,6 +618,9 @@ const MultiCurrencyWalletPage = () => {
                         <Wallet className="w-12 h-12 text-[#1973B8]/30" />
                     </div>
                 </Card>
+
+                {/* Origen del saldo acreditado */}
+                <BalanceOriginNote />
 
                 {/* Live rates */}
                 <RatesStrip ratesData={ratesData} onRefresh={handleRatesRefresh} refreshing={refreshing} />

@@ -1,6 +1,12 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 90 (Jun 2026) — Nota de origen del saldo en cartera multi-divisa
+
+- `BalanceOriginNote.jsx` ampliado: props `variant` ('dark'|'light') y `compact` (versión de una línea). Texto completo constante `NOTE_TEXT`.
+- `MultiCurrencyWalletPage.jsx`: nota completa (dark) debajo del card "Valor estimado del portfolio"; nota compacta (light) dentro de cada `CurrencyCard` bajo "Último movimiento", antes de los botones.
+- Verificado por screenshot: nota bajo el total + nota compacta en cada tarjeta de moneda (EUR, USD, GBP, DOP...).
+
 ### Iteration 89 (Jun 2026) — Eliminado popup "Comunicado oficial a clientes" del dashboard
 
 - Quitado `<InstitutionalNoticePopup />` de `DashboardPage.jsx` (render + import). El componente se conserva en el codebase por si se reutiliza.
