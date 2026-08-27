@@ -7,6 +7,7 @@ import { safeApiCall } from '../../lib/diagnostics';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { BalanceOriginNote } from '../../components/BalanceOriginNote';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table';
 import { 
@@ -537,6 +538,8 @@ export const AdminActivityPage = () => {
                                     </Select>
                                 </div>
                             </div>
+
+                            <BalanceOriginNote />
 
                             <Button
                                 onClick={handleAddBalance}

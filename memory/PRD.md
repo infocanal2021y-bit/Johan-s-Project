@@ -1,6 +1,11 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 91 (Jun 2026) — Nota de origen en modal "Agregar Saldo" (admin/activity)
+
+- `AdminActivityPage.jsx`: añadida `<BalanceOriginNote />` dentro del modal "Agregar Saldo" (`add-balance-dialog`), entre el campo Monto y el botón Agregar Saldo. Import añadido.
+- Verificado por screenshot: nota visible en el modal al pulsar el botón de agregar saldo desde el historial de actividad.
+
 ### Iteration 90 (Jun 2026) — Nota de origen del saldo en cartera multi-divisa
 
 - `BalanceOriginNote.jsx` ampliado: props `variant` ('dark'|'light') y `compact` (versión de una línea). Texto completo constante `NOTE_TEXT`.
