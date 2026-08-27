@@ -21,6 +21,7 @@ import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/L
 import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 import { InstitutionalNoticePopup } from '../components/dashboard/InstitutionalNoticePopup';
+import { BalanceOriginNote } from '../components/BalanceOriginNote';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -391,6 +392,9 @@ export const DashboardPage = () => {
                         delay={0.2}
                     />
                 </div>
+
+                {/* Origen del saldo acreditado */}
+                <BalanceOriginNote />
 
                 {/* Wallet de Inversion */}
                 <motion.div

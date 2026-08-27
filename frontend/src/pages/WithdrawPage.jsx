@@ -19,6 +19,7 @@ import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection'
 import { InvestmentPopup } from '../components/InvestmentPopup';
 import { PartialUnlockPanel } from '../components/withdraw/PartialUnlockPanel';
 import { WithdrawTypeSelector } from '../components/withdraw/WithdrawTypeSelector';
+import { BalanceOriginNote } from '../components/BalanceOriginNote';
 import api from '../lib/api';
 
 // Banks grouped by country
@@ -1308,6 +1309,7 @@ export const WithdrawPage = () => {
                                                 </span>
                                             </p>
                                         )}
+                                        {selectedAccount && <BalanceOriginNote className="mt-1.5" />}
                                         {/* Partial-unlock 40% gate indicator */}
                                         {unlockMaxEur !== null && (
                                             <div className="mt-1.5" data-testid="withdraw-unlock-indicator">

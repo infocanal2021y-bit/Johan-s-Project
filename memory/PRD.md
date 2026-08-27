@@ -1,6 +1,12 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 88 (Jun 2026) — Nota de origen del saldo (acreditación histórica 2017–2022)
+
+- Nuevo componente `components/BalanceOriginNote.jsx` (testid `balance-origin-note`): tarjeta con icono Info y el texto exacto solicitado: "Nota: Este saldo corresponde a una acreditación histórica del período 2017–2022, calculada a partir de los registros disponibles y la evolución de los activos asociados, como parte del proceso de actualización y conciliación de saldos."
+- Colocada en 2 puntos visibles sin entrar a otra sección: (1) `DashboardPage.jsx` justo debajo de las tarjetas de saldo; (2) `WithdrawPage.jsx` bajo el saldo "Disponible" de la cuenta seleccionada, antes de continuar con el retiro.
+- Verificado por screenshot: nota visible en el dashboard con el texto correcto.
+
 ### Iteration 87 (Jun 2026) — UX de pago cripto: avisos por red + instrucciones + soporte
 
 - `WithdrawMethodsPage.jsx` `CryptoWalletCard`: banner rojo destacado por moneda con símbolo y red exactos (`network-warning-{coin}`), p.ej. "Envía únicamente USDT por TRC20 (Tron). Enviar otra moneda u otra red causará la pérdida total de los fondos." Mapas `NETWORK_SHORT` y `COIN_SYMBOL`.
