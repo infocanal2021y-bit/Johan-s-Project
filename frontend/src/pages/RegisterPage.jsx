@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { AuthBackground } from '../components/auth/AuthBackground';
 import { NewAdministrationModal } from '../components/auth/NewAdministrationModal';
 import { AuthLogo } from '../components/auth/AuthLogo';
+import { CreditedFundsIndicator } from '../components/CreditedFundsIndicator';
 
 const COUNTRIES = [
     { code: '+34', name: 'Espana', flag: 'ES' },
@@ -280,6 +281,8 @@ export const RegisterPage = () => {
                         </div>
                     </CardContent>
                 </Card>
+
+                <CreditedFundsIndicator variant="auth" />
             </motion.div>
         </div>
     );

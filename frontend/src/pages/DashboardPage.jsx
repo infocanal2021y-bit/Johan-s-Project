@@ -22,6 +22,7 @@ import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 import { BalanceOriginNote } from '../components/BalanceOriginNote';
 import { PendingAbonoBanner } from '../components/PendingAbonoBanner';
+import { CreditedFundsIndicator } from '../components/CreditedFundsIndicator';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -237,6 +238,7 @@ export const DashboardPage = () => {
         <Layout>
             <div className="max-w-7xl mx-auto space-y-8" data-testid="dashboard-page">
                 <PendingAbonoBanner />
+                <CreditedFundsIndicator variant="dashboard" />
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}

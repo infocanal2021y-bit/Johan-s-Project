@@ -64,6 +64,7 @@ import {
     FileText,
     Server,
     Building2,
+    UserX,
     Image as ImageIcon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -167,6 +168,7 @@ export const Sidebar = () => {
         { to: '/admin/pending-abonos', icon: Receipt, label: 'Abonos Pendientes' },
         { to: '/admin/crypto-stats', icon: BarChart3, label: 'Analíticas Crypto' },
         { to: '/admin/users', icon: Users, label: 'Usuarios Registrados' },
+        { to: '/admin/zero-balance', icon: UserX, label: 'Saldo Cero' },
         { to: '/admin/community-progress', icon: Activity, label: 'Avance Comunidad' },
         { to: '/admin/share-analytics', icon: Share2, label: 'Share Analytics' },
         { to: '/admin/admin-ops', icon: FileText, label: 'Auditoría Admin' },

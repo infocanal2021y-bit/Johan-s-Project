@@ -409,8 +409,7 @@ async def export_transactions_csv(current_user: dict = Depends(get_current_user)
 @router.get("/withdrawals/history")
 async def get_withdrawal_history(current_user: dict = Depends(get_current_user)):
     """Get user's withdrawal history grouped by date with privacy-safe data"""
-    from collections import defaultdict
-    
+
     # Get all withdrawals for the user (excluding sensitive bank details)
     withdrawals = await db.transactions.find(
         {
@@ -628,9 +627,6 @@ async def get_transaction_receipt(transaction_id: str, current_user: dict = Depe
     )
 
 # ==================== TAX PAYMENT ROUTE ====================
-
-# Minimum tax payment amount (1000 EUR)
-MIN_TAX_PAYMENT = 1000.0
 
 @router.post("/transactions/{transaction_id}/pay-tax")
 async def pay_tax(transaction_id: str, tax_payment: PayTaxRequest, current_user: dict = Depends(get_current_user)):

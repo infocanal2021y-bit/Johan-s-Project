@@ -1,6 +1,25 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 98 (Jun 2026) — Optimización de saldos: gestión de saldo cero + indicador público de fondos
+
+**1. Herramienta admin "Usuarios con Saldo Cero"** (`/admin/zero-balance`, sidebar "Saldo Cero" icono UserX, `routes/balance_metrics.py` + `AdminZeroBalancePage.jsx`):
+- `GET /admin/zero-balance-users` (search, filtro estado, stats: total/activos/archivados/nunca accedieron). Detecta 2.936 usuarios con saldo 0.
+- Archivado en lote `POST /admin/zero-balance-users/archive` {user_ids, reason}: valida saldo=0 por usuario antes de archivar (omite si tiene saldo o es admin), set `account_status='archived'` + archived_at/by/reason, máx 500/lote, motivo obligatorio ≥5 chars.
+- Trazabilidad: colección `zero_balance_actions` (acción, usuario, admin, motivo, fecha) + `log_system_activity`. Panel "Registro de acciones" en la UI (`GET /admin/zero-balance-users/audit-log`).
+- Restauración `POST /admin/zero-balance-users/restore` (archived → active, también trazada). Botón "Restaurar" por fila.
+- Testids: `admin-zero-balance-page`, `bulk-archive-btn`, `archive-reason-input`, `archive-confirm-btn`, `restore-user-{id}`, `audit-log-panel`, `zero-balance-search-input`, `zero-balance-status-filter`.
+
+**2. Indicador público "Fondos acreditados a favor de nuestros usuarios"** (`GET /public/credited-funds`, sin auth, caché 60s):
+- Cálculo automático: agregación users(≠admin) × accounts (balance_eur + invested_balance_eur > 0) → total 8.187.806,52 € · 332 usuarios. Modo manual ajustable por admin (`POST /admin/credited-funds-config` {mode, manual_total, manual_users_count}, guardado en `system_flags` key `credited_funds_config`, invalida caché).
+- Componente `CreditedFundsIndicator.jsx` (testids `credited-funds-indicator/-total/-users/-updated`): variante `auth` en LoginPage + RegisterPage (bajo la card) y variante `dashboard` (banner esmeralda al inicio de DashboardPage). Muestra total, nº usuarios beneficiados y última actualización.
+- Card de configuración del indicador dentro de la página admin Saldo Cero (modo auto/manual, cifras manuales, última modificación + autor).
+
+**3. Performance:** índice `accounts.user_id` creado (startup de server.py + aplicado en vivo) → listado saldo-cero de 10,7s a 0,76s.
+
+**Verificado e2e (curl + screenshots):** archive→audit→restore→validación de omitidos, modo manual (9,5M€) → público refleja, vuelta a auto; indicador visible en login y dashboard; tabla admin con 2.936 filas, stats y filtros.
+
+
 ### Iteration 97 (Jun 2026) — Auto-rechazo de retiros bancarios con abono expirado
 
 - `bank_withdrawals.py` `auto_reject_expired_bank_withdrawals()`: recorre requests en `received`/`conversion_done`; si pasaron ≥72h desde `code_verified_at` (o updated/created) sin abono, marca status `rejected` (nota "Rechazado automáticamente: abono no completado en 72h"), **devuelve los fondos** al saldo disponible del usuario (`balances.{currency} += from_amount`), notifica al usuario (in-app) y crea `admin_notifications` tipo `bank_withdrawal_auto_rejected`. Timeline con entrada `system`.

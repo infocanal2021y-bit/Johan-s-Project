@@ -1423,6 +1423,7 @@ async def admin_get_treasury(admin: dict = Depends(get_admin_user)):
 @router.post("/admin/daily-summary")
 async def admin_trigger_daily_summary(admin: dict = Depends(get_admin_user)):
     """Manually trigger the daily activity summary email"""
+    from server import process_daily_admin_summary
     await process_daily_admin_summary()
     return {'message': 'Resumen diario enviado exitosamente'}
 
@@ -1651,7 +1652,7 @@ async def admin_get_crypto_stats(admin: dict = Depends(get_admin_user)):
                 reviewed = datetime.fromisoformat(payment['reviewed_at'].replace('Z', '+00:00'))
                 diff = (reviewed - submitted).total_seconds() / 3600  # hours
                 processing_times.append(diff)
-            except:
+            except (ValueError, TypeError):
                 pass
     
     # Calculate by crypto stats

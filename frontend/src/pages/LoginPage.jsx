@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { AuthBackground } from '../components/auth/AuthBackground';
 import { AuthLogo } from '../components/auth/AuthLogo';
 import { NewAdministrationModal } from '../components/auth/NewAdministrationModal';
+import { CreditedFundsIndicator } from '../components/CreditedFundsIndicator';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -152,6 +153,9 @@ export const LoginPage = () => {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Public credited funds indicator */}
+                <CreditedFundsIndicator variant="auth" />
 
                 {/* Legal Disclaimer */}
                 <div className="mt-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">

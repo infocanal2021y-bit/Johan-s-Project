@@ -276,6 +276,7 @@ async def health_full():
 async def startup_event():
     await ensure_government_treasury()
     await ensure_admin_users()
+    await db.accounts.create_index('user_id')
     # Start the scheduler for tax reminders and auto-rejection
     start_scheduler()
 

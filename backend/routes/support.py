@@ -462,7 +462,7 @@ async def submit_kyc(kyc_data: KYCSubmission, request: Request, current_user: di
             country = 'Latin America'
         else:
             country = 'International'
-    except:
+    except (AttributeError, TypeError):
         pass
     
     submission_timestamp = datetime.now(timezone.utc).isoformat()

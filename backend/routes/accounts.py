@@ -9,10 +9,6 @@ from config import db
 from models import AccountResponse, InvestmentRequest, ActivityEvent
 from services.auth import get_current_user
 from services.notifications import create_notification
-from services.gamification import (
-    LEVEL_CONFIG, ACHIEVEMENTS_DEF,
-    calculate_user_level, get_next_level_info, check_and_unlock_achievements
-)
 
 router = APIRouter()
 
