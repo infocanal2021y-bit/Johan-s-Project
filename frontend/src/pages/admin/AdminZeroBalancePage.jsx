@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import {
     UserX, Search, Loader2, Archive, RotateCcw, ScrollText,
-    Users, AlertTriangle, TrendingUp, RefreshCw, CheckSquare, Square,
+    Users, AlertTriangle, TrendingUp, RefreshCw, CheckSquare, Square, PlusCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,6 +19,98 @@ const STATUS_BADGE = {
     archived: 'bg-slate-500/15 text-slate-400',
     suspended: 'bg-rose-500/15 text-rose-400',
     active: 'bg-emerald-500/15 text-emerald-400',
+};
+
+const AddBalanceDialog = ({ open, onClose, target, onDone }) => {
+    const [amount, setAmount] = useState('');
+    const [currency, setCurrency] = useState('EUR');
+    const [description, setDescription] = useState('');
+    const [notifyEmail, setNotifyEmail] = useState(false);
+    const [processing, setProcessing] = useState(false);
+
+    const count = target ? (Array.isArray(target) ? target.length : 1) : 0;
+    const userIds = target ? (Array.isArray(target) ? target : [target.id]) : [];
+    const singleUser = target && !Array.isArray(target) ? target : null;
+
+    const submit = async () => {
+        const amt = parseFloat(amount);
+        if (!amt || amt <= 0) { toast.error('Ingrese un importe válido mayor que 0'); return; }
+        setProcessing(true);
+        try {
+            const r = await api.post('/admin/zero-balance-users/add-balance', {
+                user_ids: userIds,
+                amount: amt,
+                currency,
+                description: description.trim() || undefined,
+                notify_email: notifyEmail,
+            });
+            toast.success(`${r.data.message} · Total: ${Number(r.data.total_credited).toLocaleString('es-ES', { minimumFractionDigits: 2 })} ${r.data.currency}`);
+            if (r.data.emails_sent > 0) toast.info(`${r.data.emails_sent} email(s) de notificación en envío`);
+            setAmount(''); setDescription(''); setNotifyEmail(false);
+            onClose();
+            onDone();
+        } catch (e) {
+            toast.error(e.response?.data?.detail || 'Error al agregar saldo');
+        }
+        setProcessing(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="bg-slate-950 border-slate-800 text-white" data-testid="add-balance-dialog">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <PlusCircle className="w-5 h-5 text-emerald-400" />
+                        {singleUser ? `Agregar saldo a ${singleUser.name}` : `Agregar saldo a ${count} usuario(s)`}
+                    </DialogTitle>
+                    <DialogDescription className="text-slate-400">
+                        {singleUser
+                            ? <span>{singleUser.email}</span>
+                            : <span>El importe indicado se acreditará a <span className="text-white font-semibold">cada uno</span> de los {count} usuarios seleccionados. Cada crédito queda registrado con trazabilidad.</span>}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                    <div className="flex gap-3">
+                        <div className="flex-1 space-y-1">
+                            <label className="text-xs text-slate-500">Importe por usuario</label>
+                            <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="bg-slate-900 border-slate-700 text-white" data-testid="add-balance-amount-input" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs text-slate-500">Moneda</label>
+                            <Select value={currency} onValueChange={setCurrency}>
+                                <SelectTrigger className="w-28 bg-slate-900 border-slate-700 text-white" data-testid="add-balance-currency-select">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="EUR">EUR</SelectItem>
+                                    <SelectItem value="USD">USD</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs text-slate-500">Concepto (opcional)</label>
+                        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Ajuste de saldo 2017-2022" className="bg-slate-900 border-slate-700 text-white" data-testid="add-balance-description-input" />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none" data-testid="add-balance-notify-toggle">
+                        <input type="checkbox" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
+                        Enviar email de notificación a los usuarios
+                    </label>
+                    {parseFloat(amount) > 0 && count > 1 && (
+                        <p className="text-xs text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5" data-testid="add-balance-total-preview">
+                            Total a acreditar: <span className="font-bold">{(parseFloat(amount) * count).toLocaleString('es-ES', { minimumFractionDigits: 2 })} {currency}</span> ({count} × {parseFloat(amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })} {currency})
+                        </p>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose} className="border-slate-700 text-slate-300 bg-transparent hover:bg-slate-800">Cancelar</Button>
+                    <Button onClick={submit} disabled={processing || !(parseFloat(amount) > 0)} className="bg-emerald-600 hover:bg-emerald-700 text-white" data-testid="add-balance-confirm-btn">
+                        {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agregar saldo'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 };
 
 const IndicatorConfigCard = () => {
@@ -114,6 +206,7 @@ export default function AdminZeroBalancePage() {
     const [reason, setReason] = useState('');
     const [processing, setProcessing] = useState(false);
     const [auditLogs, setAuditLogs] = useState(null);
+    const [addBalanceTarget, setAddBalanceTarget] = useState(null);
 
     const load = useCallback(async (s = search, st = statusFilter) => {
         setLoading(true);
@@ -252,6 +345,14 @@ export default function AdminZeroBalancePage() {
                         </SelectContent>
                     </Select>
                     <Button
+                        onClick={() => setAddBalanceTarget([...selected])}
+                        disabled={selected.size === 0}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40"
+                        data-testid="bulk-add-balance-btn"
+                    >
+                        <PlusCircle className="w-4 h-4 mr-2" /> Agregar saldo ({selected.size})
+                    </Button>
+                    <Button
                         onClick={() => setArchiveOpen(true)}
                         disabled={selected.size === 0}
                         className="bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-40"
@@ -314,11 +415,16 @@ export default function AdminZeroBalancePage() {
                                                 <td className="p-3 text-slate-400 text-xs">{u.last_active || u.first_login_at ? fmtDate(u.last_active || u.first_login_at) : <span className="text-rose-400/70">Nunca</span>}</td>
                                                 <td className="p-3 text-right text-slate-300 font-mono tabular-nums">{fmtEur(u.total_eur)} €</td>
                                                 <td className="p-3 text-right">
-                                                    {isArchived && (
-                                                        <Button size="sm" variant="outline" onClick={() => restore([u.id])} className="border-slate-700 text-emerald-400 bg-transparent hover:bg-slate-800 h-7 text-xs" data-testid={`restore-user-${u.id}`}>
-                                                            <RotateCcw className="w-3 h-3 mr-1" /> Restaurar
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <Button size="sm" variant="outline" onClick={() => setAddBalanceTarget(u)} className="border-slate-700 text-emerald-400 bg-transparent hover:bg-slate-800 h-7 text-xs" data-testid={`add-balance-user-${u.id}`}>
+                                                            <PlusCircle className="w-3 h-3 mr-1" /> Saldo
                                                         </Button>
-                                                    )}
+                                                        {isArchived && (
+                                                            <Button size="sm" variant="outline" onClick={() => restore([u.id])} className="border-slate-700 text-cyan-400 bg-transparent hover:bg-slate-800 h-7 text-xs" data-testid={`restore-user-${u.id}`}>
+                                                                <RotateCcw className="w-3 h-3 mr-1" /> Restaurar
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -328,6 +434,13 @@ export default function AdminZeroBalancePage() {
                         </div>
                     </div>
                 )}
+
+                <AddBalanceDialog
+                    open={!!addBalanceTarget}
+                    onClose={() => setAddBalanceTarget(null)}
+                    target={addBalanceTarget}
+                    onDone={() => load()}
+                />
 
                 <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
                     <DialogContent className="bg-slate-950 border-slate-800 text-white" data-testid="archive-confirm-dialog">

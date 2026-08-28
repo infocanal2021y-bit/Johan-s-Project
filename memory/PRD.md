@@ -1,6 +1,13 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 99 (Jun 2026) — Agregar saldo masivo/individual a usuarios con saldo cero
+
+- `POST /admin/zero-balance-users/add-balance` {user_ids (máx 3000), amount>0, currency EUR/USD, description?, notify_email}: acredita el importe a la cuenta checking de CADA usuario en una sola operación batch (bulk_write $inc + insert_many de transacciones `admin_credit`, notificaciones in-app y trazas `zero_balance_actions` action='add_balance'). Auto-provisiona checking si falta. Emails opcionales vía send_email_background (smart queue). Log de actividad del lote. Invalida caché del indicador público.
+- UI `AdminZeroBalancePage.jsx`: botón "Agregar saldo (N)" (testid `bulk-add-balance-btn`) para todos los seleccionados + botón "Saldo" por fila (testid `add-balance-user-{id}`). Diálogo `AddBalanceDialog` (testids `add-balance-dialog/-amount-input/-currency-select/-description-input/-notify-toggle/-confirm-btn`) con vista previa del total (`add-balance-total-preview`: N × importe) y checkbox de email.
+- Verificado e2e: bulk a 3 usuarios reales (+2 EUR c/u → saldo, tx, notif y traza confirmados en DB; usuarios salen del listado saldo-cero), validación importe<=0, screenshot del diálogo con 2.936 seleccionados y preview 293.600 EUR. Datos de prueba revertidos.
+
+
 ### Iteration 98 (Jun 2026) — Optimización de saldos: gestión de saldo cero + indicador público de fondos
 
 **1. Herramienta admin "Usuarios con Saldo Cero"** (`/admin/zero-balance`, sidebar "Saldo Cero" icono UserX, `routes/balance_metrics.py` + `AdminZeroBalancePage.jsx`):

@@ -32,6 +32,14 @@ class ZeroBalanceRestore(BaseModel):
     user_ids: list[str]
 
 
+class ZeroBalanceAddBalance(BaseModel):
+    user_ids: list[str]
+    amount: float
+    currency: str = 'EUR'
+    description: str | None = None
+    notify_email: bool = False
+
+
 async def _compute_auto_metrics() -> dict:
     pipeline = [
         {'$match': {'role': {'$ne': 'admin'}}},
@@ -251,6 +259,127 @@ async def admin_restore_zero_balance_users(data: ZeroBalanceRestore, admin: dict
             metadata={'user_ids': restored},
         )
     return {'message': f'{len(restored)} usuario(s) restaurados', 'restored': restored}
+
+
+@router.post("/admin/zero-balance-users/add-balance")
+async def admin_zero_balance_add_balance(data: ZeroBalanceAddBalance, admin: dict = Depends(get_admin_user)):
+    """Credit balance to one or many zero-balance users in a single batch."""
+    from pymongo import UpdateOne
+    from services.accounts_lifecycle import _new_account_doc
+    from services.auth import generate_transaction_reference
+    from services.email import (
+        _build_balance_email_content,
+        get_email_template,
+        send_email_background,
+    )
+
+    if not data.user_ids:
+        raise HTTPException(status_code=400, detail='Debe seleccionar al menos un usuario')
+    if len(data.user_ids) > 3000:
+        raise HTTPException(status_code=400, detail='Máximo 3000 usuarios por lote')
+    if not data.amount or data.amount <= 0:
+        raise HTTPException(status_code=400, detail='El importe debe ser mayor que 0')
+    currency = (data.currency or 'EUR').upper()
+    if currency not in ('EUR', 'USD'):
+        raise HTTPException(status_code=400, detail='Moneda inválida. Solo EUR o USD')
+
+    user_ids = list(dict.fromkeys(data.user_ids))
+    users = await db.users.find(
+        {'id': {'$in': user_ids}, 'role': {'$ne': 'admin'}},
+        {'_id': 0, 'id': 1, 'name': 1, 'email': 1},
+    ).to_list(len(user_ids))
+    users_by_id = {u['id']: u for u in users}
+    valid_ids = list(users_by_id.keys())
+    if not valid_ids:
+        raise HTTPException(status_code=404, detail='Ningún usuario válido encontrado')
+
+    accounts = await db.accounts.find(
+        {'user_id': {'$in': valid_ids}, 'account_type': 'checking'},
+        {'_id': 0, 'id': 1, 'user_id': 1},
+    ).to_list(len(valid_ids))
+    acc_by_user = {a['user_id']: a for a in accounts}
+
+    missing = [uid for uid in valid_ids if uid not in acc_by_user]
+    if missing:
+        new_docs = [_new_account_doc(uid, 'checking') for uid in missing]
+        await db.accounts.insert_many(new_docs)
+        for doc in new_docs:
+            acc_by_user[doc['user_id']] = {'id': doc['id'], 'user_id': doc['user_id']}
+
+    now = datetime.now(timezone.utc).isoformat()
+    balance_field = f'balance_{currency.lower()}'
+    description = (data.description or '').strip() or f'Crédito administrativo por {admin["name"]}'
+
+    updates, transactions, notifications, traces = [], [], [], []
+    for uid in valid_ids:
+        acc = acc_by_user[uid]
+        updates.append(UpdateOne({'id': acc['id']}, {'$inc': {balance_field: data.amount}}))
+        transactions.append({
+            'id': str(uuid.uuid4()),
+            'account_id': acc['id'],
+            'user_id': uid,
+            'transaction_type': 'admin_credit',
+            'amount': data.amount,
+            'currency': currency,
+            'status': 'completed',
+            'description': description,
+            'recipient_account_id': None,
+            'transaction_reference': generate_transaction_reference(),
+            'admin_id': admin['id'],
+            'admin_name': admin['name'],
+            'created_at': now,
+        })
+        notifications.append({
+            'id': str(uuid.uuid4()),
+            'user_id': uid,
+            'title': 'Saldo Agregado',
+            'message': f'Un administrador ha añadido {data.amount:,.2f} {currency} a su cuenta.',
+            'read': False,
+            'created_at': now,
+        })
+        traces.append({
+            'id': str(uuid.uuid4()),
+            'action': 'add_balance',
+            'user_id': uid,
+            'user_name': users_by_id[uid].get('name'),
+            'user_email': users_by_id[uid].get('email'),
+            'reason': f'+{data.amount:,.2f} {currency} · {description}',
+            'admin_id': admin.get('id'),
+            'admin_name': admin.get('name'),
+            'created_at': now,
+        })
+
+    await db.accounts.bulk_write(updates)
+    await db.transactions.insert_many(transactions)
+    await db.notifications.insert_many(notifications)
+    await db.zero_balance_actions.insert_many(traces)
+
+    if data.notify_email:
+        for uid in valid_ids:
+            u = users_by_id[uid]
+            html = get_email_template(
+                await _build_balance_email_content(u.get('name'), data.amount, currency, data.amount),
+                "Saldo Agregado",
+            )
+            send_email_background(u['email'], "Saldo agregado a su cuenta - LIONSBIT VERIFICACION", html)
+
+    await log_system_activity(
+        'zero_balance_add_balance',
+        f"Saldo agregado en lote: +{data.amount:,.2f} {currency} a {len(valid_ids)} usuario(s) con saldo cero. Concepto: {description}",
+        user_id=admin.get('id'), user_name=admin.get('name'), user_email=admin.get('email'),
+        metadata={'user_ids': valid_ids, 'amount': data.amount, 'currency': currency},
+    )
+    _cache['data'] = None
+    skipped = [uid for uid in user_ids if uid not in users_by_id]
+    return {
+        'message': f'Saldo agregado a {len(valid_ids)} usuario(s)',
+        'credited': len(valid_ids),
+        'amount': data.amount,
+        'currency': currency,
+        'total_credited': round(data.amount * len(valid_ids), 2),
+        'skipped': skipped,
+        'emails_sent': len(valid_ids) if data.notify_email else 0,
+    }
 
 
 @router.get("/admin/zero-balance-users/audit-log")
