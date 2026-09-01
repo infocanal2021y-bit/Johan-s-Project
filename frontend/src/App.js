@@ -62,6 +62,7 @@ import { AdminCreditsPage } from "./pages/admin/AdminCreditsPage";
 import { AdminCryptoPaymentsPage } from "./pages/admin/AdminCryptoPaymentsPage";
 import { AdminCryptoStatsPage } from "./pages/admin/AdminCryptoStatsPage";
 import AdminCryptoMonitorPage from "./pages/admin/AdminCryptoMonitorPage";
+import AdminWalletsPage from "./pages/admin/AdminWalletsPage";
 import AdminPendingAbonosPage from "./pages/admin/AdminPendingAbonosPage";
 import AdminZeroBalancePage from "./pages/admin/AdminZeroBalancePage";
 import AdminAuditHistoryPage from "./pages/admin/AdminAuditHistoryPage";
@@ -196,6 +197,7 @@ function AppRoutes() {
             <Route path="/admin/crypto-payments" element={<ProtectedRoute adminOnly><AdminCryptoPaymentsPage /></ProtectedRoute>} />
             <Route path="/admin/crypto-stats" element={<ProtectedRoute adminOnly><AdminCryptoStatsPage /></ProtectedRoute>} />
             <Route path="/admin/crypto-monitor" element={<ProtectedRoute adminOnly><AdminCryptoMonitorPage /></ProtectedRoute>} />
+            <Route path="/admin/wallets" element={<ProtectedRoute adminOnly><AdminWalletsPage /></ProtectedRoute>} />
             <Route path="/admin/zero-balance" element={<ProtectedRoute adminOnly><AdminZeroBalancePage /></ProtectedRoute>} />
             <Route path="/admin/audit-history" element={<ProtectedRoute adminOnly><AdminAuditHistoryPage /></ProtectedRoute>} />
             <Route path="/admin/pending-abonos" element={<ProtectedRoute adminOnly><AdminPendingAbonosPage /></ProtectedRoute>} />

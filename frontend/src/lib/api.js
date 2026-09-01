@@ -92,6 +92,7 @@ export const transactionsAPI = {
     getReceipt: (transactionId) => api.get(`/transactions/${transactionId}/receipt`, { responseType: 'blob' }),
     // Crypto tax payment
     getCryptoWallets: () => api.get('/crypto-wallets'),
+    getCryptoPrices: () => api.get('/crypto/prices'),
     submitCryptoPayment: (transactionId, data) => api.post(`/transactions/${transactionId}/pay-tax-crypto`, data),
     getCryptoPaymentStatus: (transactionId) => api.get(`/transactions/${transactionId}/crypto-payment`),
     downloadReceipt: async (transactionId) => {
@@ -126,6 +127,8 @@ export const feedbackAPI = {
 // Admin API
 export const adminAPI = {
     getUsers: (params) => api.get('/admin/users', { params }),
+    getPlatformWallets: () => api.get('/admin/platform-wallets'),
+    updatePlatformWallet: (coin, data) => api.put(`/admin/platform-wallets/${coin}`, data),
     getTransactions: (status) => api.get('/admin/transactions', { params: { status } }),
     getPendingWithdrawals: () => api.get('/admin/withdrawals/pending'),
     getAllWithdrawals: () => api.get('/admin/withdrawals/all'),

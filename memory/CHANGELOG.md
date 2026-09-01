@@ -60,3 +60,19 @@
 - Verificado: curl (ES válido/ inválido MOD-97, DE→Commerzbank/COBADEFFXXX, longitud) + screenshot e2e del flujo completo (detección + diálogo de revisión con IBAN enmascarado).
 
 **PENDIENTE FASES 2-6:** cargo €4.850 solo-cripto + abonos parciales + QR (ya existe base), config wallets admin, cola/modal/checklist/timeline admin, auditoría/docs fiscales/notificaciones, seguridad (2FA email admin, sesiones, bloqueo IBAN con retiro activo).
+
+## Sep 1, 2026 — FASE 2 (Abonos Cripto) + FASE 3 (Wallets Admin)
+**Fase 2 — Cargo €4.850 solo-cripto:**
+- Barra de progreso con % completado + Requerido/Abonado/Restante (ya existía base; añadido `tax-progress-pct`).
+- En el modal de pago: equivalente cripto en vivo (`crypto-equivalent`, ej. ≈0.0729 BTC), tasa de cambio y hora de cotización (`crypto-rate-row`, CoinGecko). Nuevo `GET /api/crypto/prices` (EUR/coin, cache 5 min).
+- QR, red exacta (USDT→Tron TRC20, ETH→ERC20, BNB→BEP20) y advertencia de red ya presentes; ahora las monedas provienen de la config admin.
+- **Eliminado el gate del backend** que exigía el "Desbloqueo parcial 40%" (2.660€) antes de crear el retiro (`routes/transactions.py`). El cargo de €4.850 se abona DESPUÉS de crear la solicitud (pending_tax → cripto).
+
+**Fase 3 — Wallets de Plataforma (Admin):**
+- Nuevo `services/wallet_config.py` (colección `platform_wallets`, seed BTC/ETH/BNB/USDT). Fuente única de moneda habilitada, dirección pública, red y confirmaciones. Nunca almacena seed/clave privada.
+- Nuevas rutas `GET/PUT /api/admin/platform-wallets` (`routes/platform_wallets.py`). Rechaza claves privadas; no permite habilitar sin dirección; confirmaciones 0–200.
+- `GET /api/crypto-wallets` y `crypto_monitor.create_intent` ahora leen de la config admin (monedas desactivadas/sin dirección no se muestran ni aceptan).
+- Nueva página `AdminWalletsPage.jsx` (Administración → "Wallets de Plataforma", ruta `/admin/wallets`, link en sidebar): tarjetas por moneda con toggle Activa/Desactivada, dirección, red, confirmaciones + avisos de seguridad.
+- Verificado: curl (seed, PUT enable/disable refleja en /crypto-wallets, rechazo clave privada, prices) + screenshots e2e (página wallets 4 monedas; flujo retiro completo → modal cripto con equivalente/tasa/hora reales).
+
+**PENDIENTE FASES 4-6:** cola/modal/checklist/timeline admin, auditoría/docs fiscales/notificaciones categorizadas, seguridad (2FA email admin, sesiones/dispositivos, bloqueo IBAN con retiro activo).

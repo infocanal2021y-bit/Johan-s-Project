@@ -49,6 +49,22 @@ async def _get_eur_price(coin: str):
             logging.warning(f'crypto monitor: price fetch failed: {e}')
     gid = COINGECKO_IDS.get(coin)
     return (_price_cache['data'].get(gid) or {}).get('eur') if gid else None
+
+
+@router.get("/crypto/prices")
+async def crypto_prices(user: dict = Depends(get_current_user)):
+    """Precio EUR por unidad de cada moneda (CoinGecko, cache 5 min) + timestamp."""
+    from datetime import datetime as _dt
+    prices = {}
+    for coin in ['BTC', 'ETH', 'BNB', 'USDT']:
+        p = await _get_eur_price(coin)
+        if p:
+            prices[coin] = p
+    ts = _price_cache.get('ts') or 0
+    quoted_at = _dt.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else _now().isoformat()
+    return {'prices': prices, 'quoted_at': quoted_at, 'source': 'CoinGecko'}
+
+
 AMOUNT_TOLERANCE = 0.01
 INTENT_TTL_HOURS = 24
 ACTIVE_STATUSES = ['waiting', 'detected', 'confirming']
@@ -106,10 +122,21 @@ async def create_intent(payload: IntentCreate, user: dict = Depends(get_current_
     coin = payload.coin
     if coin not in COINS or coin not in CRYPTO_WALLETS:
         raise HTTPException(status_code=400, detail='Moneda no válida')
+
+    # Consultar la configuración de wallet del admin (fuente única).
+    from services.wallet_config import get_wallet
+    wcfg = await get_wallet(coin)
+    if wcfg is not None and not wcfg.get('enabled', True):
+        raise HTTPException(status_code=400, detail='Esta moneda está desactivada por el administrador.')
     if not COINS[coin]['enabled']:
         raise HTTPException(status_code=400, detail='Esta red aún no está habilitada para verificación automática')
     if payload.expected_amount <= 0:
         raise HTTPException(status_code=400, detail='El monto debe ser mayor a 0')
+
+    coin_name = (wcfg or {}).get('name') or CRYPTO_WALLETS[coin]['name']
+    network = (wcfg or {}).get('network') or CRYPTO_WALLETS[coin]['network']
+    address = (wcfg or {}).get('address') or CRYPTO_WALLETS[coin]['address']
+    required_conf = (wcfg or {}).get('required_confirmations') or COINS[coin]['required_conf']
 
     txid = (payload.declared_txid or '').strip() or None
     if txid:
@@ -126,16 +153,16 @@ async def create_intent(payload: IntentCreate, user: dict = Depends(get_current_
         'user_email': user['email'],
         'user_name': user.get('name') or user['email'],
         'coin': coin,
-        'coin_name': CRYPTO_WALLETS[coin]['name'],
-        'network': CRYPTO_WALLETS[coin]['network'],
-        'address': CRYPTO_WALLETS[coin]['address'],
+        'coin_name': coin_name,
+        'network': network,
+        'address': address,
         'expected_amount': payload.expected_amount,
         'declared_txid': txid,
         'context': payload.context,
         'status': 'waiting',
         'txid': None,
         'confirmations': 0,
-        'required_confirmations': COINS[coin]['required_conf'],
+        'required_confirmations': required_conf,
         'detected_amount': None,
         'incident_type': None,
         'incident_note': None,

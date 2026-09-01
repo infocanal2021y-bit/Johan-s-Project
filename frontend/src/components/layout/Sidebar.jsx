@@ -208,6 +208,7 @@ export const Sidebar = () => {
         { to: '/admin/credits', icon: PlusCircle, label: 'Agregar Saldo' },
         { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Pagos Crypto' },
         { to: '/admin/crypto-monitor', icon: Radar, label: 'Monitor Blockchain' },
+        { to: '/admin/wallets', icon: Wallet, label: 'Wallets de Plataforma' },
         { to: '/admin/pending-abonos', icon: Receipt, label: 'Abonos Pendientes' },
         { to: '/admin/crypto-stats', icon: BarChart3, label: 'Analíticas Crypto' },
         { to: '/admin/users', icon: Users, label: 'Usuarios Registrados' },

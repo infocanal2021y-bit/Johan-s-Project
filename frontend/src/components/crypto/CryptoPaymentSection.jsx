@@ -56,6 +56,8 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
     const [submitting, setSubmitting] = useState(false);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [prices, setPrices] = useState({});
+    const [quotedAt, setQuotedAt] = useState(null);
     // Payment issue dialog
     const [issueDialogOpen, setIssueDialogOpen] = useState(false);
     const [issueMessage, setIssueMessage] = useState('');
@@ -86,6 +88,9 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                     transactionsAPI.getCryptoPaymentStatus(transaction.id)
                 ]);
                 setWallets(walletsRes.data);
+                transactionsAPI.getCryptoPrices()
+                    .then((pr) => { setPrices(pr.data?.prices || {}); setQuotedAt(pr.data?.quoted_at || null); })
+                    .catch(() => {});
                 const paymentData = paymentRes.data;
                 if (Array.isArray(paymentData)) {
                     setPayments(paymentData);
@@ -225,6 +230,17 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
         return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
+    const CRYPTO_DECIMALS = { BTC: 8, ETH: 6, BNB: 4, USDT: 2 };
+    const cryptoEquivalent = (eurAmount, coin) => {
+        const price = prices[coin];
+        if (!price || price <= 0) return '—';
+        return (eurAmount / price).toFixed(CRYPTO_DECIMALS[coin] ?? 6);
+    };
+    const formatQuoteTime = (iso) => {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-8">
@@ -276,12 +292,17 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                     <span className="text-slate-400 text-sm">Requisito de plataforma · <span className="text-cyan-400 font-semibold">Método de abono cripto</span></span>
                     <span className="text-white font-mono text-sm">€{taxPaid.toFixed(2)} / €{taxRequired.toFixed(2)}</span>
                 </div>
-                <div className="w-full bg-slate-700 rounded-full h-3">
+                <div className="w-full bg-slate-700 rounded-full h-3 relative overflow-hidden">
                     <div 
                         className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 rounded-full transition-all duration-500"
                         style={{ width: `${Math.min(100, (taxPaid / taxRequired) * 100)}%` }}
                         data-testid="tax-progress-bar"
                     />
+                </div>
+                <div className="text-right">
+                    <span className="text-emerald-400 text-xs font-bold font-mono" data-testid="tax-progress-pct">
+                        {Math.min(100, (taxPaid / taxRequired) * 100).toFixed(1)}% completado
+                    </span>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="p-2 rounded-lg bg-slate-900/50">
@@ -452,8 +473,23 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                                     <div className="p-3">
                                         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Monto a pagar</p>
                                         <p className="text-white font-bold text-sm mt-0.5 font-mono">€{taxRemaining.toFixed(2)} <span className="text-slate-500 text-[11px] font-sans">EUR</span></p>
+                                        {prices[selectedCrypto] ? (
+                                            <p className={`${currentCryptoConfig.text} font-bold text-[13px] mt-1 font-mono`} data-testid="crypto-equivalent">
+                                                ≈ {cryptoEquivalent(taxRemaining, selectedCrypto)} {selectedCrypto}
+                                            </p>
+                                        ) : (
+                                            <p className="text-slate-500 text-[11px] mt-1">Calculando equivalente…</p>
+                                        )}
                                     </div>
                                 </div>
+
+                                {/* Exchange rate + quote timestamp */}
+                                {prices[selectedCrypto] && (
+                                    <div className="px-4 pt-2 flex items-center justify-between text-[10.5px] text-slate-500" data-testid="crypto-rate-row">
+                                        <span>Tasa: <span className="text-slate-300 font-mono">€{Number(prices[selectedCrypto]).toLocaleString('es-ES', { maximumFractionDigits: 2 })}/{selectedCrypto}</span></span>
+                                        <span>Cotización: {formatQuoteTime(quotedAt)} · CoinGecko</span>
+                                    </div>
+                                )}
 
                                 {/* Network warning */}
                                 <div className="mx-4 mt-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-2" data-testid="network-warning">
