@@ -140,7 +140,7 @@ export default function AdminCryptoMonitorPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Monitor de Pagos Cripto</h1>
-                            <p className="text-sm text-slate-400 font-light">Detección automática en blockchain · BTC y USDT</p>
+                            <p className="text-sm text-slate-400 font-light">Detección automática en blockchain · BTC, USDT, ETH y BNB</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -245,6 +245,7 @@ export default function AdminCryptoMonitorPage() {
                                         <p className="text-slate-400 text-xs mt-1">
                                             {it.coin_name} · {it.network} · Esperado: <span className="text-white font-bold">{it.expected_amount}</span>
                                             {it.detected_amount != null && <> · Recibido: <span className="text-emerald-400 font-bold">{it.detected_amount}</span></>}
+                                            {it.eur_equivalent != null && <> · <span className="text-cyan-400 font-bold" data-testid={`eur-equivalent-${it.id}`}>≈ {Number(it.eur_equivalent).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></>}
                                             {' '}· Conf: <span className="text-white font-bold">{it.confirmations}/{it.required_confirmations}</span>
                                         </p>
                                         {it.txid && (
@@ -254,6 +255,12 @@ export default function AdminCryptoMonitorPage() {
                                                     <ExternalLink className="w-3 h-3" />
                                                 </a>
                                             </div>
+                                        )}
+                                        {it.from_address && (
+                                            <p className="text-[10px] text-slate-500 mt-1" data-testid={`from-address-${it.id}`}>
+                                                Wallet de origen: <span className="font-mono text-amber-400/90">{it.from_address}</span>
+                                                {' '}<span className="text-slate-600">→ destino:</span> <span className="font-mono text-slate-400">{it.address?.slice(0, 14)}...</span>
+                                            </p>
                                         )}
                                         {it.incident_note && (
                                             <p className="text-rose-300 text-[11px] mt-1.5 flex items-start gap-1"><AlertTriangle className="w-3 h-3 mt-px flex-shrink-0" /> {it.incident_note}</p>

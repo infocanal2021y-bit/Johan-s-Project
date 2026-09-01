@@ -1,5 +1,11 @@
 # LIONSBIT — CHANGELOG (continuación de PRD.md)
 
+### Iteration 106 (Jun 2026) — Panel Cripto Ampliado (EUR + wallet de origen)
+
+- `crypto_monitor.py`: todos los fetchers (BTC vin[0].prevout, USDT trc20 'from', ETH Blockscout 'from', EVM by-hash tx['from']) capturan `from_address` del pago. `_get_eur_price(coin)` vía CoinGecko público (caché 5 min, COINGECKO_IDS). `_apply_match` guarda `from_address` y `eur_equivalent` (detected × precio EUR) en el intent, también en pagos incompletos.
+- `AdminCryptoMonitorPage.jsx`: cada pago detectado muestra "≈ X,XX €" (testid `eur-equivalent-{id}`) y "Wallet de origen: 0x... → destino: 0x..." (testid `from-address-{id}`). Subtítulo actualizado a "BTC, USDT, ETH y BNB".
+- Verificado e2e con blockchain real: intent ETH detectado con from_address=0x4b24...bc48 y eur_equivalent=25,56 € (precio real CoinGecko), visible en el panel admin. Datos de prueba limpiados.
+
 ### Iteration 105 (Jun 2026) — Detección automática blockchain ETH y BNB
 
 - `crypto_monitor.py`: COINS ETH y BNB `enabled=True` (12 confirmaciones requeridas). La UI (CryptoPaymentMonitor via `/crypto-monitor/config`) los habilita automáticamente.

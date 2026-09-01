@@ -26,6 +26,29 @@ EVM_RPC = {
     'ETH': ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://rpc.ankr.com/eth'],
     'BNB': ['https://bsc-rpc.publicnode.com', 'https://bsc-dataseed.binance.org', 'https://bsc-dataseed1.defibit.io'],
 }
+
+COINGECKO_IDS = {'BTC': 'bitcoin', 'BTC_LEGACY': 'bitcoin', 'ETH': 'ethereum', 'BNB': 'binancecoin', 'USDT': 'tether'}
+_price_cache = {'data': {}, 'ts': 0}
+
+
+async def _get_eur_price(coin: str):
+    """EUR price per unit for a coin, cached 5 minutes (CoinGecko public API)."""
+    import time
+    now = time.time()
+    if not _price_cache['data'] or (now - _price_cache['ts']) > 300:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                r = await client.get(
+                    'https://api.coingecko.com/api/v3/simple/price',
+                    params={'ids': ','.join(set(COINGECKO_IDS.values())), 'vs_currencies': 'eur'},
+                )
+                r.raise_for_status()
+                _price_cache['data'] = r.json()
+                _price_cache['ts'] = now
+        except Exception as e:
+            logging.warning(f'crypto monitor: price fetch failed: {e}')
+    gid = COINGECKO_IDS.get(coin)
+    return (_price_cache['data'].get(gid) or {}).get('eur') if gid else None
 AMOUNT_TOLERANCE = 0.01
 INTENT_TTL_HOURS = 24
 ACTIVE_STATUSES = ['waiting', 'detected', 'confirming']
@@ -167,7 +190,9 @@ async def _fetch_btc_txs(client: httpx.AsyncClient, address: str):
         st = tx.get('status', {})
         conf = (tip - st['block_height'] + 1) if st.get('confirmed') else 0
         ts = st.get('block_time') or int(_now().timestamp())
-        out.append({'txid': tx['txid'], 'amount': amount, 'time': ts, 'confirmations': conf})
+        vin = tx.get('vin') or []
+        from_addr = (vin[0].get('prevout') or {}).get('scriptpubkey_address') if vin else None
+        out.append({'txid': tx['txid'], 'amount': amount, 'time': ts, 'confirmations': conf, 'from_address': from_addr})
     return out
 
 
@@ -195,6 +220,7 @@ async def _fetch_eth_txs(client: httpx.AsyncClient, address: str):
             'amount': amount,
             'time': int(tx.get('timeStamp') or _now().timestamp()),
             'confirmations': int(tx.get('confirmations') or 0),
+            'from_address': tx.get('from'),
         })
     return out
 
@@ -240,7 +266,7 @@ async def _fetch_evm_tx_by_hash(client: httpx.AsyncClient, coin: str, txid: str,
                 ts = int(block['timestamp'], 16)
         except Exception:
             pass
-    return {'txid': txid, 'amount': amount, 'time': ts, 'confirmations': conf}
+    return {'txid': txid, 'amount': amount, 'time': ts, 'confirmations': conf, 'from_address': tx.get('from')}
 
 
 async def _fetch_usdt_txs(client: httpx.AsyncClient, address: str):
@@ -269,7 +295,7 @@ async def _fetch_usdt_txs(client: httpx.AsyncClient, address: str):
                 conf = max(0, now_block - block_num)
         except Exception:
             conf = max(0, int((_now().timestamp() - ts) / 3))
-        out.append({'txid': txid, 'amount': amount, 'time': ts, 'confirmations': conf})
+        out.append({'txid': txid, 'amount': amount, 'time': ts, 'confirmations': conf, 'from_address': tx.get('from')})
     return out
 
 
@@ -427,10 +453,15 @@ async def _apply_match(intent, cand):
     intent['txid'] = cand['txid']
     intent['detected_amount'] = detected
     intent['confirmations'] = cand['confirmations']
+    intent['from_address'] = cand.get('from_address')
+    price = await _get_eur_price(intent['coin'])
+    eur_equivalent = round(detected * price, 2) if price else None
+    intent['eur_equivalent'] = eur_equivalent
 
     if detected < expected * (1 - AMOUNT_TOLERANCE):
         await db.crypto_payment_intents.update_one({'id': intent['id']}, {'$set': {
             'txid': cand['txid'], 'detected_amount': detected, 'confirmations': cand['confirmations'],
+            'from_address': cand.get('from_address'), 'eur_equivalent': eur_equivalent,
         }})
         await _flag_incident(
             intent, 'incomplete',
@@ -453,6 +484,7 @@ async def _apply_match(intent, cand):
     await db.crypto_payment_intents.update_one({'id': intent['id']}, {
         '$set': {
             'txid': cand['txid'], 'detected_amount': detected, 'confirmations': cand['confirmations'],
+            'from_address': cand.get('from_address'), 'eur_equivalent': eur_equivalent,
             'status': new_status, 'incident_note': note, 'updated_at': _now().isoformat(),
         },
         '$push': {'timeline': _tl(new_status, f"TXID {cand['txid'][:20]}... · {cand['confirmations']} confirmaciones")},
