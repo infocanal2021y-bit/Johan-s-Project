@@ -923,6 +923,68 @@ async def send_withdrawal_rejected_email(user_email: str, user_name: str, withdr
     await send_email(user_email, "❌ Su retiro ha sido rechazado - LIONSBIT VERIFICACION", html)
 
 
+@safe_email
+async def send_refund_confirmation_email(user_email: str, user_name: str, reference: str,
+                                         amount: float, currency: str, funds_debited: bool = True):
+    """Confirm to the user that their funds were returned after an automatic withdrawal expiration."""
+    funds_text = (
+        'han sido <strong style="color:#10b981;">devueltos íntegramente a su saldo disponible</strong>'
+        if funds_debited else
+        'permanecen <strong style="color:#10b981;">íntegros y disponibles en su cuenta</strong>'
+    )
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Le informamos que su solicitud de retiro <strong style="color:#7CB1E5;">{reference}</strong> expiró automáticamente
+            porque el abono del cargo de autorización no se completó dentro del plazo de 72 horas.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.1)); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 25px; text-align: center;">
+                    <p style="color: #10b981; font-size: 42px; margin: 0;">✓</p>
+                    <p style="color: #10b981; font-size: 20px; margin: 10px 0; font-weight: bold;">Reembolso confirmado</p>
+                    <p style="color: #e2e8f0; font-size: 28px; margin: 5px 0; font-weight: bold; font-family: monospace;">{amount:,.2f} {currency}</p>
+                </td>
+            </tr>
+        </table>
+
+        <p style="color: #e2e8f0; font-size: 15px; line-height: 1.6;">
+            Sus fondos {funds_text}. No se ha aplicado ningún cargo ni penalización.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr>
+                <td style="padding: 20px 25px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Referencia:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: monospace;">{reference}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Importe reembolsado:</td>
+                            <td style="color: #10b981; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-weight: bold;">{amount:,.2f} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #94a3b8; padding: 8px 0;">Motivo de la expiración:</td>
+                            <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">Abono no completado en 72 horas</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+            Si desea realizar un nuevo retiro, puede iniciarlo en cualquier momento desde su panel de control.
+            Si tiene alguna pregunta, contacte a nuestro equipo de soporte.
+        </p>
+    """
+    html = get_email_template(content, "Aviso de Reembolso")
+    await send_email(user_email, f"✓ Reembolso confirmado · Retiro {reference} - LIONSBIT VERIFICACION", html)
+
+
 # ══════════════════════════════════════════════════════════════════════
 #                    MT5 INVEST — DEPOSIT LIFECYCLE EMAILS
 # ══════════════════════════════════════════════════════════════════════

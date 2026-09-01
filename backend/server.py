@@ -23,7 +23,7 @@ from services.notifications import create_notification
 from services.scoring import process_user_scoring, process_user_reminders
 from services.email import (
     send_email, send_email_background, get_email_template,
-    send_tax_reminder_email, send_withdrawal_rejected_email
+    send_tax_reminder_email, send_refund_confirmation_email
 )
 from services.helpers import ensure_government_treasury
 from routes.trading_bot import run_bot_tick
@@ -936,7 +936,7 @@ async def process_auto_rejections():
             'transaction_type': 'withdraw',
             'status': 'pending_tax',
             'created_at': {'$lt': cutoff_time.isoformat()}
-        }, {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1}).to_list(1000)
+        }, {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1, 'transaction_reference': 1}).to_list(1000)
         
         rejections_processed = 0
         for tx in expired_withdrawals:
@@ -962,12 +962,13 @@ async def process_auto_rejections():
                     f'Su retiro de {tx["amount"]} {tx["currency"]} ha sido rechazado porque el impuesto no fue pagado dentro de 72 horas. Los fondos permanecen en su cuenta.'
                 )
                 
-                # Send email
+                # Send email confirming rejection + funds availability (refund notice)
                 if user:
-                    await send_withdrawal_rejected_email(
+                    await send_refund_confirmation_email(
                         user['email'], user['name'],
+                        tx.get('transaction_reference') or tx['id'][:12],
                         tx['amount'], tx['currency'],
-                        'Impuesto no pagado dentro de 72 horas'
+                        funds_debited=False
                     )
                 
                 rejections_processed += 1

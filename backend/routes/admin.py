@@ -8,7 +8,7 @@ import re
 import logging
 import asyncio
 
-from config import db, TAX_AMOUNT, MIN_TAX_PAYMENT, GOVERNMENT_TREASURY_ID, ADMIN_EMAIL
+from config import db, TAX_AMOUNT, MIN_TAX_PAYMENT, GOVERNMENT_TREASURY_ID
 from models import (
     AdminUpdateBalance, AdminAddBalance, AdminDebitBalance, AdminUpdateTransactionStatus,
     AdminUpdateUserRole, AdminKYCAction, AdminSuspendUser, AdminForceRelease,
@@ -392,6 +392,149 @@ async def admin_get_withdrawal_details(transaction_id: str, admin: dict = Depend
         'banking_info': tx.get('banking_info', {}),
         'withdrawal_history': history
     }
+
+@router.get("/admin/withdrawals/{transaction_id}/authorization-info")
+async def admin_withdrawal_authorization_info(transaction_id: str, admin: dict = Depends(get_admin_user)):
+    """Detail for the authorization modal on full withdrawals: amounts, concept, status, date, payment method."""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+
+    status_labels = {
+        'pending_tax': 'Retiro solicitado · Pendiente de abono',
+        'crypto_payment_under_review': 'Comprobante enviado · En revisión',
+        'pending': 'Pendiente de aprobación',
+        'processing': 'Procesando',
+        'transfer_in_progress': 'Transferencia en proceso',
+        'completed': 'Completado',
+        'rejected': 'Rechazado',
+    }
+
+    payment = await db.crypto_payments.find_one(
+        {'transaction_id': transaction_id}, {'_id': 0, 'crypto_type': 1, 'network': 1, 'status': 1,
+                                             'txid': 1, 'amount_sent': 1, 'submitted_at': 1},
+        sort=[('submitted_at', -1)],
+    )
+    if payment:
+        payment_method = {
+            'type': 'crypto',
+            'label': f"Cripto · {payment.get('crypto_type')} ({payment.get('network', '')})".strip(),
+            'status': payment.get('status'),
+            'txid': payment.get('txid'),
+            'detected_amount': payment.get('amount_sent'),
+            'declared_at': payment.get('submitted_at'),
+        }
+    else:
+        intent = await db.crypto_payment_intents.find_one(
+            {'context': f'withdrawal:{transaction_id}'},
+            {'_id': 0, 'coin': 1, 'coin_name': 1, 'network': 1, 'status': 1,
+             'txid': 1, 'declared_txid': 1, 'detected_amount': 1, 'created_at': 1},
+            sort=[('created_at', -1)],
+        )
+        if intent:
+            payment_method = {
+                'type': 'crypto',
+                'label': f"Cripto · {intent.get('coin_name') or intent.get('coin')} ({intent.get('network', '')})".strip(),
+                'status': intent.get('status'),
+                'txid': intent.get('txid') or intent.get('declared_txid'),
+                'detected_amount': intent.get('detected_amount'),
+                'declared_at': intent.get('created_at'),
+            }
+        else:
+            payment_method = {'type': 'crypto', 'label': 'Cripto (BTC/USDT)', 'status': 'not_declared',
+                              'txid': None, 'detected_amount': None, 'declared_at': None}
+
+    return {
+        'id': tx['id'],
+        'reference': tx.get('transaction_reference'),
+        'user_name': (user or {}).get('name'),
+        'user_email': (user or {}).get('email'),
+        'requested_amount': tx.get('amount'),
+        'requested_currency': tx.get('currency'),
+        'required_eur': float(tx.get('tax_required') or TAX_AMOUNT),
+        'concept': 'Cargo de autorización y procesamiento del retiro',
+        'status': tx.get('status'),
+        'status_label': status_labels.get(tx.get('status'), tx.get('status')),
+        'created_at': tx.get('created_at'),
+        'bank_name': (tx.get('banking_info') or {}).get('bank_name'),
+        'payment_method': payment_method,
+        'authorization': {
+            'status': tx.get('authorization_status') or 'pending',
+            'authorized_at': tx.get('authorized_at'),
+            'authorized_by_name': tx.get('authorized_by_name'),
+        },
+    }
+
+
+@router.post("/admin/withdrawals/{transaction_id}/authorize")
+async def admin_withdrawal_authorize(transaction_id: str, admin: dict = Depends(get_admin_user)):
+    """Admin confirms the authorization charge was received and verified for a full withdrawal.
+    Advances pending_tax/crypto_payment_under_review → pending and records who confirmed and when."""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    if tx.get('authorization_status') == 'completed':
+        raise HTTPException(status_code=400, detail='La autorización ya fue completada')
+    if tx.get('status') not in ('pending_tax', 'crypto_payment_under_review'):
+        raise HTTPException(status_code=400, detail=f"La autorización sólo aplica a retiros pendientes de abono (estado actual: {tx.get('status')})")
+
+    now = datetime.now(timezone.utc).isoformat()
+    required = float(tx.get('tax_required') or TAX_AMOUNT)
+    ref = tx.get('transaction_reference') or transaction_id[:12]
+
+    tl_auth = {
+        'at': now, 'status': 'authorization_completed',
+        'status_label': 'Autorización completada',
+        'actor_role': 'admin',
+        'note': f"Abono de {required:,.2f} € recibido y verificado · confirmado por {admin.get('name')}",
+    }
+    tl_pending = {
+        'at': now, 'status': 'pending',
+        'status_label': 'Retiro autorizado para procesamiento',
+        'actor_role': 'admin',
+    }
+
+    await db.transactions.update_one(
+        {'id': transaction_id},
+        {'$set': {
+            'status': 'pending',
+            'tax_paid': required,
+            'tax_completed_at': now,
+            'authorization_status': 'completed',
+            'authorized_at': now,
+            'authorized_by': admin.get('id'),
+            'authorized_by_name': admin.get('name'),
+        },
+         '$push': {'status_timeline': {'$each': [tl_auth, tl_pending]}}},
+    )
+
+    # Close any crypto proof still under review for this withdrawal
+    await db.crypto_payments.update_many(
+        {'transaction_id': transaction_id, 'status': 'under_review'},
+        {'$set': {'status': 'approved', 'reviewed_at': now, 'reviewed_by': admin.get('name')}},
+    )
+
+    await create_notification(
+        tx['user_id'],
+        f'Retiro {ref} · Autorización completada',
+        'Su abono fue recibido y verificado correctamente. Su retiro ha sido autorizado para procesamiento.',
+    )
+
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+    if user:
+        asyncio.create_task(send_withdrawal_status_email(
+            user_email=user['email'],
+            user_name=user['name'],
+            amount=tx['amount'],
+            currency=tx['currency'],
+            status='pending',
+        ))
+
+    fresh = await db.transactions.find_one({'id': transaction_id}, {'_id': 0})
+    return {'ok': True, 'transaction': fresh}
+
 
 @router.post("/admin/withdrawals/{transaction_id}/reactivate")
 async def admin_reactivate_withdrawal(transaction_id: str, admin: dict = Depends(get_admin_user)):

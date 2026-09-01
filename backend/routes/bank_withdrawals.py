@@ -33,7 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
-from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email, send_withdrawal_stage_email
+from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email, send_withdrawal_stage_email, send_refund_confirmation_email
 from services.case_codes import generate_case_code, update_case_status
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
@@ -176,6 +176,15 @@ async def auto_reject_expired_bank_withdrawals() -> dict:
             })
         except Exception:
             pass
+        if rec.get('user_email'):
+            await send_refund_confirmation_email(
+                user_email=rec['user_email'],
+                user_name=rec.get('user_name') or rec['user_email'],
+                reference=rec.get('reference', ''),
+                amount=float(rec['from_amount']),
+                currency=rec['from_currency'],
+                funds_debited=True,
+            )
         rejected += 1
 
     if rejected:

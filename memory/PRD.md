@@ -1,6 +1,19 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 101 (Jun 2026) — Aviso de Reembolso + Autorización en Retiros Full
+
+**1. Aviso de Reembolso (email):** nueva `send_refund_confirmation_email(email, name, reference, amount, currency, funds_debited)` en `services/email.py` (@safe_email, asunto "✓ Reembolso confirmado · Retiro {ref}"). Confirma la devolución íntegra de fondos al expirar el retiro automáticamente (72h sin abono):
+- `bank_withdrawals.py auto_reject_expired_bank_withdrawals`: envía el email tras el reembolso (funds_debited=True → "devueltos a su saldo disponible").
+- `server.py process_auto_rejections` (retiros full): reemplaza `send_withdrawal_rejected_email` por el nuevo aviso (funds_debited=False → "permanecen íntegros y disponibles"); projection ampliada con `transaction_reference`.
+- Verificado: función ejecutada e2e con registro expirado de prueba → status rejected + email generado (rechazo Resend sólo por dominio example.com de prueba).
+
+**2. Autorización en Retiros Full (Gestión de Retiros `/admin/withdrawals`):**
+- Backend `admin.py`: `GET /admin/withdrawals/{tx_id}/authorization-info` (importe solicitado, requerido = tax_required/4850 €, concepto, estado+label, fecha, método de pago desde `crypto_payments.transaction_id` o intent `withdrawal:{id}`, estado autorización) + `POST /admin/withdrawals/{tx_id}/authorize` (sólo `pending_tax`/`crypto_payment_under_review`; set status='pending', tax_paid=required, authorization_status/authorized_at/by/by_name; 2 entradas timeline: `authorization_completed` con admin+nota y `pending` "Retiro autorizado para procesamiento"; aprueba crypto_payments under_review vinculados; notif in-app + email estado pending).
+- Frontend `AdminWithdrawalsPage.jsx`: sección "Impuesto Pendiente" ahora incluye también `crypto_payment_under_review`. Bloque ámbar por fila (testid `wd-auth-block-{id}`): "Importe requerido para autorizar el retiro: €4.850" + "Pendiente de abono y verificación" (`wd-auth-status-{id}`) + botón `wd-auth-complete-btn-{id}`. Modal oscuro `WithdrawalAuthModal` (testid `withdrawal-auth-modal`, campos `wd-auth-requested/-required/-concept/-status/-date/-payment-method`, confirm `wd-auth-confirm-btn`). Badge verde `wd-auth-done-{id}` tras autorizar (fecha + admin). `adminAPI.getWithdrawalAuthInfo/authorizeWithdrawal` en lib/api.js.
+- Verificado e2e (curl + screenshots): info completa, autorizar → pending + timeline con fecha/admin + tax_paid=4850, doble autorización 400, UI bloque+modal+flujo. Datos de prueba eliminados. Limpieza: import ADMIN_EMAIL sin uso eliminado de admin.py.
+
+
 ### Iteration 100 (Jun 2026) — Bloque de autorización de transacción en Retiros bancarios · Cola
 
 - **Backend `bank_withdrawals.py`:**

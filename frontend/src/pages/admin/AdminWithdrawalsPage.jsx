@@ -10,12 +10,12 @@ import {
     Clock, CheckCircle, XCircle, Loader2, RefreshCw, ChevronDown,
     Building2, CreditCard, Globe, User, ArrowRight, Ban,
     Banknote, FileText, RotateCcw, DollarSign, Mail, Calendar,
-    AlertTriangle, History
+    AlertTriangle, History, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_CONFIG = [
-    { key: 'pending_tax', label: 'Impuesto Pendiente', icon: AlertTriangle, color: 'orange', filter: w => w.status === 'pending_tax' },
+    { key: 'pending_tax', label: 'Impuesto Pendiente', icon: AlertTriangle, color: 'orange', filter: w => ['pending_tax', 'crypto_payment_under_review'].includes(w.status) },
     { key: 'pending', label: 'Pendientes', icon: Clock, color: 'amber', filter: w => w.status === 'pending' },
     { key: 'processing', label: 'Procesando', icon: Loader2, color: 'cyan', filter: w => w.status === 'processing' },
     { key: 'transfer', label: 'En Transferencia', icon: ArrowRight, color: 'blue', filter: w => w.status === 'transfer_in_progress' },
@@ -35,6 +35,113 @@ const colorMap = {
 const statusLabels = {
     pending: 'Pendiente', processing: 'Procesando', transfer_in_progress: 'En Transferencia',
     completed: 'Completado', rejected: 'Rechazado', pending_tax: 'Impuesto Pendiente', under_review: 'En Revision',
+    crypto_payment_under_review: 'Comprobante en Revision',
+};
+
+const AUTH_REQUIRED_EUR = 4850;
+const fmtEur = (n) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 });
+
+/* ── Authorization Modal (full withdrawals) ── */
+const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
+    const [info, setInfo] = useState(null);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        adminAPI.getWithdrawalAuthInfo(withdrawalId)
+            .then(r => setInfo(r.data))
+            .catch(() => { toast.error('No se pudo cargar la información'); onClose(); });
+    }, [withdrawalId, onClose]);
+
+    const confirm = async () => {
+        setBusy(true);
+        try {
+            await adminAPI.authorizeWithdrawal(withdrawalId);
+            toast.success('Autorización completada · Retiro autorizado para procesamiento');
+            onClose();
+            onDone();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'No se pudo completar la autorización');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const pm = info?.payment_method;
+    const alreadyDone = info?.authorization?.status === 'completed';
+
+    return (
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="bg-slate-900 border-slate-800 max-w-lg" data-testid="withdrawal-auth-modal">
+                <DialogHeader>
+                    <DialogTitle className="text-white flex items-center gap-2">
+                        <ShieldCheck className="w-5 h-5 text-amber-400" /> Autorización de transacción
+                        <span className="font-mono text-cyan-400 text-sm">{info?.reference || ''}</span>
+                    </DialogTitle>
+                </DialogHeader>
+                {!info ? (
+                    <div className="p-8 text-center"><Loader2 className="w-6 h-6 mx-auto animate-spin text-slate-500" /></div>
+                ) : (
+                    <div className="space-y-3 pt-1">
+                        <div className="grid grid-cols-2 gap-2.5 text-sm">
+                            <div className="p-3 rounded-lg bg-slate-800/60">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Importe total solicitado</p>
+                                <p className="text-white font-bold font-mono mt-1" data-testid="wd-auth-requested">{fmtEur(info.requested_amount)} {info.requested_currency}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/25">
+                                <p className="text-[10px] uppercase tracking-wider text-amber-400 font-bold">Importe requerido</p>
+                                <p className="text-amber-300 font-bold font-mono text-lg mt-1" data-testid="wd-auth-required">{fmtEur(info.required_eur)} €</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-800/60 col-span-2">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Concepto del importe</p>
+                                <p className="text-white mt-1" data-testid="wd-auth-concept">{info.concept}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-800/60">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Estado actual</p>
+                                <p className="text-white font-semibold mt-1" data-testid="wd-auth-status">{alreadyDone ? 'Autorización completada' : 'Pendiente de abono y verificación'}</p>
+                                <p className="text-slate-500 text-xs">{info.status_label}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-800/60">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Fecha de solicitud</p>
+                                <p className="text-white font-semibold mt-1" data-testid="wd-auth-date">{formatDate(info.created_at)}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-800/60 col-span-2">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Método de pago utilizado</p>
+                                <p className="text-white font-semibold mt-1" data-testid="wd-auth-payment-method">{pm?.label}</p>
+                                {pm?.status === 'not_declared' ? (
+                                    <p className="text-slate-500 text-xs">El usuario aún no ha declarado el pago</p>
+                                ) : (
+                                    <>
+                                        <p className="text-slate-500 text-xs">Estado del pago: <span className="font-semibold text-slate-300">{pm?.status}</span>{pm?.detected_amount ? ` · Enviado: ${pm.detected_amount}` : ''}</p>
+                                        {pm?.txid && <p className="text-slate-600 text-[11px] font-mono truncate" title={pm.txid}>TXID: {pm.txid}</p>}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {alreadyDone ? (
+                            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-sm" data-testid="wd-auth-done-banner">
+                                <p className="font-bold flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Autorización completada</p>
+                                <p className="mt-0.5 text-xs">Verificado el {formatDate(info.authorization.authorized_at)} por <span className="font-semibold">{info.authorization.authorized_by_name}</span></p>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-500 bg-slate-800/40 rounded-md p-2.5">
+                                Al confirmar, el estado cambiará a <span className="font-bold text-emerald-400">"Autorización completada"</span> y después a <span className="font-bold text-amber-400">"Retiro autorizado para procesamiento"</span>. Se registrará en el historial la fecha, hora y el administrador que confirmó la operación.
+                            </p>
+                        )}
+
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={onClose} className="flex-1 border-slate-700 text-slate-300">Cerrar</Button>
+                            {!alreadyDone && (
+                                <Button onClick={confirm} disabled={busy} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold" data-testid="wd-auth-confirm-btn">
+                                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Importe recibido y verificado'}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
 };
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
@@ -148,6 +255,7 @@ export const AdminWithdrawalsPage = () => {
     const [addBalanceDialog, setAddBalanceDialog] = useState(false);
     const [balanceAmount, setBalanceAmount] = useState('');
     const [balanceCurrency, setBalanceCurrency] = useState('USD');
+    const [authFor, setAuthFor] = useState(null);
 
     const fetchWithdrawals = async () => {
         setLoading(true);
@@ -302,6 +410,38 @@ export const AdminWithdrawalsPage = () => {
 
                                                             return (
                                                                 <div key={w.id} data-testid={`withdrawal-row-${w.id}`}>
+                                                                    {/* Authorization block */}
+                                                                    {['pending_tax', 'crypto_payment_under_review'].includes(w.status) && w.authorization_status !== 'completed' && (
+                                                                        <div className="px-4 pt-3">
+                                                                            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex flex-wrap items-center justify-between gap-2" data-testid={`wd-auth-block-${w.id}`}>
+                                                                                <div>
+                                                                                    <p className="text-amber-300 text-xs">
+                                                                                        Importe requerido para autorizar el retiro: <span className="font-bold">€{AUTH_REQUIRED_EUR.toLocaleString('es-ES')}</span>
+                                                                                    </p>
+                                                                                    <p className="text-amber-500/90 text-[10px] font-bold uppercase tracking-wide mt-0.5" data-testid={`wd-auth-status-${w.id}`}>
+                                                                                        Pendiente de abono y verificación
+                                                                                    </p>
+                                                                                </div>
+                                                                                <Button size="sm" onClick={() => setAuthFor(w.id)}
+                                                                                    className="bg-amber-600 hover:bg-amber-500 text-white h-7 text-xs px-2.5 font-bold"
+                                                                                    data-testid={`wd-auth-complete-btn-${w.id}`}>
+                                                                                    <ShieldCheck className="w-3 h-3 mr-1" /> Completar autorización
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {w.authorization_status === 'completed' && (
+                                                                        <div className="px-4 pt-3">
+                                                                            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20" data-testid={`wd-auth-done-${w.id}`}>
+                                                                                <p className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                                                                                    <CheckCircle className="w-3 h-3" /> Autorización completada
+                                                                                </p>
+                                                                                <p className="text-slate-500 text-[10px]">
+                                                                                    Retiro autorizado para procesamiento · {formatDate(w.authorized_at)}{w.authorized_by_name ? ` · ${w.authorized_by_name}` : ''}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                     {/* Desktop Row */}
                                                                     <div
                                                                         className={`hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-800/20' : ''}`}
@@ -396,6 +536,15 @@ export const AdminWithdrawalsPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Authorization Modal */}
+            {authFor && (
+                <WithdrawalAuthModal
+                    withdrawalId={authFor}
+                    onClose={() => setAuthFor(null)}
+                    onDone={fetchWithdrawals}
+                />
+            )}
 
             {/* Reject Dialog */}
             <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
