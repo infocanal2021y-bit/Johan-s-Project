@@ -985,6 +985,61 @@ async def send_refund_confirmation_email(user_email: str, user_name: str, refere
     await send_email(user_email, f"✓ Reembolso confirmado · Retiro {reference} - LIONSBIT VERIFICACION", html)
 
 
+@safe_email
+async def send_requirements_reminder_email(user_email: str, user_name: str, reference: str,
+                                           amount: float, currency: str, items: list,
+                                           completed_count: int, total: int):
+    """Reminder listing which pre-processing requirements are still missing for a pending withdrawal."""
+    rows = ""
+    for it in items:
+        done = it.get('done')
+        icon = '✓' if done else '•'
+        color = '#10b981' if done else '#f59e0b'
+        status = 'Completado' if done else 'PENDIENTE'
+        rows += f"""
+            <tr>
+                <td style="color:{color};padding:7px 10px 7px 0;font-weight:bold;width:18px;">{icon}</td>
+                <td style="color:{'#e2e8f0' if done else '#f1d29a'};padding:7px 0;font-size:14px;">{it.get('label')}</td>
+                <td style="color:{color};padding:7px 0;text-align:right;font-size:11px;font-weight:bold;letter-spacing:1px;">{status}</td>
+            </tr>"""
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #7CB1E5;">{user_name}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 15px; line-height: 1.6;">
+            Su solicitud de retiro <strong style="color:#7CB1E5;">{reference}</strong> por
+            <strong>{amount:,.2f} {currency}</strong> continúa pendiente de procesamiento.
+            A continuación le indicamos el estado de los requisitos previos:
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;border-radius:12px;margin:22px 0;">
+            <tr><td style="padding:18px 22px;">
+                <p style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px 0;font-weight:bold;">
+                    Requisitos previos al procesamiento · {completed_count} de {total} completados
+                </p>
+                <table width="100%" cellpadding="0" cellspacing="0">{rows}</table>
+            </td></tr>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,rgba(245,158,11,0.12),rgba(217,119,6,0.08));border:1px solid rgba(245,158,11,0.35);border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:16px 20px;">
+                <p style="color:#fbbf24;font-size:14px;margin:0;line-height:1.6;">
+                    ⚠ Operación pendiente. Existen requisitos necesarios antes de autorizar el procesamiento del retiro.
+                    Complete los puntos marcados como <strong>PENDIENTE</strong> para desbloquear su retiro.
+                </p>
+            </td></tr>
+        </table>
+
+        <p style="color: #94a3b8; font-size: 13px; line-height: 1.6;">
+            El requisito de plataforma se abona únicamente mediante criptomonedas (BTC, USDT, ETH, BNB)
+            desde la sección <strong>Retiros</strong> de su panel. La verificación se realiza mediante el TxID
+            y la confirmación real de la transacción en blockchain. Si necesita ayuda, contacte a soporte.
+        </p>
+    """
+    html = get_email_template(content, "Requisitos pendientes de su retiro")
+    await send_email(user_email, f"⏳ Requisitos pendientes · Retiro {reference} - LIONSBIT VERIFICACION", html)
+
+
 # ══════════════════════════════════════════════════════════════════════
 #                    MT5 INVEST — DEPOSIT LIFECYCLE EMAILS
 # ══════════════════════════════════════════════════════════════════════

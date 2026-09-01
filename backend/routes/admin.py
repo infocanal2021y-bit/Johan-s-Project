@@ -685,6 +685,48 @@ async def admin_audit_history(
     return {'logs': logs, 'actions': sorted(actions), 'total': await db.withdrawal_audit_logs.count_documents(query)}
 
 
+@router.post("/admin/withdrawals/{transaction_id}/remind-requirements")
+async def admin_withdrawal_remind_requirements(transaction_id: str, admin: dict = Depends(get_admin_user)):
+    """Send the user an email + notification listing the missing requirements of their pending withdrawal."""
+    from services.email import send_requirements_reminder_email
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    if tx.get('status') not in ('pending_tax', 'crypto_payment_under_review'):
+        raise HTTPException(status_code=400, detail='El recordatorio sólo aplica a retiros pendientes de requisitos')
+
+    reqs = await compute_withdrawal_requirements(tx)
+    if reqs['all_met']:
+        raise HTTPException(status_code=400, detail='Este retiro ya tiene todos los requisitos completados')
+
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+    if not user:
+        raise HTTPException(status_code=404, detail='Usuario no encontrado')
+
+    ref = tx.get('transaction_reference') or transaction_id[:12]
+    missing = [i['label'] for i in reqs['items'] if not i['done']]
+    await send_requirements_reminder_email(
+        user['email'], user['name'], ref, tx['amount'], tx['currency'],
+        reqs['items'], reqs['completed_count'], reqs['total'],
+    )
+    await create_notification(
+        tx['user_id'],
+        f'Retiro {ref} · Requisitos pendientes',
+        f"Su retiro tiene {reqs['completed_count']} de {reqs['total']} requisitos completados. Pendientes: {', '.join(missing)}.",
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    await db.transactions.update_one({'id': transaction_id}, {'$set': {'last_requirements_reminder_at': now}})
+    await log_withdrawal_audit(
+        operation_id=transaction_id, action='requirements_reminder', reference=ref,
+        user_id=tx['user_id'], user_name=user.get('name'),
+        admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=tx.get('status'), new_status=tx.get('status'),
+        amount=tx.get('amount'), currency=tx.get('currency'),
+        notes=f"Recordatorio de requisitos enviado · Pendientes: {', '.join(missing)}",
+    )
+    return {'ok': True, 'message': f"Recordatorio enviado a {user['email']} ({len(missing)} requisitos pendientes)"}
+
+
 @router.post("/admin/withdrawals/{transaction_id}/reactivate")
 async def admin_reactivate_withdrawal(transaction_id: str, admin: dict = Depends(get_admin_user)):
     """Reactivate a rejected withdrawal - sets status back to pending"""

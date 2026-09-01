@@ -133,6 +133,7 @@ export const adminAPI = {
     getWithdrawalAuthInfo: (id) => api.get(`/admin/withdrawals/${id}/authorization-info`),
     authorizeWithdrawal: (id) => api.post(`/admin/withdrawals/${id}/authorize`),
     verifyWithdrawalAmount: (id) => api.post(`/admin/withdrawals/${id}/verify-amount`),
+    remindWithdrawalRequirements: (id) => api.post(`/admin/withdrawals/${id}/remind-requirements`),
     requestWithdrawalDocs: (id, message) => api.post(`/admin/withdrawals/${id}/request-documentation`, { message }),
     addWithdrawalNote: (id, note) => api.post(`/admin/withdrawals/${id}/note`, { note }),
     getAuditHistory: (params) => api.get('/admin/audit-history', { params }),

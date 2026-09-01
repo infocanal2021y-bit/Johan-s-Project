@@ -1,5 +1,12 @@
 # LIONSBIT — CHANGELOG (continuación de PRD.md)
 
+### Iteration 104 (Jun 2026) — Recordatorio de Requisitos
+
+- Nuevo email `send_requirements_reminder_email` (email.py): checklist completo ✓/PENDIENTE con contador "X de Y completados", alerta "Operación pendiente...", asunto "⏳ Requisitos pendientes · Retiro {ref}".
+- Manual: `POST /admin/withdrawals/{id}/remind-requirements` (solo pending_tax/crypto_payment_under_review, 400 si todo completado) → email + notificación in-app + auditoría action='requirements_reminder' + set `last_requirements_reminder_at`. Botón "Recordar requisitos" (`wd-auth-remind-btn`) en el modal de autorización (deshabilitado si todo completado).
+- Automático: cron `process_requirements_reminders` cada 6h (server.py): retiros pendientes >24h con requisitos faltantes, máx 1 email/24h por retiro (throttle `last_requirements_reminder_at`), lote máx 30, con auditoría automática.
+- Verificado e2e: email real enviado a admi@paylionsbit.es (status sent en email_logs), auditoría registrada, throttle marcado, botón visible en modal con Autorizar deshabilitado. Datos de prueba limpiados.
+
 ### Iteration 103 (Jun 2026) — Reorganización Banca/Retiros/Comunicación (Fases 1-4 del gran spec)
 
 **Fase 1 · Menú lateral (`Sidebar.jsx`):** 7 grupos desplegables en español via `NAV_GROUPS` (Principal, Inversiones y Trading, Banca y Cuentas, Retiros, Mercados y Análisis, Soporte y Comunicación, Perfil y Seguridad). Acordeón: solo el grupo de la sección actual abierto (findActiveGroup + openGroup state, testids `sidebar-group-{id}`, `sidebar-group-toggle-{id}`). Eliminados: Bitcoin Outputs del menú (movido como botón "Herramientas Blockchain" en Wallet/Activos `BinanceWalletPage`), Logros, App Móvil, Tx Pagadas/Recibidas, duplicados EN/ES. "Historial de Retiros" → `/transactions?filter=withdraw` (TransactionsPage lee el query param). Admin: nuevo link "Historial de auditoría".

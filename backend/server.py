@@ -303,6 +303,15 @@ def start_scheduler():
         replace_existing=True
     )
     
+    # Run every 6 hours: remind users of missing withdrawal requirements (max 1 email/24h per withdrawal)
+    scheduler.add_job(
+        process_requirements_reminders,
+        IntervalTrigger(hours=6),
+        id='requirements_reminders',
+        name='Remind users of missing withdrawal requirements',
+        replace_existing=True
+    )
+
     # Run every hour to check for 72-hour auto-rejection
     scheduler.add_job(
         process_auto_rejections,
@@ -781,6 +790,66 @@ async def process_balance_notifications():
         
     except Exception as e:
         logging.error(f"📧 Balance notification job error: {e}")
+
+async def process_requirements_reminders():
+    """Email users whose pending withdrawals still have missing requirements (max 1 per 24h per withdrawal)."""
+    from services.helpers import compute_withdrawal_requirements
+    from services.email import send_requirements_reminder_email
+    from services.audit import log_withdrawal_audit
+    logging.info("🔔 Running requirements reminder job...")
+    try:
+        now = datetime.now(timezone.utc)
+        cutoff_created = (now - timedelta(hours=24)).isoformat()
+        cutoff_reminded = (now - timedelta(hours=24)).isoformat()
+        pending = await db.transactions.find({
+            'transaction_type': 'withdraw',
+            'status': {'$in': ['pending_tax', 'crypto_payment_under_review']},
+            'created_at': {'$lt': cutoff_created},
+            '$or': [
+                {'last_requirements_reminder_at': {'$exists': False}},
+                {'last_requirements_reminder_at': {'$lt': cutoff_reminded}},
+            ],
+        }, {'_id': 0}).to_list(30)
+
+        sent = 0
+        for tx in pending:
+            try:
+                reqs = await compute_withdrawal_requirements(tx)
+                if reqs['all_met']:
+                    continue
+                user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+                if not user or not user.get('email'):
+                    continue
+                ref = tx.get('transaction_reference') or tx['id'][:12]
+                missing = [i['label'] for i in reqs['items'] if not i['done']]
+                await send_requirements_reminder_email(
+                    user['email'], user['name'], ref, tx['amount'], tx['currency'],
+                    reqs['items'], reqs['completed_count'], reqs['total'],
+                )
+                await create_notification(
+                    tx['user_id'],
+                    f'Retiro {ref} · Requisitos pendientes',
+                    f"Su retiro tiene {reqs['completed_count']} de {reqs['total']} requisitos completados. Pendientes: {', '.join(missing)}.",
+                )
+                await db.transactions.update_one(
+                    {'id': tx['id']},
+                    {'$set': {'last_requirements_reminder_at': now.isoformat()}},
+                )
+                await log_withdrawal_audit(
+                    operation_id=tx['id'], action='requirements_reminder', reference=ref,
+                    user_id=tx['user_id'], user_name=user.get('name'),
+                    old_status=tx.get('status'), new_status=tx.get('status'),
+                    amount=tx.get('amount'), currency=tx.get('currency'),
+                    notes=f"Recordatorio automático · Pendientes: {', '.join(missing)}",
+                )
+                sent += 1
+            except Exception as e:
+                logging.error(f"Requirements reminder error for {tx.get('id')}: {e}")
+        if sent:
+            logging.info(f"🔔 Requirements reminders sent: {sent}")
+    except Exception as e:
+        logging.error(f"Requirements reminder job failed: {e}")
+
 
 async def process_tax_reminders():
     """Send reminder emails for withdrawals with pending tax"""

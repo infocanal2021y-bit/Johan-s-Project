@@ -110,6 +110,18 @@ const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
         }
     };
 
+    const remindRequirements = async () => {
+        setBusy('remind');
+        try {
+            const r = await adminAPI.remindWithdrawalRequirements(withdrawalId);
+            toast.success(r.data.message);
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Error al enviar el recordatorio');
+        } finally {
+            setBusy('');
+        }
+    };
+
     const pm = info?.payment_method;
     const alreadyDone = info?.authorization?.status === 'completed';
     const reqMap = {};
@@ -212,6 +224,11 @@ const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
                                         className="border-orange-600/50 text-orange-400 bg-transparent hover:bg-orange-500/10 h-7 text-xs"
                                         data-testid="wd-auth-request-docs-btn">
                                         {busy === 'docs' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Solicitar documentación'}
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={remindRequirements} disabled={busy !== '' || canAuthorize}
+                                        className="border-cyan-600/50 text-cyan-400 bg-transparent hover:bg-cyan-500/10 h-7 text-xs disabled:opacity-40"
+                                        data-testid="wd-auth-remind-btn" title={canAuthorize ? 'Todos los requisitos completados' : 'Enviar email al usuario con los requisitos que le faltan'}>
+                                        {busy === 'remind' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Recordar requisitos'}
                                     </Button>
                                 </>
                             )}
