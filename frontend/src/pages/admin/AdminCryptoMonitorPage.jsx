@@ -4,7 +4,7 @@ import api from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import { StatusPill } from '../../components/crypto/CryptoPaymentMonitor';
-import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX, Bell, ArrowUpCircle } from 'lucide-react';
+import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX, Bell, ArrowUpCircle, Mail } from 'lucide-react';
 
 const playAlert = (kind) => {
     try {
@@ -115,6 +115,21 @@ export default function AdminCryptoMonitorPage() {
         }
     };
 
+    const [sendingSummary, setSendingSummary] = useState(false);
+    const sendSummary = async () => {
+        setSendingSummary(true);
+        try {
+            const { data: res } = await api.post('/admin/crypto-monitor/daily-summary/send');
+            toast.success('Resumen cripto enviado al email del admin', {
+                description: `${res.payments} pagos · €${(res.total_eur || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} detectados en 24h`,
+            });
+        } catch (e) {
+            toast.error(e.response?.data?.detail || 'Error al enviar el resumen');
+        } finally {
+            setSendingSummary(false);
+        }
+    };
+
     const resolve = async (id, action) => {
         setResolving(id + action);
         try {
@@ -156,6 +171,12 @@ export default function AdminCryptoMonitorPage() {
                             className={`border ${soundOn ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20' : 'border-slate-700 text-slate-400 bg-slate-900 hover:bg-slate-800'}`}
                             data-testid="sound-toggle-btn" title={soundOn ? 'Alertas sonoras activadas' : 'Alertas sonoras silenciadas'}>
                             {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                        </Button>
+                        <Button onClick={sendSummary} disabled={sendingSummary} variant="outline"
+                            className="border border-violet-500/40 text-violet-300 bg-violet-500/10 hover:bg-violet-500/20" data-testid="send-summary-btn"
+                            title="Enviar resumen diario al email del admin ahora">
+                            {sendingSummary ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                            Enviar resumen
                         </Button>
                         <Button onClick={runCheck} disabled={checking} className="bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25" data-testid="run-check-btn">
                             {checking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}

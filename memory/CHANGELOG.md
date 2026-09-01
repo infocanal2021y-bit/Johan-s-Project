@@ -45,3 +45,9 @@
 **Testing:** testing_agent iteración 71 — backend 17 passed/1 skipped (pytest /app/backend/tests/test_iter71_withdrawal_authorization.py), frontend completo OK (acordeón, auditoría, bloques, modal, withdraw crypto-only, FX2026 sin click). Sin regresiones.
 
 **PENDIENTE (Fase 5, próxima sesión):** Seguridad adicional — 2FA opcional, registro de sesiones, historial de dispositivos, aviso de nuevo login, cierre remoto de sesiones, verificación reforzada + bloqueo de cambios bancarios con retiro en proceso.
+
+## Sep 1, 2026 — Resumen Diario Cripto
+- Nuevo job APScheduler `daily_crypto_summary` (cada 24h): email al admin (`ADMIN_EMAIL`) con pagos cripto detectados en 24h — conteo, total EUR, confirmados, desglose por moneda y tabla detalle (moneda, monto, EUR, wallet origen, TXID, estado, usuario).
+- Función `send_daily_crypto_summary()` en `/app/backend/routes/crypto_monitor.py` + endpoint manual `POST /api/admin/crypto-monitor/daily-summary/send`.
+- Botón "Enviar resumen" (violeta, `send-summary-btn`) en AdminCryptoMonitorPage junto a "Verificar blockchain ahora".
+- Verificado: envío real vía Resend con pago de prueba (€4.850 agregado correctamente) + UI screenshot OK. Dato de prueba limpiado.

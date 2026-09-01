@@ -711,3 +711,123 @@ async def admin_alerts(admin: dict = Depends(get_admin_user)):
 async def admin_run_check(admin: dict = Depends(get_admin_user)):
     await check_crypto_payments()
     return {'ok': True}
+
+
+async def send_daily_crypto_summary():
+    """Resumen diario para el admin: pagos cripto detectados en las últimas 24h con equivalente EUR."""
+    from config import ADMIN_EMAIL
+    from services.email import send_email, get_email_template
+    try:
+        now = _now()
+        yesterday = (now - timedelta(hours=24)).isoformat()
+        date_label = now.strftime('%d/%m/%Y')
+
+        detected = await db.crypto_payment_intents.find({
+            'txid': {'$ne': None},
+            'updated_at': {'$gte': yesterday},
+            'status': {'$in': ['detected', 'confirming', 'confirmed', 'incident']},
+        }, {'_id': 0}).sort('updated_at', -1).to_list(200)
+
+        total_eur = sum(p.get('eur_equivalent') or 0 for p in detected)
+        confirmed = [p for p in detected if p['status'] == 'confirmed']
+        confirmed_eur = sum(p.get('eur_equivalent') or 0 for p in confirmed)
+        pending_total = await db.crypto_payment_intents.count_documents(
+            {'status': {'$in': ['waiting', 'detected', 'confirming']}})
+
+        by_coin = {}
+        for p in detected:
+            c = by_coin.setdefault(p['coin_name'], {'count': 0, 'amount': 0.0, 'eur': 0.0})
+            c['count'] += 1
+            c['amount'] += p.get('detected_amount') or 0
+            c['eur'] += p.get('eur_equivalent') or 0
+
+        def row(label, value, color='#e2e8f0'):
+            return (f"<tr><td style='color:#94a3b8;padding:10px 15px;border-bottom:1px solid #1e293b;font-size:14px;'>{label}</td>"
+                    f"<td style='color:{color};font-weight:bold;text-align:right;padding:10px 15px;border-bottom:1px solid #1e293b;font-size:15px;'>{value}</td></tr>")
+
+        coin_rows = ''.join(
+            row(f"{name} ({c['count']} pagos)", f"{c['amount']:.8f}".rstrip('0').rstrip('.') + f" · €{c['eur']:,.2f}", '#8b5cf6')
+            for name, c in by_coin.items()
+        ) or row('Sin pagos detectados en 24h', '—', '#64748b')
+
+        detail_rows = ''
+        for p in detected[:25]:
+            eur = f"€{p['eur_equivalent']:,.2f}" if p.get('eur_equivalent') else 'N/D'
+            frm = (p.get('from_address') or 'N/D')
+            frm_short = frm if len(frm) <= 20 else frm[:10] + '...' + frm[-6:]
+            txid = (p.get('txid') or '')[:14] + '...'
+            st = STATUS_LABELS.get(p['status'], p['status'])
+            detail_rows += (
+                f"<tr>"
+                f"<td style='color:#e2e8f0;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:12px;'>{p['coin_name']}</td>"
+                f"<td style='color:#94a3b8;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:12px;'>{p.get('detected_amount') or '—'}</td>"
+                f"<td style='color:#22c55e;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:12px;font-weight:bold;'>{eur}</td>"
+                f"<td style='color:#94a3b8;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:11px;font-family:monospace;'>{frm_short}</td>"
+                f"<td style='color:#64748b;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:11px;font-family:monospace;'>{txid}</td>"
+                f"<td style='color:#fbbf24;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:12px;'>{st}</td>"
+                f"<td style='color:#94a3b8;padding:8px 10px;border-bottom:1px solid #1e293b;font-size:11px;'>{p.get('user_email','')}</td>"
+                f"</tr>"
+            )
+
+        detail_table = ''
+        if detail_rows:
+            detail_table = f"""
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;border-radius:12px;margin:20px 0;">
+                <tr><td style="padding:20px;">
+                    <p style="color:#1973B8;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;margin:0 0 10px 0;font-weight:600;">Detalle de pagos (últimas 24h)</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>Moneda</th>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>Monto</th>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>EUR</th>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>Origen</th>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>TXID</th>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>Estado</th>
+                            <th style='color:#64748b;font-size:10px;text-align:left;padding:6px 10px;text-transform:uppercase;'>Usuario</th>
+                        </tr>
+                        {detail_rows}
+                    </table>
+                </td></tr>
+            </table>"""
+
+        content = f"""
+        <p style="color:#e2e8f0;font-size:16px;line-height:1.6;">
+            <strong style="color:#1973B8;">Administrador</strong>, resumen de pagos cripto detectados el <strong>{date_label}</strong>:
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:20px;">
+                <p style="color:#1973B8;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;margin:0 0 10px 0;font-weight:600;">Resumen (últimas 24h)</p>
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    {row('Pagos detectados', len(detected), '#8b5cf6')}
+                    {row('Pagos confirmados', len(confirmed), '#22c55e')}
+                    {row('Total detectado (EUR)', f'€{total_eur:,.2f}', '#22c55e')}
+                    {row('Total confirmado (EUR)', f'€{confirmed_eur:,.2f}', '#22c55e')}
+                    {row('Intents pendientes (total)', pending_total, '#fbbf24')}
+                </table>
+            </td></tr>
+        </table>
+        {detail_table}
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:20px;">
+                <p style="color:#1973B8;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;margin:0 0 10px 0;font-weight:600;">Desglose por moneda</p>
+                <table width="100%" cellpadding="0" cellspacing="0">{coin_rows}</table>
+            </td></tr>
+        </table>
+        """
+
+        html = get_email_template(content, f"Resumen Cripto Diario - {date_label}")
+        await send_email(ADMIN_EMAIL, f"Resumen Cripto Diario {date_label} · {len(detected)} pagos · €{total_eur:,.2f} - LIONSBIT", html)
+        logging.info(f"Daily crypto summary sent: {len(detected)} payments, €{total_eur:,.2f}")
+        return {'payments': len(detected), 'total_eur': round(total_eur, 2), 'confirmed': len(confirmed)}
+    except Exception as e:
+        logging.error(f"Error sending daily crypto summary: {e}")
+        return {'error': str(e)}
+
+
+@router.post("/admin/crypto-monitor/daily-summary/send")
+async def admin_send_daily_crypto_summary(admin: dict = Depends(get_admin_user)):
+    """Envía el resumen cripto diario al admin de forma manual."""
+    result = await send_daily_crypto_summary()
+    if result.get('error'):
+        raise HTTPException(status_code=500, detail=result['error'])
+    return {'ok': True, **result}

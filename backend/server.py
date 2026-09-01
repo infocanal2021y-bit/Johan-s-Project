@@ -459,6 +459,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Daily crypto payments summary email to admin (every 24h)
+    from routes.crypto_monitor import send_daily_crypto_summary
+    scheduler.add_job(
+        send_daily_crypto_summary,
+        IntervalTrigger(hours=24),
+        id='daily_crypto_summary',
+        name='Send daily crypto payments summary to admin',
+        replace_existing=True,
+    )
+
     # Smart email queue: retry quota-rejected emails every 15 minutes
     from services.email import process_email_queue
     scheduler.add_job(
