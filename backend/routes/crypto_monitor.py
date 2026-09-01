@@ -18,8 +18,13 @@ COINS = {
     'BTC': {'enabled': True, 'required_conf': 2, 'explorer': 'https://mempool.space/tx/'},
     'BTC_LEGACY': {'enabled': True, 'required_conf': 2, 'explorer': 'https://mempool.space/tx/'},
     'USDT': {'enabled': True, 'required_conf': 19, 'explorer': 'https://tronscan.org/#/transaction/'},
-    'ETH': {'enabled': False, 'required_conf': 12, 'explorer': 'https://etherscan.io/tx/'},
-    'BNB': {'enabled': False, 'required_conf': 12, 'explorer': 'https://bscscan.com/tx/'},
+    'ETH': {'enabled': True, 'required_conf': 12, 'explorer': 'https://etherscan.io/tx/'},
+    'BNB': {'enabled': True, 'required_conf': 12, 'explorer': 'https://bscscan.com/tx/'},
+}
+
+EVM_RPC = {
+    'ETH': ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://rpc.ankr.com/eth'],
+    'BNB': ['https://bsc-rpc.publicnode.com', 'https://bsc-dataseed.binance.org', 'https://bsc-dataseed1.defibit.io'],
 }
 AMOUNT_TOLERANCE = 0.01
 INTENT_TTL_HOURS = 24
@@ -164,6 +169,78 @@ async def _fetch_btc_txs(client: httpx.AsyncClient, address: str):
         ts = st.get('block_time') or int(_now().timestamp())
         out.append({'txid': tx['txid'], 'amount': amount, 'time': ts, 'confirmations': conf})
     return out
+
+
+async def _fetch_eth_txs(client: httpx.AsyncClient, address: str):
+    """Incoming native ETH txs for an address via Blockscout public API (no key)."""
+    r = await client.get(
+        'https://eth.blockscout.com/api',
+        params={'module': 'account', 'action': 'txlist', 'address': address, 'sort': 'desc', 'page': 1, 'offset': 50},
+    )
+    r.raise_for_status()
+    data = r.json()
+    if str(data.get('status')) != '1' or not isinstance(data.get('result'), list):
+        return []
+    out = []
+    for tx in data['result']:
+        if (tx.get('to') or '').lower() != address.lower():
+            continue
+        if str(tx.get('isError', '0')) != '0':
+            continue
+        amount = int(tx.get('value') or 0) / 1e18
+        if amount <= 0:
+            continue
+        out.append({
+            'txid': tx['hash'],
+            'amount': amount,
+            'time': int(tx.get('timeStamp') or _now().timestamp()),
+            'confirmations': int(tx.get('confirmations') or 0),
+        })
+    return out
+
+
+async def _evm_rpc(client: httpx.AsyncClient, coin: str, method: str, params: list):
+    """JSON-RPC call with public endpoint fallback."""
+    last_err = None
+    for url in EVM_RPC[coin]:
+        try:
+            r = await client.post(url, json={'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params})
+            r.raise_for_status()
+            body = r.json()
+            if 'result' in body:
+                return body['result']
+            last_err = body.get('error')
+        except Exception as e:
+            last_err = e
+    raise RuntimeError(f'EVM RPC failed for {coin} {method}: {last_err}')
+
+
+async def _fetch_evm_tx_by_hash(client: httpx.AsyncClient, coin: str, txid: str, address: str):
+    """Verify a declared ETH/BNB TxID directly on-chain via public RPC.
+    Returns candidate dict, or {'error': 'wrong_address'|'failed_tx'|'not_found'}."""
+    txid = txid if txid.startswith('0x') else f'0x{txid}'
+    tx = await _evm_rpc(client, coin, 'eth_getTransactionByHash', [txid])
+    if not tx:
+        return {'error': 'not_found'}
+    if (tx.get('to') or '').lower() != address.lower():
+        return {'error': 'wrong_address'}
+    amount = int(tx.get('value') or '0x0', 16) / 1e18
+    conf = 0
+    ts = int(_now().timestamp())
+    if tx.get('blockNumber'):
+        receipt = await _evm_rpc(client, coin, 'eth_getTransactionReceipt', [txid])
+        if receipt and receipt.get('status') is not None and int(receipt['status'], 16) != 1:
+            return {'error': 'failed_tx'}
+        latest = int(await _evm_rpc(client, coin, 'eth_blockNumber', []), 16)
+        block_num = int(tx['blockNumber'], 16)
+        conf = max(0, latest - block_num + 1)
+        try:
+            block = await _evm_rpc(client, coin, 'eth_getBlockByNumber', [tx['blockNumber'], False])
+            if block and block.get('timestamp'):
+                ts = int(block['timestamp'], 16)
+        except Exception:
+            pass
+    return {'txid': txid, 'amount': amount, 'time': ts, 'confirmations': conf}
 
 
 async def _fetch_usdt_txs(client: httpx.AsyncClient, address: str):
@@ -454,11 +531,48 @@ async def _run_check():
                     candidates_by_addr[(coin, addr)] = await _fetch_btc_txs(client, addr)
                 elif coin == 'USDT':
                     candidates_by_addr[(coin, addr)] = await _fetch_usdt_txs(client, addr)
+                elif coin == 'ETH':
+                    candidates_by_addr[(coin, addr)] = await _fetch_eth_txs(client, addr)
+                elif coin == 'BNB':
+                    candidates_by_addr[(coin, addr)] = []  # BSC address scan needs key; TxID verified via RPC below
                 else:
                     candidates_by_addr[(coin, addr)] = []
             except Exception as e:
                 logging.warning(f'crypto monitor: fetch failed for {coin} {addr}: {e}')
                 candidates_by_addr[(coin, addr)] = None
+
+        # EVM direct TxID verification (ETH/BNB): look up declared hashes on-chain via public RPC
+        for it in intents:
+            if it['coin'] not in ('ETH', 'BNB'):
+                continue
+            target = it.get('txid') or it.get('declared_txid')
+            if not target:
+                continue
+            key = (it['coin'], it['address'])
+            cands = candidates_by_addr.get(key) or []
+            norm = target if target.startswith('0x') else f'0x{target}'
+            if any(c['txid'].lower() == norm.lower() for c in cands):
+                continue
+            try:
+                res = await _fetch_evm_tx_by_hash(client, it['coin'], target, it['address'])
+            except Exception as e:
+                logging.warning(f'crypto monitor: EVM lookup failed for {it["coin"]} {target[:16]}: {e}')
+                continue
+            if res.get('error') == 'wrong_address':
+                await _flag_incident(it, 'wrong_address',
+                                     f"El TXID {norm[:18]}... no corresponde a una transferencia hacia nuestra wallet {it['address'][:12]}...")
+                it['status'] = 'incident'
+            elif res.get('error') == 'failed_tx':
+                await _flag_incident(it, 'failed_tx',
+                                     f"La transacción {norm[:18]}... falló en blockchain (status 0)")
+                it['status'] = 'incident'
+            elif not res.get('error'):
+                # normalize candidate txid to the declared value so exact matching works
+                res['txid'] = it.get('txid') or it.get('declared_txid')
+                if norm != res['txid'] and not res['txid'].startswith('0x'):
+                    res['txid'] = norm
+                candidates_by_addr[key] = cands + [dict(res, txid=it.get('txid') or it.get('declared_txid'))]
+        intents = [i for i in intents if i['status'] in ACTIVE_STATUSES]
 
     used_txids = set()
     async for doc in db.crypto_payment_intents.find(

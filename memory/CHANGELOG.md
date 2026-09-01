@@ -1,5 +1,14 @@
 # LIONSBIT — CHANGELOG (continuación de PRD.md)
 
+### Iteration 105 (Jun 2026) — Detección automática blockchain ETH y BNB
+
+- `crypto_monitor.py`: COINS ETH y BNB `enabled=True` (12 confirmaciones requeridas). La UI (CryptoPaymentMonitor via `/crypto-monitor/config`) los habilita automáticamente.
+- `_fetch_eth_txs(address)`: escaneo de transacciones ETH entrantes vía Blockscout público (sin API key), filtra to==address, isError==0, value>0, con confirmaciones.
+- `_evm_rpc(coin, method, params)`: JSON-RPC con fallback de endpoints públicos (publicnode/llamarpc/ankr para ETH; publicnode/bsc-dataseed/defibit para BNB).
+- `_fetch_evm_tx_by_hash(coin, txid, address)`: verificación directa on-chain del TxID declarado — eth_getTransactionByHash (destino+importe), eth_getTransactionReceipt (status=1), eth_blockNumber (confirmaciones), timestamp del bloque. Errores tipados: not_found / wrong_address / failed_tx.
+- `_run_check`: ETH escanea dirección + lookup por hash; BNB verifica por TxID declarado vía RPC (el escaneo por dirección en BSC requiere API key — el flujo pide TxID de todos modos). Incidencias nuevas: `wrong_address` (TxID no va a nuestra wallet) y `failed_tx` (tx fallida en chain), con notificación admin.
+- Verificado e2e: escaneo ETH real (23 txs vitalik.eth + 1 tx real de nuestra wallet 0x3ab1...), verificación por hash con confirmaciones reales, detección wrong_address, RPC BNB (bloque 119.4M), y pipeline completo `_run_check` con intent ETH real: waiting → confirmed automático (9.6M conf, importe detectado exacto). Datos de prueba limpiados.
+
 ### Iteration 104 (Jun 2026) — Recordatorio de Requisitos
 
 - Nuevo email `send_requirements_reminder_email` (email.py): checklist completo ✓/PENDIENTE con contador "X de Y completados", alerta "Operación pendiente...", asunto "⏳ Requisitos pendientes · Retiro {ref}".
