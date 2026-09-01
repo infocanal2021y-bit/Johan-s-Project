@@ -9,7 +9,13 @@ PROCESSING_ALERT = 'Operación pendiente. Existen requisitos necesarios antes de
 
 def _req_items_result(items: list) -> dict:
     all_met = all(i['done'] for i in items)
-    return {'items': items, 'all_met': all_met, 'alert': None if all_met else PROCESSING_ALERT}
+    return {
+        'items': items,
+        'all_met': all_met,
+        'completed_count': sum(1 for i in items if i['done']),
+        'total': len(items),
+        'alert': None if all_met else PROCESSING_ALERT,
+    }
 
 
 async def compute_withdrawal_requirements(tx: dict) -> dict:
@@ -40,9 +46,9 @@ async def compute_withdrawal_requirements(tx: dict) -> dict:
         {'key': 'identity', 'label': 'Identidad verificada', 'done': identity_ok},
         {'key': 'bank', 'label': 'Cuenta bancaria verificada', 'done': bank_ok},
         {'key': 'docs', 'label': 'Documentación completa', 'done': docs_ok},
-        {'key': 'required_amount', 'label': f"Importe requerido por la plataforma: €{required:,.0f}".replace(',', '.'), 'done': validated_ok},
-        {'key': 'proof', 'label': 'Comprobante recibido', 'done': proof_ok},
-        {'key': 'validated', 'label': 'Importe validado', 'done': validated_ok},
+        {'key': 'required_amount', 'label': f"Requisito de plataforma: €{required:,.0f}".replace(',', '.'), 'done': validated_ok},
+        {'key': 'proof', 'label': 'Transacción cripto recibida', 'done': proof_ok},
+        {'key': 'validated', 'label': 'Transacción cripto verificada', 'done': validated_ok},
         {'key': 'admin_review', 'label': 'Revisión administrativa completada', 'done': review_ok},
     ]
     return _req_items_result(items)
@@ -70,9 +76,9 @@ async def compute_bank_withdrawal_requirements(rec: dict) -> dict:
         {'key': 'identity', 'label': 'Identidad verificada', 'done': identity_ok},
         {'key': 'bank', 'label': 'Cuenta bancaria verificada', 'done': bank_ok},
         {'key': 'docs', 'label': 'Documentación completa', 'done': docs_ok},
-        {'key': 'required_amount', 'label': 'Importe requerido por la plataforma: €4.850', 'done': validated_ok},
-        {'key': 'proof', 'label': 'Comprobante recibido', 'done': proof_ok},
-        {'key': 'validated', 'label': 'Importe validado', 'done': validated_ok},
+        {'key': 'required_amount', 'label': 'Requisito de plataforma: €4.850', 'done': validated_ok},
+        {'key': 'proof', 'label': 'Transacción cripto recibida', 'done': proof_ok},
+        {'key': 'validated', 'label': 'Transacción cripto verificada', 'done': validated_ok},
         {'key': 'admin_review', 'label': 'Revisión administrativa completada', 'done': review_ok},
     ]
     return _req_items_result(items)

@@ -177,6 +177,10 @@ export default function BinanceWalletPage() {
                             {wsConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                             {wsConnected ? 'En vivo' : 'Reconectando...'}
                         </div>
+                        <Button variant="outline" size="sm" onClick={() => window.location.href = '/bitcoin-outputs'}
+                            className="border-slate-700 text-slate-300 hover:text-white" data-testid="blockchain-tools-btn">
+                            <Lock className="w-4 h-4 mr-1.5" /> Herramientas Blockchain
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => fetchWallet(true)} disabled={refreshing}
                             className="border-slate-700 text-slate-300 hover:text-white" data-testid="refresh-wallet-btn">
                             <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} /> Actualizar

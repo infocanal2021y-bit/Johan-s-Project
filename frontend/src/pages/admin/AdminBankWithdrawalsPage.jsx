@@ -63,6 +63,9 @@ const AuthorizationModal = ({ requestId, onClose, onDone }) => {
 
     const pm = info?.payment_method;
     const alreadyDone = info?.authorization?.status === 'completed';
+    const bankReqMap = {};
+    (info?.requirements?.items || []).forEach((i) => { bankReqMap[i.key] = i.done; });
+    const canAuthorizeBank = Boolean(bankReqMap.proof);
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" data-testid="admin-bank-wd-auth-modal">
@@ -154,11 +157,12 @@ const AuthorizationModal = ({ requestId, onClose, onDone }) => {
                             {!alreadyDone && (
                                 <Button
                                     onClick={confirm}
-                                    disabled={busy}
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                                    disabled={busy || !canAuthorizeBank}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold disabled:opacity-40"
                                     data-testid="auth-modal-confirm-btn"
+                                    title={!canAuthorizeBank ? 'El usuario debe declarar la transacción cripto (TxID) antes de poder autorizar' : ''}
                                 >
-                                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Importe recibido y verificado'}
+                                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Autorizar procesamiento'}
                                 </Button>
                             )}
                         </div>
@@ -357,11 +361,19 @@ export const AdminBankWithdrawalsPage = () => {
                                                     {['received', 'conversion_done'].includes(it.status) && it.authorization_status !== 'completed' && (
                                                         <div className="mt-2 p-2 rounded-md bg-amber-50 border border-amber-200 max-w-[220px]" data-testid={`auth-block-${it.id}`}>
                                                             <p className="text-[10px] text-amber-800 leading-snug">
-                                                                Importe requerido para autorizar el retiro: <span className="font-bold">€{fmt(AUTH_REQUIRED_EUR, 0)}</span>
+                                                                Requisito de plataforma: <span className="font-bold">€{fmt(AUTH_REQUIRED_EUR, 0)}</span> · Abono cripto
                                                             </p>
                                                             <p className="text-[9.5px] font-bold uppercase tracking-wide text-amber-600 mt-0.5" data-testid={`auth-status-${it.id}`}>
                                                                 Pendiente de abono y verificación
                                                             </p>
+                                                            {it.requirements_completed != null && (
+                                                                <p className={`text-[9.5px] font-bold mt-0.5 ${it.requirements_completed >= (it.requirements_total || 7) - 1 ? 'text-emerald-600' : 'text-slate-500'}`} data-testid={`bank-req-count-${it.id}`}>
+                                                                    {it.requirements_completed} de {it.requirements_total || 7} requisitos completados
+                                                                </p>
+                                                            )}
+                                                            {it.crypto_proof_received && (
+                                                                <p className="text-[9.5px] font-bold text-cyan-600 mt-0.5">TxID recibido{it.crypto_verified ? ' · verificado' : ' · sin verificar'}</p>
+                                                            )}
                                                             <button
                                                                 onClick={() => setAuthFor(it.id)}
                                                                 className="mt-1.5 inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold transition-colors"

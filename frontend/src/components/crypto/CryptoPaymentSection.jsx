@@ -39,8 +39,8 @@ const PAYMENT_STATUS = {
     pending: { label: 'Pendiente', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/20' },
     confirming: { label: 'Confirmando', icon: Loader2, color: 'text-cyan-400', bg: 'bg-cyan-500/20', animate: true },
     confirmed: { label: 'Confirmado', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
-    under_review: { label: 'Comprobante enviado – Pendiente de revisión', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/20' },
-    approved: { label: 'Aprobado', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+    under_review: { label: 'Pago cripto recibido · Pendiente de confirmaciones', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/20' },
+    approved: { label: 'Pago cripto verificado', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     rejected: { label: 'Rechazado', icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/20' },
 };
 
@@ -270,11 +270,11 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 </div>
             )}
 
-            {/* Tax Progress */}
+            {/* Requisito de plataforma */}
             <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700 space-y-3">
-                <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">Progreso del Impuesto</span>
-                    <span className="text-white font-mono text-sm">${taxPaid.toFixed(2)} / ${taxRequired.toFixed(2)}</span>
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                    <span className="text-slate-400 text-sm">Requisito de plataforma · <span className="text-cyan-400 font-semibold">Método de abono cripto</span></span>
+                    <span className="text-white font-mono text-sm">€{taxPaid.toFixed(2)} / €{taxRequired.toFixed(2)}</span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-3">
                     <div 
@@ -286,17 +286,20 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="p-2 rounded-lg bg-slate-900/50">
                         <p className="text-xs text-slate-500">Requerido</p>
-                        <p className="text-orange-400 font-bold font-mono">${taxRequired.toFixed(2)}</p>
+                        <p className="text-orange-400 font-bold font-mono">€{taxRequired.toFixed(2)}</p>
                     </div>
                     <div className="p-2 rounded-lg bg-slate-900/50">
                         <p className="text-xs text-slate-500">Abonado</p>
-                        <p className="text-emerald-400 font-bold font-mono">${taxPaid.toFixed(2)}</p>
+                        <p className="text-emerald-400 font-bold font-mono">€{taxPaid.toFixed(2)}</p>
                     </div>
                     <div className="p-2 rounded-lg bg-slate-900/50">
                         <p className="text-xs text-slate-500">Restante</p>
-                        <p className="text-red-400 font-bold font-mono">${taxRemaining.toFixed(2)}</p>
+                        <p className="text-red-400 font-bold font-mono">€{taxRemaining.toFixed(2)}</p>
                     </div>
                 </div>
+                <p className="text-slate-500 text-[11px]">
+                    Concepto: Cargo de autorización y procesamiento del retiro · Método disponible: <span className="text-cyan-400 font-semibold">Criptomonedas únicamente</span>
+                </p>
             </div>
 
             {/* ── MAIN CTA: Pagar en cripto ───────────────────────── */}
@@ -308,7 +311,7 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                 <div className="relative flex items-center justify-center gap-3 rounded-[14px] bg-slate-950/90 group-hover:bg-slate-950/70 py-5 px-6 transition-colors">
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Bitcoin className="w-6 h-6 text-cyan-300 group-hover:scale-110 transition-transform" />
-                    <span className="text-white text-lg font-bold tracking-tight relative">Pagar en cripto</span>
+                    <span className="text-white text-lg font-bold tracking-tight relative">Completar requisito de retiro</span>
                     <ArrowRight className="w-5 h-5 text-cyan-300 group-hover:translate-x-1 transition-transform relative" />
                 </div>
             </button>
@@ -402,10 +405,10 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center shadow-[0_4px_16px_-2px_rgba(6,182,212,0.5)]">
                                     <Bitcoin className="w-5 h-5 text-slate-950" />
                                 </div>
-                                Pagar en cripto
+                                Completar requisito de retiro
                             </DialogTitle>
                         </DialogHeader>
-                        <p className="text-slate-400 text-[13px] mt-2">Selecciona la moneda y envía a la dirección indicada.</p>
+                        <p className="text-slate-400 text-[13px] mt-2">Método de abono cripto · Seleccione la moneda y envíe a la dirección indicada.</p>
                     </div>
 
                     <div className="p-6 space-y-5">
@@ -448,8 +451,16 @@ export const CryptoPaymentSection = ({ transaction, onPaymentSubmitted }) => {
                                     </div>
                                     <div className="p-3">
                                         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Monto a pagar</p>
-                                        <p className="text-white font-bold text-sm mt-0.5 font-mono">${taxRemaining.toFixed(2)} <span className="text-slate-500 text-[11px] font-sans">EUR</span></p>
+                                        <p className="text-white font-bold text-sm mt-0.5 font-mono">€{taxRemaining.toFixed(2)} <span className="text-slate-500 text-[11px] font-sans">EUR</span></p>
                                     </div>
+                                </div>
+
+                                {/* Network warning */}
+                                <div className="mx-4 mt-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-2" data-testid="network-warning">
+                                    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                                    <p className="text-red-300 text-[11px] leading-snug">
+                                        Envíe únicamente mediante la red <span className="font-bold">{currentWallet.network}</span>. Una transferencia realizada mediante una red incorrecta puede provocar la pérdida de los fondos.
+                                    </p>
                                 </div>
 
                                 {/* QR + Address */}

@@ -29,6 +29,7 @@ from services.email import (
     send_tax_payment_received_email, send_withdrawal_request_received_email
 )
 from services.helpers import get_daily_transfer_total, check_fraud_pattern, ensure_government_treasury, compute_withdrawal_requirements
+from services.audit import log_withdrawal_audit
 
 router = APIRouter()
 
@@ -128,6 +129,13 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
             currency=currency,
             tax_required=TAX_AMOUNT,
             tax_paid=0
+        )
+        await log_withdrawal_audit(
+            operation_id='', action='created', reference=transaction_reference,
+            user_id=current_user['id'], user_name=current_user['name'],
+            old_status=None, new_status='pending_tax',
+            amount=tx_data.amount, currency=currency, method='cripto',
+            notes='Solicitud de retiro recibida · Pendiente de requisitos previos al procesamiento',
         )
         
     elif tx_data.transaction_type == 'transfer':
@@ -836,7 +844,16 @@ async def submit_crypto_tax_payment(
     }
     
     await db.crypto_payments.insert_one(crypto_payment)
-    
+
+    await log_withdrawal_audit(
+        operation_id=transaction_id, action='crypto_txid_submitted', reference=transaction.get('transaction_reference'),
+        user_id=current_user['id'], user_name=current_user.get('name'),
+        old_status=transaction.get('status'), new_status='crypto_payment_under_review',
+        amount=float(payment.amount_sent or 0), currency='EUR', method='cripto',
+        txid=payment.txid, network=payment.network,
+        notes='TxID declarado por el usuario · Pago cripto recibido, pendiente de confirmaciones',
+    )
+
     # Update transaction status
     await db.transactions.update_one(
         {'id': transaction_id},

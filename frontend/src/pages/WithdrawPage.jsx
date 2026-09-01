@@ -1220,8 +1220,8 @@ export const WithdrawPage = () => {
                                     <p className="text-white font-semibold text-xs leading-snug pt-1">Cargo de autorización y procesamiento del retiro</p>
                                 </div>
                                 <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Método de pago</p>
-                                    <p className="text-white font-bold text-lg">Cripto <span className="text-xs text-slate-500 font-normal">BTC / USDT</span></p>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Método de abono cripto</p>
+                                    <p className="text-white font-bold text-lg">Cripto <span className="text-xs text-slate-500 font-normal">BTC / USDT / ETH / BNB</span></p>
                                 </div>
                                 <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-800/60">
                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Plazo de pago</p>
@@ -1230,7 +1230,10 @@ export const WithdrawPage = () => {
                             </div>
                             <p className="text-slate-400 text-xs mt-3 flex items-center gap-1.5">
                                 <Bitcoin className="w-3.5 h-3.5 text-amber-400" />
-                                Tras solicitar el retiro será dirigido a la pantalla de abono para completar el pago y subir su comprobante.
+                                El abono se realiza únicamente mediante criptomonedas. Tras solicitar el retiro será dirigido a la pantalla de abono para completar el pago e indicar el TxID de su transacción.
+                            </p>
+                            <p className="text-slate-500 text-[11px] mt-2 leading-relaxed">
+                                Condiciones: el importe corresponde al cargo único de autorización y procesamiento. Si el abono no se completa en 72 horas, la solicitud expira automáticamente y los fondos permanecen íntegros en su cuenta, sin cargos ni penalizaciones. La verificación se realiza mediante el TxID y la confirmación real de la transacción en blockchain.
                             </p>
                         </div>
                     </div>

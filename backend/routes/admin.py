@@ -23,6 +23,7 @@ from services.email import (
     send_tax_payment_received_email, _build_balance_email_content
 )
 from services.helpers import ensure_government_treasury, compute_withdrawal_requirements
+from services.audit import log_withdrawal_audit
 
 router = APIRouter()
 
@@ -329,7 +330,16 @@ async def admin_update_withdrawal_status(data: AdminUpdateWithdrawalStatus, admi
             status=data.status,
             reason=data.rejection_reason if data.status == 'rejected' else None
         )
-    
+
+    await log_withdrawal_audit(
+        operation_id=data.transaction_id, action='status_change', reference=tx.get('transaction_reference'),
+        user_id=tx['user_id'], user_name=(user or {}).get('name'),
+        admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=tx['status'], new_status=data.status,
+        amount=tx.get('amount'), currency=tx.get('currency'),
+        notes=data.rejection_reason if data.status == 'rejected' else status_messages[data.status],
+    )
+
     return {
         'message': f'Estado actualizado a: {status_messages[data.status]}',
         'transaction_id': data.transaction_id,
@@ -360,7 +370,20 @@ async def admin_get_all_withdrawals(admin: dict = Depends(get_admin_user)):
         }},
         {'$project': {'_id': 0, 'user_data': 0}}
     ]).to_list(1000)
-    
+
+    # Requirements progress for withdrawals awaiting the platform requirement
+    pending_reqs = [w for w in withdrawals if w.get('status') in ('pending_tax', 'crypto_payment_under_review')][:40]
+    for w in pending_reqs:
+        try:
+            reqs = await compute_withdrawal_requirements(w)
+            w['requirements_completed'] = reqs['completed_count']
+            w['requirements_total'] = reqs['total']
+            req_map = {i['key']: i['done'] for i in reqs['items']}
+            w['crypto_proof_received'] = req_map.get('proof', False)
+            w['crypto_verified'] = req_map.get('validated', False)
+        except Exception:
+            pass
+
     return withdrawals
 
 @router.get("/admin/withdrawals/{transaction_id}/details")
@@ -481,6 +504,12 @@ async def admin_withdrawal_authorize(transaction_id: str, admin: dict = Depends(
     if tx.get('status') not in ('pending_tax', 'crypto_payment_under_review'):
         raise HTTPException(status_code=400, detail=f"La autorización sólo aplica a retiros pendientes de abono (estado actual: {tx.get('status')})")
 
+    reqs = await compute_withdrawal_requirements(tx)
+    req_map = {i['key']: i['done'] for i in reqs['items']}
+    if not req_map.get('proof') or not req_map.get('validated'):
+        missing = [i['label'] for i in reqs['items'] if i['key'] in ('proof', 'validated') and not i['done']]
+        raise HTTPException(status_code=400, detail=f"No se puede autorizar: requisitos pendientes ({', '.join(missing)}). Verifique el TxID y el importe antes de autorizar.")
+
     now = datetime.now(timezone.utc).isoformat()
     required = float(tx.get('tax_required') or TAX_AMOUNT)
     ref = tx.get('transaction_reference') or transaction_id[:12]
@@ -534,7 +563,126 @@ async def admin_withdrawal_authorize(transaction_id: str, admin: dict = Depends(
         ))
 
     fresh = await db.transactions.find_one({'id': transaction_id}, {'_id': 0})
+    await log_withdrawal_audit(
+        operation_id=transaction_id, action='authorize', reference=ref,
+        user_id=tx['user_id'], user_name=(user or {}).get('name'),
+        admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=tx.get('status'), new_status='pending',
+        amount=tx.get('amount'), currency=tx.get('currency'), method='cripto',
+        notes=f"Abono de {required:,.2f} € recibido y verificado. Retiro autorizado para procesamiento.",
+    )
     return {'ok': True, 'transaction': fresh}
+
+
+@router.post("/admin/withdrawals/{transaction_id}/verify-amount")
+async def admin_withdrawal_verify_amount(transaction_id: str, admin: dict = Depends(get_admin_user)):
+    """Admin manually verifies the crypto amount (TxID reviewed). Marks linked crypto payments as approved."""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+
+    payment = await db.crypto_payments.find_one(
+        {'transaction_id': transaction_id}, {'_id': 0, 'id': 1, 'txid': 1, 'crypto_type': 1, 'network': 1, 'status': 1},
+        sort=[('submitted_at', -1)])
+    if not payment:
+        raise HTTPException(status_code=400, detail='No hay ninguna transacción cripto declarada (TxID) para este retiro')
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.crypto_payments.update_many(
+        {'transaction_id': transaction_id, 'status': {'$in': ['under_review', 'pending', 'confirming']}},
+        {'$set': {'status': 'approved', 'reviewed_at': now, 'reviewed_by': admin.get('name')}},
+    )
+    await create_notification(
+        tx['user_id'],
+        f"Retiro {tx.get('transaction_reference', '')} · Importe validado",
+        'Su transacción cripto fue verificada correctamente. El requisito de plataforma ha sido completado.',
+    )
+    await log_withdrawal_audit(
+        operation_id=transaction_id, action='verify_amount', reference=tx.get('transaction_reference'),
+        user_id=tx['user_id'], admin_id=admin.get('id'), admin_name=admin.get('name'),
+        amount=tx.get('tax_required') or TAX_AMOUNT, currency='EUR', method='cripto',
+        txid=payment.get('txid'), network=payment.get('network'),
+        notes='Importe cripto verificado manualmente por el administrador',
+    )
+    return {'ok': True, 'message': 'Importe verificado. La transacción cripto queda marcada como aprobada.'}
+
+
+@router.post("/admin/withdrawals/{transaction_id}/request-documentation")
+async def admin_withdrawal_request_documentation(transaction_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
+    """Admin requests missing documentation from the user."""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    message = (payload.get('message') or '').strip() or 'Para continuar con su retiro necesitamos que complete su documentación de identidad en la sección Verificación de Identidad.'
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.transactions.update_one({'id': transaction_id}, {'$set': {'documentation_requested_at': now, 'documentation_request_message': message}})
+    await create_notification(tx['user_id'], f"Retiro {tx.get('transaction_reference', '')} · Documentación pendiente", message)
+    user = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'name': 1, 'email': 1})
+    if user:
+        content = f"""
+            <p style="color: #e2e8f0; font-size: 16px;">Estimado/a <strong style="color:#7CB1E5;">{user['name']}</strong>,</p>
+            <p style="color: #e2e8f0; font-size: 15px; line-height: 1.6;">
+                En relación con su retiro <strong>{tx.get('transaction_reference', '')}</strong>, nuestro equipo requiere documentación adicional:
+            </p>
+            <div style="background:#0f172a;border-radius:12px;padding:18px 22px;margin:20px 0;color:#e2e8f0;font-size:14px;line-height:1.6;">{message}</div>
+            <p style="color: #94a3b8; font-size: 13px;">Puede completar su documentación desde la sección <strong>Verificación de Identidad</strong> de su panel.</p>
+        """
+        send_email_background(user['email'], f"Documentación pendiente · Retiro {tx.get('transaction_reference', '')} - LIONSBIT VERIFICACION",
+                              get_email_template(content, 'Documentación pendiente'))
+    await log_withdrawal_audit(
+        operation_id=transaction_id, action='request_documentation', reference=tx.get('transaction_reference'),
+        user_id=tx['user_id'], admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=tx.get('status'), new_status=tx.get('status'), notes=message,
+    )
+    return {'ok': True, 'message': 'Solicitud de documentación enviada al usuario'}
+
+
+@router.post("/admin/withdrawals/{transaction_id}/note")
+async def admin_withdrawal_add_note(transaction_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
+    """Add an internal admin note to a withdrawal (visible only to admins)."""
+    tx = await db.transactions.find_one({'id': transaction_id, 'transaction_type': 'withdraw'}, {'_id': 0, 'id': 1, 'transaction_reference': 1, 'user_id': 1, 'status': 1})
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    note = (payload.get('note') or '').strip()
+    if not note:
+        raise HTTPException(status_code=400, detail='La nota no puede estar vacía')
+    now = datetime.now(timezone.utc).isoformat()
+    await db.transactions.update_one(
+        {'id': transaction_id},
+        {'$push': {'internal_notes': {'note': note, 'admin_name': admin.get('name'), 'at': now}}},
+    )
+    await log_withdrawal_audit(
+        operation_id=transaction_id, action='internal_note', reference=tx.get('transaction_reference'),
+        user_id=tx['user_id'], admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=tx.get('status'), new_status=tx.get('status'), notes=note,
+    )
+    return {'ok': True}
+
+
+@router.get("/admin/audit-history")
+async def admin_audit_history(
+    limit: int = 200,
+    action: Optional[str] = None,
+    search: Optional[str] = None,
+    admin: dict = Depends(get_admin_user),
+):
+    """Immutable withdrawal audit trail (no deletion possible from the panel)."""
+    limit = max(1, min(limit, 500))
+    query: dict = {}
+    if action and action != 'all':
+        query['action'] = action
+    if search and search.strip():
+        term = re.escape(search.strip())
+        query['$or'] = [
+            {'reference': {'$regex': term, '$options': 'i'}},
+            {'user_name': {'$regex': term, '$options': 'i'}},
+            {'admin_name': {'$regex': term, '$options': 'i'}},
+            {'txid': {'$regex': term, '$options': 'i'}},
+        ]
+    logs = await db.withdrawal_audit_logs.find(query, {'_id': 0}).sort('created_at', -1).to_list(limit)
+    actions = await db.withdrawal_audit_logs.distinct('action')
+    return {'logs': logs, 'actions': sorted(actions), 'total': await db.withdrawal_audit_logs.count_documents(query)}
 
 
 @router.post("/admin/withdrawals/{transaction_id}/reactivate")

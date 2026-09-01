@@ -17,11 +17,11 @@ import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection'
 import { WithdrawalProgressBar } from '../components/WithdrawalProgressBar';
 
 const WD_STAGES = [
-    { status: 'pending_tax', label: 'Retiro solicitado · Pendiente de abono', color: '#f97316' },
-    { status: 'crypto_payment_under_review', label: 'Comprobante enviado · En revisión', color: '#06b6d4' },
-    { status: 'pending', label: 'Abono verificado · Retiro autorizado', color: '#1973B8' },
+    { status: 'pending_tax', label: 'Solicitud recibida · Pendiente de requisitos previos', color: '#f97316' },
+    { status: 'crypto_payment_under_review', label: 'Pago cripto recibido · Pendiente de confirmaciones', color: '#06b6d4' },
+    { status: 'pending', label: 'Pago verificado · Retiro autorizado para procesamiento', color: '#1973B8' },
     { status: 'transfer_in_progress', label: 'Transferencia en proceso', color: '#f59e0b' },
-    { status: 'completed', label: 'Retiro completado', color: '#10b981' },
+    { status: 'completed', label: 'Transferencia procesada · Retiro completado', color: '#10b981' },
 ];
 
 const fmtExact = (iso) => !iso ? null : new Date(iso).toLocaleString('es-ES', {
@@ -172,7 +172,9 @@ export const TransactionsPage = () => {
     const navigate = useNavigate();
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState(() =>
+        new URLSearchParams(window.location.search).get('filter') === 'withdraw' ? 'withdraw' : 'all'
+    );
     const [taxDialogOpen, setTaxDialogOpen] = useState(false);
     const [timelineTx, setTimelineTx] = useState(null);
     const [selectedTransaction, setSelectedTransaction] = useState(null);

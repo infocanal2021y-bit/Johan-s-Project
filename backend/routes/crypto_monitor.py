@@ -200,7 +200,18 @@ async def _fetch_usdt_txs(client: httpx.AsyncClient, address: str):
 
 async def _process_confirmed_intent(intent):
     """Auto-avanza el retiro asociado cuando el pago cripto se confirma."""
+    from services.audit import log_withdrawal_audit
     ctx = intent.get('context') or ''
+    await log_withdrawal_audit(
+        operation_id=ctx.split(':', 1)[1] if ':' in ctx else intent.get('id', ''),
+        action='crypto_confirmed', reference=ctx,
+        user_id=intent.get('user_id'),
+        old_status='confirming', new_status='confirmed',
+        amount=intent.get('detected_amount'), currency=intent.get('coin'),
+        method='cripto', txid=intent.get('txid') or intent.get('declared_txid'),
+        network=intent.get('network'),
+        notes='Transacción cripto confirmada en blockchain · Pago cripto verificado',
+    )
     if ctx.startswith('bankwithdrawal:'):
         await _advance_bank_withdrawal(intent, ctx.split(':', 1)[1])
         return

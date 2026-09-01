@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n/LanguageContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
@@ -75,10 +75,15 @@ import { messagesAPI } from '../../lib/api';
 export const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const t = useT();
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [accountsOpen, setAccountsOpen] = useState(false);
+    const [openGroup, setOpenGroup] = useState(null);
     const [unreadTickets, setUnreadTickets] = useState(0);
+
+    useEffect(() => {
+        setOpenGroup(null);
+    }, [location.pathname]);
 
     useEffect(() => {
         if (!user) return undefined;
@@ -109,53 +114,91 @@ export const Sidebar = () => {
         return null;
     };
 
-    // User links - split for blockchain insertion after Accounts
-    const userLinksTop = [
-        { to: '/command-center', icon: LayoutDashboard, label: 'Command Center', highlight: true },
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-        { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
-        { to: '/trading-bot', icon: Bot, label: 'Trading Bot' },
-        { to: '/mt5', icon: Landmark, label: 'MT5 Profesional' },
-        { to: '/investing-pro', icon: TrendingUp, label: 'InvestingPro' },
-        { to: '/advisors', icon: Users, label: 'Asesores y Analistas' },
-        { to: '/community', icon: Users, label: 'Comunidad' },
-    ];
-    const userLinksBottom = [
-        { to: '/transactions', icon: ClipboardList, label: 'Transactions' },
-        { to: '/bitcoin-outputs', icon: Hash, label: 'Bitcoin Outputs' },
-        { to: '/transfer', icon: ArrowLeftRight, label: 'Transfer' },
-        { to: '/withdraw', icon: Upload, label: 'Withdraw' },
-        { to: '/withdraw-methods', icon: CreditCard, label: 'Metodos de Retiro' },
-        { to: '/withdraw-methods#crypto-payments', icon: Bitcoin, label: 'Pagos con Criptomonedas' },
-        { to: '/binance-wallet', icon: Bitcoin, label: 'Wallet / Activos' },
-        { to: '/wallet/multi-currency', icon: Wallet, label: 'Cuenta Multidivisa' },
-        { to: '/wallet/bank-withdrawal', icon: Send, label: 'Retiro a Banco' },
-        { to: '/wallet/vault', icon: Boxes, label: 'Vault Blockchain' },
-        { to: '/mobile-app', icon: Smartphone, label: 'App Móvil · Próximamente' },
-        { to: '/cases', icon: FolderKanban, label: 'Mis Casos PLB' },
-        { to: '/messages', icon: MessageSquare, label: 'Centro de Mensajes', badge: unreadTickets },
-        { to: '/communications', icon: Megaphone, label: 'Comunicados Oficiales' },
-        { to: '/notifications', icon: Bell, label: 'Centro de Notificaciones' },
-        { to: '/achievements', icon: Trophy, label: 'Logros' },
-        { to: '/kyc', icon: BadgeCheck, label: 'Verification' },
-        { to: '/support', icon: HeadphonesIcon, label: 'Support' },
-        { to: '/settings', icon: Settings, label: 'Settings' },
+    // ── Grouped navigation (7 collapsible groups, only active section open) ──
+    const NAV_GROUPS = [
+        {
+            id: 'principal', label: 'Principal', icon: LayoutDashboard,
+            items: [
+                { to: '/command-center', icon: LayoutDashboard, label: 'Centro de Control' },
+                { to: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+                { to: '/community', icon: Users, label: 'Comunidad' },
+            ],
+        },
+        {
+            id: 'trading', label: 'Inversiones y Trading', icon: TrendingUp,
+            items: [
+                { to: '/trading-demo', icon: LineChart, label: 'Trading Demo' },
+                { to: '/trading-bot', icon: Bot, label: 'Trading Bot' },
+                { to: '/mt5', icon: Landmark, label: 'MT5 Profesional' },
+                { to: '/investing-pro', icon: TrendingUp, label: 'InvestingPro' },
+                { to: '/advisors', icon: Users, label: 'Asesores y Analistas' },
+                { to: '/portfolio', icon: PieChart, label: 'Portafolio' },
+                { to: '/investment-simulator', icon: Calculator, label: 'Proyecciones' },
+            ],
+        },
+        {
+            id: 'banca', label: 'Banca y Cuentas', icon: Wallet,
+            items: [
+                { to: '/accounts', icon: Wallet, label: 'Resumen de Cuentas' },
+                { to: '/transactions', icon: ClipboardList, label: 'Movimientos' },
+                { to: '/transfer', icon: ArrowLeftRight, label: 'Transferencias' },
+                { to: '/wallet/multi-currency', icon: Banknote, label: 'Cuenta Multidivisa' },
+                { to: '/binance-wallet', icon: Bitcoin, label: 'Wallet / Activos' },
+                { to: '/wallet/vault', icon: Boxes, label: 'Vault Blockchain' },
+            ],
+        },
+        {
+            id: 'retiros', label: 'Retiros', icon: Upload,
+            items: [
+                { to: '/withdraw', icon: Upload, label: 'Nuevo Retiro' },
+                { to: '/wallet/bank-withdrawal', icon: Send, label: 'Retiro a Banco' },
+                { to: '/withdraw-methods', icon: CreditCard, label: 'Métodos de Retiro' },
+                { to: '/transactions?filter=withdraw', icon: History, label: 'Historial de Retiros' },
+            ],
+        },
+        {
+            id: 'mercados', label: 'Mercados y Análisis', icon: CandlestickChart,
+            items: [
+                { to: '/realtime-market', icon: CandlestickChart, label: 'Mercado en Vivo' },
+                { to: '/crypto-market', icon: TrendingUp, label: 'Mercado Cripto' },
+                { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
+                { to: '/converter', icon: RefreshCw, label: 'Conversor' },
+                { to: '/investment-comparator', icon: Scale, label: 'Comparador' },
+                { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
+                { to: '/market-reports', icon: Newspaper, label: 'Reportes' },
+                { to: '/alerts', icon: Bell, label: 'Alertas' },
+            ],
+        },
+        {
+            id: 'soporte', label: 'Soporte y Comunicación', icon: MessageSquare,
+            items: [
+                { to: '/messages', icon: MessageSquare, label: 'Centro de Mensajes', badge: unreadTickets },
+                { to: '/notifications', icon: Bell, label: 'Notificaciones' },
+                { to: '/communications', icon: Megaphone, label: 'Comunicados Oficiales' },
+                { to: '/cases', icon: FolderKanban, label: 'Mis Casos PLB' },
+                { to: '/support', icon: HeadphonesIcon, label: 'Soporte' },
+                { to: '/status', icon: Activity, label: 'Estado de Servicios' },
+            ],
+        },
+        {
+            id: 'perfil', label: 'Perfil y Seguridad', icon: Shield,
+            items: [
+                { to: '/kyc', icon: BadgeCheck, label: 'Verificación de Identidad' },
+                { to: '/settings#security', icon: Shield, label: 'Seguridad de la Cuenta' },
+                { to: '/settings', icon: Settings, label: 'Configuración' },
+            ],
+        },
     ];
 
-    // Crypto/Finance links
-    const cryptoLinks = [
-        { to: '/realtime-market', icon: CandlestickChart, label: 'Mercado en Vivo' },
-        { to: '/crypto-market', icon: TrendingUp, label: 'Mercado Cripto' },
-        { to: '/converter', icon: RefreshCw, label: 'Conversor' },
-        { to: '/investment-simulator', icon: Calculator, label: 'Proyecciones' },
-        { to: '/portfolio', icon: PieChart, label: 'Portafolio' },
-        { to: '/alerts', icon: Bell, label: 'Alertas' },
-        { to: '/market-reports', icon: Newspaper, label: 'Reportes' },
-        { to: '/investment-comparator', icon: Scale, label: 'Comparador' },
-        { to: '/global-market-map', icon: Globe, label: 'Mapa Global' },
-        { to: '/live-news', icon: Radio, label: 'Noticias en Vivo' },
-        { to: '/status', icon: Activity, label: 'Estado de Servicios' },
-    ];
+    const findActiveGroup = () => {
+        const path = location.pathname;
+        for (const g of NAV_GROUPS) {
+            if (g.items.some((it) => it.to.split(/[?#]/)[0] === path)) return g.id;
+        }
+        if (path.startsWith('/wallet')) return 'banca';
+        if (path.startsWith('/withdraw')) return 'retiros';
+        return 'principal';
+    };
 
     const adminLinks = [
         { to: '/admin', icon: Shield, label: 'Panel Admin' },
@@ -172,6 +215,7 @@ export const Sidebar = () => {
         { to: '/admin/community-progress', icon: Activity, label: 'Avance Comunidad' },
         { to: '/admin/share-analytics', icon: Share2, label: 'Share Analytics' },
         { to: '/admin/admin-ops', icon: FileText, label: 'Auditoría Admin' },
+        { to: '/admin/audit-history', icon: History, label: 'Historial de auditoría' },
         { to: '/admin/system-status', icon: Server, label: 'System Status' },
         { to: '/admin/proofs', icon: ImageIcon, label: 'Comprobantes' },
         { to: '/admin/journey-analytics', icon: Activity, label: 'Journey Analytics' },
@@ -282,75 +326,45 @@ export const Sidebar = () => {
                 </div>
             </div>
 
-            {/* User Links */}
+            {/* User Links — grouped accordion */}
             <div className="flex-1 p-4 overflow-y-auto">
-                <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2" style={{ fontWeight: 600 }}>
-                    {t('Banca')}
-                </p>
-                <NavLinks links={userLinksTop} />
-
-                {/* Accounts Collapsible with Tx Pagadas / Tx Recibidas */}
-                <div className="space-y-0.5" data-testid="sidebar-accounts-group">
-                    <button
-                        onClick={() => setAccountsOpen(!accountsOpen)}
-                        data-testid="sidebar-accounts-toggle"
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md transition-colors duration-200 touch-manipulation ${
-                            accountsOpen
-                                ? 'bg-white/10 text-white'
-                                : 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10'
-                        }`}
-                    >
-                        <Wallet className="w-[18px] h-[18px] flex-shrink-0" />
-                        <span className="text-[13px] lg:text-sm flex-1 text-left" style={{ fontWeight: 500 }}>{t('Accounts')}</span>
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${accountsOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {accountsOpen && (
-                        <div className="ml-4 pl-4 border-l space-y-0.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }} data-testid="sidebar-accounts-submenu">
-                            <NavLink
-                                to="/accounts"
-                                onClick={() => setMobileOpen(false)}
-                                data-testid="sidebar-accounts-link"
-                                className={({ isActive }) =>
-                                    `flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors duration-200 ${
-                                        isActive
-                                            ? 'bg-white/10 text-white font-medium'
-                                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                                    }`
-                                }
-                            >
-                                <Wallet className="w-4 h-4 flex-shrink-0" />
-                                <span style={{ fontWeight: 500 }}>Mis Cuentas</span>
-                            </NavLink>
-                            <button
-                                onClick={() => window.open('https://gz.blockchair.com/bitcoin/inputs/', '_blank')}
-                                data-testid="sidebar-tx-paid-btn"
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-slate-300 hover:bg-white/5 hover:text-amber-300 transition-colors duration-200"
-                            >
-                                <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
-                                <span style={{ fontWeight: 500 }}>Tx Pagadas</span>
-                                <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
-                            </button>
-                            <button
-                                onClick={() => window.open('https://gz.blockchair.com/bitcoin/outputs/', '_blank')}
-                                data-testid="sidebar-tx-received-btn"
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-slate-300 hover:bg-white/5 hover:text-emerald-300 transition-colors duration-200"
-                            >
-                                <ArrowDownLeft className="w-4 h-4 flex-shrink-0" />
-                                <span style={{ fontWeight: 500 }}>Tx Recibidas</span>
-                                <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
-                            </button>
-                        </div>
-                    )}
+                <div className="space-y-1" data-testid="sidebar-nav-groups">
+                    {NAV_GROUPS.map((group) => {
+                        const activeGroupId = findActiveGroup();
+                        const isOpen = openGroup ? openGroup === group.id : activeGroupId === group.id;
+                        const groupHasActive = activeGroupId === group.id;
+                        const groupBadge = group.items.reduce((acc, it) => acc + (it.badge || 0), 0);
+                        return (
+                            <div key={group.id} data-testid={`sidebar-group-${group.id}`}>
+                                <button
+                                    onClick={() => setOpenGroup(isOpen ? '__none__' : group.id)}
+                                    data-testid={`sidebar-group-toggle-${group.id}`}
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md transition-colors duration-200 touch-manipulation ${
+                                        groupHasActive
+                                            ? 'text-white bg-white/[0.06]'
+                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                    }`}
+                                >
+                                    <group.icon className={`w-[17px] h-[17px] flex-shrink-0 ${groupHasActive ? 'text-cyan-300' : ''}`} />
+                                    <span className="text-[12px] uppercase tracking-[0.08em] flex-1 text-left" style={{ fontWeight: 600 }}>
+                                        {t(group.label)}
+                                    </span>
+                                    {groupBadge > 0 && !isOpen && (
+                                        <span className="min-w-[16px] h-[16px] px-1 rounded-full bg-cyan-500 text-black text-[9px] font-bold flex items-center justify-center">
+                                            {groupBadge > 9 ? '9+' : groupBadge}
+                                        </span>
+                                    )}
+                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {isOpen && (
+                                    <div className="ml-3 pl-3 border-l space-y-0.5 py-1" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                                        <NavLinks links={group.items} />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
-
-                <NavLinks links={userLinksBottom} />
-
-                {/* Crypto/Finance Section */}
-                <p className="text-[10px] text-slate-500 uppercase tracking-[0.14em] px-4 mb-2 mt-6" style={{ fontWeight: 600 }}>
-                    {t('Análisis Financiero')}
-                </p>
-                <NavLinks links={cryptoLinks} />
 
                 {isAdmin && (
                     <>

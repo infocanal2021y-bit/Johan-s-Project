@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../../components/layout/Layout';
 import { adminAPI } from '../../lib/api';
@@ -44,16 +44,18 @@ const fmtEur = (n) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDi
 /* ── Authorization Modal (full withdrawals) ── */
 const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
     const [info, setInfo] = useState(null);
-    const [busy, setBusy] = useState(false);
+    const [busy, setBusy] = useState('');
 
-    useEffect(() => {
+    const loadInfo = useCallback(() => {
         adminAPI.getWithdrawalAuthInfo(withdrawalId)
             .then(r => setInfo(r.data))
             .catch(() => { toast.error('No se pudo cargar la información'); onClose(); });
     }, [withdrawalId, onClose]);
 
+    useEffect(() => { loadInfo(); }, [loadInfo]);
+
     const confirm = async () => {
-        setBusy(true);
+        setBusy('authorize');
         try {
             await adminAPI.authorizeWithdrawal(withdrawalId);
             toast.success('Autorización completada · Retiro autorizado para procesamiento');
@@ -62,12 +64,58 @@ const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
         } catch (err) {
             toast.error(err.response?.data?.detail || 'No se pudo completar la autorización');
         } finally {
-            setBusy(false);
+            setBusy('');
+        }
+    };
+
+    const verifyAmount = async () => {
+        setBusy('verify');
+        try {
+            const r = await adminAPI.verifyWithdrawalAmount(withdrawalId);
+            toast.success(r.data.message);
+            loadInfo();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'No se pudo verificar el importe');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const requestDocs = async () => {
+        const message = window.prompt('Mensaje para el usuario (documentación requerida):',
+            'Para continuar con su retiro necesitamos que complete su documentación de identidad en la sección Verificación de Identidad.');
+        if (!message) return;
+        setBusy('docs');
+        try {
+            await adminAPI.requestWithdrawalDocs(withdrawalId, message);
+            toast.success('Solicitud de documentación enviada al usuario');
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Error al solicitar documentación');
+        } finally {
+            setBusy('');
+        }
+    };
+
+    const addNote = async () => {
+        const note = window.prompt('Nota interna (solo visible para administradores):');
+        if (!note || !note.trim()) return;
+        setBusy('note');
+        try {
+            await adminAPI.addWithdrawalNote(withdrawalId, note.trim());
+            toast.success('Nota interna guardada');
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Error al guardar la nota');
+        } finally {
+            setBusy('');
         }
     };
 
     const pm = info?.payment_method;
     const alreadyDone = info?.authorization?.status === 'completed';
+    const reqMap = {};
+    (info?.requirements?.items || []).forEach((i) => { reqMap[i.key] = i.done; });
+    const canAuthorize = reqMap.proof && reqMap.validated;
+    const canVerify = reqMap.proof && !reqMap.validated;
 
     return (
         <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -152,11 +200,36 @@ const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
                             </p>
                         )}
 
+                        <div className="flex flex-wrap gap-2 pt-1">
+                            {!alreadyDone && (
+                                <>
+                                    <Button size="sm" variant="outline" onClick={verifyAmount} disabled={busy !== '' || !canVerify}
+                                        className="border-emerald-600/50 text-emerald-400 bg-transparent hover:bg-emerald-500/10 h-7 text-xs disabled:opacity-40"
+                                        data-testid="wd-auth-verify-amount-btn" title={!reqMap.proof ? 'El usuario debe declarar el TxID primero' : reqMap.validated ? 'Ya verificado' : 'Marcar importe como verificado (revisar TxID)'}>
+                                        {busy === 'verify' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Verificar importe'}
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={requestDocs} disabled={busy !== ''}
+                                        className="border-orange-600/50 text-orange-400 bg-transparent hover:bg-orange-500/10 h-7 text-xs"
+                                        data-testid="wd-auth-request-docs-btn">
+                                        {busy === 'docs' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Solicitar documentación'}
+                                    </Button>
+                                </>
+                            )}
+                            <Button size="sm" variant="outline" onClick={addNote} disabled={busy !== ''}
+                                className="border-slate-700 text-slate-400 bg-transparent hover:bg-slate-800 h-7 text-xs"
+                                data-testid="wd-auth-add-note-btn">
+                                {busy === 'note' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Nota interna'}
+                            </Button>
+                        </div>
+
                         <div className="flex gap-2">
                             <Button variant="outline" onClick={onClose} className="flex-1 border-slate-700 text-slate-300">Cerrar</Button>
                             {!alreadyDone && (
-                                <Button onClick={confirm} disabled={busy} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold" data-testid="wd-auth-confirm-btn">
-                                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Importe recibido y verificado'}
+                                <Button onClick={confirm} disabled={busy !== '' || !canAuthorize}
+                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold disabled:opacity-40"
+                                    data-testid="wd-auth-confirm-btn"
+                                    title={!canAuthorize ? 'Requisitos pendientes: la transacción cripto debe estar recibida y verificada' : ''}>
+                                    {busy === 'authorize' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Autorizar procesamiento'}
                                 </Button>
                             )}
                         </div>
@@ -439,11 +512,24 @@ export const AdminWithdrawalsPage = () => {
                                                                             <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex flex-wrap items-center justify-between gap-2" data-testid={`wd-auth-block-${w.id}`}>
                                                                                 <div>
                                                                                     <p className="text-amber-300 text-xs">
-                                                                                        Importe requerido para autorizar el retiro: <span className="font-bold">€{AUTH_REQUIRED_EUR.toLocaleString('es-ES')}</span>
+                                                                                        Requisito de plataforma: <span className="font-bold">€{AUTH_REQUIRED_EUR.toLocaleString('es-ES')}</span> · Método de abono cripto
                                                                                     </p>
-                                                                                    <p className="text-amber-500/90 text-[10px] font-bold uppercase tracking-wide mt-0.5" data-testid={`wd-auth-status-${w.id}`}>
-                                                                                        Pendiente de abono y verificación
-                                                                                    </p>
+                                                                                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                                                        <p className="text-amber-500/90 text-[10px] font-bold uppercase tracking-wide" data-testid={`wd-auth-status-${w.id}`}>
+                                                                                            Pendiente de abono y verificación
+                                                                                        </p>
+                                                                                        {w.requirements_completed != null && (
+                                                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${w.requirements_completed >= (w.requirements_total || 7) - 1 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/60 text-slate-300'}`} data-testid={`wd-req-count-${w.id}`}>
+                                                                                                {w.requirements_completed} de {w.requirements_total || 7} requisitos completados
+                                                                                            </span>
+                                                                                        )}
+                                                                                        {w.crypto_proof_received && !w.crypto_verified && (
+                                                                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400">TxID recibido · sin verificar</span>
+                                                                                        )}
+                                                                                        {w.crypto_verified && (
+                                                                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">Cripto verificada</span>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
                                                                                 <Button size="sm" onClick={() => setAuthFor(w.id)}
                                                                                     className="bg-amber-600 hover:bg-amber-500 text-white h-7 text-xs px-2.5 font-bold"

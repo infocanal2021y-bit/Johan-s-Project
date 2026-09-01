@@ -92,7 +92,7 @@ export const FX2026BatchCard = () => {
                     <Button size="sm" className="bg-amber-600 hover:bg-amber-700 h-8" onClick={sendWelcome}
                         disabled={busy !== '' || running || (status.welcome_pending || 0) === 0} data-testid="fx2026-send-btn">
                         {busy === 'send' || running ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}
-                        Enviar bienvenidas
+                        Iniciar envío de emails de bienvenida
                     </Button>
                 </div>
             </div>

@@ -914,20 +914,7 @@ const PaymentDetails = ({ method, requiredEur, onCopy, copied, onProof, remainin
                 </div>
             </button>
 
-            {/* SECONDARY CTA: Pagar por transferencia bancaria */}
-            <button
-                onClick={() => setBankOpen(true)}
-                data-testid="partial-unlock-pay-bank-btn"
-                className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-[#4DA3FF] via-[#3a8fe5] to-[#1973B8] p-[1.5px] shadow-[0_10px_40px_-10px_rgba(77,163,255,0.5)] hover:shadow-[0_15px_50px_-10px_rgba(77,163,255,0.75)] transition-shadow"
-            >
-                <div className="relative flex items-center justify-center gap-3 rounded-[14px] bg-slate-950/90 group-hover:bg-slate-950/70 py-4 px-6 transition-colors">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#4DA3FF]/10 via-transparent to-[#1973B8]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Building2 className="w-5 h-5 text-[#7fbcff] group-hover:scale-110 transition-transform relative" />
-                    <span className="text-white text-base font-bold tracking-tight relative">Pagar por transferencia bancaria</span>
-                    <ArrowRight className="w-4 h-4 text-[#7fbcff] group-hover:translate-x-1 transition-transform relative" />
-                </div>
-            </button>
-
+            {/* SECONDARY CTA removed: platform requirement is payable in crypto only */}
             {/* If user already paid something, secondary action to register more */}
             {paid > 0 && (
                 <button

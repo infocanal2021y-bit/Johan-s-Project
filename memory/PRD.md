@@ -1,5 +1,7 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
+> Iteraciones recientes (103+) en /app/memory/CHANGELOG.md
+
 
 ### Iteration 102 (Jun 2026) — Requisitos previos al procesamiento + prueba email FX2026
 

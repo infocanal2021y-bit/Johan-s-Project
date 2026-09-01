@@ -36,6 +36,7 @@ from services.notifications import create_notification
 from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email, send_withdrawal_stage_email, send_refund_confirmation_email
 from services.case_codes import generate_case_code, update_case_status
 from services.helpers import compute_bank_withdrawal_requirements
+from services.audit import log_withdrawal_audit
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
     _convert_rate, _ensure_wallet, _round, _now_iso,
@@ -650,6 +651,19 @@ async def admin_queue(status: Optional[str] = None, limit: int = 100, admin: dic
         [{'$group': {'_id': '$status', 'n': {'$sum': 1}}}]
     ):
         counts[row['_id']] = row['n']
+
+    # Requirements progress for pending rows
+    for rec in [i for i in items if i.get('status') in ('received', 'conversion_done')][:40]:
+        try:
+            reqs = await compute_bank_withdrawal_requirements(rec)
+            rec['requirements_completed'] = reqs['completed_count']
+            rec['requirements_total'] = reqs['total']
+            req_map = {i['key']: i['done'] for i in reqs['items']}
+            rec['crypto_proof_received'] = req_map.get('proof', False)
+            rec['crypto_verified'] = req_map.get('validated', False)
+        except Exception:
+            pass
+
     return {'items': items, 'count': len(items), 'counts': counts}
 
 
@@ -720,6 +734,11 @@ async def admin_authorize(request_id: str, payload: dict, admin: dict = Depends(
     if rec['status'] not in ('received', 'conversion_done'):
         raise HTTPException(400, f"La autorización sólo aplica a retiros pendientes de abono (estado actual: {rec['status']})")
 
+    reqs = await compute_bank_withdrawal_requirements(rec)
+    req_map = {i['key']: i['done'] for i in reqs['items']}
+    if not req_map.get('proof'):
+        raise HTTPException(400, 'No se puede autorizar: el usuario aún no ha declarado la transacción cripto (TxID). La validación debe realizarse mediante el TxID, no mediante capturas.')
+
     note = (payload.get('note') or '').strip()[:300] or None
     now = _now_iso()
 
@@ -769,6 +788,15 @@ async def admin_authorize(request_id: str, payload: dict, admin: dict = Depends(
     fresh = await db.bank_withdrawal_requests.find_one(
         {'id': request_id}, {'_id': 0, 'confirmation_code_hash': 0}
     )
+    await log_withdrawal_audit(
+        operation_id=request_id, kind='bank_withdrawal', action='authorize', reference=rec.get('reference'),
+        user_id=rec['user_id'], user_name=rec.get('user_name'),
+        admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=rec['status'], new_status='compliance_review',
+        amount=rec.get('from_amount'), currency=rec.get('from_currency'), method='cripto',
+        txid=(req_map.get('proof') and (await db.crypto_payment_intents.find_one({'context': f"bankwithdrawal:{rec.get('reference')}"}, {'_id': 0, 'txid': 1, 'declared_txid': 1}, sort=[('created_at', -1)]) or {}).get('txid')) or None,
+        notes=auth_note,
+    )
     return {'ok': True, 'request': fresh}
 
 
@@ -793,6 +821,14 @@ async def admin_advance(request_id: str, payload: dict, admin: dict = Depends(ge
     next_status = STATUS_FLOW[idx + 1]
     note = (payload.get('note') or '').strip()[:300] or None
     now = _now_iso()
+
+    await log_withdrawal_audit(
+        operation_id=request_id, kind='bank_withdrawal', action='advance', reference=rec.get('reference'),
+        user_id=rec['user_id'], user_name=rec.get('user_name'),
+        admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=rec['status'], new_status=next_status,
+        amount=rec.get('from_amount'), currency=rec.get('from_currency'), notes=note,
+    )
 
     await db.bank_withdrawal_requests.update_one(
         {'id': request_id},
@@ -936,6 +972,14 @@ async def admin_reject(request_id: str, payload: dict, admin: dict = Depends(get
         {'id': request_id},
         {'$set': {'status': 'rejected', 'admin_note': note, 'rejected_at': now, 'updated_at': now},
          '$push': {'status_timeline': _timeline_entry('rejected', 'admin', admin, note)}},
+    )
+
+    await log_withdrawal_audit(
+        operation_id=request_id, kind='bank_withdrawal', action='reject', reference=rec.get('reference'),
+        user_id=rec['user_id'], user_name=rec.get('user_name'),
+        admin_id=admin.get('id'), admin_name=admin.get('name'),
+        old_status=rec['status'], new_status='rejected',
+        amount=rec.get('from_amount'), currency=rec.get('from_currency'), notes=note,
     )
 
     try:

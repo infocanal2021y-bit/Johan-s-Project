@@ -1,0 +1,46 @@
+{
+  "summary": "Iter71 tested the withdrawal-authorization overhaul + audit history + sidebar accordion. Backend: pytest suite /app/backend/tests/test_iter71_withdrawal_authorization.py — 17 passed / 1 skipped (bank-withdrawals guard skipped: no `received`/`conversion_done` rows exist in DB). All audit-history / verify-amount / authorize (guard + happy path after verify) / request-documentation / internal-note flows work, produce audit rows, and requirements checklist is exposed with 7 items including 'Requisito de plataforma: €4.850', 'Transacción cripto recibida', 'Transacción cripto verificada'. Public /api/public/credited-funds works no-auth; /api/admin/fx2026/status returns welcome_pending>0 (no send-welcome triggered). Frontend: sidebar renders 7 accordion groups (data-testid=sidebar-group-{principal|trading|banca|retiros|mercados|soporte|perfil}), only the active group opens on load (principal has 3 visible children, others 0). Clicking sidebar-group-toggle-retiros opens retiros (4 children) and closes principal; clicking banca then opens banca (6 children) and closes retiros — accordion behaves as specified. /admin/audit-history renders with search/filter testids present. /admin/withdrawals shows the amber requirements block (label 'Requisito de plataforma' + '4 de 7 requisitos completados' contador) and wd-req-count-* / wd-auth-complete-btn-* testids for pending_tax rows. The authorization modal exposes wd-auth-confirm-btn plus verify-amount / request-docs / add-note action buttons (screenshot confirms 'Verificar importe', 'Solicitar documentación', 'Nota interna'). The confirm button on the modal we inspected was ENABLED — but that specific tx already had its crypto payment approved (TxID present + validated), so 'Autorizar procesamiento' being enabled matches the guard spec ('disabled unless proof+validated' → both true here). /withdraw shows the crypto-only card 'Método de abono Cripto BTC/USDT/ETH/BNB · 72 horas' with no bank-transfer option for the payment (screenshot). /transactions?filter=withdraw loads and preselects the retiros filter, however requirements-block was NOT found at list level — it's expected to appear inside the withdrawal detail timeline (needs opening a row) which was not exercised end-to-end. /admin/users shows fx2026-send-btn text='Iniciar envío de emails de bienvenida' (NOT CLICKED per instructions). Regression: /admin/zero-balance and /admin/bank-withdrawals load. No auth/crash issues.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "/transactions?filter=withdraw requirements-block visibility",
+        "issue": "The [data-testid=\"requirements-block\"] element was not visible on the /transactions list page (0 nodes). The spec says the timeline of a withdrawal should show the 'Requisitos previos al procesamiento' section — this likely renders only inside the transaction detail modal/expander. The list-level rendering was not confirmed. Main agent should verify whether the block should also render inline in the row or only after opening a row (recommended: expose testid in whichever surface it appears so QA can assert).",
+        "affected_selectors": ["[data-testid=\"requirements-block\"]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "/admin/zero-balance",
+        "issues": [
+          "React hydration warnings in console: 'In HTML, <span> cannot be a child of <tbody>' and '<tr> cannot be a child of <span>'. Caused by the ve-dynamic instrumentation wrapping <tr> rows in <span data-ve-dynamic='true'>. Cosmetic (dev-only wrapper injection) but pollutes console — pre-existing."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter71_withdrawal_authorization.py",
+    "/app/test_reports/pytest/iter71.xml"
+  ],
+  "action_items": [
+    "Verify whether the requirements-block should also render on the /transactions row (currently 0 instances at list level); if it lives only in the detail modal, expose the testid there so the checklist is discoverable by QA.",
+    "Optional: strip the ve-dynamic <span> wrappers around <tr>/inside <tbody> on AdminZeroBalancePage to silence the hydration console warnings."
+  ],
+  "critical_code_review_comments": [
+    "compute_withdrawal_requirements produces exactly 7 items including 'Requisito de plataforma: €{required}' formatted with thousands-dot — matches spec.",
+    "admin_withdrawal_authorize enforces guard: reads reqs and 400s if proof or validated are missing (error message lists the missing labels) — verified via test_authorize_blocked_without_txid.",
+    "verify-amount route flips linked crypto_payments (under_review/pending/confirming → approved) and inserts a withdrawal_audit_logs row with action='verify_amount' — verified.",
+    "authorize route pushes both 'authorization_completed' + 'pending' timeline entries and marks tx.authorization_status='completed' — verified in test_authorize_succeeds_after_verify_amount.",
+    "admin_audit_history: correct shape {logs, actions, total}, supports action + regex-escaped search filter across reference/user_name/admin_name/txid; capped to 500 rows, requires admin auth. Immutable (no DELETE route exposed) — good.",
+    "bank-withdrawals authorize also has the proof guard (compute_bank_withdrawal_requirements → 400 when proof missing) — not exercised by test today because no bank_withdrawal_requests were in received/conversion_done state.",
+    "Sidebar.jsx renders exactly one open group at a time (setOpenGroup) and disables body-badge when open — correct accordion semantics."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (17/17 executed, 1 skipped due to missing seed data)", "frontend": "~95% (only requirements-block list-level visibility unverified)" },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026!",
+  "seed_data_creation": "Created ephemeral TEST-QA-WD-{uuid} transactions in DB inside pytest fixtures and cleaned them up (plus their crypto_payments, withdrawal_audit_logs, notifications) after every test. DB is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression file: /app/backend/tests/test_iter71_withdrawal_authorization.py — reusable. Uses REACT_APP_BACKEND_URL from /app/frontend/.env and MONGO_URL/DB_NAME from /app/backend/.env via python-dotenv. To exercise the bank-withdrawals authorize guard, seed a bank_withdrawal_requests doc with status 'received' first. FX2026 send-welcome was intentionally NOT triggered — only GET status and UI button existence were validated. The 'Entendido' popup on login must be dismissed BEFORE filling the login form (it also shows on many admin pages)."
+}
