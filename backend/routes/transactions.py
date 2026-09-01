@@ -28,7 +28,7 @@ from services.email import (
     send_withdrawal_status_email, send_withdrawal_tax_pending_email,
     send_tax_payment_received_email, send_withdrawal_request_received_email
 )
-from services.helpers import get_daily_transfer_total, check_fraud_pattern, ensure_government_treasury
+from services.helpers import get_daily_transfer_total, check_fraud_pattern, ensure_government_treasury, compute_withdrawal_requirements
 
 router = APIRouter()
 
@@ -1010,6 +1010,18 @@ async def admin_pending_abonos(admin: dict = Depends(get_admin_user)):
             'expired': sum(1 for x in out if x['expired']),
         }
     }
+
+
+@router.get("/transactions/{transaction_id}/requirements")
+async def get_transaction_requirements(transaction_id: str, current_user: dict = Depends(get_current_user)):
+    """Pre-processing requirements checklist for the user's own withdrawal."""
+    tx = await db.transactions.find_one(
+        {'id': transaction_id, 'user_id': current_user['id'], 'transaction_type': 'withdraw'},
+        {'_id': 0},
+    )
+    if not tx:
+        raise HTTPException(status_code=404, detail='Retiro no encontrado')
+    return await compute_withdrawal_requirements(tx)
 
 
 @router.get("/transactions/{transaction_id}/proof")

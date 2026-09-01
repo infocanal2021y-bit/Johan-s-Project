@@ -118,6 +118,29 @@ const WithdrawalAuthModal = ({ withdrawalId, onClose, onDone }) => {
                             </div>
                         </div>
 
+                        {info.requirements && (
+                            <div className="p-3 rounded-lg bg-slate-800/60" data-testid="wd-auth-requirements">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">Requisitos previos al procesamiento</p>
+                                <div className="space-y-1.5">
+                                    {info.requirements.items.map((it) => (
+                                        <div key={it.key} className="flex items-center gap-2 text-xs" data-testid={`wd-auth-req-${it.key}`}>
+                                            {it.done
+                                                ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                                : <XCircle className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />}
+                                            <span className={it.done ? 'text-slate-300' : 'text-slate-500'}>{it.label}</span>
+                                            {!it.done && <span className="ml-auto text-[9px] text-amber-500 font-bold uppercase">Pendiente</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                                {info.requirements.alert && (
+                                    <div className="mt-2.5 p-2 rounded-md bg-amber-500/10 border border-amber-500/25 flex items-start gap-2" data-testid="wd-auth-requirements-alert">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                                        <p className="text-amber-300 text-[11px] leading-snug">{info.requirements.alert}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {alreadyDone ? (
                             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-sm" data-testid="wd-auth-done-banner">
                                 <p className="font-bold flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Autorización completada</p>

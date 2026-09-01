@@ -35,6 +35,7 @@ from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
 from services.email import send_email, send_email_background, get_email_template, send_withdrawal_request_received_email, send_withdrawal_stage_email, send_refund_confirmation_email
 from services.case_codes import generate_case_code, update_case_status
+from services.helpers import compute_bank_withdrawal_requirements
 from routes.multicurrency import (
     SUPPORTED_CURRENCIES, CURRENCY_META, DEFAULT_FEE_PCT,
     _convert_rate, _ensure_wallet, _round, _now_iso,
@@ -701,6 +702,7 @@ async def admin_authorization_info(request_id: str, admin: dict = Depends(get_ad
             'authorized_at': rec.get('authorized_at'),
             'authorized_by_name': rec.get('authorized_by_name'),
         },
+        'requirements': await compute_bank_withdrawal_requirements(rec),
     }
 
 

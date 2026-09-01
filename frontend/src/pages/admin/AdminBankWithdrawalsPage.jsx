@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import {
     Banknote, RefreshCw, ChevronRight, CheckCircle2, XCircle, Loader2,
-    ArrowRight, Building2, Filter, ExternalLink, ShieldCheck,
+    ArrowRight, Building2, Filter, ExternalLink, ShieldCheck, AlertTriangle,
 } from 'lucide-react';
 
 const fmt = (n, d = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -114,6 +114,29 @@ const AuthorizationModal = ({ requestId, onClose, onDone }) => {
                                 )}
                             </div>
                         </div>
+
+                        {info.requirements && (
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200" data-testid="bank-auth-requirements">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">Requisitos previos al procesamiento</p>
+                                <div className="space-y-1.5">
+                                    {info.requirements.items.map((it) => (
+                                        <div key={it.key} className="flex items-center gap-2 text-[12px]" data-testid={`bank-auth-req-${it.key}`}>
+                                            {it.done
+                                                ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                                : <XCircle className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />}
+                                            <span className={it.done ? 'text-[#072146]' : 'text-slate-400'}>{it.label}</span>
+                                            {!it.done && <span className="ml-auto text-[9px] text-amber-600 font-bold uppercase">Pendiente</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                                {info.requirements.alert && (
+                                    <div className="mt-2.5 p-2 rounded-md bg-amber-50 border border-amber-300 flex items-start gap-2" data-testid="bank-auth-requirements-alert">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                        <p className="text-amber-800 text-[11px] leading-snug">{info.requirements.alert}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {alreadyDone ? (
                             <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-[12px] text-emerald-700" data-testid="auth-modal-done-banner">

@@ -1,6 +1,17 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 102 (Jun 2026) — Requisitos previos al procesamiento + prueba email FX2026
+
+**1. Sección "Requisitos previos al procesamiento"** (7 requisitos: Identidad verificada, Cuenta bancaria verificada, Documentación completa, Importe requerido €4.850, Comprobante recibido, Importe validado, Revisión administrativa completada; alerta "Operación pendiente. Existen requisitos necesarios antes de autorizar el procesamiento del retiro." si falta alguno):
+- Backend `services/helpers.py`: `compute_withdrawal_requirements(tx)` (retiros full: verification_status, banking_info, kyc_documents, tax_paid vs required, crypto_payments/intents `withdrawal:{id}`, authorization_status) y `compute_bank_withdrawal_requirements(rec)` (bancarios: intent `bankwithdrawal:{ref}`, estados compliance_review+). Devuelven {items:[{key,label,done}], all_met, alert}.
+- Incluida en: `GET /admin/withdrawals/{id}/authorization-info` (admin.py), `GET /admin/bank-withdrawals/{id}/authorization-info` (bank_withdrawals.py) y nuevo `GET /transactions/{id}/requirements` (usuario, solo su retiro).
+- Frontend: `RequirementsBlock` en la línea de tiempo del retiro del usuario (TransactionsPage, testids `requirements-block`, `req-item-{key}`, `requirements-alert`); sección en modal admin full (`wd-auth-requirements`, `wd-auth-req-{key}`, `wd-auth-requirements-alert`); sección en modal admin bancario tema claro (`bank-auth-requirements`, `bank-auth-req-{key}`, `bank-auth-requirements-alert`).
+- Verificado e2e: endpoints (7 items, all_met/alert correctos, formato €4.850 español) + screenshots de vista usuario y modal admin con checks verdes/pendientes y alerta ámbar. Datos de prueba limpiados.
+
+**2. FX2026 — email de prueba enviado:** `POST /admin/fx2026/send-welcome {test_email}` ejecutado → **enviado OK a admi@paylionsbit.es**. Estado: 625 importados, 0 bienvenidas enviadas, 625 pendientes. El envío masivo se lanza desde el panel Lote FX2026 (`FX2026BatchCard`, Admin → Usuarios) o `POST /admin/fx2026/send-welcome {}` cuando el usuario apruebe la prueba. NO LANZADO aún (esperando aprobación del usuario).
+
+
 ### Iteration 101 (Jun 2026) — Aviso de Reembolso + Autorización en Retiros Full
 
 **1. Aviso de Reembolso (email):** nueva `send_refund_confirmation_email(email, name, reference, amount, currency, funds_debited)` en `services/email.py` (@safe_email, asunto "✓ Reembolso confirmado · Retiro {ref}"). Confirma la devolución íntegra de fondos al expirar el retiro automáticamente (72h sin abono):

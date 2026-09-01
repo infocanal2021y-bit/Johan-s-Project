@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
-import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock, ChevronRight, History, XCircle } from 'lucide-react';
+import { Download, FileText, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Filter, AlertTriangle, Loader2, FileDown, Bitcoin, Clock, ChevronRight, History, XCircle, CheckCircle2, Circle, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 import { WithdrawalProgressBar } from '../components/WithdrawalProgressBar';
@@ -27,6 +27,44 @@ const WD_STAGES = [
 const fmtExact = (iso) => !iso ? null : new Date(iso).toLocaleString('es-ES', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
 });
+
+const RequirementsBlock = ({ txId }) => {
+    const [req, setReq] = useState(undefined);
+    useEffect(() => {
+        let active = true;
+        api.get(`/transactions/${txId}/requirements`)
+            .then((r) => { if (active) setReq(r.data); })
+            .catch(() => { if (active) setReq(null); });
+        return () => { active = false; };
+    }, [txId]);
+
+    if (!req) return null;
+
+    return (
+        <div className="pt-4 border-t border-slate-800" data-testid="requirements-block">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-2 flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5" /> Requisitos previos al procesamiento
+            </p>
+            <div className="space-y-1.5">
+                {req.items.map((it) => (
+                    <div key={it.key} className="flex items-center gap-2 text-xs" data-testid={`req-item-${it.key}`}>
+                        {it.done
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                            : <Circle className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />}
+                        <span className={it.done ? 'text-slate-300' : 'text-slate-500'}>{it.label}</span>
+                        {!it.done && <span className="ml-auto text-[10px] text-amber-500/90 font-semibold uppercase">Pendiente</span>}
+                    </div>
+                ))}
+            </div>
+            {req.alert && (
+                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-start gap-2" data-testid="requirements-alert">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-amber-300 text-xs leading-snug">{req.alert}</p>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ProofBlock = ({ txId }) => {
     const [proof, setProof] = useState(undefined);
@@ -503,6 +541,7 @@ export const TransactionsPage = () => {
                                 </span>
                             </div>
                             <WithdrawTimeline tx={timelineTx} />
+                            <RequirementsBlock txId={timelineTx.id} />
                             <ProofBlock txId={timelineTx.id} />
                         </div>
                     )}

@@ -22,7 +22,7 @@ from services.email import (
     send_balance_added_email, send_withdrawal_status_email,
     send_tax_payment_received_email, _build_balance_email_content
 )
-from services.helpers import ensure_government_treasury
+from services.helpers import ensure_government_treasury, compute_withdrawal_requirements
 
 router = APIRouter()
 
@@ -465,6 +465,7 @@ async def admin_withdrawal_authorization_info(transaction_id: str, admin: dict =
             'authorized_at': tx.get('authorized_at'),
             'authorized_by_name': tx.get('authorized_by_name'),
         },
+        'requirements': await compute_withdrawal_requirements(tx),
     }
 
 
