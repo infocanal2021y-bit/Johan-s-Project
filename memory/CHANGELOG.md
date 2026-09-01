@@ -51,3 +51,12 @@
 - Función `send_daily_crypto_summary()` en `/app/backend/routes/crypto_monitor.py` + endpoint manual `POST /api/admin/crypto-monitor/daily-summary/send`.
 - Botón "Enviar resumen" (violeta, `send-summary-btn`) en AdminCryptoMonitorPage junto a "Verificar blockchain ahora".
 - Verificado: envío real vía Resend con pago de prueba (€4.850 agregado correctamente) + UI screenshot OK. Dato de prueba limpiado.
+
+## Sep 1, 2026 — FASE 1: Solicitar Retiro profesional + validación IBAN
+- **Solo 100%**: eliminada la opción de retiro parcial (40%) en `/withdraw`. Ya no se muestra el selector de modalidad ni el `PartialUnlockPanel`; el formulario de retiro total se renderiza directamente. Al entrar se fija `withdraw-type=full` automáticamente.
+- **Validación IBAN profesional**: nuevo `POST /api/iban/validate` (`routes/iban.py`) — normalización (mayúsculas/espacios), longitud por país (ISO 13616), MOD-97, y detección de entidad/BIC vía openiban.com (DE/AT/NL/BE/CH/LI/LU). Si es válido pero no identifica banco: "IBAN válido. No fue posible identificar automáticamente la entidad bancaria." (nunca inventa).
+- Nuevo componente reutilizable `IbanField.jsx` (validación en vivo con debounce, ✓/✕, país/banco/BIC detectados). Integrado en WithdrawPage. Bloquea la solicitud si el IBAN es inválido.
+- **Resumen "Revisar → Confirmar"**: nuevo diálogo de revisión con Importe solicitado, Moneda, Banco de destino, IBAN parcialmente oculto, Titular y Estado de verificación. Botón principal "Revisar solicitud" → "Confirmar retiro".
+- Verificado: curl (ES válido/ inválido MOD-97, DE→Commerzbank/COBADEFFXXX, longitud) + screenshot e2e del flujo completo (detección + diálogo de revisión con IBAN enmascarado).
+
+**PENDIENTE FASES 2-6:** cargo €4.850 solo-cripto + abonos parciales + QR (ya existe base), config wallets admin, cola/modal/checklist/timeline admin, auditoría/docs fiscales/notificaciones, seguridad (2FA email admin, sesiones, bloqueo IBAN con retiro activo).

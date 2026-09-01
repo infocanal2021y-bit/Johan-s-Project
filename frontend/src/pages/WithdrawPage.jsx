@@ -17,9 +17,9 @@ import {
 import { toast } from 'sonner';
 import { CryptoPaymentSection } from '../components/crypto/CryptoPaymentSection';
 import { InvestmentPopup } from '../components/InvestmentPopup';
-import { PartialUnlockPanel } from '../components/withdraw/PartialUnlockPanel';
-import { WithdrawTypeSelector } from '../components/withdraw/WithdrawTypeSelector';
 import { BalanceOriginNote } from '../components/BalanceOriginNote';
+import { IbanField } from '../components/withdraw/IbanField';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import api from '../lib/api';
 
 // Banks grouped by country
@@ -358,43 +358,55 @@ export const WithdrawPage = () => {
     const [activityScore, setActivityScore] = useState(null);
     const [withdrawVisits, setWithdrawVisits] = useState(0);
 
-    // Partial unlock 40% — gate + cap
+    // Withdrawal cap state (legacy; kept at 0 — only 100% withdrawals now)
     const [unlockMaxEur, setUnlockMaxEur] = useState(null); // null = unknown, 0 = locked, >0 = cap
 
-    // Withdrawal type gate — 'partial' | 'full' | null
-    const [withdrawalType, setWithdrawalType] = useState(null);
-    const [withdrawalTypeLoading, setWithdrawalTypeLoading] = useState(true);
+    // Withdrawal type — only 100% (full) is offered now. Auto-set on mount.
+    const [withdrawalType, setWithdrawalType] = useState('full');
+    const [withdrawalTypeLoading, setWithdrawalTypeLoading] = useState(false);
     useEffect(() => {
         let cancelled = false;
-        api.get('/withdraw-type').then((r) => {
-            if (cancelled) return;
-            setWithdrawalType(r.data?.withdrawal_type || null);
-        }).catch(() => {}).finally(() => {
-            if (!cancelled) setWithdrawalTypeLoading(false);
-        });
-        const onStorage = () => {
-            api.get('/withdraw-type').then((r) => {
-                if (!cancelled) setWithdrawalType(r.data?.withdrawal_type || null);
-            }).catch(() => {});
-        };
-        window.addEventListener('lionsbit:withdraw-type-changed', onStorage);
-        return () => {
-            cancelled = true;
-            window.removeEventListener('lionsbit:withdraw-type-changed', onStorage);
-        };
-    }, []);
-    useEffect(() => {
-        let cancelled = false;
-        import('../lib/api').then(({ default: api }) => {
-            api.get('/partial-unlock/status').then(r => {
-                if (cancelled) return;
-                const ar = r.data?.active_request;
-                if (ar?.status === 'approved') setUnlockMaxEur(Number(ar.max_withdraw_eur_snapshot || 0));
-                else setUnlockMaxEur(0);
-            }).catch(() => { if (!cancelled) setUnlockMaxEur(0); });
-        });
+        api.post('/withdraw-type', { type: 'full' })
+            .then((r) => { if (!cancelled) setWithdrawalType(r.data?.withdrawal_type || 'full'); })
+            .catch(() => {});
         return () => { cancelled = true; };
     }, []);
+    useEffect(() => {
+        setUnlockMaxEur(0);
+    }, []);
+
+    // Review-before-confirm dialog
+    const [showReview, setShowReview] = useState(false);
+
+    const maskIbanDisplay = (val) => {
+        const clean = (val || '').replace(/\s/g, '').toUpperCase();
+        if (clean.length <= 8) return clean;
+        const masked = clean.slice(0, 4) + '•'.repeat(clean.length - 8) + clean.slice(-4);
+        return (masked.match(/.{1,4}/g) || []).join(' ');
+    };
+
+    const handleReview = () => {
+        if (!accountHolder.trim()) { toast.error('Ingrese el nombre del titular de la cuenta'); return; }
+        if (accountMode === 'iban' && !ibanValid) { toast.error('El IBAN ingresado no es válido'); return; }
+        if (accountMode === 'account' && !accountNumber.trim()) { toast.error('Ingrese el número de cuenta'); return; }
+        const numAmount = parseFloat(amount);
+        if (!selectedAccount || !amount || numAmount <= 0) { toast.error('Indique un importe válido'); return; }
+        if (numAmount > getSelectedAccountBalance()) { toast.error('Fondos insuficientes en esta cuenta'); return; }
+        setShowReview(true);
+    };
+
+    const handleIbanResult = (data) => {
+        if (data && data.valid) {
+            setIbanValid(true);
+            setDetectedCountry({ name: data.country_name, flag: '', code: data.country_code });
+            setDetectedBank(data.bank_detected ? { name: data.bank_name, code: data.bic || '' } : null);
+            if (data.bic) setSwiftCode((prev) => prev || data.bic);
+        } else {
+            setIbanValid(false);
+            setDetectedBank(null);
+            setDetectedCountry(null);
+        }
+    };
 
     // Check KYC status on load
     useEffect(() => {
@@ -439,31 +451,7 @@ export const WithdrawPage = () => {
         fetchAccounts();
     }, []);
 
-    // Validate IBAN on change
-    useEffect(() => {
-        if (iban.length >= 15) {
-            const validation = validateIBAN(iban);
-            setIbanValid(validation.valid);
-            setIbanError(validation.error || '');
-            
-            if (validation.valid) {
-                const detection = detectBankFromIBAN(iban);
-                setDetectedCountry(detection?.country);
-                setDetectedBank(detection?.bank);
-                
-                // Auto-select bank if detected
-                if (detection?.bank) {
-                    setSelectedBank(detection.bank.code);
-                    setManualBank(false);
-                }
-            }
-        } else {
-            setIbanValid(null);
-            setIbanError('');
-            setDetectedCountry(null);
-            setDetectedBank(null);
-        }
-    }, [iban]);
+    // IBAN validation is handled by <IbanField> via handleIbanResult (server MOD-97 + bank/BIC).
 
     // Intercept submit to show investment popup first
     const handleFormSubmit = (e) => {
@@ -1162,34 +1150,8 @@ export const WithdrawPage = () => {
                     </div>
                 </motion.div>
 
-                {/* ── Step 1: Withdraw type selection (partial 40% vs full 100%) ── */}
-                <WithdrawTypeSelector onSelected={(t) => {
-                    setWithdrawalType(t);
-                    window.dispatchEvent(new Event('lionsbit:withdraw-type-changed'));
-                }} />
-
-                {/* ── Partial Withdrawal Unlock 40% panel — only when type=partial ── */}
-                {withdrawalType === 'partial' && <PartialUnlockPanel />}
-
-                {/* ── Gate notice: nothing chosen yet ────────────────── */}
-                {!withdrawalType && !withdrawalTypeLoading && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15 }}
-                        className="rounded-xl bg-slate-900/60 border border-slate-700/60 p-5 text-center"
-                        data-testid="withdraw-no-type-selected"
-                    >
-                        <Shield className="w-7 h-7 text-slate-500 mx-auto mb-2" />
-                        <p className="text-slate-300 text-sm font-semibold">Elija una modalidad arriba para continuar</p>
-                        <p className="text-slate-500 text-xs mt-1">
-                            Seleccione <strong>retiro parcial (40%)</strong> o <strong>retiro total (100%)</strong> para activar el formulario de retiro.
-                        </p>
-                    </motion.div>
-                )}
-
-                {/* ── Full withdraw form only if type=full ───────────── */}
-                {withdrawalType === 'full' && (<>
+                {/* ── Retiro total (100%) — única modalidad disponible ── */}
+                {(<>
 
                 {/* Tax Info — Professional accordion-style panel */}
                 <motion.div
@@ -1311,23 +1273,6 @@ export const WithdrawPage = () => {
                                             </p>
                                         )}
                                         {selectedAccount && <BalanceOriginNote className="mt-1.5" />}
-                                        {/* Partial-unlock 40% gate indicator */}
-                                        {unlockMaxEur !== null && (
-                                            <div className="mt-1.5" data-testid="withdraw-unlock-indicator">
-                                                {unlockMaxEur > 0 ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-cyan-500/10 ring-1 ring-cyan-500/30 text-cyan-200 text-[11px] font-semibold">
-                                                        <Lock className="w-3 h-3 rotate-[-12deg]" />
-                                                        Límite por retiro: <span className="font-mono font-bold text-cyan-100">€{unlockMaxEur.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })}</span>
-                                                        <span className="text-cyan-400/70">· 40% desbloqueado</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-200 text-[11px] font-semibold">
-                                                        <Lock className="w-3 h-3" />
-                                                        Retiro bloqueado · activa "Desbloqueo 40%" arriba
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -1419,68 +1364,7 @@ export const WithdrawPage = () => {
                                     </div>
 
                                     {accountMode === 'iban' ? (
-                                        <>
-                                            {/* IBAN Input */}
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-300 font-normal">IBAN *</Label>
-                                                <div className="relative">
-                                                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                                    <Input
-                                                        placeholder="ES00 0000 0000 0000 0000 0000"
-                                                        value={iban}
-                                                        onChange={handleIBANChange}
-                                                        className={`pl-10 pr-10 bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-600 uppercase tracking-wider ${
-                                                            ibanValid === true ? 'border-emerald-500' : 
-                                                            ibanValid === false ? 'border-red-500' : ''
-                                                        }`}
-                                                        style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}
-                                                        data-testid="iban-input"
-                                                    />
-                                                    {ibanValid === true && (
-                                                        <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
-                                                    )}
-                                                    {ibanValid === false && (
-                                                        <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
-                                                    )}
-                                                </div>
-                                                {ibanError && (
-                                                    <p className="text-red-400 text-sm flex items-center gap-1">
-                                                        <AlertTriangle className="w-3 h-3" />
-                                                        {ibanError}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* Detected Info */}
-                                            {ibanValid && (detectedCountry || detectedBank) && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2"
-                                                >
-                                                    <p className="text-emerald-400 text-sm font-medium flex items-center gap-2">
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        Informacion detectada automaticamente
-                                                    </p>
-                                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                                        {detectedCountry && (
-                                                            <div className="flex items-center gap-2">
-                                                                <Globe className="w-4 h-4 text-slate-500" />
-                                                                <span className="text-slate-400">Pais:</span>
-                                                                <span className="text-white">{detectedCountry.flag} {detectedCountry.name}</span>
-                                                            </div>
-                                                        )}
-                                                        {detectedBank && (
-                                                            <div className="flex items-center gap-2">
-                                                                <Building2 className="w-4 h-4 text-slate-500" />
-                                                                <span className="text-slate-400">Banco:</span>
-                                                                <span className="text-white">{detectedBank.name}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </>
+                                        <IbanField value={iban} onChange={setIban} onResult={handleIbanResult} testId="iban-input" />
                                     ) : (
                                         <>
                                             {/* Country selector for non-IBAN */}
@@ -1649,7 +1533,7 @@ export const WithdrawPage = () => {
                                 {/* Submit Button */}
                                 <Button
                                     type={skipInvestment ? "submit" : "button"}
-                                    onClick={skipInvestment ? undefined : () => setShowInvestPopup(true)}
+                                    onClick={skipInvestment ? undefined : handleReview}
                                     disabled={loading || success || (accountMode === 'iban' && !ibanValid) || (accountMode === 'account' && !accountNumber.trim())}
                                     className={`w-full py-6 text-lg transition-all ${
                                         success 
@@ -1673,8 +1557,8 @@ export const WithdrawPage = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <Upload className="w-5 h-5 mr-2" />
-                                            Solicitar Retiro
+                                            <FileCheck className="w-5 h-5 mr-2" />
+                                            Revisar solicitud
                                         </>
                                     )}
                                 </Button>
@@ -1684,6 +1568,57 @@ export const WithdrawPage = () => {
                 </motion.div>
                 </>)}
             </div>
+
+            {/* Review summary dialog — "Revisar solicitud" → "Confirmar retiro" */}
+            <Dialog open={showReview} onOpenChange={setShowReview}>
+                <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-white" data-testid="withdraw-review-dialog">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-white">
+                            <FileCheck className="w-5 h-5 text-cyan-400" />
+                            Revisar solicitud de retiro
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div className="rounded-xl bg-slate-950/60 border border-slate-800 divide-y divide-slate-800">
+                            {[
+                                ['Importe solicitado', `${currency === 'USD' ? '$' : '€'}${parseFloat(amount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'text-emerald-400 font-bold'],
+                                ['Moneda', currency, 'text-white'],
+                                ['Banco de destino', (detectedBank?.name) || (manualBank ? customBankName : (Object.values(BANKS_BY_COUNTRY).flat().find(b => b.code === selectedBank)?.name)) || '—', 'text-white'],
+                                [accountMode === 'iban' ? 'IBAN' : 'Cuenta', accountMode === 'iban' ? maskIbanDisplay(iban) : `••••${accountNumber.slice(-4)}`, 'text-white font-mono'],
+                                ['Titular', accountHolder || '—', 'text-white'],
+                            ].map(([k, v, cls]) => (
+                                <div key={k} className="flex items-center justify-between gap-3 px-4 py-3">
+                                    <span className="text-[13px] text-slate-400">{k}</span>
+                                    <span className={`text-[13px] text-right ${cls}`}>{v}</span>
+                                </div>
+                            ))}
+                            <div className="flex items-center justify-between gap-3 px-4 py-3">
+                                <span className="text-[13px] text-slate-400">Estado de verificación</span>
+                                <span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-2 py-0.5 rounded-md ${kycVerified ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                                    {kycVerified ? <BadgeCheck className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                                    {kycVerified ? 'Identidad verificada' : 'Verificación pendiente'}
+                                </span>
+                            </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Al confirmar, se creará la solicitud de retiro. A continuación se le indicará el cargo de autorización y procesamiento (€4.850, abono en criptomonedas).
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button variant="outline" onClick={() => setShowReview(false)} className="border-slate-700 text-slate-300 hover:bg-slate-800" data-testid="withdraw-review-cancel-btn">
+                            Volver a editar
+                        </Button>
+                        <Button
+                            onClick={() => { setShowReview(false); setShowInvestPopup(true); }}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                            data-testid="withdraw-review-confirm-btn"
+                        >
+                            <CheckCircle className="w-4 h-4 mr-1.5" />
+                            Confirmar retiro
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Investment Popup */}
             <InvestmentPopup
