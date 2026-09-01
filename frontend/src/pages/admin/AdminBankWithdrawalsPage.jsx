@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import {
     Banknote, RefreshCw, ChevronRight, CheckCircle2, XCircle, Loader2,
-    ArrowRight, Building2, Filter, ExternalLink,
+    ArrowRight, Building2, Filter, ExternalLink, ShieldCheck,
 } from 'lucide-react';
 
 const fmt = (n, d = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -35,6 +35,117 @@ const FILTERS = [
     { id: 'all', label: 'Todos' },
 ];
 
+const AUTH_REQUIRED_EUR = 4850;
+
+const AuthorizationModal = ({ requestId, onClose, onDone }) => {
+    const [info, setInfo] = useState(null);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        api.get(`/admin/bank-withdrawals/${requestId}/authorization-info`)
+            .then((r) => setInfo(r.data))
+            .catch(() => { toast.error('No se pudo cargar la información'); onClose(); });
+    }, [requestId, onClose]);
+
+    const confirm = async () => {
+        setBusy(true);
+        try {
+            await api.post(`/admin/bank-withdrawals/${requestId}/authorize`, {});
+            toast.success('Autorización completada · Retiro autorizado para procesamiento');
+            onClose();
+            onDone();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'No se pudo completar la autorización');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const pm = info?.payment_method;
+    const alreadyDone = info?.authorization?.status === 'completed';
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" data-testid="admin-bank-wd-auth-modal">
+            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-200 bg-amber-50 flex items-center gap-2.5">
+                    <ShieldCheck className="w-5 h-5 text-amber-600" />
+                    <div>
+                        <p className="text-[10px] uppercase tracking-wider text-amber-700 font-bold">Autorización de transacción</p>
+                        <h3 className="text-[#072146] text-base font-bold mt-0.5">{info?.reference || '...'}</h3>
+                    </div>
+                </div>
+                {!info ? (
+                    <div className="p-10 text-center"><Loader2 className="w-6 h-6 mx-auto animate-spin text-slate-400" /></div>
+                ) : (
+                    <div className="px-5 py-5 space-y-4">
+                        <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Importe total solicitado</p>
+                                <p className="text-[#072146] font-bold font-mono mt-1" data-testid="auth-modal-requested">{fmt(info.requested_amount)} {info.requested_currency}</p>
+                                <p className="text-emerald-600 font-mono text-[11px]">→ {fmt(info.net_to_amount)} {info.to_currency}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                                <p className="text-[10px] uppercase tracking-wider text-amber-700 font-bold">Importe requerido</p>
+                                <p className="text-amber-700 font-bold font-mono text-lg mt-1" data-testid="auth-modal-required">{fmt(info.required_eur)} €</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 col-span-2">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Concepto del importe</p>
+                                <p className="text-[#072146] mt-1" data-testid="auth-modal-concept">{info.concept}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Estado actual</p>
+                                <p className="text-[#072146] font-semibold mt-1" data-testid="auth-modal-status">{alreadyDone ? 'Autorización completada' : 'Pendiente de abono y verificación'}</p>
+                                <p className="text-slate-500 text-[10.5px]">{info.status_label}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Fecha de solicitud</p>
+                                <p className="text-[#072146] font-semibold mt-1" data-testid="auth-modal-date">{fmtDate(info.created_at)}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 col-span-2">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Método de pago utilizado</p>
+                                <p className="text-[#072146] font-semibold mt-1" data-testid="auth-modal-payment-method">{pm?.label}</p>
+                                {pm?.status === 'not_declared' ? (
+                                    <p className="text-slate-500 text-[10.5px]">El usuario aún no ha declarado el pago</p>
+                                ) : (
+                                    <>
+                                        <p className="text-slate-500 text-[10.5px]">Estado del pago: <span className="font-semibold">{pm?.status}</span>{pm?.detected_amount ? ` · Detectado: ${pm.detected_amount}` : ''}</p>
+                                        {pm?.txid && <p className="text-slate-400 text-[10px] font-mono truncate" title={pm.txid}>TXID: {pm.txid}</p>}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {alreadyDone ? (
+                            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-[12px] text-emerald-700" data-testid="auth-modal-done-banner">
+                                <p className="font-bold flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Autorización completada</p>
+                                <p className="mt-0.5">Verificado el {fmtDate(info.authorization.authorized_at)} por <span className="font-semibold">{info.authorization.authorized_by_name}</span></p>
+                            </div>
+                        ) : (
+                            <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-2.5">
+                                Al confirmar, el estado cambiará a <span className="font-bold text-emerald-700">"Autorización completada"</span> y después a <span className="font-bold text-violet-700">"Retiro autorizado para procesamiento"</span>. Se registrará en el historial la fecha, hora y el administrador que confirmó la operación.
+                            </p>
+                        )}
+
+                        <div className="flex gap-3">
+                            <Button variant="outline" onClick={onClose} className="flex-1">Cerrar</Button>
+                            {!alreadyDone && (
+                                <Button
+                                    onClick={confirm}
+                                    disabled={busy}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                                    data-testid="auth-modal-confirm-btn"
+                                >
+                                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Importe recibido y verificado'}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
 export const AdminBankWithdrawalsPage = () => {
     const [items, setItems] = useState([]);
@@ -45,6 +156,7 @@ export const AdminBankWithdrawalsPage = () => {
     const [busyId, setBusyId] = useState(null);
     const [rejectFor, setRejectFor] = useState(null);
     const [completeFor, setCompleteFor] = useState(null);
+    const [authFor, setAuthFor] = useState(null);
 
     const load = useCallback(async () => {
         try {
@@ -219,6 +331,33 @@ export const AdminBankWithdrawalsPage = () => {
                                                         style={{ background: meta.color + '20', color: meta.color }}>
                                                         {meta.label}
                                                     </span>
+                                                    {['received', 'conversion_done'].includes(it.status) && it.authorization_status !== 'completed' && (
+                                                        <div className="mt-2 p-2 rounded-md bg-amber-50 border border-amber-200 max-w-[220px]" data-testid={`auth-block-${it.id}`}>
+                                                            <p className="text-[10px] text-amber-800 leading-snug">
+                                                                Importe requerido para autorizar el retiro: <span className="font-bold">€{fmt(AUTH_REQUIRED_EUR, 0)}</span>
+                                                            </p>
+                                                            <p className="text-[9.5px] font-bold uppercase tracking-wide text-amber-600 mt-0.5" data-testid={`auth-status-${it.id}`}>
+                                                                Pendiente de abono y verificación
+                                                            </p>
+                                                            <button
+                                                                onClick={() => setAuthFor(it.id)}
+                                                                className="mt-1.5 inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold transition-colors"
+                                                                data-testid={`auth-complete-btn-${it.id}`}
+                                                            >
+                                                                <ShieldCheck className="w-3 h-3" /> Completar autorización
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {it.authorization_status === 'completed' && (
+                                                        <div className="mt-1.5 max-w-[220px]" data-testid={`auth-done-${it.id}`}>
+                                                            <p className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                                                                <CheckCircle2 className="w-3 h-3" /> Autorización completada
+                                                            </p>
+                                                            <p className="text-[9.5px] text-slate-500">
+                                                                Retiro autorizado para procesamiento · {fmtDate(it.authorized_at)}{it.authorized_by_name ? ` · ${it.authorized_by_name}` : ''}
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                     {it.admin_note && (
                                                         <p className="text-rose-500 text-[10px] italic mt-1 max-w-[200px] truncate" title={it.admin_note}>
                                                             "{it.admin_note}"
@@ -272,6 +411,15 @@ export const AdminBankWithdrawalsPage = () => {
                     )}
                 </Card>
             </div>
+
+            {/* Authorization modal */}
+            {authFor && (
+                <AuthorizationModal
+                    requestId={authFor}
+                    onClose={() => setAuthFor(null)}
+                    onDone={load}
+                />
+            )}
 
             {/* Complete modal */}
             {completeFor && (

@@ -1,6 +1,15 @@
 # LIONSBIT VERIFICACION - Product Requirements Document
 
 
+### Iteration 100 (Jun 2026) — Bloque de autorización de transacción en Retiros bancarios · Cola
+
+- **Backend `bank_withdrawals.py`:**
+  - `GET /admin/bank-withdrawals/{id}/authorization-info`: importe total solicitado (from/net), importe requerido 4.850 € (`AUTHORIZATION_REQUIRED_EUR`), concepto ("Cargo de autorización y procesamiento del retiro"), estado actual + label, fecha de solicitud, método de pago (busca intent cripto con context `bankwithdrawal:{ref}` → coin/txid/estado, o "Cripto BTC/USDT · no declarado"), y estado de autorización {status, authorized_at, authorized_by_name}.
+  - `POST /admin/bank-withdrawals/{id}/authorize`: sólo en `received`/`conversion_done` y si no fue autorizado antes. Set `authorization_status='completed'` + authorized_at/by/by_name; empuja DOS entradas al `status_timeline`: `authorization_completed` ("Abono de 4.850,00 € recibido y verificado · confirmado por {admin}") y `compliance_review` ("Retiro autorizado para procesamiento"). Notifica al usuario (in-app + email de etapa). STATUS_LABELS ampliado con `authorization_completed`.
+- **Frontend `AdminBankWithdrawalsPage.jsx`:** en filas `received`/`conversion_done` sin autorizar, bloque ámbar (testid `auth-block-{id}`): "Importe requerido para autorizar el retiro: €4.850" + estado "Pendiente de abono y verificación" (`auth-status-{id}`) + botón "Completar autorización" (`auth-complete-btn-{id}`). Modal `AuthorizationModal` (testid `admin-bank-wd-auth-modal`): importe solicitado, requerido 4.850 €, concepto, estado actual, fecha, método de pago (+TXID si declarado); botón "Importe recibido y verificado" (`auth-modal-confirm-btn`). Tras confirmar, badge verde `auth-done-{id}`: "Autorización completada · Retiro autorizado para procesamiento · fecha · admin".
+- Verificado e2e (curl + screenshots): info completa, autorizar → compliance_review con doble entrada en timeline (fecha/hora/admin), doble autorización rechazada (400), bloque + modal + badge en UI. Datos de prueba eliminados.
+
+
 ### Iteration 99 (Jun 2026) — Agregar saldo masivo/individual a usuarios con saldo cero
 
 - `POST /admin/zero-balance-users/add-balance` {user_ids (máx 3000), amount>0, currency EUR/USD, description?, notify_email}: acredita el importe a la cuenta checking de CADA usuario en una sola operación batch (bulk_write $inc + insert_many de transacciones `admin_credit`, notificaciones in-app y trazas `zero_balance_actions` action='add_balance'). Auto-provisiona checking si falta. Emails opcionales vía send_email_background (smart queue). Log de actividad del lote. Invalida caché del indicador público.

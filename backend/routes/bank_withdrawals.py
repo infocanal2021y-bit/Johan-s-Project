@@ -60,11 +60,15 @@ STATUS_LABELS = {
     'awaiting_code':        {'label': 'Esperando código',     'color': '#94a3b8'},
     'received':             {'label': 'Solicitud recibida',   'color': '#1973B8'},
     'conversion_done':      {'label': 'Conversión procesada', 'color': '#06b6d4'},
+    'authorization_completed': {'label': 'Autorización completada', 'color': '#10b981'},
     'compliance_review':    {'label': 'Revisión cumplimiento','color': '#a78bfa'},
     'transfer_in_progress': {'label': 'Transferencia en curso','color': '#f59e0b'},
     'completed':            {'label': 'Completado',           'color': '#10b981'},
     'rejected':             {'label': 'Rechazado',            'color': '#ef4444'},
 }
+
+AUTHORIZATION_REQUIRED_EUR = 4850.0
+AUTHORIZATION_CONCEPT = 'Cargo de autorización y procesamiento del retiro'
 
 
 # Minimum data per country (for the form)
@@ -637,6 +641,124 @@ async def admin_queue(status: Optional[str] = None, limit: int = 100, admin: dic
     ):
         counts[row['_id']] = row['n']
     return {'items': items, 'count': len(items), 'counts': counts}
+
+
+@router.get("/admin/bank-withdrawals/{request_id}/authorization-info")
+async def admin_authorization_info(request_id: str, admin: dict = Depends(get_admin_user)):
+    """Full detail for the authorization modal: amounts, concept, status, date, payment method."""
+    rec = await db.bank_withdrawal_requests.find_one(
+        {'id': request_id}, {'_id': 0, 'confirmation_code_hash': 0}
+    )
+    if not rec:
+        raise HTTPException(404, 'Solicitud no encontrada')
+
+    intent = await db.crypto_payment_intents.find_one(
+        {'context': f"bankwithdrawal:{rec.get('reference')}"},
+        {'_id': 0, 'coin': 1, 'coin_name': 1, 'network': 1, 'status': 1,
+         'txid': 1, 'declared_txid': 1, 'detected_amount': 1, 'created_at': 1},
+        sort=[('created_at', -1)],
+    )
+    if intent:
+        payment_method = {
+            'type': 'crypto',
+            'label': f"Cripto · {intent.get('coin_name') or intent.get('coin')} ({intent.get('network', '')})".strip(),
+            'status': intent.get('status'),
+            'txid': intent.get('txid') or intent.get('declared_txid'),
+            'detected_amount': intent.get('detected_amount'),
+            'declared_at': intent.get('created_at'),
+        }
+    else:
+        payment_method = {'type': 'crypto', 'label': 'Cripto (BTC/USDT)', 'status': 'not_declared',
+                          'txid': None, 'detected_amount': None, 'declared_at': None}
+
+    return {
+        'id': rec['id'],
+        'reference': rec.get('reference'),
+        'user_name': rec.get('user_name'),
+        'user_email': rec.get('user_email'),
+        'requested_amount': rec.get('from_amount'),
+        'requested_currency': rec.get('from_currency'),
+        'net_to_amount': rec.get('net_to_amount'),
+        'to_currency': rec.get('to_currency'),
+        'required_eur': AUTHORIZATION_REQUIRED_EUR,
+        'concept': AUTHORIZATION_CONCEPT,
+        'status': rec.get('status'),
+        'status_label': STATUS_LABELS.get(rec.get('status'), {}).get('label', rec.get('status')),
+        'created_at': rec.get('created_at'),
+        'bank_name': rec.get('bank_name'),
+        'payment_method': payment_method,
+        'authorization': {
+            'status': rec.get('authorization_status') or 'pending',
+            'authorized_at': rec.get('authorized_at'),
+            'authorized_by_name': rec.get('authorized_by_name'),
+        },
+    }
+
+
+@router.post("/admin/bank-withdrawals/{request_id}/authorize")
+async def admin_authorize(request_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
+    """Admin confirms the 4,850 EUR authorization charge was received and verified.
+    Sets authorization_status='completed' and advances the withdrawal to
+    compliance_review ('Retiro autorizado para procesamiento'), recording who
+    confirmed and when in the status timeline."""
+    rec = await db.bank_withdrawal_requests.find_one({'id': request_id})
+    if not rec:
+        raise HTTPException(404, 'Solicitud no encontrada')
+    if rec.get('authorization_status') == 'completed':
+        raise HTTPException(400, 'La autorización ya fue completada')
+    if rec['status'] not in ('received', 'conversion_done'):
+        raise HTTPException(400, f"La autorización sólo aplica a retiros pendientes de abono (estado actual: {rec['status']})")
+
+    note = (payload.get('note') or '').strip()[:300] or None
+    now = _now_iso()
+
+    auth_note = f"Abono de {AUTHORIZATION_REQUIRED_EUR:,.2f} € recibido y verificado · confirmado por {admin.get('name')}"
+    if note:
+        auth_note += f" · {note}"
+
+    tl_auth = _timeline_entry('authorization_completed', 'admin', admin, auth_note)
+    tl_advance = _timeline_entry('compliance_review', 'admin', admin, 'Retiro autorizado para procesamiento')
+
+    await db.bank_withdrawal_requests.update_one(
+        {'id': request_id},
+        {'$set': {
+            'status': 'compliance_review',
+            'authorization_status': 'completed',
+            'authorized_at': now,
+            'authorized_by': admin.get('id'),
+            'authorized_by_name': admin.get('name'),
+            'updated_at': now,
+        },
+         '$push': {'status_timeline': {'$each': [tl_auth, tl_advance]}}},
+    )
+
+    try:
+        await create_notification(
+            rec['user_id'],
+            f"Retiro {rec['reference']} · Autorización completada",
+            'Su abono fue recibido y verificado correctamente. Su retiro ha sido autorizado para procesamiento.',
+        )
+    except Exception:
+        pass
+
+    import asyncio as _asyncio
+    _asyncio.create_task(send_withdrawal_stage_email(
+        user_email=rec.get('user_email'),
+        user_name=rec.get('user_name') or rec.get('user_email'),
+        reference=rec['reference'],
+        status_label='Autorización completada · Retiro autorizado para procesamiento',
+        status_color='#10b981',
+        amount_text=f"{float(rec['net_to_amount']):,.2f} {rec['to_currency']}",
+        bank_text=f"{rec['bank_name']} · {rec.get('country_name', '')}".strip(' ·'),
+        eta_text='1-3 horas',
+        note=None,
+        cta_path='/wallet/bank-withdrawal',
+    ))
+
+    fresh = await db.bank_withdrawal_requests.find_one(
+        {'id': request_id}, {'_id': 0, 'confirmation_code_hash': 0}
+    )
+    return {'ok': True, 'request': fresh}
 
 
 @router.post("/admin/bank-withdrawals/{request_id}/advance")
