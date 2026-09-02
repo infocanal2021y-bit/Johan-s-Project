@@ -153,8 +153,8 @@ async def login(credentials: UserLogin, request: Request):
 async def _admin_2fa_enabled() -> bool:
     doc = await db.platform_settings.find_one({'key': 'admin_2fa'}, {'_id': 0})
     if doc is None:
-        return True  # default ON
-    return bool(doc.get('enabled', True))
+        return False  # default OFF (desactivado a petición del usuario)
+    return bool(doc.get('enabled', False))
 
 
 async def _start_admin_2fa(user: dict) -> dict:
