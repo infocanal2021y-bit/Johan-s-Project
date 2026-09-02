@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { notificationsAPI } from '../lib/api';
+import { WithdrawalCaseModal } from './admin/WithdrawalCaseModal';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -252,6 +253,17 @@ export const NotificationBell = () => {
 
     const meta = selectedNotif ? getNotificationMeta(selectedNotif.title) : null;
     const DetailIcon = meta?.icon || Bell;
+
+    // Withdrawal case (expediente) detection — admin only
+    const [caseOpen, setCaseOpen] = useState(false);
+    const withdrawalRef = isAdmin && selectedNotif?.metadata?.reference &&
+        ((selectedNotif?.metadata?.type === 'withdrawal_request') || (selectedNotif?.type === 'withdrawal_request') || /retiro/i.test(selectedNotif?.title || ''))
+        ? selectedNotif.metadata.reference : null;
+
+    // User CTA link (e.g. "Ver requisito pendiente")
+    const userCta = !isAdmin && selectedNotif?.metadata?.link
+        ? { link: selectedNotif.metadata.link, label: selectedNotif.metadata.cta_label || 'Ver requisito pendiente' }
+        : null;
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -511,8 +523,30 @@ export const NotificationBell = () => {
                                 </div>
                             )}
 
-                            {/* Admin: Add Balance inline form */}
-                            {isAdmin && !showAddBalance && (
+                            {/* Admin: Abrir solicitud (expediente de retiro) */}
+                            {withdrawalRef && (
+                                <Button
+                                    onClick={() => setCaseOpen(true)}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                                    data-testid="notif-open-case-btn"
+                                >
+                                    <ExternalLink className="w-4 h-4 mr-2" /> Abrir solicitud
+                                </Button>
+                            )}
+
+                            {/* User: CTA link (ej. Ver requisito pendiente) */}
+                            {userCta && (
+                                <Button
+                                    onClick={() => { setDetailOpen(false); navigate(userCta.link); }}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                                    data-testid="notif-user-cta-btn"
+                                >
+                                    <ExternalLink className="w-4 h-4 mr-2" /> {userCta.label}
+                                </Button>
+                            )}
+
+                            {/* Admin: Add Balance inline form (solo notificaciones NO de retiro) */}
+                            {isAdmin && !withdrawalRef && !showAddBalance && (
                                 <Button
                                     onClick={() => setShowAddBalance(true)}
                                     className={
@@ -536,7 +570,7 @@ export const NotificationBell = () => {
                                 </Button>
                             )}
 
-                            {isAdmin && showAddBalance && (
+                            {isAdmin && !withdrawalRef && showAddBalance && (
                                 <div className="space-y-3 p-4 rounded-xl bg-slate-800/80 border border-emerald-500/20" data-testid="notif-add-balance-form">
                                     <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider">Agregar Saldo</p>
                                     <div className="flex gap-2">
@@ -593,6 +627,14 @@ export const NotificationBell = () => {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {isAdmin && (
+                <WithdrawalCaseModal
+                    reference={withdrawalRef}
+                    open={caseOpen && !!withdrawalRef}
+                    onClose={() => setCaseOpen(false)}
+                />
+            )}
         </div>
     );
 };

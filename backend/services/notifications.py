@@ -5,12 +5,13 @@ from datetime import datetime, timezone
 from config import db, RESEND_API_KEY, ADMIN_EMAIL, APP_BASE_URL
 
 
-async def create_notification(user_id: str, title: str, message: str):
+async def create_notification(user_id: str, title: str, message: str, metadata: dict = None):
     notification = {
         'id': str(uuid.uuid4()),
         'user_id': user_id,
         'title': title,
         'message': message,
+        'metadata': metadata or None,
         'read': False,
         'created_at': datetime.now(timezone.utc).isoformat()
     }
@@ -49,8 +50,9 @@ async def create_admin_notification(
     await db.admin_notifications.insert_one(notification)
 
     admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(100)
+    mirror_meta = {**(metadata or {}), 'type': notification_type}
     for admin in admins:
-        await create_notification(admin['id'], title, message)
+        await create_notification(admin['id'], title, message, metadata=mirror_meta)
 
     if send_email_notification and RESEND_API_KEY:
         await send_admin_alert_email(notification_type, title, message, user_info, metadata)

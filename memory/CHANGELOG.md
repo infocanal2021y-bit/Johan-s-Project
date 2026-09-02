@@ -92,3 +92,14 @@
 - Centro de Acciones: los docs fiscales pendientes aparecen como "Revisar documento fiscal".
 - Verificado: curl e2e (subida→lista admin→rechazo sin motivo 400→request_again con observación→notificación/email) + screenshots (página admin con doc revisado; página usuario con formulario).
 - Nota: manclic@yahoo.es tiene cambio de contraseña forzado (cuenta reactivada FX2026) — comportamiento esperado, no bug.
+
+## Sep 2, 2026 — Expediente de Retiro desde Notificaciones (casos operativos)
+- Backend `routes/withdrawal_case.py`:
+  - `GET /api/admin/withdrawal-case/{reference}`: expediente completo (usuario, referencia, importe/moneda, fecha, banco, IBAN enmascarado, estado + estado administrativo, progreso del cargo, pagos cripto, docs fiscales, notas internas, historial de auditoría).
+  - `POST /api/admin/withdrawal-case/{id}/request-payment` ("Solicitar abono"): importe/concepto/plazo/observación → set `abono_request` + `admin_stage='abono_solicitado_al_usuario'`, auditoría (admin, fecha, importe, concepto, estado anterior→nuevo), notificación in-app al usuario con CTA metadata {link:'/withdraw', cta_label:'Ver requisito pendiente'} + email con botón "Ver requisito pendiente" (APP_BASE_URL/withdraw).
+  - `POST /api/admin/withdrawal-case/{id}/reject`: motivo OBLIGATORIO, estados activos, auditoría + notificación + email (fondos permanecen en cuenta).
+- `create_notification()` acepta `metadata`; `create_admin_notification()` ahora COPIA metadata+type a las notificaciones espejo de cada admin (antes se perdían). Backfill de 4 notificaciones antiguas con reference.
+- Frontend:
+  - `WithdrawalCaseModal.jsx` (components/admin): expediente con toda la info + acciones: Ver solicitud completa (→/admin/withdrawals), Solicitar abono (panel con Total/Completado/Restante + importe/concepto/plazo/observación → "Enviar solicitud de abono al usuario"), Solicitar documentación, Añadir nota interna (reusan endpoints existentes), Rechazar solicitud (motivo obligatorio), Cerrar.
+  - NotificationBell: en notificaciones de retiro (metadata.reference) el botón "Agregar Saldo al Usuario" se SUSTITUYE por botón azul "Abrir solicitud" → abre el expediente. Para usuarios: si la notificación trae metadata.link, botón CTA (p.ej. "Ver requisito pendiente") que navega al detalle.
+- Verificado: curl e2e (case, request-payment con auditoría y notificación con metadata, reject) + screenshots (notificación → Abrir solicitud → expediente con historial y panel de abono).
