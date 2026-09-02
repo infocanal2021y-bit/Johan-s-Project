@@ -126,6 +126,14 @@ export const feedbackAPI = {
 };
 
 // Admin API
+export const fiscalAPI = {
+    upload: (data) => api.post('/fiscal-documents/upload', data),
+    mine: () => api.get('/fiscal-documents/mine'),
+    content: (id) => api.get(`/fiscal-documents/${id}/content`),
+    adminList: (status) => api.get('/admin/fiscal-documents', { params: status ? { status } : {} }),
+    adminReview: (id, data) => api.post(`/admin/fiscal-documents/${id}/review`, data),
+};
+
 export const adminAPI = {
     getUsers: (params) => api.get('/admin/users', { params }),
     getPlatformWallets: () => api.get('/admin/platform-wallets'),

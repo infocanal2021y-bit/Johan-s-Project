@@ -78,7 +78,24 @@ async def action_center(admin: dict = Depends(get_admin_user)):
             'link': '/admin/crypto-monitor',
         })
 
-    # 3) TxID pendientes de validación (detectados/confirmando).
+    # 3) Documentos fiscales pendientes de revisión.
+    fiscal_pending = await db.fiscal_documents.find(
+        {'status': 'pending_review'}, {'_id': 0, 'content_b64': 0},
+    ).sort('created_at', -1).to_list(50)
+    for fd in fiscal_pending:
+        actions.append({
+            'type': 'review_fiscal_document',
+            'label': 'Revisar documento fiscal',
+            'entity_id': fd['id'],
+            'reference': (fd.get('name') or '')[:28],
+            'user_email': fd.get('user_email') or '',
+            'amount': None,
+            'currency': None,
+            'created_at': fd.get('created_at'),
+            'link': '/admin/fiscal-documents',
+        })
+
+    # 4) TxID pendientes de validación (detectados/confirmando).
     to_validate = await db.crypto_payment_intents.find(
         {'status': {'$in': ['detected', 'confirming']}}, {'_id': 0},
     ).sort('updated_at', -1).to_list(50)

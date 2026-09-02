@@ -84,3 +84,11 @@
 - **Bloqueo de IBAN**: `POST /api/transactions` (withdraw) rechaza con 409 si existe un retiro activo con IBAN distinto ("contacte con soporte para autorizar el cambio").
 - **Gráfica semanal cripto**: `GET /api/admin/crypto-monitor/weekly` (8 semanas, EUR + conteo) + gráfica recharts (`weekly-crypto-chart`) en el Monitor Blockchain.
 - Verificado: curl (2FA e2e admin, login usuario intacto, action-center, weekly, IBAN lock 409 tras fix del modelo Pydantic) + screenshots (Centro de Acciones con acción real, cola con 10 secciones, gráfica, pantalla 2FA).
+
+## Sep 2, 2026 — Documentos Fiscales
+- Nuevo `routes/fiscal_documents.py`: `POST /api/fiscal-documents/upload` (base64, PDF/PNG/JPG/WEBP, máx 8MB, estado pending_review, notifica admin "Nueva documentación fiscal pendiente de revisión"), `GET /mine`, `GET /{id}/content` (dueño o admin), `GET /api/admin/fiscal-documents` (+counts), `POST /api/admin/fiscal-documents/{id}/review` (accept/reject/request_again; motivo OBLIGATORIO para reject/request_again; notifica + email al usuario con observación).
+- Página usuario `/fiscal-documents` (`FiscalDocumentsPage`, sidebar grupo Retiros): subida + nota + lista con estados y observación del revisor + ver documento.
+- Página admin `/admin/fiscal-documents` (`AdminFiscalDocumentsPage`, sidebar admin): pestañas Pendientes/Aceptados/Rechazados/Solicitados de nuevo con contadores, Ver, Aceptar/Rechazar/Solicitar de nuevo con diálogo de observación.
+- Centro de Acciones: los docs fiscales pendientes aparecen como "Revisar documento fiscal".
+- Verificado: curl e2e (subida→lista admin→rechazo sin motivo 400→request_again con observación→notificación/email) + screenshots (página admin con doc revisado; página usuario con formulario).
+- Nota: manclic@yahoo.es tiene cambio de contraseña forzado (cuenta reactivada FX2026) — comportamiento esperado, no bug.

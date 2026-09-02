@@ -63,6 +63,7 @@ import {
     Sparkles,
     Share2,
     FileText,
+    FileCheck,
     Server,
     Building2,
     UserX,
@@ -155,6 +156,7 @@ export const Sidebar = () => {
                 { to: '/wallet/bank-withdrawal', icon: Send, label: 'Retiro a Banco' },
                 { to: '/withdraw-methods', icon: CreditCard, label: 'Métodos de Retiro' },
                 { to: '/transactions?filter=withdraw', icon: History, label: 'Historial de Retiros' },
+                { to: '/fiscal-documents', icon: FileText, label: 'Documentación Fiscal' },
             ],
         },
         {
@@ -209,6 +211,7 @@ export const Sidebar = () => {
         { to: '/admin/credits', icon: PlusCircle, label: 'Agregar Saldo' },
         { to: '/admin/crypto-payments', icon: Bitcoin, label: 'Pagos Crypto' },
         { to: '/admin/action-center', icon: ShieldAlert, label: 'Centro de Acciones' },
+        { to: '/admin/fiscal-documents', icon: FileCheck, label: 'Documentos Fiscales' },
         { to: '/admin/crypto-monitor', icon: Radar, label: 'Monitor Blockchain' },
         { to: '/admin/wallets', icon: Wallet, label: 'Wallets de Plataforma' },
         { to: '/admin/pending-abonos', icon: Receipt, label: 'Abonos Pendientes' },
