@@ -24,3 +24,10 @@ On first login they're redirected to `/force-password-change` and must set a new
 - Backend URL: `REACT_APP_BACKEND_URL` in `/app/frontend/.env`
 - DB: MongoDB at `MONGO_URL`, DB name from `DB_NAME` in `/app/backend/.env`
 - Login endpoint returns field `token` (not `access_token`).
+
+## Admin 2FA (desde Sep 2, 2026)
+- El login de admin (`admi@paylionsbit.es` / `LionsBit2026!`) ahora requiere 2FA por email (código de 6 dígitos).
+- Flujo: `POST /api/auth/login` → `{requires_2fa, challenge_id}` → `POST /api/auth/verify-2fa {challenge_id, code}` → `{token}`.
+- **Para testing (preview):** el código se registra en los logs del backend: `grep "ADMIN 2FA code" /var/log/supervisor/backend.*.log | tail -1`
+- Toggle: `POST /api/admin/security/2fa {enabled: true/false}` (o el switch en /admin/action-center). Por defecto: ACTIVADO.
+- Los usuarios normales NO usan 2FA (login directo con token).

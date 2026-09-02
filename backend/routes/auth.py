@@ -7,7 +7,7 @@ import logging
 from config import db, APP_BASE_URL
 from models import UserCreate, UserLogin, ChangePassword, PasswordResetRequest, PasswordResetConfirm
 from services.auth import (
-    hash_password, verify_password, create_token, get_current_user
+    hash_password, verify_password, create_token, get_current_user, get_admin_user
 )
 from services.notifications import create_notification, create_admin_notification, log_system_activity
 from services.email import (
@@ -143,6 +143,78 @@ async def login(credentials: UserLogin, request: Request):
     if not stored_password or not verify_password(credentials.password, stored_password):
         raise HTTPException(status_code=401, detail='Invalid credentials')
 
+    # Admin 2FA gate: require an emailed 6-digit code before issuing the token.
+    if user.get('role') == 'admin' and await _admin_2fa_enabled():
+        return await _start_admin_2fa(user)
+
+    return await _finalize_login(user, request)
+
+
+async def _admin_2fa_enabled() -> bool:
+    doc = await db.platform_settings.find_one({'key': 'admin_2fa'}, {'_id': 0})
+    if doc is None:
+        return True  # default ON
+    return bool(doc.get('enabled', True))
+
+
+async def _start_admin_2fa(user: dict) -> dict:
+    import random
+    code = f"{random.randint(0, 999999):06d}"
+    challenge_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    await db.admin_2fa_challenges.insert_one({
+        'id': challenge_id,
+        'user_id': user['id'],
+        'email': user['email'],
+        'code_hash': hash_password(code),
+        'attempts': 0,
+        'used': False,
+        'created_at': now.isoformat(),
+        'expires_at': (now + timedelta(minutes=10)).isoformat(),
+    })
+    # Log for preview/testing (code is delivered by email in production).
+    logging.info(f"ADMIN 2FA code for {user['email']}: {code} (challenge {challenge_id})")
+    content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Código de verificación para acceder a su panel de administración:</p>
+        <div style="text-align:center;margin:24px 0;">
+            <span style="display:inline-block;font-size:34px;letter-spacing:10px;font-weight:800;color:#1973B8;background:#0f172a;padding:16px 28px;border-radius:12px;font-family:monospace;">{code}</span>
+        </div>
+        <p style="color:#94a3b8;font-size:13px;">Este código caduca en 10 minutos. Si no intentó iniciar sesión, cambie su contraseña de inmediato.</p>
+    """
+    try:
+        send_email_background(user['email'], "Código de acceso admin - LIONSBIT VERIFICACION",
+                              get_email_template(content, "Verificación en dos pasos"))
+    except Exception as _e:
+        logging.warning(f"2FA email send failed: {_e}")
+    return {'requires_2fa': True, 'challenge_id': challenge_id, 'email': user['email']}
+
+
+@router.post("/auth/verify-2fa", response_model=dict)
+async def verify_2fa(payload: dict, request: Request):
+    challenge_id = (payload.get('challenge_id') or '').strip()
+    code = (payload.get('code') or '').strip()
+    if not challenge_id or not code:
+        raise HTTPException(status_code=400, detail='Faltan datos de verificación')
+
+    ch = await db.admin_2fa_challenges.find_one({'id': challenge_id})
+    if not ch or ch.get('used'):
+        raise HTTPException(status_code=400, detail='Código no válido o ya utilizado. Inicie sesión de nuevo.')
+    if datetime.now(timezone.utc) > datetime.fromisoformat(ch['expires_at']):
+        raise HTTPException(status_code=400, detail='El código ha caducado. Inicie sesión de nuevo.')
+    if ch.get('attempts', 0) >= 5:
+        raise HTTPException(status_code=429, detail='Demasiados intentos. Inicie sesión de nuevo.')
+    if not verify_password(code, ch['code_hash']):
+        await db.admin_2fa_challenges.update_one({'id': challenge_id}, {'$inc': {'attempts': 1}})
+        raise HTTPException(status_code=401, detail=f"Código incorrecto. Intentos restantes: {5 - ch.get('attempts', 0) - 1}")
+
+    await db.admin_2fa_challenges.update_one({'id': challenge_id}, {'$set': {'used': True}})
+    user = await db.users.find_one({'id': ch['user_id']}, {'_id': 0})
+    if not user:
+        raise HTTPException(status_code=404, detail='Usuario no encontrado')
+    return await _finalize_login(user, request)
+
+
+async def _finalize_login(user: dict, request: Request) -> dict:
     client_ip = request.headers.get('X-Forwarded-For', request.client.host if request.client else 'Unknown')
     if ',' in client_ip:
         client_ip = client_ip.split(',')[0].strip()
@@ -263,6 +335,24 @@ async def login(credentials: UserLogin, request: Request):
             'time': login_record['logged_in_at']
         }
     }
+
+
+@router.get("/admin/security/2fa")
+async def get_admin_2fa_setting(admin: dict = Depends(get_admin_user)):
+    return {'enabled': await _admin_2fa_enabled()}
+
+
+@router.post("/admin/security/2fa")
+async def set_admin_2fa_setting(payload: dict, admin: dict = Depends(get_admin_user)):
+    enabled = bool(payload.get('enabled'))
+    await db.platform_settings.update_one(
+        {'key': 'admin_2fa'},
+        {'$set': {'key': 'admin_2fa', 'enabled': enabled,
+                  'updated_at': datetime.now(timezone.utc).isoformat(),
+                  'updated_by': admin.get('email')}},
+        upsert=True,
+    )
+    return {'ok': True, 'enabled': enabled}
 
 
 @router.get("/auth/me")

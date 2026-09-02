@@ -76,7 +76,23 @@ async def create_transaction(tx_data: TransactionCreate, current_user: dict = De
         # Validate banking info is provided
         if not tx_data.banking_info:
             raise HTTPException(status_code=400, detail='La información bancaria es requerida para retiros')
-        
+
+        # Security: block changing the IBAN while an active withdrawal exists.
+        new_iban = (getattr(tx_data.banking_info, 'iban', None) or '').replace(' ', '').upper()
+        if new_iban:
+            active = await db.transactions.find_one({
+                'user_id': current_user['id'],
+                'transaction_type': 'withdraw',
+                'status': {'$in': ['pending_tax', 'crypto_payment_under_review', 'pending', 'processing', 'transfer_in_progress']},
+            }, {'_id': 0, 'banking_info': 1})
+            if active:
+                active_iban = ((active.get('banking_info') or {}).get('iban') or '').replace(' ', '').upper()
+                if active_iban and active_iban != new_iban:
+                    raise HTTPException(
+                        status_code=409,
+                        detail='Tiene una solicitud de retiro activa con otro IBAN. No es posible cambiar el IBAN mientras exista un retiro en curso; contacte con soporte para autorizar el cambio.',
+                    )
+
         # Withdrawals require tax payment before admin approval
         status = 'pending_tax'
         transaction_reference = generate_transaction_reference()

@@ -4,7 +4,50 @@ import api from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import { StatusPill } from '../../components/crypto/CryptoPaymentMonitor';
-import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX, Bell, ArrowUpCircle, Mail } from 'lucide-react';
+import { Radar, RefreshCw, ExternalLink, CheckCircle, XCircle, Loader2, AlertTriangle, Clock, ShieldCheck, Volume2, VolumeX, Bell, ArrowUpCircle, Mail, BarChart3 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+
+const WeeklyCryptoChart = () => {
+    const [data, setData] = useState(null);
+    useEffect(() => {
+        api.get('/admin/crypto-monitor/weekly')
+            .then((r) => setData(r.data))
+            .catch(() => setData({ series: [], total_eur: 0, total_count: 0 }));
+    }, []);
+
+    if (!data) return null;
+    return (
+        <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-5" data-testid="weekly-crypto-chart">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-violet-400" />
+                    <span className="text-white font-semibold text-sm">Evolución semanal de pagos cripto (EUR)</span>
+                </div>
+                <span className="text-xs text-slate-400">
+                    8 semanas · <span className="text-emerald-400 font-bold font-mono">€{Number(data.total_eur || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span> · {data.total_count} pagos
+                </span>
+            </div>
+            <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.series} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                        <XAxis dataKey="week" stroke="#64748b" fontSize={11} tickLine={false} axisLine={{ stroke: '#1e293b' }} />
+                        <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false}
+                            tickFormatter={(v) => `€${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`} />
+                        <Tooltip
+                            contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 10, fontSize: 12 }}
+                            labelStyle={{ color: '#94a3b8' }}
+                            formatter={(v, name) => name === 'eur'
+                                ? [`€${Number(v).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`, 'EUR detectado']
+                                : [v, 'Pagos']}
+                        />
+                        <Bar dataKey="eur" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={44} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+};
 
 const playAlert = (kind) => {
     try {
@@ -199,6 +242,8 @@ export default function AdminCryptoMonitorPage() {
                         </div>
                     ))}
                 </div>
+
+                <WeeklyCryptoChart />
 
                 {showAlerts && (
                     <div className="p-4 rounded-2xl border border-amber-500/20 bg-[#0a0a0a]/70" data-testid="alerts-history-panel">

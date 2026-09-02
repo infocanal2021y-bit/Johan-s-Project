@@ -42,6 +42,7 @@ from routes.crypto_monitor import router as crypto_monitor_router
 from routes.balance_metrics import router as balance_metrics_router
 from routes.iban import router as iban_router
 from routes.platform_wallets import router as platform_wallets_router
+from routes.admin_action_center import router as admin_action_center_router
 
 
 def register_routes(api_router: APIRouter):
@@ -86,4 +87,5 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(crypto_monitor_router, tags=["crypto-monitor"])
     api_router.include_router(iban_router, tags=["iban"])
     api_router.include_router(platform_wallets_router, tags=["platform-wallets"])
+    api_router.include_router(admin_action_center_router, tags=["admin-action-center"])
     api_router.include_router(balance_metrics_router, tags=["balance-metrics"])

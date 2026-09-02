@@ -18,27 +18,47 @@ export const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, verify2fa } = useAuth();
     const navigate = useNavigate();
+
+    // 2FA step
+    const [twoFA, setTwoFA] = useState(null); // { challenge_id, email }
+    const [code, setCode] = useState('');
+
+    const finishLogin = (result) => {
+        if (result.must_change_password) {
+            toast.info('Por motivos de seguridad, debe actualizar su contraseña antes de continuar.');
+            navigate('/force-password-change', { replace: true });
+        } else {
+            toast.success('¡Bienvenido de nuevo!');
+            navigate('/dashboard');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-
         const result = await login(email, password);
-        
-        if (result.success) {
-            if (result.must_change_password) {
-                toast.info('Por motivos de seguridad, debe actualizar su contraseña antes de continuar.');
-                navigate('/force-password-change', { replace: true });
-            } else {
-                toast.success('¡Bienvenido de nuevo!');
-                navigate('/dashboard');
-            }
+        if (result.requires_2fa) {
+            setTwoFA({ challenge_id: result.challenge_id, email: result.email });
+            toast.info('Le enviamos un código de verificación a su correo.');
+        } else if (result.success) {
+            finishLogin(result);
         } else {
             toast.error(result.error);
         }
-        
+        setLoading(false);
+    };
+
+    const handleVerify2fa = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const result = await verify2fa(twoFA.challenge_id, code.trim());
+        if (result.success) {
+            finishLogin(result);
+        } else {
+            toast.error(result.error);
+        }
         setLoading(false);
     };
 
@@ -67,6 +87,35 @@ export const LoginPage = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
+                        {twoFA ? (
+                        <form onSubmit={handleVerify2fa} className="space-y-6" data-testid="twofa-form">
+                            <div className="text-center space-y-1">
+                                <p className="text-slate-300 text-sm">Verificación en dos pasos</p>
+                                <p className="text-slate-500 text-xs">Introduzca el código de 6 dígitos enviado a <span className="text-slate-300">{twoFA.email}</span></p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-slate-300 font-normal">Código de verificación</Label>
+                                <Input
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    placeholder="000000"
+                                    inputMode="numeric"
+                                    className="text-center text-2xl tracking-[0.5em] font-mono bg-slate-950/50 border-slate-800 text-white h-14"
+                                    required
+                                    data-testid="twofa-code-input"
+                                />
+                            </div>
+                            <Button type="submit" disabled={loading || code.length !== 6}
+                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+                                data-testid="twofa-submit-btn">
+                                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verificando...</> : 'Verificar y entrar'}
+                            </Button>
+                            <button type="button" onClick={() => { setTwoFA(null); setCode(''); }}
+                                className="w-full text-slate-400 hover:text-slate-200 text-xs" data-testid="twofa-back-btn">
+                                Volver al inicio de sesión
+                            </button>
+                        </form>
+                        ) : (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="text-slate-300 font-normal">Email</Label>
@@ -137,6 +186,7 @@ export const LoginPage = () => {
                                 </Link>
                             </div>
                         </form>
+                        )}
 
                         <div className="mt-6 text-center">
                             <p className="text-slate-500 font-light">

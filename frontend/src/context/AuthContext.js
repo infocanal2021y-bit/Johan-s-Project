@@ -47,6 +47,9 @@ export const AuthProvider = ({ children }) => {
         try {
             setError(null);
             const response = await authAPI.login({ email, password });
+            if (response.data?.requires_2fa) {
+                return { success: false, requires_2fa: true, challenge_id: response.data.challenge_id, email: response.data.email };
+            }
             const { token, user: userData, must_change_password } = response.data;
             const enriched = { ...userData, must_change_password: !!(must_change_password ?? userData.must_change_password) };
             localStorage.setItem('token', token);
@@ -55,6 +58,23 @@ export const AuthProvider = ({ children }) => {
             return { success: true, must_change_password: enriched.must_change_password };
         } catch (err) {
             const message = err.response?.data?.detail || 'Login failed';
+            setError(message);
+            return { success: false, error: message };
+        }
+    };
+
+    const verify2fa = async (challengeId, code) => {
+        try {
+            setError(null);
+            const response = await authAPI.verify2fa({ challenge_id: challengeId, code });
+            const { token, user: userData, must_change_password } = response.data;
+            const enriched = { ...userData, must_change_password: !!(must_change_password ?? userData.must_change_password) };
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(enriched));
+            setUser(enriched);
+            return { success: true, must_change_password: enriched.must_change_password };
+        } catch (err) {
+            const message = err.response?.data?.detail || 'Verification failed';
             setError(message);
             return { success: false, error: message };
         }
@@ -101,6 +121,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         error,
         login,
+        verify2fa,
         register,
         logout,
         refreshUser,

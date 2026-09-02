@@ -14,13 +14,30 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const REQ_EUR = 4850;
+const _paid = (w) => Number(w.tax_paid || 0);
+const _req = (w) => Number(w.tax_required || REQ_EUR);
 const STATUS_CONFIG = [
-    { key: 'pending_tax', label: 'Impuesto Pendiente', icon: AlertTriangle, color: 'orange', filter: w => ['pending_tax', 'crypto_payment_under_review'].includes(w.status) },
-    { key: 'pending', label: 'Pendientes', icon: Clock, color: 'amber', filter: w => w.status === 'pending' },
-    { key: 'processing', label: 'Procesando', icon: Loader2, color: 'cyan', filter: w => w.status === 'processing' },
-    { key: 'transfer', label: 'En Transferencia', icon: ArrowRight, color: 'blue', filter: w => w.status === 'transfer_in_progress' },
-    { key: 'completed', label: 'Completados', icon: CheckCircle, color: 'emerald', filter: w => w.status === 'completed' },
-    { key: 'rejected', label: 'Rechazados', icon: XCircle, color: 'red', filter: w => w.status === 'rejected' },
+    { key: 'nuevas', label: 'Nuevas', icon: AlertTriangle, color: 'orange',
+      filter: w => w.status === 'pending_tax' && _paid(w) <= 0 },
+    { key: 'abonos_parciales', label: 'Abonos parciales', icon: Clock, color: 'amber',
+      filter: w => ['pending_tax', 'crypto_payment_under_review'].includes(w.status) && _paid(w) > 0 && _paid(w) < _req(w) - 0.01 },
+    { key: 'en_confirmacion', label: 'En confirmación', icon: Loader2, color: 'cyan',
+      filter: w => w.status === 'crypto_payment_under_review' || (w.crypto_proof_received && !w.crypto_verified) },
+    { key: 'pendientes_autorizacion', label: 'Pendientes de autorización', icon: ShieldCheck, color: 'violet',
+      filter: w => ['pending_tax', 'crypto_payment_under_review'].includes(w.status) && w.crypto_proof_received && w.crypto_verified && w.authorization_status !== 'completed' },
+    { key: 'autorizadas', label: 'Autorizadas', icon: CheckCircle, color: 'emerald',
+      filter: w => w.authorization_status === 'completed' && w.status === 'pending' },
+    { key: 'processing', label: 'Procesando', icon: Loader2, color: 'cyan',
+      filter: w => w.status === 'processing' },
+    { key: 'transfer', label: 'En transferencia', icon: ArrowRight, color: 'blue',
+      filter: w => w.status === 'transfer_in_progress' },
+    { key: 'completed', label: 'Completadas', icon: CheckCircle, color: 'emerald',
+      filter: w => w.status === 'completed' },
+    { key: 'expiradas', label: 'Expiradas', icon: XCircle, color: 'slate',
+      filter: w => ['expired', 'cancelled', 'cancelled_expired'].includes(w.status) },
+    { key: 'rejected', label: 'Rechazadas', icon: XCircle, color: 'red',
+      filter: w => w.status === 'rejected' },
 ];
 
 const colorMap = {
@@ -30,6 +47,8 @@ const colorMap = {
     blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', badge: 'bg-blue-500' },
     emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', badge: 'bg-emerald-500' },
     red: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', badge: 'bg-red-500' },
+    violet: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', badge: 'bg-violet-500' },
+    slate: { bg: 'bg-slate-500/10', border: 'border-slate-500/30', text: 'text-slate-400', badge: 'bg-slate-500' },
 };
 
 const statusLabels = {
@@ -360,7 +379,7 @@ export const AdminWithdrawalsPage = () => {
     const [withdrawals, setWithdrawals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
-    const [openSections, setOpenSections] = useState(['pending_tax', 'pending']);
+    const [openSections, setOpenSections] = useState(['nuevas', 'abonos_parciales', 'pendientes_autorizacion']);
     const [expandedRows, setExpandedRows] = useState({});
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
