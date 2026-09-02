@@ -103,3 +103,7 @@
   - `WithdrawalCaseModal.jsx` (components/admin): expediente con toda la info + acciones: Ver solicitud completa (→/admin/withdrawals), Solicitar abono (panel con Total/Completado/Restante + importe/concepto/plazo/observación → "Enviar solicitud de abono al usuario"), Solicitar documentación, Añadir nota interna (reusan endpoints existentes), Rechazar solicitud (motivo obligatorio), Cerrar.
   - NotificationBell: en notificaciones de retiro (metadata.reference) el botón "Agregar Saldo al Usuario" se SUSTITUYE por botón azul "Abrir solicitud" → abre el expediente. Para usuarios: si la notificación trae metadata.link, botón CTA (p.ej. "Ver requisito pendiente") que navega al detalle.
 - Verificado: curl e2e (case, request-payment con auditoría y notificación con metadata, reject) + screenshots (notificación → Abrir solicitud → expediente con historial y panel de abono).
+
+## Sep 2, 2026 — Expediente desde la Cola de Retiros
+- Botón carpeta (`case-btn-{id}` desktop / `case-btn-mobile-{id}` móvil) en cada fila de Gestión de Retiros → abre el mismo `WithdrawalCaseModal` (expediente completo con acciones) usando transaction_reference.
+- Verificado con screenshot: modal abre desde la cola con info, historial y las 6 acciones.

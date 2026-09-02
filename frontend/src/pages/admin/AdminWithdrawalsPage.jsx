@@ -12,6 +12,8 @@ import {
     Banknote, FileText, RotateCcw, DollarSign, Mail, Calendar,
     AlertTriangle, History, ShieldCheck
 } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
+import { WithdrawalCaseModal } from '../../components/admin/WithdrawalCaseModal';
 import { toast } from 'sonner';
 
 const REQ_EUR = 4850;
@@ -382,6 +384,7 @@ export const AdminWithdrawalsPage = () => {
     const [openSections, setOpenSections] = useState(['nuevas', 'abonos_parciales', 'pendientes_autorizacion']);
     const [expandedRows, setExpandedRows] = useState({});
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [caseRef, setCaseRef] = useState(null);
     const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
     const [rejectionReason, setRejectionReason] = useState('');
     const [addBalanceDialog, setAddBalanceDialog] = useState(false);
@@ -604,6 +607,11 @@ export const AdminWithdrawalsPage = () => {
                                                                         <span className="text-slate-400 text-xs truncate">{banking.bank_name || '-'}</span>
                                                                         <span className="text-slate-500 text-xs">{formatDate(w.created_at)}</span>
                                                                         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                                                                            <Button size="sm" variant="outline" onClick={() => setCaseRef(w.transaction_reference || w.id)}
+                                                                                className="border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/10 h-7 text-xs px-2" title="Abrir expediente"
+                                                                                data-testid={`case-btn-${w.id}`}>
+                                                                                <FolderOpen className="w-3 h-3" />
+                                                                            </Button>
                                                                             {nextStatus && (
                                                                                 <Button size="sm" onClick={() => handleStatusChange(w.id, nextStatus)} disabled={processingId === w.id}
                                                                                     className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 text-xs px-2" data-testid={`advance-btn-${w.id}`}>
@@ -640,6 +648,10 @@ export const AdminWithdrawalsPage = () => {
                                                                         <div className="flex items-center justify-between mt-2" onClick={e => e.stopPropagation()}>
                                                                             <span className="text-slate-600 text-xs">{formatDate(w.created_at)}</span>
                                                                             <div className="flex gap-1.5">
+                                                                                <Button size="sm" variant="outline" onClick={() => setCaseRef(w.transaction_reference || w.id)}
+                                                                                    className="border-cyan-500/50 text-cyan-300 h-8 text-xs px-3" data-testid={`case-btn-mobile-${w.id}`}>
+                                                                                    <FolderOpen className="w-3 h-3" />
+                                                                                </Button>
                                                                                 {nextStatus && (
                                                                                     <Button size="sm" onClick={() => handleStatusChange(w.id, nextStatus)} disabled={processingId === w.id}
                                                                                         className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 text-xs px-3">
@@ -754,6 +766,8 @@ export const AdminWithdrawalsPage = () => {
                     )}
                 </DialogContent>
             </Dialog>
+
+            <WithdrawalCaseModal reference={caseRef} open={!!caseRef} onClose={() => setCaseRef(null)} />
         </Layout>
     );
 };
