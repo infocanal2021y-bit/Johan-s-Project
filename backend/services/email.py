@@ -241,7 +241,26 @@ def get_email_template(content: str, title: str = "LIONSBIT VERIFICACION"):
                                     Este es un correo automático de LIONSBIT VERIFICACION.<br>
                                     Por favor no responda a este mensaje.
                                 </p>
-                                <p style="color: #64748b; font-size: 12px; margin: 10px 0 0 0;">
+                                <!-- Información corporativa -->
+                                <table width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 0 0; border-top: 1px solid #1e293b;">
+                                    <tr>
+                                        <td style="padding: 14px 0 0 0; text-align: center;">
+                                            <p style="color: #94a3b8; font-size: 11.5px; font-weight: bold; margin: 0; letter-spacing: 0.5px;">
+                                                LIONS ADVISORY GROUP LLC
+                                            </p>
+                                            <p style="color: #64748b; font-size: 11px; margin: 5px 0 0 0; line-height: 1.6;">
+                                                Filing ID: 2026-001987773 &nbsp;·&nbsp; State of Formation: Wyoming, USA<br>
+                                                Tel: +1 814-399-7566 &nbsp;·&nbsp; info@paylionsbit.es
+                                            </p>
+                                            <p style="color: #475569; font-size: 10.5px; margin: 8px 0 0 0; line-height: 1.6;">
+                                                Registered Agent: Northwest Registered Agent Service Inc<br>
+                                                30 N Gould St Ste N, Sheridan, WY 82801 USA<br>
+                                                Latest AR/Year: AR Exempt &nbsp;·&nbsp; License Tax Paid
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="color: #64748b; font-size: 12px; margin: 12px 0 0 0;">
                                     © 2026 LIONSBIT VERIFICACION. Todos los derechos reservados.
                                 </p>
                             </td>

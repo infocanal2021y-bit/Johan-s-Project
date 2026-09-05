@@ -110,3 +110,6 @@
 
 ## Sep 5, 2026 — Información Corporativa en Dashboard
 - Nuevo `CorporateInfoCard.jsx` en Dashboard (tras Actividad en Vivo, antes del Aviso Legal): Company Name (Lions Advisory Group LLC), Filing ID (2026-001987773), State of Formation (Wyoming), Phone (+1 814-399-7566, tel:), Email (info@paylionsbit.es, mailto:). Grid 5 columnas responsive, verificado con screenshot.
+
+## Sep 5, 2026 — Info corporativa en pie de emails
+- `get_email_template` (services/email.py): pie con LIONS ADVISORY GROUP LLC, Filing ID 2026-001987773, Wyoming USA, Tel +1 814-399-7566, info@paylionsbit.es + Registered Agent (Northwest Registered Agent Service Inc, 30 N Gould St Ste N, Sheridan, WY 82801 USA, Latest AR/Year: AR Exempt, License Tax Paid). Aplica a TODOS los emails oficiales (única plantilla). Verificado con assert + envío real al admin.
