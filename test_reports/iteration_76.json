@@ -1,0 +1,21 @@
+{
+  "summary": "Iter 76: Validated /retiros-recientes bug-fix + admin stage-change mini-feature (both frontend & backend). Backend pytest 4/4 pass (feed limpieza, 400 stage inválido, 403 non-admin, roundtrip en_revision↔completado con questions_enabled coherente). Frontend UI: 59 filas sin admins/test/Internacional, todos con nombres completos, banderas y monedas correctas (España→EUR, MX/CL→USD). Usuario NO ve botones de cambio de estado; admin ve los 4 (rw-set-stage-*-{wid}) y el cambio en_revision → completado se refleja en badge de fila y estado. Dashboard sin filas Admin/Internacional. Retiro de prueba (76637e9b…) devuelto a 'completado'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter76_recent_withdrawals_stage.py",
+    "/app/test_reports/pytest/iter76.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "El modal 'Nueva administración PayLionsbit' se muestra también en /login y bloquea el botón de submit (subtree intercepts pointer events). No es crítico pero degrada la UX de login y complica automatización — considerar no montar el modal hasta que el usuario esté autenticado, o al menos ocultarlo en rutas públicas.",
+    "El campo 'created_at' en items de /community/recent-withdrawals/detailed se actualiza cuando se hace stage change ('updated_at' se refleja como 'hace 1 min' post-cambio) — verificar que el orden del feed no cambie inesperadamente al cambiar estado (posible re-sort visible al usuario)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter76_recent_withdrawals_stage.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin admi@paylionsbit.es/LionsBit2026! · User manclic@yahoo.es/FX2026 (from problem statement)",
+  "seed_data_creation": "Ninguna. Retiro 76637e9b-bc8f-47df-a6a8-aa3d4c04403c usado para roundtrip y devuelto a 'completado'.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feed polling cada 15s + simulador live_withdrawals_sim activo. Modal 'Nueva administración' aparece en /login y en primeras vistas — dismiss antes de cualquier click. Todos los data-testid clave: rw-list, rw-row-{wid}, rw-set-stage-{solicitado|en_revision|procesado|completado}-{wid}, rw-admin-stage-{wid}, login-submit-btn."
+}

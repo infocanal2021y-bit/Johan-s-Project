@@ -167,3 +167,10 @@
 - /api/admin/weekly-digest/status añade clicks + click_rate por envío; el panel muestra "N clics (X%)" (digest-run-clicks-*).
 - Preview usa enlace directo (sin tracking). Token inválido → redirige igual (no filtra existencia).
 - Verificado por curl: 302 correcto, dedup, apertura implícita, rates en status, preview limpio. Datos de prueba limpiados.
+
+## 2026-06 (fork) — Fix detalle de Retiros Recientes + cambio de estado admin
+- Feed depurado: `_is_feed_visible_user` excluye admins, cuentas con 'test' en email y usuarios huérfanos en /community/recent-withdrawals y /detailed (adiós "Admin L. · Internacional · €15/€500").
+- Lista y detalle usan el MISMO registro: nombre completo del usuario importado (name_full), país+bandera, monto exacto del campo amount y moneda por país (ES→EUR, MX/CL→USD). Formato de monto sin decimales forzados.
+- Nuevo: admin puede cambiar el estado del retiro desde la tarjeta expandida (4 botones, estado actual resaltado) → POST /api/admin/recent-withdrawals/{id}/stage (solicitado→pending, en_revision→in_review, procesado→approved, completado→completed + completed_at). Q&A solo visible en Completado.
+- Testing iter76: backend 4/4 pytest, frontend 100%. Test: tests/test_iter76_recent_withdrawals_stage.py
+- Nota (review): el modal "Nueva administración PayLionsbit" aparece también en /login y estorba el submit — mejora UX pendiente (no crítico, pre-existente).

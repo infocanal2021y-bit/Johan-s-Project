@@ -58,10 +58,10 @@ export const RecentWithdrawalsModule = () => {
                         return (
                             <div key={it.withdrawal_id} className="px-5 py-2.5 flex items-center gap-3" data-testid={`rw-module-row-${it.withdrawal_id}`}>
                                 <span className="text-base leading-none">{it.country_flag}</span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[12.5px] text-slate-200 font-medium truncate">{it.name_public}</p>
-                                    <p className="text-[10.5px] text-slate-500">{it.country} · {timeAgo(it.date)}</p>
-                                </div>
+                                <p className="flex-1 min-w-0">
+                                    <span className="text-[12.5px] text-slate-200 font-medium truncate block">{it.name_full || it.name_public}</span>
+                                    <span className="text-[10.5px] text-slate-500">{it.country} · {timeAgo(it.date)}</span>
+                                </p>
                                 {it.questions_count > 0 && (
                                     <span className="flex items-center gap-1 text-[10px] text-slate-500">
                                         <MessageCircleQuestion className="w-3 h-3" />{it.questions_count}

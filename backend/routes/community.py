@@ -92,6 +92,18 @@ def _public_first_name(full_name: str) -> str:
     return f"{parts[0]} {parts[-1][0].upper()}."
 
 
+def _is_feed_visible_user(u: Optional[dict]) -> bool:
+    """Excluye del feed público: usuarios inexistentes, admins y cuentas de prueba."""
+    if not u:
+        return False
+    if (u.get('role') or '') == 'admin':
+        return False
+    email = (u.get('email') or '').lower()
+    if 'test' in email:
+        return False
+    return True
+
+
 def _compute_account_status_label(user: dict, withdrawals: list, estado: Optional[str] = None) -> str:
     """Map raw doc fields to one of:
       activo | en_revision | retiro_pendiente | completado
@@ -403,7 +415,7 @@ async def community_recent_withdrawals(
     user_ids = list({r['user_id'] for r in rows})
     users_cur = db.users.find(
         {'id': {'$in': user_ids}},
-        {'_id': 0, 'id': 1, 'name': 1, 'country_name': 1, 'country': 1},
+        {'_id': 0, 'id': 1, 'name': 1, 'country_name': 1, 'country': 1, 'role': 1, 'email': 1},
     )
     user_map = {u['id']: u async for u in users_cur}
 
@@ -423,7 +435,7 @@ async def community_recent_withdrawals(
     items = []
     for r in rows[:limit]:
         u = user_map.get(r['user_id'])
-        if not u:
+        if not _is_feed_visible_user(u):
             continue
         country = u.get('country_name') or u.get('country') or 'Internacional'
         amt = float(r.get('amount') or 0)
@@ -499,7 +511,7 @@ async def community_recent_withdrawals_detailed(
     user_ids = list({r['user_id'] for r in rows})
     users_cur = db.users.find(
         {'id': {'$in': user_ids}},
-        {'_id': 0, 'id': 1, 'name': 1, 'country_name': 1, 'country': 1},
+        {'_id': 0, 'id': 1, 'name': 1, 'country_name': 1, 'country': 1, 'role': 1, 'email': 1},
     )
     user_map = {u['id']: u async for u in users_cur}
 
@@ -514,7 +526,7 @@ async def community_recent_withdrawals_detailed(
     items = []
     for r in rows:
         u = user_map.get(r['user_id'])
-        if not u:
+        if not _is_feed_visible_user(u):
             continue
         country = u.get('country_name') or u.get('country') or 'Internacional'
         tx_cur = (r.get('currency') or 'EUR').upper()
@@ -526,6 +538,7 @@ async def community_recent_withdrawals_detailed(
         items.append({
             'withdrawal_id': r['id'],
             'name_public': _public_first_name(u.get('name') or 'Cliente'),
+            'name_full': u.get('name') or 'Cliente',
             'country': country,
             'country_flag': _flag_for(country),
             'amount': round(amt, 2),
@@ -602,6 +615,30 @@ async def run_live_withdrawal_sim_tick(force: bool = False) -> dict:
     await db.transactions.insert_one(tx)
     logging.info(f"live_withdrawals_sim: generated {tx['transaction_reference']} for {u.get('name')} ({amount} {currency})")
     return {'ok': True, 'reference': tx['transaction_reference'], 'name': u.get('name'), 'amount': amount, 'currency': currency}
+
+
+_STAGE_TO_STATUS = {
+    'solicitado': 'pending',
+    'en_revision': 'in_review',
+    'procesado': 'approved',
+    'completado': 'completed',
+}
+
+
+@router.post('/admin/recent-withdrawals/{withdrawal_id}/stage')
+async def admin_set_withdrawal_stage(withdrawal_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
+    """Cambia el estado de un retiro del feed (Solicitado/En revisión/Procesado/Completado)."""
+    stage = (payload or {}).get('stage')
+    if stage not in _STAGE_TO_STATUS:
+        raise HTTPException(400, f"Estado inválido. Opciones: {', '.join(_STAGE_TO_STATUS)}")
+    tx = await db.transactions.find_one({'id': withdrawal_id, 'transaction_type': 'withdraw'}, {'_id': 0, 'id': 1})
+    if not tx:
+        raise HTTPException(404, 'Retiro no encontrado')
+    now_iso = datetime.now(timezone.utc).isoformat()
+    updates = {'status': _STAGE_TO_STATUS[stage], 'updated_at': now_iso}
+    updates['completed_at'] = now_iso if stage == 'completado' else None
+    await db.transactions.update_one({'id': withdrawal_id}, {'$set': updates})
+    return {'ok': True, 'stage': stage, 'status': updates['status']}
 
 
 @router.get('/admin/live-withdrawals-sim')

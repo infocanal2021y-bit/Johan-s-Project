@@ -50,8 +50,8 @@ const STAGE_BADGE = {
 };
 
 const fmtMoney = (n, cur) => cur === 'USD'
-    ? `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    ? `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+    : `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 const fmtExact = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -89,7 +89,7 @@ const StageBar = ({ stageIndex }) => (
     </div>
 );
 
-const WithdrawalRow = ({ item, expanded, onToggle, isNew }) => (
+const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage }) => (
     <div className={`rounded-xl bg-slate-900/70 border transition-colors overflow-hidden ${
         isNew ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-800 hover:border-slate-700'
     }`}
@@ -99,7 +99,7 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew }) => (
             <span className="text-xl leading-none flex-shrink-0">{item.country_flag}</span>
             <div className="flex-1 min-w-0">
                 <p className="text-[13.5px] text-white font-semibold truncate flex items-center gap-2">
-                    {item.name_public}
+                    {item.name_full || item.name_public}
                     {isNew && (
                         <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[8.5px] font-bold uppercase tracking-[0.1em] animate-pulse"
                             data-testid={`rw-new-badge-${item.withdrawal_id}`}>
@@ -155,6 +155,23 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew }) => (
                         </div>
                         <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500 font-semibold">Estado del retiro</p>
                         <StageBar stageIndex={item.stage_index} />
+                        {isAdmin && (
+                            <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid={`rw-admin-stage-${item.withdrawal_id}`}>
+                                <span className="text-[9px] uppercase tracking-[0.12em] text-slate-500 font-semibold mr-1">Cambiar estado:</span>
+                                {STAGES.map((s, i) => (
+                                    <button key={s.key} type="button"
+                                        onClick={() => onSetStage(item.withdrawal_id, s.key)}
+                                        className={`px-2 py-1 rounded-md border text-[10px] font-semibold transition-colors ${
+                                            item.stage === s.key
+                                                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                                                : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-white hover:border-slate-600'
+                                        }`}
+                                        data-testid={`rw-set-stage-${s.key}-${item.withdrawal_id}`}>
+                                        {i + 1}. {s.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {item.questions_enabled ? (
                             <div className="mt-3 rounded-xl bg-white p-3">
                                 <WithdrawalQuestions withdrawalId={item.withdrawal_id} />
@@ -259,6 +276,15 @@ export default function RecentWithdrawalsPage() {
         try {
             const { data } = await api.post('/admin/live-withdrawals-sim/toggle');
             setSimEnabled(data.enabled);
+        } catch { /* silencioso */ }
+    };
+
+    const setStage = async (wid, stage) => {
+        try {
+            await api.post(`/admin/recent-withdrawals/${wid}/stage`, { stage });
+            const { data } = await api.get('/community/recent-withdrawals/detailed', { params: { limit: 60 } });
+            knownIdsRef.current = new Set((data.items || []).map((i) => i.withdrawal_id));
+            setItems(data.items || []);
         } catch { /* silencioso */ }
     };
 
@@ -378,6 +404,8 @@ export default function RecentWithdrawalsPage() {
                                 >
                                     <WithdrawalRow item={it}
                                         isNew={newIds.has(it.withdrawal_id)}
+                                        isAdmin={isAdmin}
+                                        onSetStage={setStage}
                                         expanded={expandedId === it.withdrawal_id}
                                         onToggle={() => setExpandedId((c) => (c === it.withdrawal_id ? null : it.withdrawal_id))} />
                                 </motion.div>
