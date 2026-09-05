@@ -200,6 +200,15 @@ export const LoginPage = () => {
                                     Crear una
                                 </Link>
                             </p>
+                            <p className="mt-3">
+                                <Link
+                                    to="/legal"
+                                    className="text-slate-500 hover:text-slate-300 text-xs transition-colors underline underline-offset-4"
+                                    data-testid="legal-link"
+                                >
+                                    Aviso legal · Sobre la entidad
+                                </Link>
+                            </p>
                         </div>
                     </CardContent>
                 </Card>

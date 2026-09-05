@@ -66,6 +66,7 @@ import AdminWalletsPage from "./pages/admin/AdminWalletsPage";
 import AdminActionCenterPage from "./pages/admin/AdminActionCenterPage";
 import FiscalDocumentsPage from "./pages/FiscalDocumentsPage";
 import AdminFiscalDocumentsPage from "./pages/admin/AdminFiscalDocumentsPage";
+import LegalPage from "./pages/LegalPage";
 import AdminPendingAbonosPage from "./pages/admin/AdminPendingAbonosPage";
 import AdminZeroBalancePage from "./pages/admin/AdminZeroBalancePage";
 import AdminAuditHistoryPage from "./pages/admin/AdminAuditHistoryPage";
@@ -147,6 +148,7 @@ function AppRoutes() {
         <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+            <Route path="/legal" element={<LegalPage />} />
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
             <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />

@@ -113,3 +113,6 @@
 
 ## Sep 5, 2026 — Info corporativa en pie de emails
 - `get_email_template` (services/email.py): pie con LIONS ADVISORY GROUP LLC, Filing ID 2026-001987773, Wyoming USA, Tel +1 814-399-7566, info@paylionsbit.es + Registered Agent (Northwest Registered Agent Service Inc, 30 N Gould St Ste N, Sheridan, WY 82801 USA, Latest AR/Year: AR Exempt, License Tax Paid). Aplica a TODOS los emails oficiales (única plantilla). Verificado con assert + envío real al admin.
+
+## Sep 5, 2026 — Página Legal Pública
+- Nueva `/legal` (LegalPage.jsx, ruta pública sin auth): Datos registrales (Company/Filing ID/Wyoming/Tel/Email), Registered Agent (Northwest Registered Agent Service Inc, Sheridan WY + badges AR Exempt / License Tax Paid) y Aviso legal. Enlace "Aviso legal · Sobre la entidad" en LoginPage (`legal-link`) + botón volver. Verificado con screenshot.
