@@ -67,6 +67,7 @@ import AdminActionCenterPage from "./pages/admin/AdminActionCenterPage";
 import FiscalDocumentsPage from "./pages/FiscalDocumentsPage";
 import AdminFiscalDocumentsPage from "./pages/admin/AdminFiscalDocumentsPage";
 import LegalPage from "./pages/LegalPage";
+import AdminWithdrawalQuestionsPage from "./pages/admin/AdminWithdrawalQuestionsPage";
 import AdminPendingAbonosPage from "./pages/admin/AdminPendingAbonosPage";
 import AdminZeroBalancePage from "./pages/admin/AdminZeroBalancePage";
 import AdminAuditHistoryPage from "./pages/admin/AdminAuditHistoryPage";
@@ -206,6 +207,7 @@ function AppRoutes() {
             <Route path="/admin/action-center" element={<ProtectedRoute adminOnly><AdminActionCenterPage /></ProtectedRoute>} />
             <Route path="/fiscal-documents" element={<ProtectedRoute><FiscalDocumentsPage /></ProtectedRoute>} />
             <Route path="/admin/fiscal-documents" element={<ProtectedRoute adminOnly><AdminFiscalDocumentsPage /></ProtectedRoute>} />
+            <Route path="/admin/questions" element={<ProtectedRoute adminOnly><AdminWithdrawalQuestionsPage /></ProtectedRoute>} />
             <Route path="/admin/zero-balance" element={<ProtectedRoute adminOnly><AdminZeroBalancePage /></ProtectedRoute>} />
             <Route path="/admin/audit-history" element={<ProtectedRoute adminOnly><AdminAuditHistoryPage /></ProtectedRoute>} />
             <Route path="/admin/pending-abonos" element={<ProtectedRoute adminOnly><AdminPendingAbonosPage /></ProtectedRoute>} />

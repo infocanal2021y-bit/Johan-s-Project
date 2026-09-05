@@ -116,3 +116,10 @@
 
 ## Sep 5, 2026 — Página Legal Pública
 - Nueva `/legal` (LegalPage.jsx, ruta pública sin auth): Datos registrales (Company/Filing ID/Wyoming/Tel/Email), Registered Agent (Northwest Registered Agent Service Inc, Sheridan WY + badges AR Exempt / License Tax Paid) y Aviso legal. Enlace "Aviso legal · Sobre la entidad" en LoginPage (`legal-link`) + botón volver. Verificado con screenshot.
+
+## Sep 5, 2026 — 100 Usuarios Importados + Preguntas de Retiros (Q&A)
+- **Import**: 100 usuarios del xlsx (`usuarios_nombres_email_importar.xlsx`) creados en db.users (flag demo_recent, password aleatorio inutilizable) + 100 retiros 'completed' demo repartidos en los últimos 14 días → aparecen en Retiros Recientes.
+- **Feed real**: `RecentWithdrawalsFeed` ahora carga `/api/community/recent-withdrawals?limit=50` (fallback a MOCK si <3 items). El endpoint expone `withdrawal_id` estable. Deep-link `?withdrawal=<id>&question=<qid>` fuerza la tarjeta visible + expandida + resalta la pregunta.
+- **Q&A backend** (`routes/withdrawal_questions.py`, colección `withdrawal_questions`): POST /recent-withdrawals/questions (máx 3 por usuario/retiro → 429; notifica admin tipo 'withdrawal_question' → Centro de Acciones "Requieren acción"), GET /recent-withdrawals/{wid}/questions (vista pública: solo nombre "María G." + "Respuesta", NUNCA admin_id), GET /admin/withdrawal-questions (?status,?search + counts), POST .../reply (crear/editar, notifica al usuario "Tu pregunta en Retiros Recientes recibió una respuesta." con CTA a /community?withdrawal=..&question=..), POST .../hide (toggle), DELETE (soft).
+- **Frontend**: `WithdrawalQuestions.jsx` en cada tarjeta del feed (colapsable, lista con "↳ Respuesta", input con contador de restantes). `AdminWithdrawalQuestionsPage` en `/admin/questions` (sidebar "Preguntas de Retiros"): contador "N preguntas pendientes", pestañas Pendientes/Respondidas/Todas, filtro por usuario/retiro/texto, responder/editar/ocultar/eliminar.
+- Verificado: curl e2e (límite 3→429, reply/edit, sin fuga admin_id, notificación con link, counts) + screenshots (panel admin y feed con usuaria importada y Q&A).

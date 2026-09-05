@@ -8,6 +8,9 @@ import { fmtEUR, timeAgo, PROGRESS_STAGES, TIMELINE_PALETTE } from './constants'
 import { MOCK_WITHDRAWALS, pickNonRepeating } from './mockWithdrawalsData';
 import { useT } from '../../i18n/LanguageContext';
 import { toast } from 'sonner';
+import { WithdrawalQuestions } from './WithdrawalQuestions';
+import { useSearchParams } from 'react-router-dom';
+import api from '../../lib/api';
 
 // How long each set of 3 cards stays before being swapped out (ms).
 const ROTATION_INTERVAL_MS = 12000;
@@ -277,6 +280,7 @@ const ExpandedDetail = ({ item }) => {
 
                 {/* Social share bar */}
                 <ShareBar item={item} />
+                <WithdrawalQuestions withdrawalId={item.withdrawal_id} />
             </div>
         </motion.div>
     );
@@ -333,6 +337,29 @@ export const RecentWithdrawalsFeed = () => {
     const t = useT();
     const [expandedId, setExpandedId] = useState(null);
     const [tick, setTick] = useState(0);
+    const [apiItems, setApiItems] = useState(null);
+    const [searchParams] = useSearchParams();
+    const targetWid = searchParams.get('withdrawal');
+
+    // Load real withdrawals (includes imported test users); fallback to mock.
+    useEffect(() => {
+        api.get('/community/recent-withdrawals', { params: { limit: 50 } })
+            .then((r) => {
+                const items = r.data?.items || [];
+                if (items.length >= 3) setApiItems(items);
+            })
+            .catch(() => {});
+    }, []);
+
+    const pool = apiItems || MOCK_WITHDRAWALS;
+
+    // Deep link: ?withdrawal=<id> → expand that card automatically
+    useEffect(() => {
+        if (targetWid && apiItems) {
+            const found = apiItems.find((i) => i.withdrawal_id === targetWid);
+            if (found) setExpandedId(found.id);
+        }
+    }, [targetWid, apiItems]);
 
     // Pick 3 non-repeating cards on every tick. We exclude the previous trio
     // so consecutive rotations always show fresh users (no repeat-back-to-back).
@@ -342,14 +369,22 @@ export const RecentWithdrawalsFeed = () => {
     }, []);
 
     const visible = useMemo(() => {
+        let base;
         if (tick === 0) {
-            // First paint: show the 3 most-recent verified withdrawals so the
-            // user sees real-looking activity immediately.
-            return MOCK_WITHDRAWALS.slice(0, VISIBLE_COUNT);
+            base = pool.slice(0, VISIBLE_COUNT);
+        } else {
+            base = pickNonRepeating(pool, VISIBLE_COUNT, previousIds);
         }
-        return pickNonRepeating(MOCK_WITHDRAWALS, VISIBLE_COUNT, previousIds);
+        // Ensure deep-linked withdrawal is always visible
+        if (targetWid) {
+            const found = pool.find((i) => i.withdrawal_id === targetWid);
+            if (found && !base.some((b) => b.id === found.id)) {
+                base = [found, ...base.slice(0, VISIBLE_COUNT - 1)];
+            }
+        }
+        return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tick]);
+    }, [tick, pool, targetWid]);
 
     // Auto-rotate every ROTATION_INTERVAL_MS — paused while any card is
     // expanded so the reader keeps full context until they close the detail.

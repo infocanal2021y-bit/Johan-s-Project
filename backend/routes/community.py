@@ -392,7 +392,7 @@ async def community_recent_withdrawals(
     wd_cur = db.transactions.find(
         {'transaction_type': 'withdraw',
          'status': {'$in': ['completed', 'in_transfer', 'approved']}},
-        {'_id': 0, 'user_id': 1, 'amount': 1, 'currency': 1, 'status': 1,
+        {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1, 'status': 1,
          'created_at': 1, 'completed_at': 1},
     ).sort('created_at', -1).limit(limit * 2)
     rows = await wd_cur.to_list(length=limit * 2)
@@ -434,6 +434,7 @@ async def community_recent_withdrawals(
         is_completed = (r.get('status') or '').lower() == 'completed'
         items.append({
             'id': f"{r['user_id'][:8]}-{r.get('created_at','')[-8:]}",
+            'withdrawal_id': r.get('id'),
             'user_short_id': f"LB-{r['user_id'][:8].upper()}",
             'name_public': _public_first_name(u.get('name') or 'Cliente'),
             'country': country,

@@ -19,6 +19,7 @@ REQUIRES_ACTION = {
     'withdrawal_request', 'crypto_payment_incident', 'kyc_submitted', 'kyc',
     'new_iban', 'bank_account_change', 'document_uploaded', 'fiscal_document',
     'support_ticket', 'ready_for_authorization', 'ready_for_review',
+    'withdrawal_question',
 }
 PENDING_REVIEW = {
     'crypto_payment_under_review', 'proof_uploaded', 'withdrawal_auto_advanced',
