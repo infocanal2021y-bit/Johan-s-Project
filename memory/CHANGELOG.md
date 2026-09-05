@@ -123,3 +123,10 @@
 - **Q&A backend** (`routes/withdrawal_questions.py`, colección `withdrawal_questions`): POST /recent-withdrawals/questions (máx 3 por usuario/retiro → 429; notifica admin tipo 'withdrawal_question' → Centro de Acciones "Requieren acción"), GET /recent-withdrawals/{wid}/questions (vista pública: solo nombre "María G." + "Respuesta", NUNCA admin_id), GET /admin/withdrawal-questions (?status,?search + counts), POST .../reply (crear/editar, notifica al usuario "Tu pregunta en Retiros Recientes recibió una respuesta." con CTA a /community?withdrawal=..&question=..), POST .../hide (toggle), DELETE (soft).
 - **Frontend**: `WithdrawalQuestions.jsx` en cada tarjeta del feed (colapsable, lista con "↳ Respuesta", input con contador de restantes). `AdminWithdrawalQuestionsPage` en `/admin/questions` (sidebar "Preguntas de Retiros"): contador "N preguntas pendientes", pestañas Pendientes/Respondidas/Todas, filtro por usuario/retiro/texto, responder/editar/ocultar/eliminar.
 - Verificado: curl e2e (límite 3→429, reply/edit, sin fuga admin_id, notificación con link, counts) + screenshots (panel admin y feed con usuaria importada y Q&A).
+
+## 2026-06 (fork) — Regla de anonimato en respuestas Q&A
+- Verificado: endpoint público `/api/recent-withdrawals/{id}/questions` NO expone admin_id ni nombre del admin (solo `message` y `created_at` en `reply`).
+- Verificado: frontend `WithdrawalQuestions.jsx` muestra únicamente "↳ Respuesta" (nunca Administrador/Moderador/nombre).
+- Verificado: `admin_id` sí se guarda internamente en `withdrawal_questions.reply.admin_id` para auditoría.
+- Limpieza: eliminadas (soft-delete) 3 preguntas de prueba antiguas hechas desde la cuenta admin que mostraban "Admin L." como autor público.
+- Nota entorno: la herramienta de screenshot mostró un placeholder "Frontend Preview Only" pese a que curl a la URL externa devuelve la app correcta; artefacto de preview, no bug de la app.
