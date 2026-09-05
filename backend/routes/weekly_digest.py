@@ -4,11 +4,13 @@
 - Panel admin: toggle, vista previa, envío manual y registro de envíos.
 - Audiencia: usuarios activos reales (excluye admins, demo y correos @example.*).
 """
+import base64
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 
 from config import db, APP_BASE_URL
 from services.auth import get_admin_user
@@ -178,21 +180,27 @@ async def run_weekly_digest(triggered_by: str = 'scheduler') -> dict:
 
     content_tpl = _digest_content(data)
     targets = await db.users.find(
-        _audience_query(), {'_id': 0, 'id': 1, 'email': 1, 'name': 1},
+        _audience_query(), {'_id': 0, 'id': 1, 'email': 1, 'name': 1, 'email_open_token': 1},
     ).to_list(length=5000)
 
+    run_id = str(uuid.uuid4())
     sent = 0
     for u in targets:
         try:
             name = (u.get('name') or 'Cliente').split()[0]
-            html = get_email_template(content_tpl.replace('__NOMBRE__', name), 'Resumen Semanal')
+            token = u.get('email_open_token') or str(uuid.uuid4())
+            if not u.get('email_open_token'):
+                await db.users.update_one({'id': u['id']}, {'$set': {'email_open_token': token}})
+            pixel = (f'<img src="{APP_BASE_URL}/api/weekly-digest/track/{run_id}/{token}.png" '
+                     f'width="1" height="1" style="display:none;" alt="" />')
+            html = get_email_template(content_tpl.replace('__NOMBRE__', name) + pixel, 'Resumen Semanal')
             send_email_background(u['email'], SUBJECT, html)
             sent += 1
         except Exception as e:
             logging.warning(f"weekly_digest send failed for {u.get('email')}: {e}")
 
     log_doc = {
-        'id': str(uuid.uuid4()),
+        'id': run_id,
         'sent_at': _now_iso(),
         'triggered_by': triggered_by,
         'recipients': sent,
@@ -205,6 +213,33 @@ async def run_weekly_digest(triggered_by: str = 'scheduler') -> dict:
     return {'ok': True, **log_doc}
 
 
+# ── Tracking de aperturas (pixel público, sin auth) ─────────────────────
+
+_PIXEL_PNG = base64.b64decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
+
+
+@router.get('/weekly-digest/track/{run_id}/{token}.png')
+async def track_digest_open(run_id: str, token: str):
+    try:
+        user = await db.users.find_one({'email_open_token': token}, {'_id': 0, 'id': 1, 'email': 1})
+        if user:
+            await db.weekly_digest_opens.update_one(
+                {'run_id': run_id, 'user_id': user['id']},
+                {'$setOnInsert': {
+                    'id': str(uuid.uuid4()),
+                    'run_id': run_id,
+                    'user_id': user['id'],
+                    'opened_at': _now_iso(),
+                }},
+                upsert=True,
+            )
+    except Exception as e:
+        logging.warning(f'weekly_digest track failed: {e}')
+    return Response(content=_PIXEL_PNG, media_type='image/png',
+                    headers={'Cache-Control': 'no-store, no-cache, must-revalidate'})
+
+
 # ── Admin endpoints ──────────────────────────────────────────────────────
 
 @router.get('/admin/weekly-digest/status')
@@ -213,6 +248,17 @@ async def digest_status(admin: dict = Depends(get_admin_user)):
     audience = await db.users.count_documents(_audience_query())
     data = await _build_digest_data()
     runs = await db.weekly_digest_log.find({}, {'_id': 0}).sort('sent_at', -1).to_list(10)
+    if runs:
+        run_ids = [r['id'] for r in runs]
+        opens_by_run = {}
+        async for g in db.weekly_digest_opens.aggregate([
+            {'$match': {'run_id': {'$in': run_ids}}},
+            {'$group': {'_id': '$run_id', 'n': {'$sum': 1}}},
+        ]):
+            opens_by_run[g['_id']] = g['n']
+        for r in runs:
+            r['opens'] = opens_by_run.get(r['id'], 0)
+            r['open_rate'] = round(r['opens'] / r['recipients'] * 100, 1) if r.get('recipients') else 0.0
     return {
         'enabled': bool(settings.get('enabled')),
         'updated_at': settings.get('updated_at'),

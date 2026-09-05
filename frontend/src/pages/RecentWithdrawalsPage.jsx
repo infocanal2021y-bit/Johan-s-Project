@@ -6,12 +6,34 @@ import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import {
     Banknote, Loader2, ChevronDown, MessageCircleQuestion, CheckCircle2,
-    Clock, FileSearch, Send, RefreshCw, Search, Zap,
+    Clock, FileSearch, Send, RefreshCw, Search, Zap, Volume2, VolumeX,
 } from 'lucide-react';
 import { WithdrawalQuestions } from '../components/community/WithdrawalQuestions';
 import { timeAgo } from '../components/community/constants';
 
 const POLL_MS = 15000;
+
+let _audioCtx = null;
+const playChime = () => {
+    try {
+        _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = _audioCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+        const t0 = ctx.currentTime;
+        [[880, 0], [1174.66, 0.12]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, t0 + delay);
+            gain.gain.exponentialRampToValueAtTime(0.05, t0 + delay + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t0 + delay);
+            osc.stop(t0 + delay + 0.4);
+        });
+    } catch { /* autoplay bloqueado: silencioso */ }
+};
 
 const STAGES = [
     { key: 'solicitado', label: 'Solicitado', icon: Send },
@@ -162,9 +184,13 @@ export default function RecentWithdrawalsPage() {
     const [search, setSearch] = useState('');
     const [newIds, setNewIds] = useState(() => new Set());
     const [simEnabled, setSimEnabled] = useState(null);
+    const [soundOn, setSoundOn] = useState(() => localStorage.getItem('rw_sound') !== 'off');
     const expandedRef = useRef(null);
     const knownIdsRef = useRef(null);
+    const soundOnRef = useRef(soundOn);
+    const hiddenCountRef = useRef(0);
     expandedRef.current = expandedId;
+    soundOnRef.current = soundOn;
 
     const load = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -174,6 +200,11 @@ export default function RecentWithdrawalsPage() {
             if (knownIdsRef.current) {
                 const incoming = fresh.filter((i) => !knownIdsRef.current.has(i.withdrawal_id)).map((i) => i.withdrawal_id);
                 if (incoming.length > 0) {
+                    if (soundOnRef.current) playChime();
+                    if (document.hidden) {
+                        hiddenCountRef.current += incoming.length;
+                        document.title = `(${hiddenCountRef.current}) Retiros nuevos · LIONSBIT`;
+                    }
                     setNewIds((prev) => new Set([...prev, ...incoming]));
                     setTimeout(() => {
                         setNewIds((prev) => {
@@ -195,9 +226,28 @@ export default function RecentWithdrawalsPage() {
             // Pausa mientras hay una tarjeta expandida para no mover el contenido
             if (!expandedRef.current) load(true);
         }, POLL_MS);
-        return () => clearInterval(iv);
+        const baseTitle = document.title;
+        const onVisible = () => {
+            if (!document.hidden) {
+                hiddenCountRef.current = 0;
+                document.title = baseTitle;
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            clearInterval(iv);
+            document.removeEventListener('visibilitychange', onVisible);
+            document.title = baseTitle;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const toggleSound = () => {
+        const next = !soundOn;
+        setSoundOn(next);
+        localStorage.setItem('rw_sound', next ? 'on' : 'off');
+        if (next) playChime();
+    };
 
     useEffect(() => {
         if (isAdmin) {
@@ -261,6 +311,16 @@ export default function RecentWithdrawalsPage() {
                             </span>
                             {expandedId ? 'En pausa' : 'En vivo · 15s'}
                         </div>
+                        <button type="button" onClick={toggleSound}
+                            className={`p-2.5 rounded-xl border transition-colors ${
+                                soundOn
+                                    ? 'bg-slate-900 border-slate-800 text-emerald-400 hover:text-emerald-300'
+                                    : 'bg-slate-900 border-slate-800 text-slate-600 hover:text-slate-400'
+                            }`}
+                            title={soundOn ? 'Sonido de nuevos retiros: activado' : 'Sonido: silenciado'}
+                            data-testid="rw-sound-toggle" data-sound={soundOn ? 'on' : 'off'}>
+                            {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                        </button>
                         {isAdmin && simEnabled !== null && (
                             <button type="button" onClick={toggleSim}
                                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ${

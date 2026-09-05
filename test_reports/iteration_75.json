@@ -1,0 +1,23 @@
+{
+  "summary": "Iter 75: probé (1) sonido/pestaña en /retiros-recientes y (2) pixel de tracking + opens/open_rate en Resumen Semanal. Backend 4/4 tests pytest OK (pixel PNG con token inválido, dedup 2 hits→1 open, status expone opens/open_rate=10%, preview NO incluye pixel, run_weekly_digest sí incluye <img /api/weekly-digest/track/). Frontend UI probado con manclic: toggle rw-sound-toggle default on, muta a off, persiste tras reload, vuelve a on; contador de pestaña: con document.hidden=true y tick forzado del simulador, document.title cambió a '(1) Retiros nuevos · LIONSBIT' a los 13s y se restauró al hacer visibilitychange. Admin /admin/weekly-digest carga; sección 'Últimos envíos' vacía (esperado, no hay runs reales, seed limpiada por main agent). Todos los data-testid presentes y funcionan. Regresión OK: rw-live-indicator y rw-list se renderizan.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter75_weekly_digest_tracking.py",
+    "/app/test_reports/pytest/iter75.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "weekly_digest.py: OK - pixel usa upsert con $setOnInsert (dedup correcto). El endpoint devuelve 200 PNG incluso con token inválido (no filtra existencia).",
+    "RecentWithdrawalsPage.jsx: soundOnRef y hiddenCountRef bien manejados con useRef; document.title restaurado en unmount. localStorage key 'rw_sound' consistente.",
+    "AdminWeeklyDigestPage.jsx: data-testid=digest-run-opens-{id} correctamente aplicado; sólo se renderiza cuando hay last_runs."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter75_weekly_digest_tracking.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin: admi@paylionsbit.es / LionsBit2026! · Usuario: manclic@yahoo.es / FX2026",
+  "seed_data_creation": "El test de pytest seed un weekly_digest_log + token de usuario temporal y lo limpia al finalizar. Se dispararon 1-2 ticks forzados del simulador live_withdrawals_sim (transacciones demo válidas, no borrar por indicación de main agent).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature completa y funcional. Pixel endpoint público, dedup por (run_id,user_id), opens/open_rate en /api/admin/weekly-digest/status. Frontend chime + tab-title counter verificados en vivo. Modal 'Nueva administración PayLionsbit' aparece antes y después del login (usar botón 'Entendido' para cerrar).",
+  "rca of the issue": "N/A - feature funciona correctamente sin bugs detectados."
+}

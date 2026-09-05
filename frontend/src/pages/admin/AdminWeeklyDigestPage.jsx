@@ -169,6 +169,9 @@ const AdminWeeklyDigestPage = () => {
                                             </div>
                                             <div className="flex items-center gap-3 text-slate-400">
                                                 <span className="text-emerald-400 font-bold">{r.recipients} enviados</span>
+                                                <span className="text-sky-400 font-semibold" data-testid={`digest-run-opens-${r.id}`}>
+                                                    {r.opens ?? 0} aperturas ({r.open_rate ?? 0}%)
+                                                </span>
                                                 <span>{r.withdrawals_count} retiros</span>
                                                 <span>{r.featured_questions_count} destacadas</span>
                                             </div>

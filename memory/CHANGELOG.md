@@ -156,3 +156,8 @@
 - Simulador de actividad: scheduler cada 10 min (50% prob → ~1 retiro cada 20 min) genera retiro completado del pool curado de 100 usuarios Excel (users con tx demo_recent=true y @example.). España→EUR, Méx/Chile→USD. Función run_live_withdrawal_sim_tick en routes/community.py.
 - Control admin: botón "Actividad auto: ON/OFF" en /retiros-recientes (solo admins), endpoints GET/POST /api/admin/live-withdrawals-sim(/toggle), settings en platform_settings id='live_withdrawals_sim'. Estado actual: ON.
 - Testing agent iter74: backend 100%, frontend 100% (entrada animada verificada e2e con tick forzado).
+
+## 2026-06 (fork) — Sonido de Notificación + Estadísticas de Aperturas
+- Sonido: chime sutil (Web Audio API, sin assets) al entrar retiros nuevos en /retiros-recientes; botón mute/unmute (rw-sound-toggle, persiste en localStorage rw_sound). Contador en el título de la pestaña "(N) Retiros nuevos · LIONSBIT" mientras document.hidden; se resetea con visibilitychange.
+- Aperturas del Resumen Semanal: pixel público GET /api/weekly-digest/track/{run_id}/{token}.png (dedup por run+user en weekly_digest_opens, usa email_open_token, backfill al enviar). run_weekly_digest embebe el pixel en cada email. /api/admin/weekly-digest/status enriquece last_runs con opens + open_rate; el panel muestra "N aperturas (X%)" (digest-run-opens-*).
+- Testing agent iter75: backend 4/4 pytest, frontend 100% (incl. título de pestaña verificado en vivo). Test regresión: /app/backend/tests/test_iter75_weekly_digest_tracking.py
