@@ -174,3 +174,6 @@
 - Nuevo: admin puede cambiar el estado del retiro desde la tarjeta expandida (4 botones, estado actual resaltado) → POST /api/admin/recent-withdrawals/{id}/stage (solicitado→pending, en_revision→in_review, procesado→approved, completado→completed + completed_at). Q&A solo visible en Completado.
 - Testing iter76: backend 4/4 pytest, frontend 100%. Test: tests/test_iter76_recent_withdrawals_stage.py
 - Nota (review): el modal "Nueva administración PayLionsbit" aparece también en /login y estorba el submit — mejora UX pendiente (no crítico, pre-existente).
+
+## 2026-06 (fork) — Resumen Semanal ACTIVADO
+- Envío automático activado por el usuario vía toggle (platform_settings id='weekly_digest' enabled=true). Próximo envío: lunes 10:00 Europe/Madrid a 2.890 usuarios activos. Aperturas y clics se medirán automáticamente en /admin/weekly-digest.
