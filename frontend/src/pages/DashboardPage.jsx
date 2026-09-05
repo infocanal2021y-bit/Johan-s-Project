@@ -23,6 +23,7 @@ import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 import { BalanceOriginNote } from '../components/BalanceOriginNote';
 import { PendingAbonoBanner } from '../components/PendingAbonoBanner';
 import { CreditedFundsIndicator } from '../components/CreditedFundsIndicator';
+import { CorporateInfoCard } from '../components/CorporateInfoCard';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -511,6 +512,9 @@ export const DashboardPage = () => {
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                     <LiveWithdrawalsPanel />
                 </motion.div>
+
+                {/* Información corporativa */}
+                <CorporateInfoCard />
 
                 {/* Legal Disclaimer */}
                 <motion.div

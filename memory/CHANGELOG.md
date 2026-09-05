@@ -107,3 +107,6 @@
 ## Sep 2, 2026 — Expediente desde la Cola de Retiros
 - Botón carpeta (`case-btn-{id}` desktop / `case-btn-mobile-{id}` móvil) en cada fila de Gestión de Retiros → abre el mismo `WithdrawalCaseModal` (expediente completo con acciones) usando transaction_reference.
 - Verificado con screenshot: modal abre desde la cola con info, historial y las 6 acciones.
+
+## Sep 5, 2026 — Información Corporativa en Dashboard
+- Nuevo `CorporateInfoCard.jsx` en Dashboard (tras Actividad en Vivo, antes del Aviso Legal): Company Name (Lions Advisory Group LLC), Filing ID (2026-001987773), State of Formation (Wyoming), Phone (+1 814-399-7566, tel:), Email (info@paylionsbit.es, mailto:). Grid 5 columnas responsive, verificado con screenshot.
