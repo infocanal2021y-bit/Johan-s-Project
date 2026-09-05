@@ -215,6 +215,7 @@ export const Sidebar = () => {
         { to: '/admin/action-center', icon: ShieldAlert, label: 'Centro de Acciones' },
         { to: '/admin/fiscal-documents', icon: FileCheck, label: 'Documentos Fiscales' },
         { to: '/admin/questions', icon: MessageCircleQuestion, label: 'Preguntas de Retiros' },
+        { to: '/admin/weekly-digest', icon: Newspaper, label: 'Resumen Semanal' },
         { to: '/admin/crypto-monitor', icon: Radar, label: 'Monitor Blockchain' },
         { to: '/admin/wallets', icon: Wallet, label: 'Wallets de Plataforma' },
         { to: '/admin/pending-abonos', icon: Receipt, label: 'Abonos Pendientes' },

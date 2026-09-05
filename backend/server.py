@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 import resend
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 import httpx
 import jwt
 
@@ -466,6 +467,16 @@ def start_scheduler():
         IntervalTrigger(hours=24),
         id='daily_crypto_summary',
         name='Send daily crypto payments summary to admin',
+        replace_existing=True,
+    )
+
+    # Resumen Semanal por email: lunes 10:00 Madrid (solo envía si está activado en el panel)
+    from routes.weekly_digest import run_weekly_digest
+    scheduler.add_job(
+        run_weekly_digest,
+        CronTrigger(day_of_week='mon', hour=10, minute=0, timezone='Europe/Madrid'),
+        id='weekly_digest',
+        name='Resumen semanal: retiros completados + preguntas destacadas',
         replace_existing=True,
     )
 

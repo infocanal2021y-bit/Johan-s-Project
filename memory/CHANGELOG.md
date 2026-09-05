@@ -140,3 +140,11 @@
 - Requisito fiscal vinculado al checklist del retiro (`_fiscal_requirement_item` en helpers.py): ✓ verificado / ○ pendiente / ⏱ en revisión / ✕ requiere corrección. Ítem `optional` — NO bloquea la autorización admin ni cambia total (sigue 7/7).
 - Testing agent iteración 72: backend 8/8, frontend 100%. Test regresión: /app/backend/tests/test_iter72_recent_withdrawals_qa_fiscal.py
 - Nota: testing agent puso must_change_password=false a manclic@yahoo.es para poder testear.
+
+## 2026-06 (fork) — Resumen Semanal por email
+- Nuevo módulo `routes/weekly_digest.py`: email semanal con retiros completados de los últimos 7 días (nombres públicos, país, monto España→EUR/Méx-Chile→USD) + preguntas destacadas (respuestas anónimas "↳ Respuesta") + CTA a /retiros-recientes.
+- Audiencia (2.890): usuarios activos, excluye admins, is_demo y correos @example.* .
+- Scheduler: CronTrigger lunes 10:00 Europe/Madrid (id='weekly_digest'), solo envía si enabled=True. Arranca DESACTIVADO (elección del usuario) — settings en platform_settings id='weekly_digest'. Log de envíos en weekly_digest_log.
+- Panel admin `/admin/weekly-digest` (AdminWeeklyDigestPage.jsx): switch activar/desactivar, stats, vista previa (iframe), "Enviar ahora" con confirm, últimos envíos. Link "Resumen Semanal" en sidebar admin.
+- Endpoints: GET/POST /api/admin/weekly-digest/{status,toggle,preview,send-now}.
+- Testing: backend verificado por curl (status/toggle/preview/403 gate); testing agent iter73 frontend 100% (toggle dejado en DESACTIVADO, confirm de envío cancelado — NO se enviaron emails reales).

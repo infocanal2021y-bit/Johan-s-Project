@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only testing of new Weekly Digest admin panel (/admin/weekly-digest). Verified sidebar link, page load with data-testid, toggle switch ON/OFF flow (ended OFF as requested), stats (audiencia=2890, retiros=10, destacadas=1), preview modal + iframe content (contains '↳ Respuesta', '★ Pregunta destacada', no 'Administrador'/'Moderador', shows amounts), refresh button, empty runs state, Send-now confirm dialog cancelled (NOT accepted), regression on /admin/questions. All flows PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Preview modal (Dialog) may leave iframe intercepting pointer events briefly after closing via Escape; consider adding onOpenChange cleanup or focusing outside iframe to avoid rare click intercept issues. Not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! (works, 2FA off)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Weekly Digest panel verified end-to-end via Playwright. Toggle left in DESACTIVADO. Confirm dialog for 'Enviar ahora' shows message '¿Enviar el Resumen Semanal ahora a 2890 usuarios activos?' and was correctly dismissed (no real emails sent). Iframe preview contains withdrawals list with USD amounts, dates, country flags, plus featured question with '↳ Respuesta' and no admin/mod role leakage.",
+  "rca_of_the_issue": "N/A — no issues found. Minor note: when clicking 'digest-send-now-btn' immediately after closing preview via Escape, the portal-root iframe can intercept clicks in Playwright; workaround: click send-now before opening preview, or fully close dialog by clicking outside/close-button."
+}
