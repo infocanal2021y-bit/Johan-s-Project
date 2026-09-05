@@ -16,7 +16,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 
 from config import db
-from services.auth import get_current_user
+from services.auth import get_current_user, get_admin_user
 
 router = APIRouter()
 
@@ -546,6 +546,84 @@ async def community_recent_withdrawals_detailed(
         'items': items,
         'updated_at': datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── Simulador de actividad en vivo (Retiros Recientes) ─────────────────
+# Genera retiros completados del pool demo cada 10-30 min (promedio) para
+# que el feed siempre tenga movimiento. Controlable desde admin.
+
+LIVE_SIM_SETTINGS_ID = 'live_withdrawals_sim'
+
+
+async def get_live_sim_settings() -> dict:
+    doc = await db.platform_settings.find_one({'id': LIVE_SIM_SETTINGS_ID}, {'_id': 0})
+    return doc or {'id': LIVE_SIM_SETTINGS_ID, 'enabled': True, 'updated_at': None, 'updated_by': None}
+
+
+async def run_live_withdrawal_sim_tick(force: bool = False) -> dict:
+    import random
+    settings = await get_live_sim_settings()
+    if not settings.get('enabled', True):
+        return {'skipped': 'disabled'}
+    if not force and random.random() > 0.5:
+        return {'skipped': 'probability'}
+
+    pool_ids = await db.transactions.distinct('user_id', {'demo_recent': True})
+    if not pool_ids:
+        return {'skipped': 'no_pool'}
+    users = await db.users.aggregate([
+        {'$match': {'id': {'$in': pool_ids}, 'email': {'$regex': '@example\\.'}}},
+        {'$sample': {'size': 1}},
+    ]).to_list(1)
+    if not users:
+        return {'skipped': 'no_pool'}
+    u = users[0]
+    country = (u.get('country_name') or u.get('country') or '').lower()
+    currency = 'USD' if any(c in country for c in ('mexico', 'méxico', 'chile')) else 'EUR'
+    amount = float(random.randint(7000, 65000))
+    now = datetime.now(timezone.utc)
+    created = now - timedelta(minutes=random.randint(2, 12))
+    tx = {
+        'id': str(uuid.uuid4()),
+        'user_id': u['id'],
+        'user_name': u.get('name') or 'Cliente',
+        'transaction_type': 'withdraw',
+        'status': 'completed',
+        'amount': amount,
+        'currency': currency,
+        'description': 'Retiro procesado',
+        'demo_recent': True,
+        'auto_generated_by': 'live_withdrawals_sim',
+        'transaction_reference': f"TRX-2026-{uuid.uuid4().hex[:6].upper()}",
+        'created_at': created.isoformat(),
+        'completed_at': now.isoformat(),
+        'updated_at': now.isoformat(),
+    }
+    await db.transactions.insert_one(tx)
+    logging.info(f"live_withdrawals_sim: generated {tx['transaction_reference']} for {u.get('name')} ({amount} {currency})")
+    return {'ok': True, 'reference': tx['transaction_reference'], 'name': u.get('name'), 'amount': amount, 'currency': currency}
+
+
+@router.get('/admin/live-withdrawals-sim')
+async def live_sim_status(admin: dict = Depends(get_admin_user)):
+    settings = await get_live_sim_settings()
+    generated_total = await db.transactions.count_documents({'auto_generated_by': 'live_withdrawals_sim'})
+    return {'enabled': bool(settings.get('enabled', True)),
+            'updated_by': settings.get('updated_by'),
+            'generated_total': generated_total}
+
+
+@router.post('/admin/live-withdrawals-sim/toggle')
+async def live_sim_toggle(admin: dict = Depends(get_admin_user)):
+    settings = await get_live_sim_settings()
+    new_val = not settings.get('enabled', True)
+    await db.platform_settings.update_one(
+        {'id': LIVE_SIM_SETTINGS_ID},
+        {'$set': {'enabled': new_val, 'updated_at': datetime.now(timezone.utc).isoformat(),
+                  'updated_by': admin.get('email')}},
+        upsert=True,
+    )
+    return {'ok': True, 'enabled': new_val}
 
 
 @router.get("/community/global-transfers")

@@ -470,6 +470,17 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Simulador de retiros en vivo: cada 10 min con 50% de probabilidad (≈1 cada 20 min)
+    from routes.community import run_live_withdrawal_sim_tick
+    scheduler.add_job(
+        run_live_withdrawal_sim_tick,
+        IntervalTrigger(minutes=10),
+        id='live_withdrawals_sim',
+        name='Generar retiro demo completado para el feed en vivo',
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=45),
+        replace_existing=True,
+    )
+
     # Resumen Semanal por email: lunes 10:00 Madrid (solo envía si está activado en el panel)
     from routes.weekly_digest import run_weekly_digest
     scheduler.add_job(

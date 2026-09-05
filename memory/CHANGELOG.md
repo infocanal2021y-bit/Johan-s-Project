@@ -148,3 +148,11 @@
 - Panel admin `/admin/weekly-digest` (AdminWeeklyDigestPage.jsx): switch activar/desactivar, stats, vista previa (iframe), "Enviar ahora" con confirm, últimos envíos. Link "Resumen Semanal" en sidebar admin.
 - Endpoints: GET/POST /api/admin/weekly-digest/{status,toggle,preview,send-now}.
 - Testing: backend verificado por curl (status/toggle/preview/403 gate); testing agent iter73 frontend 100% (toggle dejado en DESACTIVADO, confirm de envío cancelado — NO se enviaron emails reales).
+
+## 2026-06 (fork) — Retiros En Vivo
+- /retiros-recientes ahora hace polling cada 15s; retiros nuevos entran animados arriba (framer-motion) con badge verde "NUEVO" que expira a los ~12s.
+- Indicador "En vivo · 15s" pulsante que pasa a "En pausa" mientras hay tarjeta expandida (el polling se pausa).
+- Módulo del Dashboard se refresca cada 30s.
+- Simulador de actividad: scheduler cada 10 min (50% prob → ~1 retiro cada 20 min) genera retiro completado del pool curado de 100 usuarios Excel (users con tx demo_recent=true y @example.). España→EUR, Méx/Chile→USD. Función run_live_withdrawal_sim_tick en routes/community.py.
+- Control admin: botón "Actividad auto: ON/OFF" en /retiros-recientes (solo admins), endpoints GET/POST /api/admin/live-withdrawals-sim(/toggle), settings en platform_settings id='live_withdrawals_sim'. Estado actual: ON.
+- Testing agent iter74: backend 100%, frontend 100% (entrada animada verificada e2e con tick forzado).

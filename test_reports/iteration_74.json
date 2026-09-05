@@ -1,0 +1,18 @@
+{
+  "summary": "End-to-end verification of 'Retiros En Vivo' feature. Backend admin endpoints (/api/admin/live-withdrawals-sim GET + toggle POST) verified via curl with admin bearer token: GET returns {enabled:true, updated_by, generated_total:2}; toggle flips enabled correctly; no-auth returns 403; non-admin user returns 403. Frontend Playwright covered: (1) normal user (manclic@yahoo.es) sees rw-live-indicator with data-paused=false and 'En vivo · 15s'; expanding a card switches to data-paused=true 'En pausa'; collapsing restores to 'En vivo'; rw-sim-toggle NOT visible for normal user. (2) Dashboard recent-withdrawals-module loads content correctly. (3) Admin (admi@paylionsbit.es) sees rw-sim-toggle button starting 'Actividad auto: ON', toggles to OFF, back to ON (left ON as required). (4) Animated entrance: force-tick generated TRX-2026-DE0B48 (Cristina Molina García, 29510 EUR, Spain) → within 12s the new row appeared at POSITION 0 (top) of list with data-new=true and rw-new-badge-* visible; after ~14s the badge auto-expired (data-new=false, badge removed). (5) Regression: expanded card shows all 4 stage labels (Solicitado/En revisión/Procesado/Completado). All 5 flows PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Login page shows a full-screen 'Nueva administración PayLionsbit' modal (data-testid=new-admin-modal-overlay) that intercepts pointer events; automated tests must dismiss via 'Entendido' button before login. Not a bug, but consider dismissing modal on /login route only after auth or providing a stable close mechanism to avoid future test flakiness."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! (admin), manclic@yahoo.es / FX2026 (user) — both working",
+  "seed_data_creation": "1 forced live_withdrawals_sim tick during test → new demo tx TRX-2026-DE0B48 (Cristina Molina García, 29510 EUR). Simulator left ENABLED (ON) as required.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature 'Retiros En Vivo' fully verified. Simulator ON. Login flow requires dismissing new-admin-modal-overlay before interacting with login form. Animated row insertion via framer-motion AnimatePresence with layout works, new row is inserted at position 0 (top) with green border ring, NUEVO badge auto-clears at ~12s via setTimeout in setNewIds.",
+  "rca_of_the_issue": "N/A"
+}

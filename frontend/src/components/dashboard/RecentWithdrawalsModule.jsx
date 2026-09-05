@@ -24,6 +24,12 @@ export const RecentWithdrawalsModule = () => {
         api.get('/community/recent-withdrawals/detailed', { params: { limit: 4 } })
             .then((r) => setData(r.data))
             .catch(() => {});
+        const iv = setInterval(() => {
+            api.get('/community/recent-withdrawals/detailed', { params: { limit: 4 } })
+                .then((r) => setData(r.data))
+                .catch(() => {});
+        }, 30000);
+        return () => clearInterval(iv);
     }, []);
 
     return (

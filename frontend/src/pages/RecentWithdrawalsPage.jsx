@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import {
     Banknote, Loader2, ChevronDown, MessageCircleQuestion, CheckCircle2,
-    Clock, FileSearch, Send, RefreshCw, Search,
+    Clock, FileSearch, Send, RefreshCw, Search, Zap,
 } from 'lucide-react';
 import { WithdrawalQuestions } from '../components/community/WithdrawalQuestions';
 import { timeAgo } from '../components/community/constants';
+
+const POLL_MS = 15000;
 
 const STAGES = [
     { key: 'solicitado', label: 'Solicitado', icon: Send },
@@ -64,14 +67,24 @@ const StageBar = ({ stageIndex }) => (
     </div>
 );
 
-const WithdrawalRow = ({ item, expanded, onToggle }) => (
-    <div className="rounded-xl bg-slate-900/70 border border-slate-800 hover:border-slate-700 transition-colors overflow-hidden"
-        data-testid={`rw-row-${item.withdrawal_id}`}>
+const WithdrawalRow = ({ item, expanded, onToggle, isNew }) => (
+    <div className={`rounded-xl bg-slate-900/70 border transition-colors overflow-hidden ${
+        isNew ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-800 hover:border-slate-700'
+    }`}
+        data-testid={`rw-row-${item.withdrawal_id}`} data-new={isNew ? 'true' : 'false'}>
         <button type="button" onClick={onToggle}
             className="w-full text-left px-4 py-3.5 flex items-center gap-3 hover:bg-slate-800/40 transition-colors">
             <span className="text-xl leading-none flex-shrink-0">{item.country_flag}</span>
             <div className="flex-1 min-w-0">
-                <p className="text-[13.5px] text-white font-semibold truncate">{item.name_public}</p>
+                <p className="text-[13.5px] text-white font-semibold truncate flex items-center gap-2">
+                    {item.name_public}
+                    {isNew && (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[8.5px] font-bold uppercase tracking-[0.1em] animate-pulse"
+                            data-testid={`rw-new-badge-${item.withdrawal_id}`}>
+                            Nuevo
+                        </span>
+                    )}
+                </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                     {item.country} · {timeAgo(item.date)} · <span className="font-mono">{item.reference}</span>
                 </p>
@@ -139,21 +152,65 @@ const WithdrawalRow = ({ item, expanded, onToggle }) => (
 
 export default function RecentWithdrawalsPage() {
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const targetWid = searchParams.get('withdrawal');
     const [items, setItems] = useState(null);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
+    const [newIds, setNewIds] = useState(() => new Set());
+    const [simEnabled, setSimEnabled] = useState(null);
+    const expandedRef = useRef(null);
+    const knownIdsRef = useRef(null);
+    expandedRef.current = expandedId;
 
-    const load = async () => {
-        setLoading(true);
+    const load = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const { data } = await api.get('/community/recent-withdrawals/detailed', { params: { limit: 60 } });
-            setItems(data.items || []);
-        } catch { setItems([]); } finally { setLoading(false); }
+            const fresh = data.items || [];
+            if (knownIdsRef.current) {
+                const incoming = fresh.filter((i) => !knownIdsRef.current.has(i.withdrawal_id)).map((i) => i.withdrawal_id);
+                if (incoming.length > 0) {
+                    setNewIds((prev) => new Set([...prev, ...incoming]));
+                    setTimeout(() => {
+                        setNewIds((prev) => {
+                            const next = new Set(prev);
+                            incoming.forEach((id) => next.delete(id));
+                            return next;
+                        });
+                    }, 12000);
+                }
+            }
+            knownIdsRef.current = new Set(fresh.map((i) => i.withdrawal_id));
+            setItems(fresh);
+        } catch { if (!silent) setItems([]); } finally { if (!silent) setLoading(false); }
     };
-    useEffect(() => { load(); }, []);
+
+    useEffect(() => {
+        load();
+        const iv = setInterval(() => {
+            // Pausa mientras hay una tarjeta expandida para no mover el contenido
+            if (!expandedRef.current) load(true);
+        }, POLL_MS);
+        return () => clearInterval(iv);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (isAdmin) {
+            api.get('/admin/live-withdrawals-sim').then((r) => setSimEnabled(r.data.enabled)).catch(() => {});
+        }
+    }, [isAdmin]);
+
+    const toggleSim = async () => {
+        try {
+            const { data } = await api.post('/admin/live-withdrawals-sim/toggle');
+            setSimEnabled(data.enabled);
+        } catch { /* silencioso */ }
+    };
 
     useEffect(() => {
         if (targetWid && items) {
@@ -192,11 +249,37 @@ export default function RecentWithdrawalsPage() {
                             </p>
                         </div>
                     </div>
-                    <button type="button" onClick={load}
-                        className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
-                        data-testid="rw-refresh-btn">
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] font-bold uppercase tracking-[0.14em]"
+                            style={{ color: expandedId ? '#94a3b8' : '#10b981' }}
+                            data-testid="rw-live-indicator" data-paused={expandedId ? 'true' : 'false'}>
+                            <span className="relative flex w-1.5 h-1.5">
+                                {!expandedId && (
+                                    <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: '#10b981' }} />
+                                )}
+                                <span className="relative w-1.5 h-1.5 rounded-full" style={{ background: expandedId ? '#64748b' : '#10b981' }} />
+                            </span>
+                            {expandedId ? 'En pausa' : 'En vivo · 15s'}
+                        </div>
+                        {isAdmin && simEnabled !== null && (
+                            <button type="button" onClick={toggleSim}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ${
+                                    simEnabled
+                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
+                                        : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                                }`}
+                                title="Solo visible para administradores: genera retiros demo automáticamente"
+                                data-testid="rw-sim-toggle">
+                                <Zap className="w-3 h-3" />
+                                {simEnabled ? 'Actividad auto: ON' : 'Actividad auto: OFF'}
+                            </button>
+                        )}
+                        <button type="button" onClick={() => load()}
+                            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                            data-testid="rw-refresh-btn">
+                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -223,11 +306,23 @@ export default function RecentWithdrawalsPage() {
                     <p className="text-slate-600 text-sm text-center py-16">No hay retiros que coincidan.</p>
                 ) : (
                     <div className="space-y-2" data-testid="rw-list">
-                        {filtered.map((it) => (
-                            <WithdrawalRow key={it.withdrawal_id} item={it}
-                                expanded={expandedId === it.withdrawal_id}
-                                onToggle={() => setExpandedId((c) => (c === it.withdrawal_id ? null : it.withdrawal_id))} />
-                        ))}
+                        <AnimatePresence initial={false}>
+                            {filtered.map((it) => (
+                                <motion.div
+                                    key={it.withdrawal_id}
+                                    layout
+                                    initial={{ opacity: 0, y: -24, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.98 }}
+                                    transition={{ duration: 0.45, ease: 'easeOut' }}
+                                >
+                                    <WithdrawalRow item={it}
+                                        isNew={newIds.has(it.withdrawal_id)}
+                                        expanded={expandedId === it.withdrawal_id}
+                                        onToggle={() => setExpandedId((c) => (c === it.withdrawal_id ? null : it.withdrawal_id))} />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
                     </div>
                 )}
             </div>
