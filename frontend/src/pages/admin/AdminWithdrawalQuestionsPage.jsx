@@ -7,7 +7,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
 import {
     MessageCircleQuestion, Loader2, Send, Clock, CheckCircle, ListFilter,
-    EyeOff, Eye, Trash2, Pencil, Search,
+    EyeOff, Eye, Trash2, Pencil, Search, Star,
 } from 'lucide-react';
 
 const TABS = [
@@ -42,6 +42,11 @@ const QuestionRow = ({ q, onDone }) => {
                     q.status === 'pending' ? 'bg-amber-500/15 text-amber-300' :
                     q.status === 'answered' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-500/15 text-slate-400'
                 }`}>{q.status === 'pending' ? 'Pendiente' : q.status === 'answered' ? 'Respondida' : 'Oculta'}</span>
+                {q.featured && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 flex items-center gap-1" data-testid={`wq-featured-badge-${q.id}`}>
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" /> Destacada
+                    </span>
+                )}
             </div>
             <p className="text-slate-200 text-sm">{q.message}</p>
             {q.reply && !replying && (
@@ -72,6 +77,17 @@ const QuestionRow = ({ q, onDone }) => {
                         data-testid={`wq-reply-btn-${q.id}`}>
                         {q.reply ? <><Pencil className="w-3 h-3 mr-1" /> Editar respuesta</> : <><Send className="w-3 h-3 mr-1" /> Responder</>}
                     </Button>
+                    {q.reply && (
+                        <Button size="sm" disabled={busy}
+                            onClick={() => doAction(() => api.post(`/admin/withdrawal-questions/${q.id}/feature`), q.featured ? 'Pregunta quitada de destacados' : 'Pregunta destacada — aparecerá primero')}
+                            className={`h-7 text-xs border ${q.featured
+                                ? 'bg-amber-500/25 border-amber-500/50 text-amber-200 hover:bg-amber-500/35'
+                                : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'}`}
+                            data-testid={`wq-feature-btn-${q.id}`}>
+                            <Star className={`w-3 h-3 mr-1 ${q.featured ? 'fill-amber-400' : ''}`} />
+                            {q.featured ? 'Quitar de destacados' : 'Destacar pregunta'}
+                        </Button>
+                    )}
                     <Button size="sm" disabled={busy}
                         onClick={() => doAction(() => api.post(`/admin/withdrawal-questions/${q.id}/hide`), q.status === 'hidden' ? 'Pregunta visible de nuevo' : 'Pregunta oculta')}
                         className="bg-slate-500/15 border border-slate-500/40 text-slate-300 hover:bg-slate-500/25 h-7 text-xs"

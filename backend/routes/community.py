@@ -455,6 +455,99 @@ async def community_recent_withdrawals(
     }
 
 
+_USD_DISPLAY_COUNTRIES = ('mexico', 'méxico', 'chile')
+
+
+def _display_currency_for(country: str, tx_currency: str) -> str:
+    c = (country or '').strip().lower()
+    if 'espa' in c or c == 'spain':
+        return 'EUR'
+    if c in _USD_DISPLAY_COUNTRIES:
+        return 'USD'
+    return (tx_currency or 'EUR').upper()
+
+
+def _withdrawal_stage(status: str):
+    """Solicitado → En revisión → Procesado → Completado (1-4)."""
+    s = (status or '').lower()
+    if s == 'completed':
+        return 'completado', 4
+    if s in ('approved', 'in_transfer', 'processing', 'transfer_in_progress'):
+        return 'procesado', 3
+    if s in ('in_review', 'tax_pending', 'pending_tax', 'crypto_payment_under_review'):
+        return 'en_revision', 2
+    return 'solicitado', 1
+
+
+@router.get("/community/recent-withdrawals/detailed")
+async def community_recent_withdrawals_detailed(
+    limit: int = Query(40, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    """Vista interna completa de Retiros Recientes (Dashboard).
+    España muestra EUR; México y Chile muestran USD."""
+    rows = await db.transactions.find(
+        {'transaction_type': 'withdraw',
+         'status': {'$nin': ['failed', 'cancelled', 'rejected']}},
+        {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1, 'status': 1,
+         'created_at': 1, 'completed_at': 1, 'transaction_reference': 1},
+    ).sort('created_at', -1).limit(limit).to_list(limit)
+
+    if not rows:
+        return {'count': 0, 'items': [], 'updated_at': datetime.now(timezone.utc).isoformat()}
+
+    user_ids = list({r['user_id'] for r in rows})
+    users_cur = db.users.find(
+        {'id': {'$in': user_ids}},
+        {'_id': 0, 'id': 1, 'name': 1, 'country_name': 1, 'country': 1},
+    )
+    user_map = {u['id']: u async for u in users_cur}
+
+    wids = [r['id'] for r in rows]
+    q_counts = {}
+    async for g in db.withdrawal_questions.aggregate([
+        {'$match': {'withdrawal_id': {'$in': wids}, 'status': {'$in': ['pending', 'answered']}}},
+        {'$group': {'_id': '$withdrawal_id', 'n': {'$sum': 1}}},
+    ]):
+        q_counts[g['_id']] = g['n']
+
+    items = []
+    for r in rows:
+        u = user_map.get(r['user_id'])
+        if not u:
+            continue
+        country = u.get('country_name') or u.get('country') or 'Internacional'
+        tx_cur = (r.get('currency') or 'EUR').upper()
+        display_cur = _display_currency_for(country, tx_cur)
+        amt = float(r.get('amount') or 0)
+        if tx_cur != display_cur:
+            amt = amt * 1.08 if display_cur == 'USD' else amt / 1.08
+        stage, stage_index = _withdrawal_stage(r.get('status'))
+        items.append({
+            'withdrawal_id': r['id'],
+            'name_public': _public_first_name(u.get('name') or 'Cliente'),
+            'country': country,
+            'country_flag': _flag_for(country),
+            'amount': round(amt, 2),
+            'currency': display_cur,
+            'status': r.get('status'),
+            'stage': stage,
+            'stage_index': stage_index,
+            'reference': r.get('transaction_reference') or f"LB-{r['id'][:8].upper()}",
+            'created_at': r.get('created_at'),
+            'completed_at': r.get('completed_at'),
+            'date': r.get('completed_at') or r.get('created_at'),
+            'questions_count': q_counts.get(r['id'], 0),
+            'questions_enabled': stage == 'completado',
+        })
+
+    return {
+        'count': len(items),
+        'items': items,
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/community/global-transfers")
 async def community_global_transfers(
     limit: int = Query(20, ge=1, le=80),

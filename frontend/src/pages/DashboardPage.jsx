@@ -18,6 +18,7 @@ import { RefreshCw, AlertTriangle, BadgeCheck, ShieldAlert, Wallet, Clock, Trend
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { WithdrawalToast, LiveWithdrawalsPanel } from '../components/dashboard/LiveWithdrawals';
+import { RecentWithdrawalsModule } from '../components/dashboard/RecentWithdrawalsModule';
 import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 import { BalanceOriginNote } from '../components/BalanceOriginNote';
@@ -507,6 +508,9 @@ export const DashboardPage = () => {
 
                 {/* Recent Transactions */}
                 <RecentTransactions transactions={transactions} loading={loading} />
+
+                {/* Retiros Recientes — módulo clickeable → /retiros-recientes */}
+                <RecentWithdrawalsModule />
 
                 {/* Live Withdrawals Activity */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>

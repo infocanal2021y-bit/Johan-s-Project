@@ -130,3 +130,13 @@
 - Verificado: `admin_id` sí se guarda internamente en `withdrawal_questions.reply.admin_id` para auditoría.
 - Limpieza: eliminadas (soft-delete) 3 preguntas de prueba antiguas hechas desde la cuenta admin que mostraban "Admin L." como autor público.
 - Nota entorno: la herramienta de screenshot mostró un placeholder "Frontend Preview Only" pese a que curl a la URL externa devuelve la app correcta; artefacto de preview, no bug de la app.
+
+## 2026-06 (fork) — Retiros Recientes en Dashboard + Destacadas + Requisito Fiscal
+- Nueva vista interna `/retiros-recientes` (página completa): nombre, país, monto, moneda, estado, tiempo transcurrido, referencia, fecha/hora exacta, contador de preguntas; filtros por etapa + búsqueda. España→EUR, México/Chile→USD (endpoint `GET /api/community/recent-withdrawals/detailed`).
+- Módulo clickeable "Retiros Recientes" en el Dashboard (`RecentWithdrawalsModule.jsx`) + enlace en Sidebar (grupo Principal).
+- Progreso del retiro en 4 etapas: Solicitado → En revisión → Procesado → Completado; Q&A solo en Completado.
+- Contador "Preguntas realizadas: X de 3" + mensaje "Has alcanzado el límite de 3 preguntas para este retiro."
+- Preguntas Destacadas: `POST /api/admin/withdrawal-questions/{id}/feature` (solo respondidas), aparecen primero con "★ Pregunta destacada"; botones Destacar/Quitar en panel admin (/admin/questions).
+- Requisito fiscal vinculado al checklist del retiro (`_fiscal_requirement_item` en helpers.py): ✓ verificado / ○ pendiente / ⏱ en revisión / ✕ requiere corrección. Ítem `optional` — NO bloquea la autorización admin ni cambia total (sigue 7/7).
+- Testing agent iteración 72: backend 8/8, frontend 100%. Test regresión: /app/backend/tests/test_iter72_recent_withdrawals_qa_fiscal.py
+- Nota: testing agent puso must_change_password=false a manclic@yahoo.es para poder testear.

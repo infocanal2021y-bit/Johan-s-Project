@@ -8,14 +8,30 @@ PROCESSING_ALERT = 'Operación pendiente. Existen requisitos necesarios antes de
 
 
 def _req_items_result(items: list) -> dict:
-    all_met = all(i['done'] for i in items)
+    blocking = [i for i in items if not i.get('optional')]
+    all_met = all(i['done'] for i in blocking)
     return {
         'items': items,
         'all_met': all_met,
-        'completed_count': sum(1 for i in items if i['done']),
-        'total': len(items),
+        'completed_count': sum(1 for i in blocking if i['done']),
+        'total': len(blocking),
         'alert': None if all_met else PROCESSING_ALERT,
     }
+
+
+async def _fiscal_requirement_item(user_id: str) -> dict:
+    """Estado del documento fiscal vinculado al checklist del retiro (no bloqueante)."""
+    doc = await db.fiscal_documents.find_one(
+        {'user_id': user_id}, {'_id': 0, 'status': 1}, sort=[('created_at', -1)])
+    base = {'key': 'fiscal', 'optional': True}
+    if not doc:
+        return {**base, 'label': 'Documento fiscal pendiente', 'done': False, 'state': 'pending'}
+    st = doc.get('status')
+    if st == 'accepted':
+        return {**base, 'label': 'Documento fiscal verificado', 'done': True, 'state': 'accepted'}
+    if st == 'pending_review':
+        return {**base, 'label': 'Documento fiscal en revisión', 'done': False, 'state': 'in_review'}
+    return {**base, 'label': 'Documento requiere corrección', 'done': False, 'state': 'rejected'}
 
 
 async def compute_withdrawal_requirements(tx: dict) -> dict:
@@ -51,6 +67,7 @@ async def compute_withdrawal_requirements(tx: dict) -> dict:
         {'key': 'validated', 'label': 'Transacción cripto verificada', 'done': validated_ok},
         {'key': 'admin_review', 'label': 'Revisión administrativa completada', 'done': review_ok},
     ]
+    items.append(await _fiscal_requirement_item(tx['user_id']))
     return _req_items_result(items)
 
 
@@ -81,6 +98,7 @@ async def compute_bank_withdrawal_requirements(rec: dict) -> dict:
         {'key': 'validated', 'label': 'Transacción cripto verificada', 'done': validated_ok},
         {'key': 'admin_review', 'label': 'Revisión administrativa completada', 'done': review_ok},
     ]
+    items.append(await _fiscal_requirement_item(rec['user_id']))
     return _req_items_result(items)
 
 

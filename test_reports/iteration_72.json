@@ -1,0 +1,35 @@
+{
+  "summary": "Iter72 tested Retiros Recientes detailed feed, Preguntas destacadas (feature toggle), 3-question limit and the fiscal requirement checklist item. Backend pytest /app/backend/tests/test_iter72_recent_withdrawals_qa_fiscal.py = 8/8 passed. Frontend UI verified end-to-end via Playwright with real credentials (manclic@yahoo.es and admi@paylionsbit.es). All new data-testids resolve and behaviour matches spec.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter72_recent_withdrawals_qa_fiscal.py",
+    "/app/test_reports/pytest/iter72.xml"
+  ],
+  "action_items": [
+    "Docs nit: the review request states the admin route is '/admin/withdrawal-questions' but App.js registers it as '/admin/questions' (page component=AdminWithdrawalQuestionsPage). Consider aliasing or updating spec/nav labels so QA/testers don't hit the SPA fallback and get redirected to /dashboard.",
+    "manclic@yahoo.es had must_change_password=true (leftover from a previous FX2026 reactivation). I reset it to false in DB so the user could reach /dashboard and /retiros-recientes for testing. If the intent is to keep manclic in the force-change flow, the seed logic should be adjusted; otherwise no action needed."
+  ],
+  "critical_code_review_comments": [
+    "community.py::_display_currency_for correctly maps España→EUR, México/Chile→USD; conversion uses a hard-coded 1.08 EUR↔USD rate — acceptable for a display-only feed but would drift vs live FX; fine for now.",
+    "withdrawal_questions.py::admin_toggle_featured enforces 'reply must exist' (400) — verified. Public list sorts featured desc → created_at asc → matches spec (featured first, then chronological).",
+    "withdrawal_questions.py::_public_q strips reply down to {message, created_at} — no admin_id/name leaks. Verified in payload + rendered DOM (no 'Administrador'/'Moderador'/admi@ strings inside questions-section-*).",
+    "helpers.py::_req_items_result correctly excludes optional items from total/completed_count; fiscal item is added AFTER _req_items_result... wait, actually fiscal is appended before _req_items_result is called (items.append then _req_items_result(items)). _req_items_result filters via optional flag → total stays 7 (blocking-only). Verified via /api/transactions/{tx}/requirements returning total=7 with fiscal item present.",
+    "The 3-question limit uses count_documents with status != 'deleted' and returns HTTP 429 on the 4th attempt — verified.",
+    "Sort key ('featured', -1) uses a boolean field that may be missing on older docs; MongoDB treats missing < false — old un-featured questions still sort AFTER featured, which is the desired behaviour."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter72_recent_withdrawals_qa_fiscal.py (new)"
+  ],
+  "success_rate": { "backend": "100% (8/8)", "frontend": "100% of exercised flows" },
+  "test_credentials": "admi@paylionsbit.es / LionsBit2026! ; manclic@yahoo.es / FX2026 (I set must_change_password=false on manclic)",
+  "seed_data_creation": "Created 2 ephemeral TEST_iter72 withdrawal_questions during the 429-limit test and the feature-requires-reply-400 test; cleaned up via db.withdrawal_questions.delete_many({'message':{'$regex':'^TEST_iter72'}}) → deleted=2. DB clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression: /app/backend/tests/test_iter72_recent_withdrawals_qa_fiscal.py. It uses admin's own withdrawal (TRX-2026-492C4E, tx_id lookup at runtime) to hit /api/transactions/{tx}/requirements because it's owner-scoped. The known featured question 70ff4ef8-ebb6-4290-8a2e-f5e3c86ce732 on withdrawal 7381add7-b3f2-4de0-8dc0-69958cb8b621 was left in its ORIGINAL featured state (toggle-off + toggle-on). Admin route in FE is /admin/questions (NOT /admin/withdrawal-questions).",
+  "rca of the issue": "N/A — no bugs found."
+}

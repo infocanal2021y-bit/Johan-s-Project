@@ -125,6 +125,7 @@ export const Sidebar = () => {
                 { to: '/command-center', icon: LayoutDashboard, label: 'Centro de Control' },
                 { to: '/dashboard', icon: BarChart3, label: 'Dashboard' },
                 { to: '/community', icon: Users, label: 'Comunidad' },
+                { to: '/retiros-recientes', icon: Receipt, label: 'Retiros Recientes' },
             ],
         },
         {

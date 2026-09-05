@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../lib/api';
-import { MessageCircleQuestion, Loader2, Send, CornerDownRight, ChevronDown } from 'lucide-react';
+import { MessageCircleQuestion, Loader2, Send, CornerDownRight, ChevronDown, Star } from 'lucide-react';
 
 // Q&A público por retiro (Retiros Recientes). Máx 3 preguntas por usuario/retiro.
 // Las respuestas se muestran solo como "Respuesta" (sin identidad admin).
@@ -75,6 +75,11 @@ export const WithdrawalQuestions = ({ withdrawalId }) => {
                                 <div key={q.question_id}
                                     className={`rounded-lg bg-[#F8FAFB] border p-2.5 ${highlightQ === q.question_id ? 'border-[#1973B8]' : 'border-[#EDF1F5]'}`}
                                     data-testid={`question-${q.question_id}`}>
+                                    {q.featured && (
+                                        <p className="text-[10px] font-bold text-[#B45309] flex items-center gap-1 mb-0.5" data-testid={`featured-badge-${q.question_id}`}>
+                                            <Star className="w-3 h-3 fill-[#F59E0B] text-[#F59E0B]" /> Pregunta destacada
+                                        </p>
+                                    )}
                                     <p className="text-[12px] text-[#072146] font-semibold">{q.user_public_name}</p>
                                     <p className="text-[12px] text-[#374151]">{q.message}</p>
                                     {q.reply ? (
@@ -109,10 +114,10 @@ export const WithdrawalQuestions = ({ withdrawalId }) => {
                                     </button>
                                 </div>
                             ) : data && (
-                                <p className="text-[10.5px] text-[#9CA3AF] text-center">Ha alcanzado el máximo de 3 preguntas en este retiro.</p>
+                                <p className="text-[10.5px] text-[#B45309] text-center font-semibold" data-testid={`questions-limit-msg-${withdrawalId}`}>Has alcanzado el límite de 3 preguntas para este retiro.</p>
                             )}
                             {data && data.my_remaining > 0 && (
-                                <p className="text-[10px] text-[#9CA3AF] text-right">{data.my_remaining} pregunta(s) disponibles</p>
+                                <p className="text-[10px] text-[#9CA3AF] text-right" data-testid={`questions-counter-${withdrawalId}`}>Preguntas realizadas: {data.my_count} de 3</p>
                             )}
                         </>
                     )}

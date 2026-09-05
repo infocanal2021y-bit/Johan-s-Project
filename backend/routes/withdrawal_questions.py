@@ -40,6 +40,7 @@ def _public_q(q: dict) -> dict:
         'message': q['message'],
         'created_at': q['created_at'],
         'status': q['status'],
+        'featured': bool(q.get('featured')),
         'reply': {'message': reply['message'], 'created_at': reply['created_at']} if reply else None,
     }
 
@@ -98,7 +99,7 @@ async def list_questions(withdrawal_id: str, user: dict = Depends(get_current_us
     qs = await db.withdrawal_questions.find(
         {'withdrawal_id': withdrawal_id, 'status': {'$in': ['pending', 'answered']}},
         {'_id': 0},
-    ).sort('created_at', 1).to_list(50)
+    ).sort([('featured', -1), ('created_at', 1)]).to_list(50)
     my_count = await db.withdrawal_questions.count_documents({
         'withdrawal_id': withdrawal_id, 'user_id': user['id'], 'status': {'$ne': 'deleted'},
     })
@@ -173,6 +174,22 @@ async def admin_reply(question_id: str, payload: ReplyPayload, admin: dict = Dep
                       'cta_label': 'Ver respuesta', 'question_id': question_id},
         )
     return {'ok': True, 'edited': is_edit}
+
+
+@router.post('/admin/withdrawal-questions/{question_id}/feature')
+async def admin_toggle_featured(question_id: str, admin: dict = Depends(get_admin_user)):
+    """Destacar / quitar de destacados. Solo preguntas ya respondidas."""
+    q = await db.withdrawal_questions.find_one({'id': question_id}, {'_id': 0})
+    if not q or q['status'] == 'deleted':
+        raise HTTPException(404, 'Pregunta no encontrada')
+    new_val = not q.get('featured')
+    if new_val and not q.get('reply'):
+        raise HTTPException(400, 'Solo se pueden destacar preguntas que ya tienen respuesta.')
+    await db.withdrawal_questions.update_one(
+        {'id': question_id},
+        {'$set': {'featured': new_val, 'featured_at': _now() if new_val else None}},
+    )
+    return {'ok': True, 'featured': new_val}
 
 
 @router.post('/admin/withdrawal-questions/{question_id}/hide')

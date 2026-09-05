@@ -46,15 +46,27 @@ const RequirementsBlock = ({ txId }) => {
                 <ShieldAlert className="w-3.5 h-3.5" /> Requisitos previos al procesamiento
             </p>
             <div className="space-y-1.5">
-                {req.items.map((it) => (
-                    <div key={it.key} className="flex items-center gap-2 text-xs" data-testid={`req-item-${it.key}`}>
-                        {it.done
-                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                            : <Circle className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />}
-                        <span className={it.done ? 'text-slate-300' : 'text-slate-500'}>{it.label}</span>
-                        {!it.done && <span className="ml-auto text-[10px] text-amber-500/90 font-semibold uppercase">Pendiente</span>}
-                    </div>
-                ))}
+                {req.items.map((it) => {
+                    const rejected = it.state === 'rejected';
+                    const inReview = it.state === 'in_review';
+                    return (
+                        <div key={it.key} className="flex items-center gap-2 text-xs" data-testid={`req-item-${it.key}`}>
+                            {it.done
+                                ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                : rejected
+                                    ? <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                                    : inReview
+                                        ? <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                                        : <Circle className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />}
+                            <span className={it.done ? 'text-slate-300' : rejected ? 'text-red-300' : 'text-slate-500'}>{it.label}</span>
+                            {!it.done && (
+                                <span className={`ml-auto text-[10px] font-semibold uppercase ${rejected ? 'text-red-400' : inReview ? 'text-amber-400' : 'text-amber-500/90'}`}>
+                                    {rejected ? 'Corrección' : inReview ? 'En revisión' : 'Pendiente'}
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
             {req.alert && (
                 <div className="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-start gap-2" data-testid="requirements-alert">

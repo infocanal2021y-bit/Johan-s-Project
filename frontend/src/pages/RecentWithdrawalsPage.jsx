@@ -1,0 +1,236 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Layout } from '../components/layout/Layout';
+import api from '../lib/api';
+import {
+    Banknote, Loader2, ChevronDown, MessageCircleQuestion, CheckCircle2,
+    Clock, FileSearch, Send, RefreshCw, Search,
+} from 'lucide-react';
+import { WithdrawalQuestions } from '../components/community/WithdrawalQuestions';
+import { timeAgo } from '../components/community/constants';
+
+const STAGES = [
+    { key: 'solicitado', label: 'Solicitado', icon: Send },
+    { key: 'en_revision', label: 'En revisión', icon: FileSearch },
+    { key: 'procesado', label: 'Procesado', icon: Clock },
+    { key: 'completado', label: 'Completado', icon: CheckCircle2 },
+];
+
+const STAGE_BADGE = {
+    solicitado: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+    en_revision: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    procesado: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+    completado: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+};
+
+const fmtMoney = (n, cur) => cur === 'USD'
+    ? `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `€${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const fmtExact = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+});
+
+const StageBar = ({ stageIndex }) => (
+    <div className="flex items-center gap-1 mt-3">
+        {STAGES.map((s, i) => {
+            const Icon = s.icon;
+            const done = i + 1 < stageIndex;
+            const current = i + 1 === stageIndex;
+            const allDone = stageIndex === 4;
+            const circle = allDone || done
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                : current
+                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                    : 'bg-slate-800 border-slate-700 text-slate-600';
+            const label = allDone || done ? 'text-emerald-400' : current ? 'text-cyan-300' : 'text-slate-600';
+            return (
+                <div key={s.key} className="flex-1 flex items-center gap-1">
+                    <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border ${circle}`}>
+                            <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <span className={`text-[8px] font-semibold uppercase tracking-[0.05em] text-center leading-tight ${label}`}>
+                            {s.label}
+                        </span>
+                    </div>
+                    {i < STAGES.length - 1 && (
+                        <div className={`h-[2px] flex-1 mb-4 rounded-full ${allDone || i + 1 < stageIndex ? 'bg-emerald-500/50' : 'bg-slate-800'}`} />
+                    )}
+                </div>
+            );
+        })}
+    </div>
+);
+
+const WithdrawalRow = ({ item, expanded, onToggle }) => (
+    <div className="rounded-xl bg-slate-900/70 border border-slate-800 hover:border-slate-700 transition-colors overflow-hidden"
+        data-testid={`rw-row-${item.withdrawal_id}`}>
+        <button type="button" onClick={onToggle}
+            className="w-full text-left px-4 py-3.5 flex items-center gap-3 hover:bg-slate-800/40 transition-colors">
+            <span className="text-xl leading-none flex-shrink-0">{item.country_flag}</span>
+            <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] text-white font-semibold truncate">{item.name_public}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                    {item.country} · {timeAgo(item.date)} · <span className="font-mono">{item.reference}</span>
+                </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-500 flex-shrink-0">
+                <MessageCircleQuestion className="w-3.5 h-3.5" />
+                <span data-testid={`rw-qcount-${item.withdrawal_id}`}>{item.questions_count}</span>
+            </div>
+            <div className="text-right flex-shrink-0">
+                <p className="text-[14px] font-semibold font-mono tabular-nums text-white leading-tight">
+                    {fmtMoney(item.amount, item.currency)} <span className="text-[10px] text-slate-500">{item.currency}</span>
+                </p>
+                <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-[0.08em] ${STAGE_BADGE[item.stage]}`}>
+                    {STAGES.find((s) => s.key === item.stage)?.label}
+                </span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+        <AnimatePresence initial={false}>
+            {expanded && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="overflow-hidden"
+                >
+                    <div className="px-4 pb-4 pt-1 border-t border-slate-800">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-3 text-[11px]">
+                            <div>
+                                <p className="text-slate-600 uppercase tracking-wider text-[9px] font-semibold">Referencia</p>
+                                <p className="text-slate-300 font-mono mt-0.5">{item.reference}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-600 uppercase tracking-wider text-[9px] font-semibold">Fecha y hora</p>
+                                <p className="text-slate-300 mt-0.5">{fmtExact(item.date)}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-600 uppercase tracking-wider text-[9px] font-semibold">Monto</p>
+                                <p className="text-emerald-400 font-mono font-semibold mt-0.5">{fmtMoney(item.amount, item.currency)} {item.currency}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-600 uppercase tracking-wider text-[9px] font-semibold">Preguntas</p>
+                                <p className="text-slate-300 mt-0.5">{item.questions_count}</p>
+                            </div>
+                        </div>
+                        <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500 font-semibold">Estado del retiro</p>
+                        <StageBar stageIndex={item.stage_index} />
+                        {item.questions_enabled ? (
+                            <div className="mt-3 rounded-xl bg-white p-3">
+                                <WithdrawalQuestions withdrawalId={item.withdrawal_id} />
+                            </div>
+                        ) : (
+                            <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5">
+                                <MessageCircleQuestion className="w-3.5 h-3.5" />
+                                Las preguntas estarán disponibles cuando el retiro esté completado.
+                            </p>
+                        )}
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </div>
+);
+
+export default function RecentWithdrawalsPage() {
+    const [searchParams] = useSearchParams();
+    const targetWid = searchParams.get('withdrawal');
+    const [items, setItems] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [expandedId, setExpandedId] = useState(null);
+    const [filter, setFilter] = useState('all');
+    const [search, setSearch] = useState('');
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const { data } = await api.get('/community/recent-withdrawals/detailed', { params: { limit: 60 } });
+            setItems(data.items || []);
+        } catch { setItems([]); } finally { setLoading(false); }
+    };
+    useEffect(() => { load(); }, []);
+
+    useEffect(() => {
+        if (targetWid && items) {
+            const found = items.find((i) => i.withdrawal_id === targetWid);
+            if (found) setExpandedId(found.withdrawal_id);
+        }
+    }, [targetWid, items]);
+
+    const filtered = useMemo(() => {
+        let list = items || [];
+        if (filter !== 'all') list = list.filter((i) => i.stage === filter);
+        if (search.trim()) {
+            const s = search.trim().toLowerCase();
+            list = list.filter((i) =>
+                i.name_public.toLowerCase().includes(s) ||
+                i.country.toLowerCase().includes(s) ||
+                (i.reference || '').toLowerCase().includes(s));
+        }
+        return list;
+    }, [items, filter, search]);
+
+    const completedCount = (items || []).filter((i) => i.stage === 'completado').length;
+
+    return (
+        <Layout>
+            <div className="max-w-4xl mx-auto space-y-6" data-testid="recent-withdrawals-page">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center">
+                            <Banknote className="w-6 h-6 text-emerald-400" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Retiros Recientes</h1>
+                            <p className="text-sm text-slate-400 font-light">
+                                {items ? `${items.length} retiros · ${completedCount} completados` : 'Actividad verificada de la comunidad'}
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={load}
+                        className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                        data-testid="rw-refresh-btn">
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {[{ key: 'all', label: 'Todos' }, ...STAGES].map((t) => (
+                        <button key={t.key} onClick={() => setFilter(t.key)}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                                filter === t.key ? 'bg-slate-800 border-slate-600 text-white' : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-white'
+                            }`} data-testid={`rw-filter-${t.key}`}>
+                            {t.label}
+                        </button>
+                    ))}
+                    <div className="relative flex-1 min-w-[180px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                        <input value={search} onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Buscar por nombre, país o referencia..."
+                            className="w-full h-9 pl-8 pr-3 rounded-lg bg-slate-900 border border-slate-800 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-slate-600"
+                            data-testid="rw-search-input" />
+                    </div>
+                </div>
+
+                {loading && !items ? (
+                    <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-emerald-400 animate-spin" /></div>
+                ) : filtered.length === 0 ? (
+                    <p className="text-slate-600 text-sm text-center py-16">No hay retiros que coincidan.</p>
+                ) : (
+                    <div className="space-y-2" data-testid="rw-list">
+                        {filtered.map((it) => (
+                            <WithdrawalRow key={it.withdrawal_id} item={it}
+                                expanded={expandedId === it.withdrawal_id}
+                                onToggle={() => setExpandedId((c) => (c === it.withdrawal_id ? null : it.withdrawal_id))} />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </Layout>
+    );
+}
