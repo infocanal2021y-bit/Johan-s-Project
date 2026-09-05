@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import Response
+from fastapi.responses import Response, RedirectResponse
 
 from config import db, APP_BASE_URL
 from services.auth import get_admin_user
@@ -154,7 +154,7 @@ def _digest_content(data: dict) -> str:
         {wd_section}
         {q_section}
         <div style="text-align:center;margin:30px 0 10px 0;">
-            <a href="{APP_BASE_URL}/retiros-recientes"
+            <a href="__CTA_URL__"
                style="display:inline-block;background:#1973B8;color:#ffffff;text-decoration:none;
                       padding:13px 32px;border-radius:10px;font-size:15px;font-weight:bold;">
                 Ver Retiros Recientes
@@ -193,7 +193,10 @@ async def run_weekly_digest(triggered_by: str = 'scheduler') -> dict:
                 await db.users.update_one({'id': u['id']}, {'$set': {'email_open_token': token}})
             pixel = (f'<img src="{APP_BASE_URL}/api/weekly-digest/track/{run_id}/{token}.png" '
                      f'width="1" height="1" style="display:none;" alt="" />')
-            html = get_email_template(content_tpl.replace('__NOMBRE__', name) + pixel, 'Resumen Semanal')
+            cta_url = f"{APP_BASE_URL}/api/weekly-digest/click/{run_id}/{token}"
+            html = get_email_template(
+                content_tpl.replace('__NOMBRE__', name).replace('__CTA_URL__', cta_url) + pixel,
+                'Resumen Semanal')
             send_email_background(u['email'], SUBJECT, html)
             sent += 1
         except Exception as e:
@@ -240,6 +243,33 @@ async def track_digest_open(run_id: str, token: str):
                     headers={'Cache-Control': 'no-store, no-cache, must-revalidate'})
 
 
+@router.get('/weekly-digest/click/{run_id}/{token}')
+async def track_digest_click(run_id: str, token: str):
+    """Registra el clic en 'Ver Retiros Recientes' y redirige a la plataforma.
+    También cuenta como apertura (el clic implica que el email se abrió)."""
+    try:
+        user = await db.users.find_one({'email_open_token': token}, {'_id': 0, 'id': 1})
+        if user:
+            now = _now_iso()
+            await db.weekly_digest_clicks.update_one(
+                {'run_id': run_id, 'user_id': user['id']},
+                {'$setOnInsert': {'id': str(uuid.uuid4()), 'run_id': run_id,
+                                  'user_id': user['id'], 'first_clicked_at': now},
+                 '$set': {'last_clicked_at': now},
+                 '$inc': {'clicks': 1}},
+                upsert=True,
+            )
+            await db.weekly_digest_opens.update_one(
+                {'run_id': run_id, 'user_id': user['id']},
+                {'$setOnInsert': {'id': str(uuid.uuid4()), 'run_id': run_id,
+                                  'user_id': user['id'], 'opened_at': now, 'via': 'click'}},
+                upsert=True,
+            )
+    except Exception as e:
+        logging.warning(f'weekly_digest click track failed: {e}')
+    return RedirectResponse(url=f"{APP_BASE_URL}/retiros-recientes?src=digest", status_code=302)
+
+
 # ── Admin endpoints ──────────────────────────────────────────────────────
 
 @router.get('/admin/weekly-digest/status')
@@ -256,9 +286,17 @@ async def digest_status(admin: dict = Depends(get_admin_user)):
             {'$group': {'_id': '$run_id', 'n': {'$sum': 1}}},
         ]):
             opens_by_run[g['_id']] = g['n']
+        clicks_by_run = {}
+        async for g in db.weekly_digest_clicks.aggregate([
+            {'$match': {'run_id': {'$in': run_ids}}},
+            {'$group': {'_id': '$run_id', 'n': {'$sum': 1}}},
+        ]):
+            clicks_by_run[g['_id']] = g['n']
         for r in runs:
             r['opens'] = opens_by_run.get(r['id'], 0)
             r['open_rate'] = round(r['opens'] / r['recipients'] * 100, 1) if r.get('recipients') else 0.0
+            r['clicks'] = clicks_by_run.get(r['id'], 0)
+            r['click_rate'] = round(r['clicks'] / r['recipients'] * 100, 1) if r.get('recipients') else 0.0
     return {
         'enabled': bool(settings.get('enabled')),
         'updated_at': settings.get('updated_at'),
@@ -286,7 +324,10 @@ async def digest_toggle(admin: dict = Depends(get_admin_user)):
 @router.get('/admin/weekly-digest/preview')
 async def digest_preview(admin: dict = Depends(get_admin_user)):
     data = await _build_digest_data()
-    html = get_email_template(_digest_content(data).replace('__NOMBRE__', 'Cliente'), 'Resumen Semanal')
+    html = get_email_template(
+        _digest_content(data).replace('__NOMBRE__', 'Cliente')
+        .replace('__CTA_URL__', f"{APP_BASE_URL}/retiros-recientes"),
+        'Resumen Semanal')
     return {
         'html': html,
         'subject': SUBJECT,

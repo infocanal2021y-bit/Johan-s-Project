@@ -161,3 +161,9 @@
 - Sonido: chime sutil (Web Audio API, sin assets) al entrar retiros nuevos en /retiros-recientes; botón mute/unmute (rw-sound-toggle, persiste en localStorage rw_sound). Contador en el título de la pestaña "(N) Retiros nuevos · LIONSBIT" mientras document.hidden; se resetea con visibilitychange.
 - Aperturas del Resumen Semanal: pixel público GET /api/weekly-digest/track/{run_id}/{token}.png (dedup por run+user en weekly_digest_opens, usa email_open_token, backfill al enviar). run_weekly_digest embebe el pixel en cada email. /api/admin/weekly-digest/status enriquece last_runs con opens + open_rate; el panel muestra "N aperturas (X%)" (digest-run-opens-*).
 - Testing agent iter75: backend 4/4 pytest, frontend 100% (incl. título de pestaña verificado en vivo). Test regresión: /app/backend/tests/test_iter75_weekly_digest_tracking.py
+
+## 2026-06 (fork) — Clics del Email (Resumen Semanal)
+- CTA "Ver Retiros Recientes" del email ahora apunta a GET /api/weekly-digest/click/{run_id}/{token} → registra clic (weekly_digest_clicks, dedup por run+user con contador de clics repetidos) + marca apertura implícita, y redirige 302 a /retiros-recientes?src=digest.
+- /api/admin/weekly-digest/status añade clicks + click_rate por envío; el panel muestra "N clics (X%)" (digest-run-clicks-*).
+- Preview usa enlace directo (sin tracking). Token inválido → redirige igual (no filtra existencia).
+- Verificado por curl: 302 correcto, dedup, apertura implícita, rates en status, preview limpio. Datos de prueba limpiados.
