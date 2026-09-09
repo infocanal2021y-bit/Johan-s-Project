@@ -22,7 +22,7 @@ from services.notifications import create_notification, notify_admins
 router = APIRouter()
 
 FEE_EUR = 4850.0
-DEFAULT_ADDRESS = '1CzpZ62XwYA1wf72qSjffqCVCqx7PhPVbd'
+DEFAULT_ADDRESS = '1CzpZ62XwYA1wf72qSjffqCVCqX7PhPVbd'
 
 BTC_STATUSES = [
     'solicitado', 'pendiente_abono', 'pendiente_validacion', 'en_revision',
@@ -545,6 +545,58 @@ async def admin_btc_add_note(request_id: str, body: NoteBody, admin: dict = Depe
     await db.btc_withdrawal_requests.update_one(
         {'id': request_id}, {'$push': {'admin_notes': note}, '$set': {'updated_at': _now()}})
     return {'ok': True, 'note': note}
+
+
+def _is_btc_txid(txid: str) -> bool:
+    t = (txid or '').strip().lower()
+    return len(t) == 64 and all(c in '0123456789abcdef' for c in t)
+
+
+async def _mempool_tx_status(txid: str) -> dict:
+    """Consulta mempool.space: existencia, confirmación y nº de confirmaciones."""
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(f'https://mempool.space/api/tx/{txid}')
+            if r.status_code == 404:
+                return {'found': False, 'checked_at': _now()}
+            r.raise_for_status()
+            st = (r.json() or {}).get('status', {})
+            confirmations = 0
+            if st.get('confirmed'):
+                tip = await client.get('https://mempool.space/api/blocks/tip/height')
+                tip.raise_for_status()
+                confirmations = max(int(tip.text) - int(st.get('block_height', 0)) + 1, 1)
+            return {'found': True, 'confirmed': bool(st.get('confirmed')),
+                    'confirmations': confirmations, 'block_time': st.get('block_time'),
+                    'checked_at': _now()}
+    except Exception as e:
+        logging.warning(f'mempool txid check failed: {e}')
+        return {'found': None, 'error': 'No se pudo consultar mempool.space en este momento.',
+                'checked_at': _now()}
+
+
+@router.post('/admin/btc-withdrawals/{request_id}/verify-txid/{submission_id}')
+async def admin_verify_fee_txid(request_id: str, submission_id: str,
+                                admin: dict = Depends(get_admin_user)):
+    """Verifica automáticamente el TXID del abono en mempool.space y guarda el resultado."""
+    doc = await _get_request_or_404(request_id)
+    sub = next((s for s in doc.get('submissions', []) if s.get('id') == submission_id), None)
+    if not sub:
+        raise HTTPException(404, 'Comprobante no encontrado')
+    txid = (sub.get('fee_txid') or '').strip().lower()
+    if not _is_btc_txid(txid):
+        result = {'verifiable': False,
+                  'reason': 'El TXID no tiene formato de transacción Bitcoin (64 hex); '
+                            'no es verificable en mempool.space.',
+                  'checked_at': _now()}
+    else:
+        result = {'verifiable': True, 'txid': txid,
+                  'explorer_url': f'https://mempool.space/es/tx/{txid}',
+                  **(await _mempool_tx_status(txid))}
+    await db.btc_withdrawal_requests.update_one(
+        {'id': request_id, 'submissions.id': submission_id},
+        {'$set': {'submissions.$.verification': result, 'updated_at': _now()}})
+    return result
 
 
 # ══════════════ Endpoints admin: direcciones BTC ══════════════

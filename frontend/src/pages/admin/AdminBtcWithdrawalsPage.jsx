@@ -33,8 +33,24 @@ const CaseModal = ({ requestId, labels, onClose, onChanged }) => {
     const [txid, setTxid] = useState('');
     const [newStatus, setNewStatus] = useState('');
 
-    const load = () => api.get(`/admin/btc-withdrawals/${requestId}`).then((r) => setReq(r.data.request)).catch(() => {});
+    const load = () => api.get(`/admin/btc-withdrawals/${requestId}`).then((r) => {
+        setReq(r.data.request);
+        // Verificación automática de TXIDs sin resultado previo
+        const pending = (r.data.request.submissions || []).filter((s) => s.fee_txid && !s.verification);
+        if (pending.length) {
+            Promise.all(pending.map((s) => api.post(`/admin/btc-withdrawals/${requestId}/verify-txid/${s.id}`).catch(() => null)))
+                .then(() => api.get(`/admin/btc-withdrawals/${requestId}`).then((r2) => setReq(r2.data.request)).catch(() => {}));
+        }
+    }).catch(() => {});
     useEffect(() => { load(); }, [requestId]); // eslint-disable-line
+
+    const reverify = async (subId) => {
+        try {
+            await api.post(`/admin/btc-withdrawals/${requestId}/verify-txid/${subId}`);
+            const { data } = await api.get(`/admin/btc-withdrawals/${requestId}`);
+            setReq(data.request);
+        } catch { toast.error('No se pudo verificar el TXID'); }
+    };
 
     const act = async (fn, okMsg) => {
         setBusy(true);
@@ -74,6 +90,36 @@ const CaseModal = ({ requestId, labels, onClose, onChanged }) => {
                                         <p className="text-slate-500 text-[10px]">{fmtDate(s.at)}{s.coin_used ? ` · pagó con ${s.coin_used}` : ''}{s.address_used ? ` → ${s.address_used.slice(0, 10)}…` : ''}</p>
                                         {s.fee_txid && <p className="text-cyan-300 font-mono break-all mt-1">TXID: {s.fee_txid}</p>}
                                         {s.message && <p className="text-slate-300 mt-1">{s.message}</p>}
+                                        {s.fee_txid && (
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap" data-testid={`case-txid-verification-${s.id}`}>
+                                                {!s.verification ? (
+                                                    <span className="flex items-center gap-1 text-slate-500 text-[10px]"><Loader2 className="w-3 h-3 animate-spin" /> Verificando en mempool.space…</span>
+                                                ) : s.verification.verifiable === false ? (
+                                                    <span className="px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-400 text-[10px] font-semibold">No verificable: {s.verification.reason}</span>
+                                                ) : s.verification.found === false ? (
+                                                    <span className="px-1.5 py-0.5 rounded bg-red-500/15 text-red-300 text-[10px] font-bold">✗ TXID no encontrado en la red Bitcoin</span>
+                                                ) : s.verification.found === null ? (
+                                                    <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] font-semibold">mempool.space no disponible — reintente</span>
+                                                ) : (
+                                                    <>
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${s.verification.confirmed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                                                            {s.verification.confirmed ? `✓ TXID confirmado · ${s.verification.confirmations} confirmaciones` : '⏱ TXID en mempool · 0 confirmaciones'}
+                                                        </span>
+                                                        {s.verification.explorer_url && (
+                                                            <a href={s.verification.explorer_url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 text-[10px] underline flex items-center gap-0.5">
+                                                                Ver <ExternalLink className="w-2.5 h-2.5" />
+                                                            </a>
+                                                        )}
+                                                    </>
+                                                )}
+                                                {s.verification && (
+                                                    <button type="button" onClick={() => reverify(s.id)}
+                                                        className="text-slate-500 hover:text-white text-[10px] flex items-center gap-0.5" data-testid={`case-reverify-${s.id}`}>
+                                                        <RefreshCw className="w-2.5 h-2.5" /> Reverificar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
