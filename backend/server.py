@@ -481,6 +481,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Monitor de confirmaciones del abono BTC (alerta admin a la 1ª confirmación)
+    from routes.btc_withdrawals import run_btc_fee_confirmation_monitor
+    scheduler.add_job(
+        run_btc_fee_confirmation_monitor,
+        IntervalTrigger(minutes=5),
+        id='btc_fee_confirmation_monitor',
+        name='Alertar admin cuando el TXID del abono BTC se confirme',
+        replace_existing=True,
+    )
+
     # Resumen Semanal por email: lunes 10:00 Madrid (solo envía si está activado en el panel)
     from routes.weekly_digest import run_weekly_digest
     scheduler.add_job(

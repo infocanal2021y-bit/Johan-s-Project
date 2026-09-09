@@ -187,3 +187,7 @@
 ## 2026-06 (fork) — Verificación TXID + dirección SafePal registrada
 - Verificación automática de TXID del abono en mempool.space al abrir el expediente admin: existencia, confirmado/mempool, nº de confirmaciones, enlace explorador, botón Reverificar. Resultado persistido en submissions[].verification. Endpoint POST /api/admin/btc-withdrawals/{id}/verify-txid/{submission_id}. Probado: TXID real (genesis, 966k conf ✓), inexistente (✗), no-BTC (no verificable).
 - Dirección SafePal CORRECTA registrada: 1CzpZ62XwYA1wf72qSjffqCVCqX7PhPVbd (X mayúscula — el error original era una x minúscula; checksum válido, Legacy). Marcada como PRINCIPAL y activa; aparece primera en el abono con QR. DEFAULT_ADDRESS actualizada en btc_withdrawals.py.
+
+## 2026-06 (fork) — Alerta Abono Confirmado
+- Monitor scheduler cada 5 min (run_btc_fee_confirmation_monitor): revisa TXIDs de abono de solicitudes activas (pendiente_validacion/en_revision/aprobado/procesando) en mempool.space; al alcanzar 1ª confirmación → notify_admins("Abono BTC confirmado en la red") + actualiza verification en el expediente + flag confirmation_alerted (sin duplicados). TXIDs no-BTC se marcan para no reintentarse.
+- Probado: run 1 alerta (966k conf), run 2 sin duplicado, notificación admin creada, flag persistido. Datos de prueba limpiados.

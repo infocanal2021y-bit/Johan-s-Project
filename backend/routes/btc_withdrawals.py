@@ -599,6 +599,48 @@ async def admin_verify_fee_txid(request_id: str, submission_id: str,
     return result
 
 
+async def run_btc_fee_confirmation_monitor() -> dict:
+    """Scheduler: revisa TXIDs de abono aún no confirmados y alerta al admin
+    cuando alcanzan la primera confirmación en la red Bitcoin."""
+    cursor = db.btc_withdrawal_requests.find(
+        {'status': {'$in': ['pendiente_validacion', 'en_revision', 'aprobado', 'procesando']},
+         'submissions': {'$elemMatch': {'fee_txid': {'$nin': [None, '']},
+                                        'confirmation_alerted': {'$ne': True}}}},
+        {'_id': 0, 'id': 1, 'user_name': 1, 'amount_eur': 1, 'submissions': 1},
+    ).sort('created_at', -1).limit(20)
+    checked = alerted = 0
+    async for req in cursor:
+        for sub in req.get('submissions', []):
+            txid = (sub.get('fee_txid') or '').strip().lower()
+            if not txid or sub.get('confirmation_alerted'):
+                continue
+            if not _is_btc_txid(txid):
+                await db.btc_withdrawal_requests.update_one(
+                    {'id': req['id'], 'submissions.id': sub['id']},
+                    {'$set': {'submissions.$.confirmation_alerted': True}})
+                continue
+            checked += 1
+            result = await _mempool_tx_status(txid)
+            await db.btc_withdrawal_requests.update_one(
+                {'id': req['id'], 'submissions.id': sub['id']},
+                {'$set': {'submissions.$.verification': {
+                    'verifiable': True, 'txid': txid,
+                    'explorer_url': f'https://mempool.space/es/tx/{txid}', **result}}})
+            if result.get('confirmed'):
+                await db.btc_withdrawal_requests.update_one(
+                    {'id': req['id'], 'submissions.id': sub['id']},
+                    {'$set': {'submissions.$.confirmation_alerted': True}})
+                await notify_admins(
+                    'Abono BTC confirmado en la red',
+                    f"El TXID del abono de {req.get('user_name')} (retiro €{req.get('amount_eur', 0):,.2f}) "
+                    f"alcanzó {result.get('confirmations', 1)} confirmación(es). "
+                    f"TXID: {txid[:16]}… — listo para validar en el expediente.")
+                alerted += 1
+    if alerted:
+        logging.info(f'btc fee monitor: {alerted} abonos confirmados alertados')
+    return {'checked': checked, 'alerted': alerted}
+
+
 # ══════════════ Endpoints admin: direcciones BTC ══════════════
 
 @router.get('/admin/btc-addresses')
