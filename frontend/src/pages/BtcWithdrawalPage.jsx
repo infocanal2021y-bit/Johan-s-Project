@@ -352,9 +352,73 @@ const NewRequestForm = ({ onCreated }) => {
     );
 };
 
+/* ── Mis wallets BTC (lista blanca) ── */
+const MyBtcWallets = ({ onLockChange }) => {
+    const [data, setData] = useState(null);
+    const [addr, setAddr] = useState('');
+    const [label, setLabel] = useState('');
+    const [adding, setAdding] = useState(false);
+    const [open, setOpen] = useState(false);
+
+    const load = () => api.get('/btc-wallets').then((r) => { setData(r.data); onLockChange(r.data.lock); }).catch(() => {});
+    useEffect(() => { load(); }, []); // eslint-disable-line
+
+    const add = async () => {
+        setAdding(true);
+        try {
+            await api.post('/btc-wallets', { address: addr.trim(), label: label.trim() });
+            toast.success(`Wallet registrada — pendiente de revisión. Retiros BTC bloqueados ${data?.lock_hours || 48}h por seguridad.`);
+            setAddr(''); setLabel(''); load();
+        } catch (e) { toast.error(e.response?.data?.detail || 'Dirección inválida'); }
+        finally { setAdding(false); }
+    };
+
+    if (!data) return null;
+    const chip = { pending_review: ['Pendiente de revisión', 'bg-amber-500/15 text-amber-300'], trusted: ['★ Wallet de confianza', 'bg-emerald-500/15 text-emerald-300'], rejected: ['Rechazada', 'bg-red-500/15 text-red-300'] };
+
+    return (
+        <div className="rounded-xl bg-slate-900/70 border border-slate-800" data-testid="my-btc-wallets">
+            <button type="button" onClick={() => setOpen((o) => !o)} className="w-full px-4 py-3 flex items-center justify-between text-left">
+                <p className="text-white text-sm font-bold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" /> Mis wallets BTC
+                    <span className="text-slate-500 font-normal text-xs">({data.wallets.length})</span>
+                </p>
+                <span className="text-slate-500 text-xs">{open ? 'Ocultar' : 'Gestionar'}</span>
+            </button>
+            {open && (
+                <div className="px-4 pb-4 space-y-2">
+                    {data.wallets.map((w) => (
+                        <div key={w.id} className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5 text-xs" data-testid={`my-wallet-${w.id}`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-white font-semibold">{w.label}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${chip[w.status]?.[1]}`}>{chip[w.status]?.[0]}</span>
+                            </div>
+                            <p className="text-slate-400 font-mono break-all mt-1">{w.address}</p>
+                            {w.rejection_reason && <p className="text-red-300 mt-1">Motivo: {w.rejection_reason}</p>}
+                        </div>
+                    ))}
+                    <input value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="Nueva dirección BTC (1..., 3..., bc1q..., bc1p...)"
+                        className="w-full h-9 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs font-mono" data-testid="wallet-add-address" />
+                    <div className="flex gap-2">
+                        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Etiqueta (ej. Mi SafePal)"
+                            className="flex-1 h-9 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs" data-testid="wallet-add-label" />
+                        <Button size="sm" disabled={adding || !addr.trim()} onClick={add} className="bg-emerald-600 hover:bg-emerald-500 text-white h-9" data-testid="wallet-add-btn">
+                            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Registrar'}
+                        </Button>
+                    </div>
+                    <p className="text-slate-500 text-[10px]">Al registrar una nueva dirección se activa un bloqueo de seguridad de {data.lock_hours}h sobre los retiros BTC.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const fmtRemaining = (secs) => `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+
 export default function BtcWithdrawalPage() {
     const [requests, setRequests] = useState(null);
     const [showNew, setShowNew] = useState(false);
+    const [lock, setLock] = useState(null);
 
     const load = async () => {
         try {
@@ -391,10 +455,28 @@ export default function BtcWithdrawalPage() {
                 </div>
                 {requests === null ? (
                     <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-amber-400 animate-spin" /></div>
-                ) : shown && !showNew ? (
-                    <RequestView request={shown} onUpdate={() => load()} />
                 ) : (
-                    <NewRequestForm onCreated={() => load()} />
+                    <>
+                        <MyBtcWallets onLockChange={setLock} />
+                        {lock?.locked && (
+                            <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 flex items-start gap-3" data-testid="btc-lock-banner">
+                                <Clock className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-amber-300 font-bold text-sm">Bloqueo de seguridad activo</p>
+                                    <p className="text-slate-300 text-xs mt-1">
+                                        Registró un cambio de wallet recientemente. Por su seguridad, los retiros BTC están bloqueados.
+                                        Tiempo restante: <span className="font-bold text-amber-300" data-testid="btc-lock-remaining">{fmtRemaining(lock.remaining_seconds)}</span>.
+                                        Puede solicitar una verificación adicional al equipo para levantarlo antes.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        {shown && !showNew ? (
+                            <RequestView request={shown} onUpdate={() => load()} />
+                        ) : lock?.locked ? null : (
+                            <NewRequestForm onCreated={() => load()} />
+                        )}
+                    </>
                 )}
             </div>
         </Layout>

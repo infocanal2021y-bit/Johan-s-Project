@@ -1,0 +1,52 @@
+{
+  "summary": "Iter 78 — BTC wallet whitelist + 48h security lock + withdrawal plans (tramos ≤ €15.000). Backend: 15/15 pytest passed. Frontend: full end-to-end verified (user creates plan, registers wallet, sees lock banner; admin approves wallet, lifts lock, approves plan, executes tramos; regression tabs Solicitudes/Direcciones intact).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter78_btc_whitelist_and_plans.py",
+    "/app/test_reports/pytest/iter78_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "withdrawal_plans.PlanBody.frequency: consider Literal['semanal','quincenal','mensual'] for auto-Pydantic validation instead of manual check.",
+    "btc_withdrawals._get_lock: datetime.fromisoformat parses stored ISO ok, but naive strings from other producers could KeyError; wrap in try/except for robustness.",
+    "btc_withdrawals.add_btc_wallet always resets lock to full lock_hours on each new registration — desirable, but consider preserving remaining time if user adds a second wallet during an active lock (currently lock is refreshed which extends bloqueo — this matches spec)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter78_btc_whitelist_and_plans.py"
+  ],
+  "success_rate": { "backend": "100% (15/15)", "frontend": "100% of critical selectors verified" },
+  "test_credentials": "Admin admi@paylionsbit.es / LionsBit2026! (2FA off) — User manclic@yahoo.es / FX2026",
+  "seed_data_creation": "None persisted — teardown removes wallets, requests, plans and lifts lock; lock_hours reset to 48.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "manclic account left clean (no whitelisted wallets, no lock, no plans, no BTC requests). Reusable regression suite: /app/backend/tests/test_iter78_btc_whitelist_and_plans.py.",
+  "verified_backend_flows": [
+    "POST /api/btc-wallets (valid → pending_review + 48h lock; duplicate → 400; invalid → 400)",
+    "GET /api/btc-wallets returns lock.locked=true with remaining_seconds ~48h*3600",
+    "POST /api/btc-withdrawal/initiate returns 403 during lock with 'Tiempo restante' message",
+    "GET /api/admin/btc-wallet-whitelist lists wallets + settings.lock_hours + locked_users",
+    "PUT /api/admin/btc-security-settings persists lock_hours; 400 for out-of-range (>720)",
+    "POST /api/admin/btc-security/lift-lock/{uid} clears lock",
+    "POST /api/admin/btc-wallet-whitelist/{id}/approve → status=trusted; subsequent initiate returns trusted_wallet=true, additional_review=false",
+    "initiate with non-listed address → trusted_wallet=false, additional_review=true",
+    "POST /api/withdrawal-plan {40000,quincenal} → 3 tramos [15000,15000,10000] every 14 days, status pendiente_aprobacion",
+    "Second plan while one pending → 400",
+    "approve → activo; execute 1..3 → completed=true on last; re-execute → 400",
+    "reject pending plan → rechazado; cancel pending plan → 200"
+  ],
+  "verified_frontend_selectors": [
+    "method-plan card on /wallet/solicitar-retiro",
+    "plan-retiros-page + plan-total-input + plan-freq-quincenal + plan-preview ('3 tramos') + plan-create-btn",
+    "plan-view-* + plan-status ('Pendiente de aprobación') + plan-tranches (3 Tramos) + plan-cancel-btn",
+    "my-btc-wallets + wallet-add-address + wallet-add-label + wallet-add-btn + 'Pendiente de revisión' chip",
+    "btc-lock-banner + btc-lock-remaining ('47h 59m') — form hidden while locked",
+    "admin btc-tab-listablanca + whitelist-tab + lock-hours-input (48) + save-lock-hours-btn + lift-lock-* + wl-approve-*",
+    "admin btc-tab-planes + plan-row-* + plan-approve-* + tranche-exec-*-1 → 'Ejecutado' badge",
+    "regression: btc-tab-solicitudes + btc-filter-all; btc-tab-direcciones + btc-addresses-tab"
+  ]
+}

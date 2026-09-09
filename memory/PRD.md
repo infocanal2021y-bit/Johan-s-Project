@@ -1763,3 +1763,5 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Verificación TXID + SafePal (Jun 2026): TXID del abono se verifica automáticamente en mempool.space en el expediente admin (confirmaciones + reverificar + persistencia). Dirección SafePal corregida (1CzpZ62XwYA1wf72qSjffqCVCqX7PhPVbd, X mayúscula) registrada como principal de recepción. Probado por curl (3 casos).
 
 - Alerta Abono Confirmado (Jun 2026): scheduler cada 5 min vigila TXIDs de abono BTC y notifica al admin a la 1ª confirmación (sin duplicados, actualiza expediente). Probado e2e.
+
+- Lista blanca BTC + Bloqueo seguridad + Planes por tramos (Jun 2026 · iter78): whitelist de wallets con aprobación admin (★ confianza) y flag de revisión adicional en retiros con dirección no listada; bloqueo configurable (48h default) al registrar wallet nueva con banner de tiempo restante y levantamiento manual admin; planes de retiro divididos en tramos ≤€15.000 (semanal/quincenal/mensual) con calendario, aprobación admin y ejecución por tramo. Testing iter78: 15/15 backend + frontend 100%.

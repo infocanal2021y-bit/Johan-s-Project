@@ -8,7 +8,7 @@ import hashlib
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import httpx
@@ -328,6 +328,15 @@ async def btc_initiate(body: InitiateBody, user: dict = Depends(get_current_user
     v = validate_btc_address(body.btc_address)
     if not v['valid']:
         raise HTTPException(400, v.get('reason', 'Dirección Bitcoin inválida'))
+    lock = await _get_lock(user['id'])
+    if lock['locked']:
+        hrs = lock['remaining_seconds'] // 3600
+        mins = (lock['remaining_seconds'] % 3600) // 60
+        raise HTTPException(403, f'Retiros BTC bloqueados por seguridad tras el cambio de wallet. '
+                                 f'Tiempo restante: {hrs}h {mins}m.')
+    trusted = await db.btc_wallet_whitelist.find_one(
+        {'user_id': user['id'], 'address': v['address'], 'status': 'trusted'})
+    additional_review = trusted is None
     active = await db.btc_withdrawal_requests.find_one(
         {'user_id': user['id'],
          'status': {'$nin': ['completado', 'retiro_rechazado']}},
@@ -348,6 +357,8 @@ async def btc_initiate(body: InitiateBody, user: dict = Depends(get_current_user
         'btc_address': v['address'],
         'address_type': v['type'],
         'address_type_label': v['type_label'],
+        'trusted_wallet': not additional_review,
+        'additional_review': additional_review,
         'quote': quote,
         'fee_eur': FEE_EUR,
         'fee_receiving_address': default_recv,
@@ -639,6 +650,141 @@ async def run_btc_fee_confirmation_monitor() -> dict:
     if alerted:
         logging.info(f'btc fee monitor: {alerted} abonos confirmados alertados')
     return {'checked': checked, 'alerted': alerted}
+
+
+# ══════════════ Lista blanca de wallets + bloqueo de seguridad ══════════════
+
+BTC_SECURITY_ID = 'btc_security'
+
+
+async def get_btc_security_settings() -> dict:
+    doc = await db.platform_settings.find_one({'id': BTC_SECURITY_ID}, {'_id': 0})
+    return doc or {'id': BTC_SECURITY_ID, 'lock_hours': 48}
+
+
+async def _get_lock(user_id: str) -> dict:
+    u = await db.users.find_one({'id': user_id}, {'_id': 0, 'btc_withdrawal_lock_until': 1})
+    until = (u or {}).get('btc_withdrawal_lock_until')
+    if not until:
+        return {'locked': False}
+    now = datetime.now(timezone.utc)
+    dt = datetime.fromisoformat(until)
+    if dt <= now:
+        return {'locked': False}
+    return {'locked': True, 'lock_until': until,
+            'remaining_seconds': int((dt - now).total_seconds())}
+
+
+@router.get('/btc-wallets')
+async def my_btc_wallets(user: dict = Depends(get_current_user)):
+    rows = await db.btc_wallet_whitelist.find(
+        {'user_id': user['id']}, {'_id': 0}).sort('created_at', -1).to_list(20)
+    settings = await get_btc_security_settings()
+    return {'wallets': rows, 'lock': await _get_lock(user['id']),
+            'lock_hours': settings.get('lock_hours', 48)}
+
+
+class WhitelistBody(BaseModel):
+    address: str
+    label: str = ''
+
+
+@router.post('/btc-wallets')
+async def add_btc_wallet(body: WhitelistBody, user: dict = Depends(get_current_user)):
+    v = validate_btc_address(body.address)
+    if not v['valid']:
+        raise HTTPException(400, v.get('reason', 'Dirección Bitcoin inválida'))
+    if await db.btc_wallet_whitelist.find_one({'user_id': user['id'], 'address': v['address']}):
+        raise HTTPException(400, 'Esa dirección ya está registrada en su lista.')
+    settings = await get_btc_security_settings()
+    lock_hours = int(settings.get('lock_hours', 48))
+    lock_until = (datetime.now(timezone.utc) + timedelta(hours=lock_hours)).isoformat()
+    doc = {'id': str(uuid.uuid4()), 'user_id': user['id'], 'user_name': user.get('name'),
+           'user_email': user.get('email'), 'address': v['address'], 'type': v['type'],
+           'type_label': v['type_label'], 'label': body.label.strip() or 'Mi wallet',
+           'status': 'pending_review', 'created_at': _now(),
+           'reviewed_by': None, 'reviewed_at': None, 'rejection_reason': None}
+    await db.btc_wallet_whitelist.insert_one(doc)
+    doc.pop('_id', None)
+    await db.users.update_one({'id': user['id']},
+                              {'$set': {'btc_withdrawal_lock_until': lock_until}})
+    await notify_admins('Nueva wallet BTC registrada — revisión requerida',
+                        f"{user.get('name')} registró la wallet {mask_btc_address(v['address'])} "
+                        f"({v['type_label']}). Bloqueo de retiros BTC activo {lock_hours}h.")
+    await create_notification(user['id'], 'Wallet BTC registrada',
+                              f'Su wallet {mask_btc_address(v["address"])} quedó pendiente de revisión. '
+                              f'Por seguridad, los retiros BTC quedan bloqueados durante {lock_hours} horas '
+                              f'tras registrar una nueva dirección.',
+                              {'type': 'btc_wallet'})
+    return {'ok': True, 'wallet': doc, 'lock': await _get_lock(user['id'])}
+
+
+@router.get('/admin/btc-wallet-whitelist')
+async def admin_whitelist(status: Optional[str] = Query(None), admin: dict = Depends(get_admin_user)):
+    q = {'status': status} if status else {}
+    rows = await db.btc_wallet_whitelist.find(q, {'_id': 0}).sort('created_at', -1).to_list(200)
+    settings = await get_btc_security_settings()
+    locked = await db.users.find(
+        {'btc_withdrawal_lock_until': {'$gt': _now()}},
+        {'_id': 0, 'id': 1, 'name': 1, 'email': 1, 'btc_withdrawal_lock_until': 1}).to_list(50)
+    return {'wallets': rows, 'settings': settings, 'locked_users': locked}
+
+
+@router.post('/admin/btc-wallet-whitelist/{wallet_id}/approve')
+async def admin_approve_wallet(wallet_id: str, admin: dict = Depends(get_admin_user)):
+    w = await db.btc_wallet_whitelist.find_one({'id': wallet_id}, {'_id': 0})
+    if not w:
+        raise HTTPException(404, 'Wallet no encontrada')
+    await db.btc_wallet_whitelist.update_one(
+        {'id': wallet_id},
+        {'$set': {'status': 'trusted', 'reviewed_by': admin.get('email'), 'reviewed_at': _now()}})
+    await create_notification(w['user_id'], '★ Wallet de confianza aprobada',
+                              f'Su wallet {mask_btc_address(w["address"])} fue validada y marcada '
+                              f'como wallet de confianza. Sus retiros BTC a esta dirección seguirán el flujo normal.',
+                              {'type': 'btc_wallet'})
+    return {'ok': True, 'status': 'trusted'}
+
+
+@router.post('/admin/btc-wallet-whitelist/{wallet_id}/reject')
+async def admin_reject_wallet(wallet_id: str, body: MessageBody, admin: dict = Depends(get_admin_user)):
+    w = await db.btc_wallet_whitelist.find_one({'id': wallet_id}, {'_id': 0})
+    if not w:
+        raise HTTPException(404, 'Wallet no encontrada')
+    await db.btc_wallet_whitelist.update_one(
+        {'id': wallet_id},
+        {'$set': {'status': 'rejected', 'rejection_reason': body.message.strip(),
+                  'reviewed_by': admin.get('email'), 'reviewed_at': _now()}})
+    await create_notification(w['user_id'], 'Wallet BTC rechazada',
+                              f'Su wallet {mask_btc_address(w["address"])} no fue aprobada. '
+                              f'Motivo: {body.message.strip()}', {'type': 'btc_wallet'})
+    return {'ok': True, 'status': 'rejected'}
+
+
+class SecuritySettingsBody(BaseModel):
+    lock_hours: int
+
+
+@router.put('/admin/btc-security-settings')
+async def admin_btc_security_settings(body: SecuritySettingsBody, admin: dict = Depends(get_admin_user)):
+    if body.lock_hours < 0 or body.lock_hours > 720:
+        raise HTTPException(400, 'Horas de bloqueo fuera de rango (0–720).')
+    await db.platform_settings.update_one(
+        {'id': BTC_SECURITY_ID},
+        {'$set': {'lock_hours': int(body.lock_hours), 'updated_at': _now(),
+                  'updated_by': admin.get('email')}}, upsert=True)
+    return {'ok': True, 'lock_hours': int(body.lock_hours)}
+
+
+@router.post('/admin/btc-security/lift-lock/{user_id}')
+async def admin_lift_lock(user_id: str, admin: dict = Depends(get_admin_user)):
+    u = await db.users.find_one({'id': user_id}, {'_id': 0, 'id': 1, 'name': 1})
+    if not u:
+        raise HTTPException(404, 'Usuario no encontrado')
+    await db.users.update_one({'id': user_id}, {'$unset': {'btc_withdrawal_lock_until': ''}})
+    await create_notification(user_id, 'Verificación adicional aprobada',
+                              'El bloqueo de seguridad de sus retiros BTC fue levantado tras la verificación adicional.',
+                              {'type': 'btc_wallet'})
+    return {'ok': True}
 
 
 # ══════════════ Endpoints admin: direcciones BTC ══════════════

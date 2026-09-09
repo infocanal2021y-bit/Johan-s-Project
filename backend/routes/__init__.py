@@ -48,6 +48,7 @@ from routes.withdrawal_case import router as withdrawal_case_router
 from routes.withdrawal_questions import router as withdrawal_questions_router
 from routes.weekly_digest import router as weekly_digest_router
 from routes.btc_withdrawals import router as btc_withdrawals_router
+from routes.withdrawal_plans import router as withdrawal_plans_router
 
 
 def register_routes(api_router: APIRouter):
@@ -98,4 +99,5 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(withdrawal_questions_router, tags=["withdrawal-questions"])
     api_router.include_router(weekly_digest_router, tags=["weekly-digest"])
     api_router.include_router(btc_withdrawals_router, tags=["btc-withdrawals"])
+    api_router.include_router(withdrawal_plans_router, tags=["withdrawal-plans"])
     api_router.include_router(balance_metrics_router, tags=["balance-metrics"])

@@ -72,6 +72,7 @@ import AdminWithdrawalQuestionsPage from "./pages/admin/AdminWithdrawalQuestions
 import AdminWeeklyDigestPage from "./pages/admin/AdminWeeklyDigestPage";
 import SolicitarRetiroPage from "./pages/SolicitarRetiroPage";
 import BtcWithdrawalPage from "./pages/BtcWithdrawalPage";
+import PlanRetirosPage from "./pages/PlanRetirosPage";
 import AdminBtcWithdrawalsPage from "./pages/admin/AdminBtcWithdrawalsPage";
 import AdminPendingAbonosPage from "./pages/admin/AdminPendingAbonosPage";
 import AdminZeroBalancePage from "./pages/admin/AdminZeroBalancePage";
@@ -199,6 +200,7 @@ function AppRoutes() {
             <Route path="/wallet/bank-withdrawal" element={<ProtectedRoute><BankWithdrawalPage /></ProtectedRoute>} />
             <Route path="/wallet/solicitar-retiro" element={<ProtectedRoute><SolicitarRetiroPage /></ProtectedRoute>} />
             <Route path="/wallet/retiro-btc" element={<ProtectedRoute><BtcWithdrawalPage /></ProtectedRoute>} />
+            <Route path="/wallet/plan-retiros" element={<ProtectedRoute><PlanRetirosPage /></ProtectedRoute>} />
             <Route path="/wallet/vault" element={<ProtectedRoute><VaultBlockchainPage /></ProtectedRoute>} />
             <Route path="/command-center" element={<ProtectedRoute><CommandCenterPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsCenterPage /></ProtectedRoute>} />

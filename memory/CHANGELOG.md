@@ -191,3 +191,9 @@
 ## 2026-06 (fork) — Alerta Abono Confirmado
 - Monitor scheduler cada 5 min (run_btc_fee_confirmation_monitor): revisa TXIDs de abono de solicitudes activas (pendiente_validacion/en_revision/aprobado/procesando) en mempool.space; al alcanzar 1ª confirmación → notify_admins("Abono BTC confirmado en la red") + actualiza verification en el expediente + flag confirmation_alerted (sin duplicados). TXIDs no-BTC se marcan para no reintentarse.
 - Probado: run 1 alerta (966k conf), run 2 sin duplicado, notificación admin creada, flag persistido. Datos de prueba limpiados.
+
+## 2026-06 (fork) — Lista blanca BTC + Bloqueo de seguridad + Planes por tramos
+- Lista blanca (btc_wallet_whitelist): usuario registra wallets en "Mis wallets BTC" (/wallet/retiro-btc) → pending_review → admin aprueba (★ Wallet de confianza) o rechaza con motivo. Retiro BTC: trusted_wallet / additional_review flags visibles en el expediente admin (badges ★ / ⚠).
+- Bloqueo de seguridad: registrar nueva wallet activa lock de retiros BTC (users.btc_withdrawal_lock_until, default 48h, configurable 0-720h en platform_settings id='btc_security'). Usuario ve banner con tiempo restante y el initiate devuelve 403. Admin: pestaña "Lista blanca" con config de horas, usuarios bloqueados y "Levantar bloqueo" (notifica verificación adicional aprobada).
+- Planes por tramos (withdrawal_plans, routes/withdrawal_plans.py): total ÷ tramos de máx €15.000, frecuencia semanal/quincenal/mensual, calendario de fechas/importes. Estados: pendiente_aprobacion→activo→completado (+rechazado/cancelado). Usuario: /wallet/plan-retiros (+tarjeta en selector). Admin: pestaña "Planes por tramos" (aprobar/rechazar/ejecutar tramo). 1 plan pendiente/activo por usuario. Notificaciones en cada paso.
+- Testing iter78: backend 15/15 pytest, frontend 100%. Suite: tests/test_iter78_btc_whitelist_and_plans.py. manclic limpio, lock_hours=48.

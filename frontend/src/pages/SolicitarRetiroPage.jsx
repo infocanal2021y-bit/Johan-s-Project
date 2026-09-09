@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Building2, Bitcoin, ChevronRight, Banknote } from 'lucide-react';
+import { Building2, Bitcoin, ChevronRight, Banknote, CalendarClock } from 'lucide-react';
 
 const MethodCard = ({ icon: Icon, iconColor, iconBg, title, desc, tags, onClick, testId }) => (
     <motion.button
@@ -53,6 +53,12 @@ export default function SolicitarRetiroPage() {
                         tags={['Red Bitcoin', '1 / 3 / bc1q / bc1p', 'TXID verificable']}
                         onClick={() => navigate('/wallet/retiro-btc')}
                         testId="method-btc" />
+                    <MethodCard icon={CalendarClock} iconColor="text-violet-400" iconBg="bg-violet-500/10 border border-violet-500/25"
+                        title="Retiro programado (por tramos)"
+                        desc="Divida su retiro en tramos de hasta €15.000 con un calendario de fechas e importes. Requiere aprobación administrativa."
+                        tags={['Máx. €15.000 por tramo', 'Semanal / Quincenal / Mensual', 'Calendario']}
+                        onClick={() => navigate('/wallet/plan-retiros')}
+                        testId="method-plan" />
                 </div>
             </div>
         </Layout>

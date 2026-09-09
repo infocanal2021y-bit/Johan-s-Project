@@ -76,7 +76,13 @@ const CaseModal = ({ requestId, labels, onClose, onChanged }) => {
                     <div className="grid grid-cols-2 gap-2.5 rounded-lg bg-slate-950/60 border border-slate-800 p-3">
                         <div><p className="text-slate-500 text-[9px] uppercase font-semibold">Usuario</p><p className="text-white mt-0.5">{req.user_name}<br /><span className="text-slate-500">{req.user_email}</span></p></div>
                         <div><p className="text-slate-500 text-[9px] uppercase font-semibold">Monto</p><p className="text-white font-mono text-sm mt-0.5">{fmtEur(req.amount_eur)}</p><p className="text-emerald-400 font-mono">{req.quote?.net_btc?.toFixed(8)} BTC neto est.</p></div>
-                        <div className="col-span-2"><p className="text-slate-500 text-[9px] uppercase font-semibold">Dirección BTC destino ({req.address_type_label})</p><p className="text-amber-300 font-mono break-all mt-0.5" data-testid="case-btc-address">{req.btc_address}</p></div>
+                        <div className="col-span-2"><p className="text-slate-500 text-[9px] uppercase font-semibold">Dirección BTC destino ({req.address_type_label})</p><p className="text-amber-300 font-mono break-all mt-0.5" data-testid="case-btc-address">{req.btc_address}</p>
+                            {req.additional_review ? (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-red-500/15 text-red-300 text-[10px] font-bold" data-testid="case-additional-review">⚠ Revisión adicional — dirección NO está en la lista blanca de confianza</span>
+                            ) : req.trusted_wallet ? (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-bold" data-testid="case-trusted-wallet">★ Wallet de confianza verificada</span>
+                            ) : null}
+                        </div>
                         <div><p className="text-slate-500 text-[9px] uppercase font-semibold">Abono</p><p className="text-white mt-0.5">{fmtEur(req.fee_eur)}</p></div>
                         <div><p className="text-slate-500 text-[9px] uppercase font-semibold">Solicitado</p><p className="text-white mt-0.5">{fmtDate(req.created_at)}</p></div>
                     </div>
@@ -301,6 +307,120 @@ const AddressesTab = () => {
     );
 };
 
+/* ── Pestaña Lista blanca + Seguridad ── */
+const WhitelistTab = () => {
+    const [data, setData] = useState(null);
+    const [hours, setHours] = useState('');
+
+    const load = () => api.get('/admin/btc-wallet-whitelist').then((r) => { setData(r.data); setHours(String(r.data.settings.lock_hours ?? 48)); }).catch(() => {});
+    useEffect(() => { load(); }, []);
+
+    const act = async (fn, msg) => { try { await fn(); toast.success(msg); load(); } catch (e) { toast.error(e.response?.data?.detail || 'Error'); } };
+
+    if (!data) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-amber-400" /></div>;
+    const chip = { pending_review: ['Pendiente', 'bg-amber-500/15 text-amber-300'], trusted: ['★ Confianza', 'bg-emerald-500/15 text-emerald-300'], rejected: ['Rechazada', 'bg-red-500/15 text-red-300'] };
+
+    return (
+        <div className="space-y-4" data-testid="whitelist-tab">
+            <div className="rounded-xl bg-slate-900/70 border border-slate-800 p-4 flex items-center gap-3 flex-wrap">
+                <p className="text-white text-sm font-bold">Bloqueo por cambio de wallet:</p>
+                <input type="number" min="0" max="720" value={hours} onChange={(e) => setHours(e.target.value)}
+                    className="w-20 h-8 px-2 rounded-md bg-slate-950 border border-slate-700 text-white text-sm font-mono" data-testid="lock-hours-input" />
+                <span className="text-slate-400 text-xs">horas</span>
+                <Button size="sm" onClick={() => act(() => api.put('/admin/btc-security-settings', { lock_hours: parseInt(hours, 10) }), 'Horas de bloqueo actualizadas')}
+                    className="bg-slate-700 hover:bg-slate-600 text-white h-8 text-xs" data-testid="save-lock-hours-btn">Guardar</Button>
+            </div>
+            {data.locked_users.length > 0 && (
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 space-y-2" data-testid="locked-users">
+                    <p className="text-amber-300 text-xs font-bold">Usuarios con bloqueo activo</p>
+                    {data.locked_users.map((u) => (
+                        <div key={u.id} className="flex items-center gap-2 text-xs flex-wrap">
+                            <span className="text-white">{u.name}</span>
+                            <span className="text-slate-500">{u.email} · hasta {new Date(u.btc_withdrawal_lock_until).toLocaleString('es-ES')}</span>
+                            <Button size="sm" onClick={() => act(() => api.post(`/admin/btc-security/lift-lock/${u.id}`), 'Bloqueo levantado (verificación adicional aprobada)')}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white h-6 text-[10px] ml-auto" data-testid={`lift-lock-${u.id}`}>Levantar bloqueo</Button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {data.wallets.length === 0 ? <p className="text-slate-600 text-sm text-center py-8">No hay wallets registradas.</p> : (
+                <div className="space-y-2">
+                    {data.wallets.map((w) => (
+                        <div key={w.id} className="rounded-xl bg-slate-900/70 border border-slate-800 p-3.5 text-xs" data-testid={`wl-row-${w.id}`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-white font-bold">{w.user_name}</span>
+                                <span className="text-slate-500">{w.user_email}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${chip[w.status]?.[1]}`}>{chip[w.status]?.[0]}</span>
+                                <span className="text-slate-500">{w.label} · {w.type_label}</span>
+                                {w.status === 'pending_review' && (
+                                    <span className="ml-auto flex gap-1.5">
+                                        <Button size="sm" onClick={() => act(() => api.post(`/admin/btc-wallet-whitelist/${w.id}/approve`), 'Wallet marcada como de confianza')}
+                                            className="bg-emerald-600 hover:bg-emerald-500 text-white h-7 text-[10px]" data-testid={`wl-approve-${w.id}`}>★ Aprobar confianza</Button>
+                                        <Button size="sm" onClick={() => { const m = window.prompt('Motivo del rechazo:'); if (m) act(() => api.post(`/admin/btc-wallet-whitelist/${w.id}/reject`, { message: m }), 'Wallet rechazada'); }}
+                                            className="bg-red-700 hover:bg-red-600 text-white h-7 text-[10px]" data-testid={`wl-reject-${w.id}`}>Rechazar</Button>
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-amber-300/90 font-mono break-all mt-1.5">{w.address}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+/* ── Pestaña Planes por tramos ── */
+const PlansTab = () => {
+    const [data, setData] = useState(null);
+    const load = () => api.get('/admin/withdrawal-plans').then((r) => setData(r.data)).catch(() => {});
+    useEffect(() => { load(); }, []);
+    const act = async (fn, msg) => { try { await fn(); toast.success(msg); load(); } catch (e) { toast.error(e.response?.data?.detail || 'Error'); } };
+    if (!data) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-violet-400" /></div>;
+    const cls = { pendiente_aprobacion: 'bg-amber-500/15 text-amber-300', activo: 'bg-emerald-500/15 text-emerald-300', rechazado: 'bg-red-500/15 text-red-300', completado: 'bg-emerald-500/20 text-emerald-300', cancelado: 'bg-slate-500/15 text-slate-400' };
+    return (
+        <div className="space-y-3" data-testid="plans-tab">
+            {data.plans.length === 0 ? <p className="text-slate-600 text-sm text-center py-8">No hay planes de retiro.</p> :
+                data.plans.map((p) => (
+                    <div key={p.id} className="rounded-xl bg-slate-900/70 border border-slate-800 p-4 text-xs space-y-2" data-testid={`plan-row-${p.id}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-bold">{p.user_name}</span>
+                            <span className="text-slate-500">{p.user_email}</span>
+                            <span className="text-white font-mono font-bold">€{p.total_eur.toLocaleString('es-ES')}</span>
+                            <span className="text-slate-500">{p.tranches.length} tramos · {p.frequency}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${cls[p.status]}`}>{p.status_label}</span>
+                            {p.status === 'pendiente_aprobacion' && (
+                                <span className="ml-auto flex gap-1.5">
+                                    <Button size="sm" onClick={() => act(() => api.post(`/admin/withdrawal-plans/${p.id}/approve`), 'Plan aprobado y usuario notificado')}
+                                        className="bg-emerald-600 hover:bg-emerald-500 text-white h-7 text-[10px]" data-testid={`plan-approve-${p.id}`}>Aprobar</Button>
+                                    <Button size="sm" onClick={() => { const m = window.prompt('Motivo del rechazo:'); if (m) act(() => api.post(`/admin/withdrawal-plans/${p.id}/reject`, { reason: m }), 'Plan rechazado'); }}
+                                        className="bg-red-700 hover:bg-red-600 text-white h-7 text-[10px]" data-testid={`plan-reject-${p.id}`}>Rechazar</Button>
+                                </span>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {p.tranches.map((t) => (
+                                <div key={t.n} className="flex items-center gap-2 rounded-lg bg-slate-950/60 border border-slate-800 px-2.5 py-1.5">
+                                    <span className="text-white font-semibold">#{t.n}</span>
+                                    <span className="text-slate-400">{t.due_date}</span>
+                                    <span className="text-white font-mono">€{t.amount_eur.toLocaleString('es-ES')}</span>
+                                    {t.status === 'ejecutado' ? (
+                                        <span className="ml-auto text-emerald-400 font-bold text-[10px]">✓ Ejecutado</span>
+                                    ) : p.status === 'activo' ? (
+                                        <Button size="sm" onClick={() => act(() => api.post(`/admin/withdrawal-plans/${p.id}/tranches/${t.n}/execute`), `Tramo ${t.n} marcado como ejecutado`)}
+                                            className="ml-auto bg-violet-600 hover:bg-violet-500 text-white h-6 text-[10px]" data-testid={`tranche-exec-${p.id}-${t.n}`}>Ejecutar</Button>
+                                    ) : (
+                                        <span className="ml-auto text-slate-500 text-[10px]">Pendiente</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+        </div>
+    );
+};
+
 /* ── Página principal ── */
 const AdminBtcWithdrawalsPage = () => {
     const [tab, setTab] = useState('solicitudes');
@@ -332,8 +452,8 @@ const AdminBtcWithdrawalsPage = () => {
                     </button>
                 </div>
 
-                <div className="flex gap-2">
-                    {[['solicitudes', 'Solicitudes'], ['direcciones', 'Direcciones BTC']].map(([k, l]) => (
+                <div className="flex gap-2 flex-wrap">
+                    {[['solicitudes', 'Solicitudes'], ['direcciones', 'Direcciones BTC'], ['listablanca', 'Lista blanca'], ['planes', 'Planes por tramos']].map(([k, l]) => (
                         <button key={k} type="button" onClick={() => setTab(k)}
                             className={`px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${
                                 tab === k ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
@@ -341,7 +461,7 @@ const AdminBtcWithdrawalsPage = () => {
                     ))}
                 </div>
 
-                {tab === 'direcciones' ? <AddressesTab /> : (
+                {tab === 'direcciones' ? <AddressesTab /> : tab === 'listablanca' ? <WhitelistTab /> : tab === 'planes' ? <PlansTab /> : (
                     <>
                         <div className="flex flex-wrap gap-1.5">
                             <button type="button" onClick={() => setFilter('')}
