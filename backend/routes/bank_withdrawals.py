@@ -247,7 +247,7 @@ async def get_config(user: dict = Depends(get_current_user)):
             'transfer_in_progress': '1-2 días hábiles',
             'completed':            '2-5 días hábiles',
         },
-        'fee_pct': DEFAULT_FEE_PCT,
+        'fee_pct': 0.0,
     }
 
 
@@ -283,6 +283,14 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
     if amount <= 0:
         raise HTTPException(400, 'El monto debe ser mayor a 0')
 
+    from services.security_lock import get_security_lock
+    lock = await get_security_lock(user['id'])
+    if lock['locked']:
+        hrs = lock['remaining_seconds'] // 3600
+        mins = (lock['remaining_seconds'] % 3600) // 60
+        raise HTTPException(403, f"Retiros pausados por seguridad ({lock.get('reason', 'cambio sensible reciente')}). "
+                                 f"Tiempo restante: {hrs}h {mins}m.")
+
     to_cur = COUNTRY_BANKS[country]['currency']
     wallet = await _ensure_wallet(user['id'])
     available = float((wallet.get('balances') or {}).get(from_cur, 0.0))
@@ -291,7 +299,7 @@ async def initiate(payload: dict, user: dict = Depends(get_current_user)):
         raise HTTPException(400, f'Saldo insuficiente en {from_cur}. Disponible: {_round(available - pending, from_cur)}')
 
     rate = await _convert_rate(from_cur, to_cur)
-    fee_pct = DEFAULT_FEE_PCT
+    fee_pct = 0.0  # Sin comisión en transferencias bancarias
     gross_out = amount * rate
     fee_amount = gross_out * (fee_pct / 100.0)
     net_out = gross_out - fee_amount
@@ -546,7 +554,7 @@ async def confirm_code(request_id: str, payload: dict, user: dict = Depends(get_
         requested_at=now,
         amount_text=f"{amount:,.2f} {from_cur}",
         net_text=f"{float(rec['net_to_amount']):,.2f} {to_cur}",
-        fee_text=f"{float(rec['fx_fee_amount']):,.2f} {to_cur} ({rec['fx_fee_pct']}% conversión)",
+        fee_text='Sin comisión',
         method_text=f"{rec['bank_name']} · {rec.get('country_name', '')}".strip(' ·'),
         status_text=STATUS_LABELS.get('conversion_done', {}).get('label', 'Conversión completada'),
     ))

@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, notify_admins
+from services.security_lock import get_security_lock
 
 router = APIRouter()
 
@@ -282,6 +283,36 @@ def _public_view(doc: dict) -> dict:
     return doc
 
 
+def _send_stage_email(doc: dict, subject: str, heading: str, message: str,
+                      extra_rows: Optional[list] = None):
+    """Email de etapa del retiro BTC (solicitado / aprobado / enviado / confirmado)."""
+    import asyncio
+    from services.email import send_email, get_email_template
+    to = doc.get('user_email')
+    if not to:
+        return
+    rows = [('Monto del retiro', f"€{doc.get('amount_eur', 0):,.2f}"),
+            ('Destino', f"Red Bitcoin · {mask_btc_address(doc.get('btc_address', ''))}")]
+    rows += extra_rows or []
+    rows_html = ''.join(
+        f'<tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">{k}</td>'
+        f'<td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">{v}</td></tr>'
+        for k, v in rows)
+    content = f"""
+        <p style="color:#e2e8f0;font-size:16px;">Hola <strong style="color:#f59e0b;">{doc.get('user_name') or ''}</strong>,</p>
+        <p style="color:#e2e8f0;font-size:15px;line-height:1.6;">{message}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;border-radius:12px;margin:20px 0;">
+            <tr><td style="padding:22px;">
+                <p style="color:#f59e0b;font-size:12px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px 0;font-weight:bold;">₿ {heading}</p>
+                <table width="100%" cellpadding="0" cellspacing="0">{rows_html}</table>
+            </td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:12px;">Puede seguir el estado de su retiro en tiempo real desde su panel LIONSBIT.</p>
+    """
+    html = get_email_template(content, heading)
+    asyncio.create_task(send_email(to, f"{subject} · LIONSBIT", html))
+
+
 # ══════════════ Endpoints usuario ══════════════
 
 @router.get('/btc/validate-address')
@@ -332,7 +363,7 @@ async def btc_initiate(body: InitiateBody, user: dict = Depends(get_current_user
     if lock['locked']:
         hrs = lock['remaining_seconds'] // 3600
         mins = (lock['remaining_seconds'] % 3600) // 60
-        raise HTTPException(403, f'Retiros BTC bloqueados por seguridad tras el cambio de wallet. '
+        raise HTTPException(403, f'Retiros bloqueados por seguridad ({lock.get("reason", "cambio sensible reciente")}). '
                                  f'Tiempo restante: {hrs}h {mins}m.')
     trusted = await db.btc_wallet_whitelist.find_one(
         {'user_id': user['id'], 'address': v['address'], 'status': 'trusted'})
@@ -386,6 +417,10 @@ async def btc_initiate(body: InitiateBody, user: dict = Depends(get_current_user
                               f'Su solicitud de retiro de €{body.amount_eur:,.2f} en BTC fue registrada. '
                               f'Complete el abono de €{FEE_EUR:,.0f} para continuar el proceso.',
                               {'type': 'btc_withdrawal', 'request_id': doc['id']})
+    _send_stage_email(doc, 'Retiro Bitcoin solicitado', 'Retiro solicitado',
+                      'Su solicitud de retiro en Bitcoin fue registrada correctamente. '
+                      f'Complete el abono de €{FEE_EUR:,.0f} para iniciar la validación.',
+                      [('BTC neto estimado', f"{quote['net_btc']:.8f} BTC"), ('Estado', 'Solicitado')])
     return {'ok': True, 'request': _public_view(doc)}
 
 
@@ -516,6 +551,16 @@ async def admin_btc_set_status(request_id: str, body: StatusBody, admin: dict = 
     await create_notification(doc['user_id'], 'Actualización de su retiro Bitcoin',
                               f"Su retiro pasó al estado: {STATUS_LABELS[body.status]}.",
                               {'type': 'btc_withdrawal', 'request_id': request_id})
+    if body.status == 'aprobado':
+        _send_stage_email(doc, 'Retiro Bitcoin aprobado', 'Retiro aprobado',
+                          'Su retiro en Bitcoin fue <strong style="color:#10b981;">aprobado</strong>. '
+                          'El envío de BTC a su billetera se procesará en breve.',
+                          [('Estado', 'Aprobado ✓')])
+    elif body.status == 'completado':
+        _send_stage_email(doc, 'Retiro Bitcoin completado', 'Retiro completado',
+                          'Su retiro en Bitcoin fue <strong style="color:#10b981;">completado</strong>. '
+                          'Los fondos ya están en su billetera.',
+                          [('Estado', 'Completado ✓')])
     return {'ok': True, 'status': body.status}
 
 
@@ -539,6 +584,13 @@ async def admin_btc_register_send(request_id: str, body: RegisterSendBody,
                               f"Se enviaron {body.btc_amount:.8f} BTC a {mask_btc_address(doc['btc_address'])}. "
                               f"TXID: {txid[:16]}… Verifíquelo en el explorador desde su panel.",
                               {'type': 'btc_withdrawal', 'request_id': request_id})
+    _send_stage_email(doc, 'BTC enviado a su billetera', 'BTC enviado',
+                      'El BTC de su retiro fue <strong style="color:#10b981;">enviado</strong> a su billetera. '
+                      f'Puede verificarlo en el explorador público: '
+                      f'<a href="https://mempool.space/es/tx/{txid}" style="color:#38bdf8;">mempool.space</a>. '
+                      'Le avisaremos cuando la red Bitcoin lo confirme.',
+                      [('BTC enviado', f'{body.btc_amount:.8f} BTC'),
+                       ('TXID', f'{txid[:20]}…'), ('Estado', 'Enviado')])
     return {'ok': True, 'status': 'enviado', 'txid': txid}
 
 
@@ -652,6 +704,43 @@ async def run_btc_fee_confirmation_monitor() -> dict:
     return {'checked': checked, 'alerted': alerted}
 
 
+async def run_btc_send_confirmation_monitor() -> dict:
+    """Scheduler: cuando el TXID del envío BTC alcanza la 1ª confirmación,
+    marca el retiro como completado y notifica al usuario (in-app + email)."""
+    rows = await db.btc_withdrawal_requests.find(
+        {'status': 'enviado', 'txid': {'$nin': [None, '']},
+         'send_confirmation_alerted': {'$ne': True}}, {'_id': 0}).to_list(20)
+    checked = confirmed = 0
+    for req in rows:
+        checked += 1
+        result = await _mempool_tx_status(req['txid'])
+        if not result.get('confirmed'):
+            continue
+        confs = result.get('confirmations', 1)
+        await db.btc_withdrawal_requests.update_one(
+            {'id': req['id']},
+            {'$set': {'send_confirmation_alerted': True, 'send_confirmations': confs,
+                      'confirmed_at': _now()}})
+        await _set_status(req['id'], 'completado', 'system (red Bitcoin)')
+        await create_notification(
+            req['user_id'], 'Retiro Bitcoin confirmado en la red',
+            f"Su envío de {req.get('btc_sent', 0):.8f} BTC alcanzó {confs} confirmación(es) "
+            f"en la red Bitcoin. Retiro completado.",
+            {'type': 'btc_withdrawal', 'request_id': req['id']})
+        _send_stage_email(req, 'Retiro Bitcoin confirmado', 'Retiro confirmado',
+                          'La red Bitcoin <strong style="color:#10b981;">confirmó</strong> el envío de su retiro. '
+                          'Los fondos ya son suyos de forma irreversible.',
+                          [('BTC recibido', f"{req.get('btc_sent', 0):.8f} BTC"),
+                           ('Confirmaciones', str(confs)), ('Estado', 'Completado ✓')])
+        await notify_admins('Retiro BTC confirmado en la red',
+                            f"El envío a {req.get('user_name')} (€{req.get('amount_eur', 0):,.2f}) "
+                            f"alcanzó {confs} confirmación(es). Retiro marcado como completado.")
+        confirmed += 1
+    if confirmed:
+        logging.info(f'btc send monitor: {confirmed} retiros confirmados')
+    return {'checked': checked, 'confirmed': confirmed}
+
+
 # ══════════════ Lista blanca de wallets + bloqueo de seguridad ══════════════
 
 BTC_SECURITY_ID = 'btc_security'
@@ -663,16 +752,7 @@ async def get_btc_security_settings() -> dict:
 
 
 async def _get_lock(user_id: str) -> dict:
-    u = await db.users.find_one({'id': user_id}, {'_id': 0, 'btc_withdrawal_lock_until': 1})
-    until = (u or {}).get('btc_withdrawal_lock_until')
-    if not until:
-        return {'locked': False}
-    now = datetime.now(timezone.utc)
-    dt = datetime.fromisoformat(until)
-    if dt <= now:
-        return {'locked': False}
-    return {'locked': True, 'lock_until': until,
-            'remaining_seconds': int((dt - now).total_seconds())}
+    return await get_security_lock(user_id)
 
 
 @router.get('/btc-wallets')
@@ -707,7 +787,9 @@ async def add_btc_wallet(body: WhitelistBody, user: dict = Depends(get_current_u
     await db.btc_wallet_whitelist.insert_one(doc)
     doc.pop('_id', None)
     await db.users.update_one({'id': user['id']},
-                              {'$set': {'btc_withdrawal_lock_until': lock_until}})
+                              {'$set': {'btc_withdrawal_lock_until': lock_until,
+                                        'withdrawal_lock_until': lock_until,
+                                        'withdrawal_lock_reason': 'registro de nueva wallet BTC'}})
     await notify_admins('Nueva wallet BTC registrada — revisión requerida',
                         f"{user.get('name')} registró la wallet {mask_btc_address(v['address'])} "
                         f"({v['type_label']}). Bloqueo de retiros BTC activo {lock_hours}h.")
@@ -780,7 +862,8 @@ async def admin_lift_lock(user_id: str, admin: dict = Depends(get_admin_user)):
     u = await db.users.find_one({'id': user_id}, {'_id': 0, 'id': 1, 'name': 1})
     if not u:
         raise HTTPException(404, 'Usuario no encontrado')
-    await db.users.update_one({'id': user_id}, {'$unset': {'btc_withdrawal_lock_until': ''}})
+    await db.users.update_one({'id': user_id}, {'$unset': {
+        'btc_withdrawal_lock_until': '', 'withdrawal_lock_until': '', 'withdrawal_lock_reason': ''}})
     await create_notification(user_id, 'Verificación adicional aprobada',
                               'El bloqueo de seguridad de sus retiros BTC fue levantado tras la verificación adicional.',
                               {'type': 'btc_wallet'})

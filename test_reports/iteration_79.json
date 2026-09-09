@@ -1,0 +1,43 @@
+{
+  "summary": "Iter 79 — Notificaciones BTC + Bloqueo seguridad 48h + Resumen antes de retirar + comisión bancaria 0. Backend: 10/11 pytest passed (1 skipped por saldo cero de manclic en multicurrency wallet). Frontend BTC final summary verificado end-to-end (todos los testids presentes con datos correctos). Frontend Bank summary UI no pudo probarse porque manclic tiene 0 EUR en multi_currency_wallets — código de rendering verificado por grep.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter79_security_lock_and_summary.py",
+    "/app/test_reports/pytest/iter79_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "services/security_lock.get_security_lock: usa max(candidates, key=lambda c: c[0]) sobre strings ISO — funciona porque ISO 8601 es lexicográficamente ordenable, pero sería más seguro comparar datetime.fromisoformat(x[0]).",
+    "auth.change_password: aplica security_lock DESPUÉS de send_password_changed_email; si el email falla la lock igual se aplica (comportamiento correcto pero conviene documentar).",
+    "bank_withdrawals.initiate: fee_pct=0.0 hardcoded en el endpoint pero DEFAULT_FEE_PCT sigue existiendo en multicurrency para otras conversiones — OK, contenido a bank_withdrawal solo.",
+    "frontend BankWithdrawalPage StepBankForm: botón 'Continuar al resumen' deshabilitado por saldo insuficiente en multi_currency_wallets impide llegar a Step 2 aunque el usuario tenga saldo en accounts principales — considerar unificar fuentes de saldo o mostrar mensaje que dirija al Cuenta Multidivisa."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter79_security_lock_and_summary.py"],
+  "success_rate": {"backend": "91% (10/11, 1 skipped)", "frontend": "BTC 100%; Bank summary no probable por saldo=0 (código verificado)"},
+  "test_credentials": "Admin admi@paylionsbit.es / LionsBit2026! (2FA off) — User manclic@yahoo.es / FX2026. Disposable users creados con register API: test_iter79_*@example.com y test_iter79w_*@example.com (bloqueos ya levantados por admin lift-lock).",
+  "seed_data_creation": "2 usuarios desechables registrados; ambos con lock levantado al final del test. No se modificó la contraseña de manclic ni way3058. way3058 sigue en estado 'reactivated' y requiere force-password-change al login.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Para probar el bank withdrawal summary por UI end-to-end se necesita un usuario con saldo en multi_currency_wallets (no en accounts principales). manclic tiene 75k EUR en checking/savings pero 0 en multicurrency. way3058 es reactivated user y va a force-password-change tras login. Regression suite reutilizable: /app/backend/tests/test_iter79_security_lock_and_summary.py.",
+  "verified_backend_flows": [
+    "GET /api/bank-withdrawal/config → fee_pct 0.0",
+    "POST /api/auth/change-password → security_lock {lock_until, hours:48, reason:'cambio de contraseña'}",
+    "POST /api/bank-withdrawal/initiate durante lock → 403 con 'Tiempo restante'",
+    "POST /api/btc-withdrawal/initiate durante lock → 403 con 'Tiempo restante'",
+    "POST /api/admin/btc-security/lift-lock/{uid} limpia ambos lock fields (withdrawal_lock_until + btc_withdrawal_lock_until)",
+    "POST /api/btc-wallets setea withdrawal_lock_until + reason='registro de nueva wallet BTC' y bloquea también retiro bancario",
+    "GET /api/btc-wallets devuelve lock:{locked:true, reason:'registro de nueva wallet BTC', remaining_seconds}",
+    "POST /api/btc-withdrawal/initiate crea request y notificación in-app 'Retiro Bitcoin solicitado'",
+    "POST /api/admin/btc-withdrawals/{id}/status {aprobado} + /register-send {txid 64hex} no fallan",
+    "Scheduler: run_btc_send_confirmation_monitor importable y registrado con id='btc_send_confirmation_monitor' en server.py"
+  ],
+  "verified_frontend_selectors": [
+    "btc-amount-input + btc-address-input + btc-confirm-checkbox (checkbox 'Confirmo que la dirección Bitcoin introducida es correcta')",
+    "btc-final-summary con todos los sub-testids: btc-summary-amount ('€200,00'), btc-summary-wallet ('Wallet externa'), btc-summary-address ('1Czp…PVbd'), btc-summary-net ('0.00297447 BTC'), btc-summary-security ('Wallet no verificada — pasará por revisión adicional' + 'Identidad: Verificada ✓')",
+    "Nota abono €4850,00 visible en el resumen",
+    "btc-confirm-withdrawal-btn ('Confirmar retiro')",
+    "Selectors del paso Bank Withdrawal verificados por grep en BankWithdrawalPage.jsx: bank-wd-final-summary, bank-wd-summary-amount, wd-initiate-btn, wd-holder-input, wd-account-input, wd-amount-input, wd-next-step1, wd-back-step2. maskAccount function formatea IBAN como 'XXXX •••• XXXX'. StepSummary renderiza 'Sin comisión' en verde y 'Recibirás' con monto completo.",
+    "btc-lock-banner presente en código (línea 512 BtcWithdrawalPage.jsx) mostrando 'Motivo: {reason}' cuando lock activo — no observado en runtime porque manclic no tenía lock activo durante el test"
+  ]
+}

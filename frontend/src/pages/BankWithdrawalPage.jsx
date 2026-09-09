@@ -173,30 +173,40 @@ const Field = ({ label, children }) => (
 
 
 // ─── Step 2: Summary ──────────────────────────────────────────────
+const maskAccount = (acc) => {
+    const a = (acc || '').replace(/\s+/g, '');
+    return a.length > 8 ? `${a.slice(0, 4)} •••• ${a.slice(-4)}` : a;
+};
+
 const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, initiating }) => {
     if (!preview) return <div className="text-center py-8 text-slate-500">Calculando…</div>;
     const country = config.countries[form.country];
     return (
-        <div className="space-y-4">
-            <div className="rounded-xl bg-slate-950/60 border border-slate-700 p-5 space-y-3">
-                <SummaryRow label="País destino" value={`${country.flag} ${country.name}`} />
+        <div className="space-y-4" data-testid="bank-wd-final-summary">
+            <div className="rounded-xl bg-slate-900/70 border-2 border-[#1973B8]/40 p-5 space-y-3">
+                <p className="text-[10.5px] uppercase tracking-wider text-[#1973B8] font-bold flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4" /> Resumen antes de retirar
+                </p>
+                <div className="text-center py-1">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Retirar</p>
+                    <p className="text-3xl font-bold text-white font-mono" data-testid="bank-wd-summary-amount">
+                        {fmt(preview.amount_in)} {preview.from_currency}
+                    </p>
+                </div>
+                <SummaryRow label="Destino" value="Transferencia bancaria" />
                 <SummaryRow label="Banco" value={form.bank_name} />
                 <SummaryRow label="Titular" value={form.bank_holder} />
-                <SummaryRow label="Cuenta" value={form.bank_account} mono />
+                <SummaryRow label="IBAN / Cuenta" value={maskAccount(form.bank_account)} mono />
                 {form.bank_swift && <SummaryRow label="SWIFT" value={form.bank_swift} mono />}
-            </div>
-
-            <div className="rounded-xl bg-slate-900/70 border-2 border-[#1973B8]/40 p-5 space-y-3">
-                <p className="text-[10.5px] uppercase tracking-wider text-[#1973B8] font-bold mb-2">Conversión</p>
-                <SummaryRow label="Monto original"
-                    value={`${fmt(preview.amount_in)} ${preview.from_currency}`} />
-                <SummaryRow label="Tipo de cambio"
-                    value={`1 ${preview.from_currency} = ${preview.rate.toFixed(6)} ${preview.to_currency}`} mono />
-                <SummaryRow label={`Comisión (${preview.fee_pct}%)`}
-                    value={`−${fmt(preview.fee_amount)} ${preview.to_currency}`} valueClass="text-amber-400" />
+                <SummaryRow label="País" value={`${country.flag} ${country.name}`} />
+                {preview.rate !== 1 && (
+                    <SummaryRow label="Tipo de cambio"
+                        value={`1 ${preview.from_currency} = ${preview.rate.toFixed(6)} ${preview.to_currency}`} mono />
+                )}
+                <SummaryRow label="Comisión" value="Sin comisión" valueClass="text-emerald-400" />
                 <div className="border-t border-slate-700 pt-3">
                     <SummaryRow
-                        label="Total a recibir"
+                        label="Recibirás"
                         value={`${fmt(preview.amount_out)} ${preview.to_currency}`}
                         valueClass="text-emerald-400 text-lg font-bold" bold
                     />
@@ -209,7 +219,7 @@ const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, init
 
             <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-[12px] text-amber-300">
                 <ShieldCheck className="w-4 h-4 inline mr-1.5" />
-                Al continuar enviaremos un código de 6 dígitos a tu email para confirmar la operación.
+                Al confirmar enviaremos un código de 6 dígitos a tu email para autorizar la operación.
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -219,11 +229,11 @@ const StepSummary = ({ preview, form, config, accounts, onBack, onInitiate, init
                 <Button
                     onClick={onInitiate}
                     disabled={initiating}
-                    className="flex-1 bg-[#1973B8] hover:bg-[#1F89D8] text-white font-bold"
+                    className="flex-1 bg-[#1973B8] hover:bg-[#1F89D8] text-white font-bold h-11"
                     data-testid="wd-initiate-btn"
                 >
-                    {initiating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                    Enviar código por email
+                    {initiating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                    Confirmar retiro
                 </Button>
             </div>
         </div>
@@ -618,17 +628,15 @@ const BankWithdrawalPage = () => {
         // Same-currency transfer: no conversion needed, build preview locally
         if (form.from_currency === toCur) {
             const amt = Number(form.amount);
-            const feePct = config.fee_pct ?? 0.5;
-            const feeAmount = Number((amt * (feePct / 100)).toFixed(2));
             setPreview({
                 from_currency: form.from_currency,
                 to_currency: toCur,
                 amount_in: amt,
                 rate: 1.0,
-                fee_pct: feePct,
-                fee_amount: feeAmount,
+                fee_pct: 0,
+                fee_amount: 0,
                 gross_out: amt,
-                amount_out: Number((amt - feeAmount).toFixed(2)),
+                amount_out: amt,
                 rate_at: new Date().toISOString(),
             });
             setStep(2);
@@ -640,7 +648,10 @@ const BankWithdrawalPage = () => {
                 to_currency: toCur,
                 amount: Number(form.amount),
             });
-            setPreview(r.data);
+            const p = r.data;
+            // Retiros bancarios sin comisión: el neto es el bruto convertido
+            const gross = p.gross_out ?? Number((p.amount_in * p.rate).toFixed(2));
+            setPreview({ ...p, fee_pct: 0, fee_amount: 0, amount_out: gross });
             setStep(2);
         } catch (err) {
             toast.error(err.response?.data?.detail || 'No se pudo calcular el preview');

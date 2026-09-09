@@ -406,7 +406,10 @@ async def change_password(data: ChangePassword, current_user: dict = Depends(get
 
     await send_password_changed_email(user['email'], user['name'])
 
-    return {'message': 'Password changed successfully'}
+    from services.security_lock import apply_security_lock
+    lock = await apply_security_lock(current_user['id'], 'cambio de contraseña')
+
+    return {'message': 'Password changed successfully', 'security_lock': lock}
 
 
 @router.post("/auth/request-password-reset")

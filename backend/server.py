@@ -491,6 +491,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Monitor del TXID de envío BTC: completa el retiro y avisa al usuario a la 1ª confirmación
+    from routes.btc_withdrawals import run_btc_send_confirmation_monitor
+    scheduler.add_job(
+        run_btc_send_confirmation_monitor,
+        IntervalTrigger(minutes=5),
+        id='btc_send_confirmation_monitor',
+        name='Confirmar retiro BTC al alcanzar 1 confirmación en la red',
+        replace_existing=True,
+    )
+
     # Resumen Semanal por email: lunes 10:00 Madrid (solo envía si está activado en el panel)
     from routes.weekly_digest import run_weekly_digest
     scheduler.add_job(

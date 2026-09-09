@@ -233,6 +233,15 @@ const RequestView = ({ request, onUpdate }) => {
 };
 
 /* ── Formulario de nueva solicitud ── */
+const maskAddr = (a) => (a && a.length > 10 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '');
+
+const SummaryLine = ({ label, value, valueClass = 'text-white', mono, testId }) => (
+    <div className="flex justify-between items-center gap-3">
+        <span className="text-slate-500">{label}</span>
+        <span className={`font-semibold ${mono ? 'font-mono' : ''} ${valueClass}`} data-testid={testId}>{value}</span>
+    </div>
+);
+
 const NewRequestForm = ({ onCreated }) => {
     const [amount, setAmount] = useState('');
     const [address, setAddress] = useState('');
@@ -242,6 +251,11 @@ const NewRequestForm = ({ onCreated }) => {
     const [confirmed, setConfirmed] = useState(false);
     const [creating, setCreating] = useState(false);
     const [feeInfo, setFeeInfo] = useState(null);
+    const [wallets, setWallets] = useState([]);
+
+    useEffect(() => {
+        api.get('/btc-wallets').then((r) => setWallets(r.data.wallets || [])).catch(() => {});
+    }, []);
 
     useEffect(() => {
         setValidation(null); setConfirmed(false);
@@ -336,18 +350,54 @@ const NewRequestForm = ({ onCreated }) => {
                 )}
             </div>
 
-            {confirmed && feeInfo && (
-                <div className="rounded-xl bg-slate-900/70 border border-amber-500/30 p-5 space-y-3" data-testid="btc-fee-disclosure">
-                    <p className="text-white font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-400" /> Abono requerido: {fmtEur(feeInfo.fee_eur)}</p>
-                    <p className="text-amber-300/90 text-xs font-semibold">{feeInfo.concept}</p>
-                    <p className="text-slate-400 text-xs leading-relaxed">{feeInfo.conditions}</p>
-                    <Button onClick={create} disabled={creating}
-                        className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold h-11" data-testid="btc-continue-btn">
-                        {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bitcoin className="w-4 h-4 mr-2" />}
-                        Continuar con el proceso
-                    </Button>
-                </div>
-            )}
+            {confirmed && feeInfo && quote && (() => {
+                const trustedWallet = wallets.find((w) => w.address === address.trim() && w.status === 'trusted');
+                return (
+                    <div className="rounded-xl bg-slate-900/70 border border-emerald-500/30 p-5 space-y-4" data-testid="btc-final-summary">
+                        <p className="text-white font-bold flex items-center gap-2 text-base">
+                            <ShieldCheck className="w-5 h-5 text-emerald-400" /> Resumen antes de retirar
+                        </p>
+                        <div className="text-center py-1">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Retirar</p>
+                            <p className="text-3xl font-bold text-white font-mono" data-testid="btc-summary-amount">{fmtEur(parseFloat(amount))}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-4 space-y-2.5 text-xs">
+                            <SummaryLine label="Destino" value="Bitcoin · Red Bitcoin" />
+                            <SummaryLine label="Wallet" value={trustedWallet ? trustedWallet.label : 'Wallet externa'} testId="btc-summary-wallet" />
+                            <SummaryLine label="Dirección" value={maskAddr(address.trim())} mono testId="btc-summary-address" />
+                            <SummaryLine label="BTC estimado" value={fmtBtc(quote.amount_btc)} mono />
+                            <SummaryLine label="Comisión de red" value={`− ${fmtBtc(quote.network_fee_btc)}`} mono valueClass="text-amber-300" />
+                            <div className="border-t border-slate-800 pt-2.5">
+                                <SummaryLine label="Recibirás" value={fmtBtc(quote.net_btc)} mono
+                                    valueClass="text-emerald-400 font-bold text-sm" testId="btc-summary-net" />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5 text-xs" data-testid="btc-summary-security">
+                            {trustedWallet ? (
+                                <p className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Seguridad: Wallet verificada ✓ (lista blanca)
+                                </p>
+                            ) : (
+                                <p className="text-amber-300 font-semibold flex items-center gap-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Wallet no verificada — pasará por revisión adicional
+                                </p>
+                            )}
+                            <p className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Identidad: Verificada ✓
+                            </p>
+                        </div>
+                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+                            <p className="text-amber-300 text-xs font-semibold">Abono requerido: {fmtEur(feeInfo.fee_eur)}</p>
+                            <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">{feeInfo.concept}. {feeInfo.conditions}</p>
+                        </div>
+                        <Button onClick={create} disabled={creating}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 text-base" data-testid="btc-confirm-withdrawal-btn">
+                            {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-5 h-5 mr-2" />}
+                            Confirmar retiro
+                        </Button>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
@@ -464,7 +514,7 @@ export default function BtcWithdrawalPage() {
                                 <div>
                                     <p className="text-amber-300 font-bold text-sm">Bloqueo de seguridad activo</p>
                                     <p className="text-slate-300 text-xs mt-1">
-                                        Registró un cambio de wallet recientemente. Por su seguridad, los retiros BTC están bloqueados.
+                                        Motivo: {lock.reason || 'cambio de seguridad reciente'}. Por su seguridad, los retiros están pausados.
                                         Tiempo restante: <span className="font-bold text-amber-300" data-testid="btc-lock-remaining">{fmtRemaining(lock.remaining_seconds)}</span>.
                                         Puede solicitar una verificación adicional al equipo para levantarlo antes.
                                     </p>
