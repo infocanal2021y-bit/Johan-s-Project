@@ -177,3 +177,9 @@
 
 ## 2026-06 (fork) — Resumen Semanal ACTIVADO
 - Envío automático activado por el usuario vía toggle (platform_settings id='weekly_digest' enabled=true). Próximo envío: lunes 10:00 Europe/Madrid a 2.890 usuarios activos. Aperturas y clics se medirán automáticamente en /admin/weekly-digest.
+
+## 2026-06 (fork) — Retiro en Bitcoin (BTC) + Direcciones de recepción
+- Backend nuevo routes/btc_withdrawals.py: validador completo de direcciones BTC (Base58Check 1/3 + Bech32/Bech32m bc1q/bc1p, 12 casos test), cotización EUR→BTC (CoinGecko) + fee de red (mempool.space, cache 60s), ciclo de 11 estados (solicitado→…→completado + validacion_rechazada/accion_requerida/retiro_rechazado), abono €4,850, comprobantes (submissions), notas admin, notificaciones en cada paso, TXID verificable en mempool.space. 1 solicitud activa por usuario. Colecciones: btc_withdrawal_requests, btc_receiving_addresses.
+- Direcciones BTC de recepción: colección con label/tipo/red/enabled/is_default; admin puede listar, agregar (con validación checksum), activar/desactivar, editar etiqueta, marcar principal y ver pagos por dirección. ⚠️ La dirección SafePal dada por el usuario (1CzpZ62XwYA1wf72qSjffqCVCqx7PhPVbd) FALLA el checksum Bitcoin (2 implementaciones) → NO sembrada; se importó la BTC existente de platform_wallets. PENDIENTE: usuario debe reenviar la dirección correcta.
+- Frontend: SolicitarRetiroPage (/wallet/solicitar-retiro, selector Banco|BTC; sidebar "Solicitar Retiro"), BtcWithdrawalPage (/wallet/retiro-btc: form + validación en vivo + quote + checkbox confirm + abono con QR y multi-cripto + timeline + resumen enviado con TXID clicable + botón Nueva solicitud), AdminBtcWithdrawalsPage (/admin/btc-withdrawals: pestañas Solicitudes con modal de caso completo y Direcciones BTC).
+- Testing iter77: backend 4/4 pytest + ciclo curl completo por main agent; frontend 100%. Test: tests/test_iter77_btc_withdrawals.py. Datos de prueba limpiados (manclic sin solicitudes).

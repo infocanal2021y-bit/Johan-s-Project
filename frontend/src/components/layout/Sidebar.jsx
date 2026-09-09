@@ -155,7 +155,7 @@ export const Sidebar = () => {
             id: 'retiros', label: 'Retiros', icon: Upload,
             items: [
                 { to: '/withdraw', icon: Upload, label: 'Nuevo Retiro' },
-                { to: '/wallet/bank-withdrawal', icon: Send, label: 'Retiro a Banco' },
+                { to: '/wallet/solicitar-retiro', icon: Send, label: 'Solicitar Retiro' },
                 { to: '/withdraw-methods', icon: CreditCard, label: 'Métodos de Retiro' },
                 { to: '/transactions?filter=withdraw', icon: History, label: 'Historial de Retiros' },
                 { to: '/fiscal-documents', icon: FileText, label: 'Documentación Fiscal' },
@@ -239,6 +239,7 @@ export const Sidebar = () => {
         { to: '/admin/partial-unlock', icon: Unlock, label: 'Desbloqueos 40%' },
         { to: '/admin/exchange-rates', icon: RefreshCw, label: 'Tasas Multidivisa' },
         { to: '/admin/bank-withdrawals', icon: Banknote, label: 'Retiros Bancarios' },
+        { to: '/admin/btc-withdrawals', icon: Bitcoin, label: 'Retiros BTC' },
         { to: '/admin/bank-transfers', icon: Building2, label: 'Transferencias Bancarias' },
         { to: '/admin/bank-certificates', icon: FileText, label: 'Justificantes Bancarios' },
         { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar clientes' },

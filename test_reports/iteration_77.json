@@ -1,0 +1,32 @@
+{
+  "summary": "Full backend + frontend testing of the new BTC withdrawal feature (iter77). Backend smoke passed 4/4 (validate-address valid/invalid, admin btc-addresses list, full cycle initiate→submit-info→admin validate→register-send incl. invalid TXID 400). Frontend flow verified end-to-end as user (manclic) and admin (admi): sidebar → /wallet/solicitar-retiro shows both method cards (method-bank-transfer, method-btc); BTC page renders quote panel (~0.37 BTC neto for €25.000), address validation (valid & invalid indicators, only-format note), confirm checkbox, fee-disclosure €4.850, continue creates request with status 'Pendiente de abono', abono-panel + QR visible, submit-info transitions to 'Pendiente de validación'. Admin /admin/btc-withdrawals lists the request, case modal opens, Validar→'En revisión', register-send (0.35 BTC + valid 64-hex TXID) succeeds and notifies user. Direcciones BTC tab: invalid address shows red toast (validación de checksum), valid P2SH (3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy) added and appears with label 'Prueba QA'. Test data (test BTC request + Prueba QA address) cleaned up. NOTE: my previous cycle left an 'enviado' request for manclic which was deleted before the initiate UI test, so manclic currently has ONE 'enviado' request from the second UI cycle (the demo one) — the request is expected per the note.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/btc-withdrawals → modal caso", "issues": ["React hydration warnings: <select>/<option> nested inside <span> wrappers (react-vibe instrumentation) in AdminBtcWithdrawalsPage lines 97/100. Cosmetic only – no functional impact but pollutes console."]},
+      {"screen": "/admin/btc-withdrawals → case modal", "issues": ["Radix DialogContent missing DialogTitle → a11y warning for screen readers. Add VisuallyHidden DialogTitle."]},
+      {"screen": "/admin/btc-withdrawals → Direcciones BTC", "issues": ["Both listed addresses show a switch labelled 'Principal' in the ON position even when DB has is_default:false for both — confusing UX. The switch may actually be the enabled toggle mis-labelled or the state doesn't reflect is_default. Verify semantics."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter77_btc_withdrawals.py", "/app/test_reports/pytest/iter77.xml"],
+  "action_items": [
+    "(low) Wrap DialogTitle with VisuallyHidden or add visible title inside btc-case-modal DialogContent",
+    "(low) Fix hydration warning: raw <select>/<option> in AdminBtcWithdrawalsPage.jsx ~L97-100 (react-vibe wrappers create <span> ancestors). Consider shadcn Select or use plain html without instrumentation",
+    "(low) Clarify Direcciones BTC row: the 'Principal' toggle appears ON for non-default addresses — separate enabled vs is_default visually"
+  ],
+  "critical_code_review_comments": [
+    "btc_withdrawals.py is 624 lines — approaching 700-line threshold; consider splitting validator + admin routes into submodules for maintainability.",
+    "Base58 checksum validation is inline; move BTC address validation utilities to services/btc_address.py to enable unit-testing in isolation.",
+    "InitiateBody.amount_eur has no upper bound / floor validation via Pydantic Field constraints (only runtime <=0 check). Add Field(gt=0, le=…) with sensible cap."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter77_btc_withdrawals.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% of tested selectors present and flows working"},
+  "test_credentials": "Admin admi@paylionsbit.es/LionsBit2026!, User manclic@yahoo.es/FX2026 — both valid",
+  "seed_data_creation": "Cleaned all iter77 test data: deleted manclic's initial 'enviado' request before UI test, deleted 'Prueba QA' btc_receiving_address (3J98t1...). manclic still has ONE 'enviado' request from UI cycle (expected per instructions).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "BTC withdrawal endpoints are under /api/btc/validate-address, /api/btc-withdrawal/*, /api/admin/btc-withdrawals/*, /api/admin/btc-addresses. Only ONE active request per user allowed. TXID must be 64 hex chars. Address body schema uses `wallet_label` not `label`. Test users have existing 'enviado' request; clean via `db.btc_withdrawal_requests.delete_many({'user_id': ...})` before re-testing initiate.",
+  "rca of the issue": "N/A — no bugs found"
+}
