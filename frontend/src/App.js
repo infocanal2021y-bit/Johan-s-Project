@@ -44,6 +44,7 @@ import { InvestingProPage } from "./pages/InvestingProPage";
 import CommunityPage from "./pages/CommunityPage";
 import RecentWithdrawalsPage from "./pages/RecentWithdrawalsPage";
 import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage";
+import AdminCommunityPostsPage from "./pages/admin/AdminCommunityPostsPage";
 import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 import AdminOpsPage from "./pages/admin/AdminOpsPage";
 import AdminSystemStatusPage from "./pages/admin/AdminSystemStatusPage";
@@ -224,6 +225,7 @@ function AppRoutes() {
             <Route path="/admin/pending-abonos" element={<ProtectedRoute adminOnly><AdminPendingAbonosPage /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>} />
             <Route path="/admin/community-progress" element={<ProtectedRoute adminOnly><AdminCommunityProgressPage /></ProtectedRoute>} />
+            <Route path="/admin/community-posts" element={<ProtectedRoute adminOnly><AdminCommunityPostsPage /></ProtectedRoute>} />
             <Route path="/admin/share-analytics" element={<ProtectedRoute adminOnly><AdminShareAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/admin-ops" element={<ProtectedRoute adminOnly><AdminOpsPage /></ProtectedRoute>} />
             <Route path="/admin/system-status" element={<ProtectedRoute adminOnly><AdminSystemStatusPage /></ProtectedRoute>} />

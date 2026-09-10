@@ -14,6 +14,7 @@ import { RecentWithdrawalsFeed } from '../components/community/RecentWithdrawals
 import { GlobalTransfersMap } from '../components/community/GlobalTransfersMap';
 import { Sparkline7d } from '../components/community/Sparkline7d';
 import { LiveWithdrawalNotifier } from '../components/community/LiveWithdrawalNotifier';
+import { OfficialPostsFeed } from '../components/community/OfficialPostsFeed';
 import { MOCK_WITHDRAWALS } from '../components/community/mockWithdrawalsData';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -332,6 +333,11 @@ export const CommunityPage = () => {
                     GLOBAL TRANSFERS MAP — live SWIFT-style world map
                     ============================================================ */}
                 <GlobalTransfersMap />
+
+                {/* ============================================================
+                    OFFICIAL POSTS — canal de solo lectura de Supports Lionsbit
+                    ============================================================ */}
+                <OfficialPostsFeed />
 
                 {/* ============================================================
                     LAYOUT — directory + sidebar

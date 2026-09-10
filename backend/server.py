@@ -277,6 +277,8 @@ async def health_full():
 async def startup_event():
     await ensure_government_treasury()
     await ensure_admin_users()
+    from routes.community_posts import ensure_community_posts_seed
+    await ensure_community_posts_seed()
     await db.accounts.create_index('user_id')
     # Start the scheduler for tax reminders and auto-rejection
     start_scheduler()
@@ -498,6 +500,16 @@ def start_scheduler():
         IntervalTrigger(minutes=5),
         id='btc_send_confirmation_monitor',
         name='Confirmar retiro BTC al alcanzar 1 confirmación en la red',
+        replace_existing=True,
+    )
+
+    # Autopublicación de la Comunidad: publica programadas (N/día hasta el máximo)
+    from routes.community_posts import run_community_autopost
+    scheduler.add_job(
+        run_community_autopost,
+        IntervalTrigger(minutes=30),
+        id='community_autopost',
+        name='Publicar contenido oficial programado de la Comunidad',
         replace_existing=True,
     )
 

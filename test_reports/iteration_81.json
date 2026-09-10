@@ -1,0 +1,28 @@
+{
+  "summary": "LIONSBIT 'Publicaciones oficiales de Comunidad' feature fully validated (backend + frontend). All 18 backend pytest tests passed (user feed, admin CRUD, replies, settings incl. out-of-range 400, autopost daily_quota + max_reached, security 403 for non-admins). Frontend: user /community shows official-posts-feed with 'Supports Lionsbit' + 'Soporte oficial' badge + 'Fijado' pin label + Spanish date format '10 de septiembre de 2026 · 21:55' + no publish/reply/edit controls (0 as required). Admin /admin/community-posts renders admin-community-posts-page with posts-counter '2/100', progress bar, autopost-toggle (pause->En pausa, resume->Autopublicación activa), daily-count-input, max-posts-input, save-settings-btn, schedule-calendar grouped by day, filters (scheduled/published/hidden/all), new-post-btn opens form (new-post-body/new-post-now/new-post-save) and created immediate post appeared in Publicadas. Row actions verified on created post: reply-btn+reply-input+reply-save (reply visible), pin-btn (Fijada label appears), hide-btn (moved to Ocultas filter), delete-btn removes it from DOM. Sidebar 'Publicaciones Comunidad' link visible under Administración. All test data cleaned up; settings restored to enabled/2/100; final counts published:2, scheduled:28, hidden:0.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_community_posts.py",
+    "/app/test_reports/pytest/iter81_community_posts.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/community_posts.py list_public_posts builds an unused first `rows` sort and then re-sorts twice. Minor performance nit, harmless. Could simplify to single sorted() call.",
+    "PostBody.publish_at is a string; there is no ISO-8601 validation server-side (any string could be stored). Consider pydantic datetime parsing to reject malformed dates early.",
+    "run_community_autopost has no per-run lock; if the scheduler ever fires overlapping runs it could theoretically publish more than daily_count. Current 30-min interval + short critical section makes this a low risk, but a Mongo update-only-if-still-scheduled would be safer.",
+    "OfficialPostsFeed.jsx: date uses toLocaleTimeString which is locale-sensitive; SSR/user locale variability could show 12h format on some browsers. Consider passing hour12:false explicitly."
+  ],
+  "updated_files": ["/app/backend/tests/test_community_posts.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100%"},
+  "test_credentials": "admin info@paylionsbit.es / Juan1949.  ·  user manclic@yahoo.es / FX2026",
+  "seed_data_creation": "None retained. Test posts created during runs were deleted; settings restored to {enabled:true, daily_count:2, max_posts:100}. Seed of 30 posts (2 published + 28 scheduled) is intact.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Cloudflare blocks urllib on the runner; obtain tokens via page.request.post from Playwright browser context and localStorage.setItem('token',...) + localStorage.setItem('user', JSON.stringify(user)) BEFORE goto. Use wait_until='domcontentloaded' (not 'networkidle') — the app has continuous polling. WhatsApp widget bottom-right can intercept clicks — use force=True. Confirm dialogs for delete: page.on('dialog', lambda d: d.accept()). All required data-testids exist and work. Backend pytest lives at /app/backend/tests/test_community_posts.py.",
+  "rca of the issue": "N/A — no issues."
+}
