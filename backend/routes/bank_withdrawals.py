@@ -536,6 +536,18 @@ async def confirm_code(request_id: str, payload: dict, user: dict = Depends(get_
 
     # Notify admins via in-app + email to admin inbox
     try:
+        from services.notifications import create_admin_notification
+        await create_admin_notification(
+            notification_type='withdrawal_request',
+            title='Nueva solicitud de retiro bancario',
+            message=f"{user.get('name')} confirmó un retiro bancario {rec['reference']}: "
+                    f"{amount:,.2f} {from_cur} → {rec['net_to_amount']} {to_cur} "
+                    f"a {rec['bank_name']} ({rec.get('country_name', '')}), titular {rec['bank_holder']}.",
+            user_info={'name': user.get('name'), 'email': user.get('email')},
+            metadata={'request_id': request_id, 'reference': rec['reference']})
+    except Exception:
+        pass
+    try:
         await create_notification(
             user['id'],
             'Retiro confirmado',

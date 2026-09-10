@@ -174,6 +174,18 @@ async def create_intent(payload: IntentCreate, user: dict = Depends(get_current_
         'expires_at': (now + timedelta(hours=INTENT_TTL_HOURS)).isoformat(),
     }
     await db.crypto_payment_intents.insert_one({**intent})
+    try:
+        from services.notifications import create_admin_notification
+        await create_admin_notification(
+            notification_type='crypto_abono',
+            title='Abono cripto declarado',
+            message=f"{intent['user_name']} declaró un abono de {payload.expected_amount} {coin_name} "
+                    f"({network})." + (f" TXID: {txid[:24]}…" if txid else ' Sin TXID declarado.')
+                    + ' El monitor blockchain está vigilando el pago.',
+            user_info={'name': intent['user_name'], 'email': intent['user_email']},
+            metadata={'intent_id': intent['id'], 'coin': coin, 'txid': txid})
+    except Exception as e:
+        logging.warning(f'crypto monitor: admin alert failed: {e}')
     asyncio.create_task(check_crypto_payments())
     return {k: v for k, v in intent.items() if k != '_id'}
 
@@ -427,6 +439,23 @@ async def _notify(intent, variant, note=None):
                     'No se detectó su pago en 24h. Si ya pagó, contacte a soporte con su TXID.'),
     }
     title, msg = labels[variant]
+    if variant in ('detected', 'confirmed'):
+        try:
+            from services.notifications import create_admin_notification
+            admin_titles = {'detected': 'Abono cripto detectado en blockchain',
+                            'confirmed': 'Abono cripto confirmado'}
+            await create_admin_notification(
+                notification_type='crypto_abono',
+                title=admin_titles[variant],
+                message=f"Pago de {intent.get('detected_amount') or intent['expected_amount']} "
+                        f"{intent['coin_name']} de {intent['user_name']} "
+                        f"({intent.get('confirmations', 0)}/{intent['required_confirmations']} confirmaciones). "
+                        f"TXID: {(intent.get('txid') or intent.get('declared_txid') or '')[:24]}…",
+                user_info={'name': intent['user_name'], 'email': intent['user_email']},
+                metadata={'intent_id': intent['id'], 'coin': intent['coin'],
+                          'txid': intent.get('txid'), 'variant': variant})
+        except Exception as e:
+            logging.warning(f'crypto monitor: admin alert failed: {e}')
     if variant == 'confirmed':
         try:
             await _process_confirmed_intent(intent)

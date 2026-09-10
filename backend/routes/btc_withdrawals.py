@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from config import db
 from services.auth import get_current_user, get_admin_user
-from services.notifications import create_notification, notify_admins
+from services.notifications import create_notification, notify_admins, create_admin_notification
 from services.security_lock import get_security_lock
 
 router = APIRouter()
@@ -410,9 +410,13 @@ async def btc_initiate(body: InitiateBody, user: dict = Depends(get_current_user
     }
     await db.btc_withdrawal_requests.insert_one(doc)
     doc.pop('_id', None)
-    await notify_admins('Nueva solicitud de retiro BTC',
-                        f"{user.get('name')} solicitó retiro de €{body.amount_eur:,.2f} en Bitcoin "
-                        f"({mask_btc_address(v['address'])}).")
+    await create_admin_notification(
+        notification_type='withdrawal_request',
+        title='Nueva solicitud de retiro BTC',
+        message=f"{user.get('name')} solicitó un retiro de €{body.amount_eur:,.2f} en Bitcoin "
+                f"hacia {mask_btc_address(v['address'])} ({v['type_label']}).",
+        user_info={'name': user.get('name'), 'email': user.get('email')},
+        metadata={'request_id': doc['id'], 'amount_eur': body.amount_eur})
     await create_notification(user['id'], 'Retiro Bitcoin solicitado',
                               f'Su solicitud de retiro de €{body.amount_eur:,.2f} en BTC fue registrada. '
                               f'Complete el abono de €{FEE_EUR:,.0f} para continuar el proceso.',
@@ -450,9 +454,16 @@ async def btc_submit_info(request_id: str, body: SubmitInfoBody, user: dict = De
         {'id': request_id}, {'$push': {'submissions': submission}})
     await _set_status(request_id, 'pendiente_validacion', user.get('email'),
                       {'action_required_message': None})
-    await notify_admins('Retiro BTC: información recibida',
-                        f"{user.get('name')} envió comprobante/información del abono "
-                        f"(retiro €{doc['amount_eur']:,.2f}). Pendiente de validación.")
+    await create_admin_notification(
+        notification_type='crypto_abono',
+        title='Abono cripto informado — retiro BTC',
+        message=f"{user.get('name')} informó el abono de €{FEE_EUR:,.0f} de su retiro BTC "
+                f"de €{doc['amount_eur']:,.2f}."
+                + (f" TXID: {submission['fee_txid'][:24]}…" if submission.get('fee_txid') else '')
+                + (f" Moneda: {submission['coin_used']}." if submission.get('coin_used') else '')
+                + ' Pendiente de validación.',
+        user_info={'name': user.get('name'), 'email': user.get('email')},
+        metadata={'request_id': request_id, 'fee_txid': submission.get('fee_txid')})
     fresh = await _get_request_or_404(request_id)
     return {'ok': True, 'request': _public_view(fresh)}
 

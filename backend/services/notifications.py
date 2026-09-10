@@ -70,6 +70,7 @@ async def send_admin_alert_email(notification_type: str, title: str, message: st
         'user_registered': '\U0001f464',
         'kyc_submitted': '\U0001f4cb',
         'withdrawal_request': '\U0001f4b8',
+        'crypto_abono': '\U0001fa99',
         'tax_payment': '\U0001f4b0',
         'support_ticket': '\U0001f3ab',
         'login': '\U0001f511',
