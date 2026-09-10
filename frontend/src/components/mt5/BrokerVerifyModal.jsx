@@ -93,6 +93,8 @@ export const BrokerVerifyModal = ({ open, onClose, presetReference = null }) => 
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
                 onClick={onClose}
+                role="dialog"
+                aria-modal="true"
                 data-testid="broker-verify-modal"
             >
                 <motion.div

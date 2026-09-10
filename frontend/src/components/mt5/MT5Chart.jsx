@@ -86,7 +86,7 @@ export const MT5Chart = ({ symbol, onClose, onOpenTrade, variant = 'inline', acc
 
         const chart = createChart(containerRef.current, {
             width: containerRef.current.clientWidth,
-            height: variant === 'modal' ? 440 : 300,
+            height: variant === 'modal' ? 440 : variant === 'terminal' ? 480 : 300,
             layout: {
                 background: { color: 'transparent' },
                 textColor: '#94a3b8',

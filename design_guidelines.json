@@ -1,102 +1,176 @@
 {
-  "theme": "light",
-  "archetype": "Swiss & High-Contrast (Adapted for Premium Corporate Banking)",
-  "global_rules": {
-    "logic_constraint": "CRITICAL: Do not change internal logic, state management, API calls, or props. Only modify CSS classes and minor markup within existing components.",
-    "testing": "All interactive and key informational elements MUST include a data-testid attribute."
-  },
-  "colors": {
-    "primary": {
-      "DEFAULT": "#072146",
-      "description": "Deep blue, main brand color (BBVA style)"
-    },
-    "secondary": {
-      "DEFAULT": "#004481",
-      "description": "Corporate secondary blue for headers and active states"
-    },
-    "accent": {
-      "DEFAULT": "#1973B8",
-      "description": "Bright blue for primary CTA buttons"
-    },
-    "background": {
-      "DEFAULT": "#FFFFFF",
-      "alt": "#F4F6F8",
-      "description": "Clean white and elegant light gray for surfaces"
-    },
-    "text": {
-      "primary": "#072146",
-      "secondary": "#5B5B5B",
-      "description": "Deep blue for headings, pro gray for body text"
-    },
-    "status": {
-      "success": "#10B981",
-      "warning": "#F59E0B",
-      "error": "#EF4444",
-      "info": "#3B82F6",
-      "description": "Status colors for badges and alerts. Soft green for confirmations, elegant red for alerts."
-    }
+  "project_name": "PayLionsbit MetaTrader 5 Institutional Terminal",
+  "archetype": "ARCHETYPE 5: LUXURY & INSTITUTIONAL FINANCIAL TERMINAL (High-Precision Dark Command Center)",
+  "context_type": "DASHBOARDS & ADMIN PANELS / TRADING TERMINAL",
+  "design_philosophy": {
+    "core_identity": "E1 The Anti-AI Designer fusion: Bloomberg Terminal precision + Swiss Horology typography + Lionsbit Sovereign Wealth gold & midnight obsidian aesthetic.",
+    "theme": "dark",
+    "background_foundation": "Deep Obsidian (#060B13 / #0A0F1D) with hairline structural borders (#1E293B / #334155 / rgba(212,175,55,0.18)) and subtle champagne-gold micro-accents (#D4AF37 / #E5C158). No muddy full-screen gradients. Clean, razor-sharp, data-dense execution.",
+    "emotional_tone": "Institutional trust, mathematical rigor, Swiss banking discretion, uncompromising execution speed.",
+    "prohibitions": [
+      "NO generic light gray cards inside the MT5 terminal",
+      "NO unstyled raw tables without tabular-nums and fixed column width discipline",
+      "NO numbers wrapping or overflowing (enforce truncate, tabular-nums, max-w, tooltip on hover)",
+      "NO hidden state badges: Demo status must remain permanently visible with golden amber/badge tagging",
+      "NO generic purple/violet tech gradients; use Obsidian (#060B13), Lionsbit Navy (#0E1E38), Regulated Green (#0ECB81), Order Book Red (#F6465D), and Lionsbit Champagne Gold (#D4AF37)"
+    ]
   },
   "typography": {
-    "font_family": {
-      "heading": "Poppins, sans-serif",
-      "body": "Inter, sans-serif"
+    "font_pairings": {
+      "headings": "Poppins, -apple-system, sans-serif (font-bold, tracking-tight, uppercase subheadings with tracking-[0.2em])",
+      "body": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "financial_numbers": "Inter, monospace, font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'zero' 1",
+      "terminal_code": "'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace"
     },
     "scale": {
-      "h1": "text-4xl md:text-5xl font-semibold tracking-tight text-[#072146]",
-      "h2": "text-2xl md:text-3xl font-semibold tracking-tight text-[#072146]",
-      "h3": "text-xl font-medium text-[#072146]",
-      "body": "text-base text-[#5B5B5B] leading-relaxed",
-      "caption": "text-sm text-[#5B5B5B]"
+      "terminal_h1": "text-2xl sm:text-3xl font-bold tracking-tight text-white",
+      "section_h2": "text-xs sm:text-sm font-semibold uppercase tracking-[0.16em] text-slate-300",
+      "kpi_label": "text-[10px] sm:text-[10.5px] uppercase tracking-[0.18em] font-semibold text-slate-400",
+      "kpi_value": "text-xl sm:text-2xl lg:text-[26px] font-bold tabular-nums font-mono text-white leading-tight",
+      "kpi_sub": "text-[11px] font-mono text-slate-400 truncate",
+      "table_head": "text-[10px] uppercase tracking-[0.14em] font-bold text-slate-400",
+      "table_cell": "text-[12px] font-mono tabular-nums text-slate-200",
+      "badge_text": "text-[10px] uppercase tracking-[0.15em] font-bold"
     }
   },
-  "layout": {
-    "spacing": "Generous spacing. Use p-6, p-8 for cards.",
-    "border_radius": "rounded-xl for cards, rounded-lg for buttons. Soft, modern.",
-    "shadows": {
-      "card": "shadow-[0_4px_20px_rgba(0,0,0,0.05)]",
-      "hover": "shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+  "colors": {
+    "palette": {
+      "bg_base": "#060B13",
+      "bg_surface": "#0A111F",
+      "bg_panel": "#0E182A",
+      "bg_panel_elevated": "#142036",
+      "border_hairline": "rgba(148, 163, 184, 0.12)",
+      "border_active": "rgba(212, 175, 55, 0.35)",
+      "border_cyan_hairline": "rgba(34, 211, 238, 0.25)",
+      "lionsbit_gold": "#D4AF37",
+      "lionsbit_gold_light": "#F3D372",
+      "lionsbit_gold_glow": "rgba(212, 175, 55, 0.25)",
+      "navy_institutional": "#14549C",
+      "navy_dark": "#0B264A",
+      "trade_buy_green": "#0ECB81",
+      "trade_buy_green_bg": "rgba(14, 203, 129, 0.12)",
+      "trade_buy_green_border": "rgba(14, 203, 129, 0.35)",
+      "trade_sell_red": "#F6465D",
+      "trade_sell_red_bg": "rgba(246, 70, 93, 0.12)",
+      "trade_sell_red_border": "rgba(246, 70, 93, 0.35)",
+      "status_connected": "#0ECB81",
+      "status_syncing": "#38BDF8",
+      "status_demo": "#EAB308",
+      "status_disconnected": "#F43F5E",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#CBD5E1",
+      "text_muted": "#64748B",
+      "text_gold": "#E5C158"
     },
-    "borders": "border border-gray-100"
-  },
-  "components": {
-    "buttons": {
-      "primary": "bg-[#1973B8] text-white hover:bg-[#004481] transition-colors rounded-lg px-6 py-2.5 font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5 transform duration-200",
-      "secondary": "bg-white text-[#004481] border border-[#004481] hover:bg-[#F4F6F8] transition-colors rounded-lg px-6 py-2.5 font-medium",
-      "danger": "bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-colors rounded-lg px-6 py-2.5 font-medium"
-    },
-    "cards": {
-      "base": "bg-white rounded-xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-6 transition-shadow hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
-    },
-    "badges": {
-      "pendiente": "bg-yellow-50 text-yellow-700 border border-yellow-200",
-      "en_revision": "bg-blue-50 text-blue-700 border border-blue-200",
-      "impuesto_pendiente": "bg-orange-50 text-orange-700 border border-orange-200",
-      "en_proceso": "bg-purple-50 text-purple-700 border border-purple-200",
-      "completado": "bg-green-50 text-green-700 border border-green-200",
-      "rechazado": "bg-red-50 text-red-700 border border-red-200"
-    },
-    "sidebar": {
-      "background": "bg-white border-r border-gray-200",
-      "link_active": "bg-[#F4F6F8] text-[#004481] font-medium border-r-4 border-[#1973B8]",
-      "link_inactive": "text-[#5B5B5B] hover:bg-gray-50 hover:text-[#004481] transition-colors"
+    "tokens": {
+      "card_style": "bg-gradient-to-br from-[#0A111F] via-[#0E182A] to-[#080E1A] border border-slate-800/80 rounded-xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.6)]",
+      "gold_pill": "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] bg-[#D4AF37]/15 text-[#F3D372] border border-[#D4AF37]/35 shadow-[0_0_14px_rgba(212,175,55,0.2)]",
+      "status_badge_connected": "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-300 border border-emerald-500/30",
+      "status_badge_demo": "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30",
+      "status_badge_syncing": "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-sky-500/10 text-sky-300 border border-sky-500/30 animate-pulse"
     }
   },
-  "animations": {
-    "page_transition": "opacity-0 animate-in fade-in duration-500",
-    "counter": "Use framer-motion useSpring for balance numbers",
-    "hover": "Smooth transform on buttons and cards"
-  },
-  "images": {
-    "login_background": {
-      "url": "https://images.unsplash.com/photo-1749310726959-d8fccfef7ee4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBidWlsZGluZyUyMGludGVyaW9yfGVufDB8fHx8MTc3NzQ5MjAzMXww&ixlib=rb-4.1.0&q=85",
-      "description": "Modern corporate building interior for login page background"
+  "layout_architecture": {
+    "page_structure": {
+      "level_1_header": {
+        "description": "Executive MT5 Institutional Header bar with Lionsbit crest / gold trim, account number with one-click copy, live status indicator ('Conectado' / 'Sincronizando' / 'Demo' / 'Desconectado'), sync button with spin micro-interaction, and fast link to Regulation/Broker.",
+        "badges_required": [
+          "Status: CONECTADO / DEMO (Clear explicit tag if simulated data)",
+          "Server: eToro-Demo / MT5-Live",
+          "Leverage: 1:100 (or acc.leverage)",
+          "Currency: USD",
+          "Sync button: 'Sincronizar' with RefreshCw"
+        ]
+      },
+      "level_2_kpi_dashboard": {
+        "description": "High-density 5-metric financial ribbon. No text wrapping. Numbers formatted with tabular-nums and strict overflow guards.",
+        "metrics": [
+          { "id": "balance", "label": "Balance", "format": "$XX,XXX.XX", "sub": "Saldo consolidado", "color": "#14549C" },
+          { "id": "equity", "label": "Equity Tiempo Real", "format": "$XX,XXX.XX", "sub": "Balance + P/L flotante", "color": "#22D3EE" },
+          { "id": "pnl", "label": "P/L Flotante", "format": "+$XX.XX / -$XX.XX", "sub": "Ganancia / pérdida abierta", "dynamic_color": true },
+          { "id": "margin_level", "label": "Nivel de Margen", "format": "XXX.XX%", "sub": "Margen usado: $XX.XX", "status_indicator": true },
+          { "id": "growth", "label": "Rendimiento Total", "format": "+XX.XX%", "sub": "vs capital inicial", "color": "#D4AF37" }
+        ],
+        "responsive_behavior": "Desktop 5-column grid or 4+1 layout. Mobile snap carousel with visible index indicator dots and compact swipe cards."
+      },
+      "level_3_navigation_tabs": {
+        "description": "Explicit top-level terminal tabs as requested: Trading (default), Fondos, Historial, Regulación (plus Inversión Cripto / Feeds seamlessly accessible).",
+        "tabs": [
+          { "id": "trading", "label": "Trading Terminal", "icon": "Activity", "description": "Chart grande, Market Watch institucional, Panel Buy/Sell, Posiciones y Órdenes" },
+          { "id": "funds", "label": "Fondos & Transferencias", "icon": "ArrowLeftRight", "description": "Depósito desde Wallet, Retiro de margen libre, Historial de transferencias" },
+          { "id": "history", "label": "Historial & Reportes", "icon": "Clock", "description": "Historial de operaciones cerradas con filtros, Curva de Equity y Statement" },
+          { "id": "regulation", "label": "Regulación & Seguridad", "icon": "ShieldCheck", "description": "Broker regulado eToro CNMV/CySEC/FCA, Protección Europea MiFID II/ICF, Verificador en vivo" },
+          { "id": "invest", "label": "Inversión Cripto", "icon": "Zap", "description": "Abono profesional USDT/BTC/ETH, seguimiento on-chain y liquidación" }
+        ]
+      },
+      "level_4_trading_workspace": {
+        "layout_desktop": "Asymmetric 12-column institutional split: Left 4-cols = Market Watch with category filters, bid/ask, spread & instant action. Right 8-cols = Dominant Chart (lightweight-charts) with timeframe switcher, live 1s tick, SL/TP visual lines and R:R calculator panel.",
+        "chart_enhancements": {
+          "desktop_height": "480px minimum (User requested: 'Gráfico principal más grande')",
+          "mobile_height": "320px with full touch pan/zoom support",
+          "features": ["1s live tick pulse", "EMA 21 overlay", "Interactive SL/TP draggable price lines", "Risk/Reward live ratio 1:X", "2% risk rule institutional badge"]
+        },
+        "order_panel": {
+          "type": "Professional Buy/Sell modal & inline trigger with lot stepper, automatic margin required calculation, pip value display, and instant validation."
+        },
+        "bottom_dock": {
+          "description": "Sub-tabbed operations dock right below the chart: [Posiciones Abiertas (con cierre parcial y SL/TP editables)] | [Órdenes Pendientes] | [Journal de Auditoría].",
+          "table_treatment": "Strict column sizing, monospace tabular-nums, sticky headers, zero horizontal scroll jitter, explicit Buy/Sell direction pill."
+        }
+      }
     }
   },
-  "implementation_plan": [
-    "Phase 1: Foundation. Update tailwind.config.js with the new color palette. Add global CSS variables in index.css.",
-    "Phase 2: Layout & Navigation. Update the Sidebar and Header to the light theme, using white background and deep blue active states.",
-    "Phase 3: Dashboard. Restructure KPI cards (Saldo, Capital, Retenidos) to use the new card design with soft shadows and animated counters.",
-    "Phase 4: Critical Pages. Update Withdrawal Management Panel, applying the 6 status badges. Update Client Profile and KYC flows.",
-    "Phase 5: Polish. Ensure mobile responsiveness, hover effects, loaders, and test all interactions."
+  "number_overflow_prevention_rules": {
+    "rule_1_tabular_nums": "Every financial number MUST have 'font-mono tabular-nums tracking-tight'.",
+    "rule_2_fixed_decimals": "Currencies must use exactly 2 decimals ($12,345.67). Prices use 2 to 5 decimals depending on pip granularity. Never leave unbounded floating point decimals (e.g., 1.0849200000001).",
+    "rule_3_responsive_clamping": "Use text-lg sm:text-xl md:text-2xl on balances with 'truncate max-w-full' to prevent card explosion on narrow viewports.",
+    "rule_4_symbol_ticket_formatting": "Tickets always have '#' prefix (#1084291). Symbols uppercase font-bold monospace ('EURUSD', 'BTCUSD')."
+  },
+  "simulated_data_compliance": {
+    "rule": "Every mock/demo data element MUST display a visible badge: 'MODO DEMO' or 'SIMULACIÓN' in amber/gold, with an informative tooltip stating 'Datos simulados para fines de demostración técnica · MT5 Bridge real en producción'.",
+    "header_badge": "DEMO ACCOUNT #7849201 · Servidor eToro-Demo",
+    "disclaimer_text": "Los datos de mercado y ejecución operan en entorno Demo institucional. Conexión de puente FIX / WebSocket lista para producción."
+  },
+  "component_path_mapping": {
+    "main_page": "/app/frontend/src/pages/MT5Page.jsx",
+    "trading_suite": "/app/frontend/src/components/mt5/MT5TradingSuite.jsx",
+    "chart_component": "/app/frontend/src/components/mt5/MT5Chart.jsx",
+    "market_watch_and_trading": "/app/frontend/src/components/mt5/MarketWatchAndTrading.jsx",
+    "sections_tables": "/app/frontend/src/components/mt5/MT5Sections.jsx",
+    "crypto_invest": "/app/frontend/src/components/mt5/MT5InvestSection.jsx",
+    "broker_modal": "/app/frontend/src/components/mt5/BrokerVerifyModal.jsx",
+    "hub_feeds": "/app/frontend/src/components/mt5/MT5HubSections.jsx"
+  },
+  "image_assets": {
+    "brand_crest": "/assets/lion-head.png",
+    "trading_terminal_desktop": {
+      "url": "https://images.unsplash.com/photo-1707761918029-1295034aa31e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHw0fHxmaW5hbmNpYWwlMjB0cmFkaW5nJTIwdGVybWluYWwlMjBkZXNrfGVufDB8fHx8MTc4OTA3MTY4M3ww&ixlib=rb-4.1.0&q=85",
+      "description": "Multi-monitor financial trading terminal desk for institutional background or modal headers"
+    },
+    "gold_emblem": {
+      "url": "https://images.unsplash.com/photo-1569932057394-c752b271cf40?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwyfHxnb2xkJTIwbGlvbiUyMGxvZ28lMjBsdXh1cnl8ZW58MHx8fHwxNzg5MDcxNjg3fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Brass-gold heraldic lion insignia representing sovereign institutional custody"
+    }
+  },
+  "motion_and_interactions": {
+    "tick_flash": "Duration 400ms text color transition: Emerald (#0ECB81) on uptick, Rose (#F6465D) on downtick, settling back to white.",
+    "sync_spin": "Refresh button spins on click with linear easing while syncing=true.",
+    "tab_switching": "Smooth instantaneous switch with subtle fade-in translateY(4px) without jarring scroll shifts.",
+    "interactive_price_lines": "Dragging SL/TP shows vertical ns-resize cursor and updates live R:R preview in real time."
+  },
+  "accessibility_and_apca": {
+    "contrast_standards": "All text labels on slate-900/950 meet WCAG AA / APCA standards. Muted labels are at least text-slate-400 (#94A3B8) or text-slate-300 (#CBD5E1), never invisible dark gray.",
+    "touch_targets": "Minimum 44px tap target height on mobile for all trading action buttons (BUY, SELL, Sync, Tab switches).",
+    "testing_ids": "All interactive triggers and metric fields must feature unique data-testid attributes (e.g. 'mt5-page', 'mt5-account-login', 'mt5-status-pill', 'mt5-kpi-balance', 'mt5-chart', 'mt5-order-buy-btn', 'mt5-tab-trading', 'mt5-tab-funds', 'mt5-tab-history', 'mt5-tab-regulation')."
+  },
+  "instructions_to_main_agent": [
+    "1. Restructure the MT5Page.jsx header to display an elite institutional terminal look with Lionsbit gold accents, account #, status pill ('CONECTADO' / 'DEMO' / 'SINCRONIZANDO'), and quick sync.",
+    "2. Render the 5-metric KPI dashboard with crystal-clear typography, tabular-nums, no number wrapping, and clear subtext.",
+    "3. Enforce the user's explicit request: Separate content into top-level tabs: Trading (Market Watch + Big Chart + Positions/Orders/Journal), Fondos (Deposit/Withdraw), Historial (Closed Operations + Statement + Equity Curve), Regulación (Broker eToro + CNMV/CySEC licenses + MiFID II/ICF + Validation Modal), plus Crypto Investment.",
+    "4. Make the MT5 candlestick chart larger (min height 480px on desktop) with prominent timeframes (M1, M15, H1, D1), EMA 21, tick 1s polling, interactive SL/TP dragging, and the 2% risk rule preview.",
+    "5. Keep Market Watch organized with categories (Forex, Metales, Cripto, Índices, Energía), search filter, bid/ask spread, and direct Buy/Sell trigger buttons.",
+    "6. Format all numbers strictly using helper utilities (fmtMoney, fmtPrice, fmtNum) to eliminate any overflow or uncontrolled decimal chains.",
+    "7. Preserve full connectivity with existing backend endpoints (/mt5/summary, /mt5/symbols, /mt5/candles, /mt5/tick, /mt5/order, /mt5/positions, /mt5/deposit, /mt5/withdraw, /mt5/broker/verify, /mt5-hub/*).",
+    "8. Clearly mark simulated demo data with an explicit gold/amber 'DEMO' pill."
   ]
 }

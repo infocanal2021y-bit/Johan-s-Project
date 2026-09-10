@@ -59,10 +59,11 @@ export const MarketWatch = ({ onOpenTrade, accountBalance }) => {
 
     return (
         <div data-testid="mt5-market-watch" className="space-y-3">
-            {/* Live chart — mini candlestick for the currently selected asset */}
+            {/* Live chart — main candlestick terminal for the currently selected asset */}
             {selected && (
                 <MT5Chart
                     symbol={selected}
+                    variant="terminal"
                     accountBalance={accountBalance}
                     onClose={() => setSelected(null)}
                     onOpenTrade={onOpenTrade}
@@ -90,7 +91,7 @@ export const MarketWatch = ({ onOpenTrade, accountBalance }) => {
                             data-no-hover
                             className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all ${
                                 cat === c.id
-                                    ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30'
+                                    ? 'bg-[#D4AF37]/15 text-[#F3D372] ring-1 ring-[#D4AF37]/35'
                                     : 'text-slate-500 hover:text-slate-200'
                             }`}
                         >{c.label}</button>
@@ -144,8 +145,8 @@ export const MarketWatch = ({ onOpenTrade, accountBalance }) => {
                                     </td>
                                     <td className="py-2 px-3 text-right">
                                         <div className="inline-flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                            <Button size="sm" onClick={() => onOpenTrade && onOpenTrade(s, 'sell')} className="h-7 px-2 text-[11px] bg-rose-600/80 hover:bg-rose-600 text-white">Sell</Button>
-                                            <Button size="sm" onClick={() => onOpenTrade && onOpenTrade(s, 'buy')} className="h-7 px-2 text-[11px] bg-emerald-600/80 hover:bg-emerald-600 text-white">Buy</Button>
+                                            <Button size="sm" data-testid={`mt5-sell-${s.symbol}`} onClick={() => onOpenTrade && onOpenTrade(s, 'sell')} className="h-7 px-2 text-[11px] bg-rose-600/80 hover:bg-rose-600 text-white">Sell</Button>
+                                            <Button size="sm" data-testid={`mt5-buy-${s.symbol}`} onClick={() => onOpenTrade && onOpenTrade(s, 'buy')} className="h-7 px-2 text-[11px] bg-emerald-600/80 hover:bg-emerald-600 text-white">Buy</Button>
                                         </div>
                                     </td>
                                 </tr>

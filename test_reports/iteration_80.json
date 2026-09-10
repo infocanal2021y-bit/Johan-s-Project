@@ -1,0 +1,35 @@
+{
+  "summary": "MT5 institutional terminal redesign (/mt5) fully validated. Login via API + localStorage injection; all 19 required data-testids present. Header (Conectado pill, Demo badge, account #96946562, copy button), sync flow (Conectado→Sincronizando→Conectado with double 'BUY ejecutada' toast confirmed after real trade), KPI ribbon (Balance/Equity/PnL/MarginLevel/Rendimiento) render with formatted numbers, main chart shows 7 canvases inside mt5-market-watch (lightweight-charts terminal 480px). Market Watch: 10 symbol rows, clicking row switches chart symbol (GBPUSD), Buy button opens TradingPanel with mt5-order-lot/sl/tp/submit, executed BUY 0.01 EURUSD in market mode -> success toast 'BUY 0.01 EURUSD ejecutada' -> new row in Posiciones abiertas (rows 12->13) -> closed via Cerrar button (residuo removed). Sub-tabs mt5-suite-tab-positions/pending work. Funds tab renders (mt5-funds-tab with FundsPanel, MT5InvestSection, feeds). History tab renders all 3 sub-tabs (mt5-hist-tab-history/report/journal + mt5-history-filter). Regulation tab: mt5-broker-card + mt5-validate-regulation-btn opens BrokerVerifyModal (visible with 'Extracto oficial de licencias' + regulatory checklist animation) + mt5-eu-protection visible. mt5-demo-disclaimer visible at footer. Mobile 390x844: scrollWidth==clientWidth (390) no horizontal overflow, KPIs in 2-col grid, tabs horizontal scroll, chart visible.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MT5 Market Watch (MarketWatchAndTrading.jsx L148-149)", "issues": ["Buy/Sell inline row buttons lack data-testid (should have mt5-buy-{symbol} / mt5-sell-{symbol}) for reliable automation — currently only reachable by text 'Buy'/'Sell'"]},
+      {"screen": "MT5 BrokerVerifyModal", "issues": ["Modal container has no role=\"dialog\" (a11y + testability). Overlay visually renders and closes fine but screen-reader / role-based selectors will miss it"]},
+      {"screen": "MT5 KPI ribbon (odometer/animated counters)", "issues": ["Numeric KPI text_content is a concatenation of all animated digits (e.g. Balance textContent=\"$0123456789.01234567890123456789Operaciones cerradas\"). Visually fine ($0.00 / $291.91) but breaks any tests that read textContent of mt5-kpi-balance/equity. Consider adding a data-testid on the final displayed value or aria-label with formatted number"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_80.json"],
+  "action_items": [
+    "Add data-testid attributes to inline Buy/Sell buttons in MarketWatchAndTrading.jsx (~L148-149): e.g. `data-testid={`mt5-buy-${s.symbol}`}` and `mt5-sell-${s.symbol}` — improves testability without changing UX.",
+    "Fix pre-existing React hydration warnings coming from framer-motion AnimatePresence wrapping table rows in MarketWatchAndTrading.jsx (~L119-123): motion.span/AnimatePresence emits `<span>` inside `<tbody>` and around `<tr>`. Use `component=\"tbody\"` / `component={motion.tr}` or move animation to outer container to avoid invalid HTML nesting.",
+    "Add role=\"dialog\" + aria-modal=\"true\" to BrokerVerifyModal container and expose a data-testid (e.g. mt5-broker-verify-modal) for automation and a11y.",
+    "Expose a stable data-testid on the final rendered KPI value (e.g. mt5-kpi-balance-value) or an aria-label to make scraping/asserting numeric values reliable (animated odometer currently pollutes textContent)."
+  ],
+  "critical_code_review_comments": [
+    "MarketWatchAndTrading.jsx uses AnimatePresence wrapping <tr> inside <tbody>; framer-motion injects <span> wrappers producing invalid HTML nesting and React hydration warnings on every render.",
+    "TradingPanel action submit path works end-to-end (order created, position appears, close works) — no ObjectId leakage observed in the position rows.",
+    "Sync transition timing is well-tuned (visible Sincronizando phase); but sync triggered TWO 'BUY ejecutada' toasts after a BUY action — likely double dispatch (StrictMode double-invoke or duplicated event handler). Worth verifying: single toast per successful order.",
+    "BrokerVerifyModal lacks semantic role/testid.",
+    "Odometer/animated counters in KPI ribbon should not be the accessible name of the KPI."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% for required flows"},
+  "test_credentials": "manclic@yahoo.es / FX2026 (login via /api/auth/login -> token injected into localStorage as `token` + `user`)",
+  "seed_data_creation": "Opened and closed one BUY 0.01 EURUSD demo position (no residuo — closed within the same run).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Cloudflare blocks urllib on the runner; use page.request.post from Playwright browser context to obtain the token, then localStorage.setItem('token', ...) and localStorage.setItem('user', JSON.stringify(user)) BEFORE goto('/mt5'). All mt5-* testids listed in the review are present. WhatsApp/chatbot widgets in bottom-right can intercept clicks — use force=True. Buy/Sell row buttons don't have data-testid yet; use row.locator('button:has-text(\"Buy\")'). Toast selectors: '[class*=sonner], [class*=toast], [role=status]'. Double toast on order submit observed — potential double-dispatch bug.",
+  "rca of the issue": "N/A — no blocking issues. Only minor testability/a11y polish and a possible duplicated success-toast dispatch on order execution."
+}
