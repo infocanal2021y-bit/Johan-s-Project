@@ -1,8 +1,10 @@
 # LIONSBIT — Test Credentials
 
 ## Admin (full access)
-- **Email:** `admi@paylionsbit.es`
-- **Password:** `LionsBit2026!`
+- **Email:** `info@paylionsbit.es`
+- **Password:** `Juan1949.` (con punto final)
+- Cambiado el 09/Jun/2026 a petición del usuario (antes: admi@paylionsbit.es / LionsBit2026!)
+- Las alertas email al admin (retiros, abonos cripto) van a ADMIN_EMAIL=info@paylionsbit.es
 - Role: `admin`
 - Account status: `active`
 - Verification status: `verified`
@@ -26,7 +28,7 @@ On first login they're redirected to `/force-password-change` and must set a new
 - Login endpoint returns field `token` (not `access_token`).
 
 ## Admin 2FA (desde Sep 2, 2026)
-- El login de admin (`admi@paylionsbit.es` / `LionsBit2026!`) ahora requiere 2FA por email (código de 6 dígitos).
+- El login de admin (`info@paylionsbit.es` / `Juan1949.`) ahora requiere 2FA por email (código de 6 dígitos).
 - Flujo: `POST /api/auth/login` → `{requires_2fa, challenge_id}` → `POST /api/auth/verify-2fa {challenge_id, code}` → `{token}`.
 - **Para testing (preview):** el código se registra en los logs del backend: `grep "ADMIN 2FA code" /var/log/supervisor/backend.*.log | tail -1`
 - Toggle: `POST /api/admin/security/2fa` (o switch en /admin/action-center). Por defecto: DESACTIVADO (petición del usuario, Sep 2 2026). Login admin directo con token.
