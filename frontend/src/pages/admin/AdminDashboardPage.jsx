@@ -10,8 +10,9 @@ import { OdometerValue } from '../../components/dashboard/OdometerValue';
 import {
     Users, FileText, Clock, DollarSign, ShieldCheck, Wifi, Bitcoin, HeadphonesIcon,
     Megaphone, Activity, History, CreditCard, ArrowUpRight, ArrowRight,
-    Landmark, CheckCircle2, XCircle, AlertTriangle, TrendingUp, HeartPulse,
+    Landmark, CheckCircle2, XCircle, AlertTriangle, TrendingUp, HeartPulse, Crown,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
 
 /* ============================================================
@@ -92,6 +93,7 @@ const fmtMoney = (value, currency = 'USD') => {
 
 export const AdminDashboardPage = () => {
     const navigate = useNavigate();
+    const { isSuperAdmin } = useAuth();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         totalUsers: 0,
@@ -214,6 +216,16 @@ export const AdminDashboardPage = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
+                            {isSuperAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/admin/super-editor')}
+                                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#D4AF37]/12 border border-[#D4AF37]/40 text-[#F3D372] text-xs font-bold hover:bg-[#D4AF37]/20 transition-colors shadow-[0_0_18px_-6px_rgba(212,175,55,0.5)]"
+                                    data-testid="super-editor-quick-btn"
+                                >
+                                    <Crown className="w-4 h-4" /> Editor Superadmin
+                                </button>
+                            )}
                             <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
                                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                 <span className="text-emerald-300 text-xs font-medium">Sistema operativo</span>
