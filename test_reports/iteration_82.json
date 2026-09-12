@@ -1,0 +1,34 @@
+{
+  "summary": "Retiro Especial +45 fully validated. Backend: 17/17 pytest passed (config gates, initiate validations amount>10k/underage/invalid DOB/invalid IBAN/invalid BTC, holder-mismatch → pendiente_validacion, second active → 409, admin cannot approve without ownership → 400 con mensaje 'titularidad', validate-ownership → en_revision, approve → aprobado, complete → completado, user notifications include the update, holder-match → solicitado, submit-abono flips fee_informed, /special45/mine returns status_label, admin list has counts+statuses, /admin/special45 returns 403 for user, regression bank-withdrawal & btc-withdrawal endpoints still respond). Frontend: /retiro-especial-45 (Cloudflare-safe via page.request.post + localStorage): special45-page renders golden card + s45-requirements + s45-form. DOB 1998 → s45-age-check rojo + s45-continue-btn disabled. DOB 1975 → verde. Continue → s45-summary muestra 'Resumen antes de retirar', 'Sin comisión' y aviso €1.800. s45-confirm-btn crea la solicitud, aparece s45-active-request con status 'Solicitado', timeline, y NO se muestra s45-form (count=0). s45-abono-txid + s45-abono-submit funcionan y toast 'Abono informado al equipo'. /admin/special45: admin-special45-page lista la request; expandir tarjeta muestra DOB, IBAN completo, banco, nota titularidad; select s45-status-select-{id} + s45-status-save-{id} presentes; filtros por estado navegan sin error. Cleanup: usuario restaurado a verification_status='unverified'/kyc_status='pending', 1 special45 test request borrada, notificaciones limpiadas.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Special45Page — ActiveRequest and summary", "issues": ["Number formatting via toLocaleString('es-ES', {minimumFractionDigits:2}) renders as '€5000,00' (no thousand separator) in this preview environment because the container's Node/ICU build lacks es-ES CLDR data. Not our code bug but visible: importes >= 1000 aparecen sin separador de miles. Sugerencia: usar Intl.NumberFormat con fallback o formato manual para el separador de miles (p.ej. '.').  Aplica también a AdminSpecial45Page fmtEur."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_special45.py",
+    "/app/test_reports/pytest/iter82_special45.xml"
+  ],
+  "action_items": [
+    "(Opcional/minor) Thousand-separator: probar Intl.NumberFormat de forma que no dependa del CLDR es-ES del contenedor, o formatear manualmente los euros para asegurar '€5.000,00' en todos los entornos.",
+    "(Cosmético) React hydration warnings al abrir tarjeta admin: '<span> cannot be a child of <select>/<option>'. Los warnings vienen del injector de visual-editor (spans con data-ve-dynamic envolviendo <option>). No es del código de la app, se puede ignorar; no afecta funcionalidad."
+  ],
+  "critical_code_review_comments": [
+    "special45.py _names_match usa intersección de tokens ≥ min(2, len(us)); si el usuario tiene un solo token en el nombre (ej. 'Cher') se autovalidaría con cualquier holder que contenga ese único token — considerar exigir siempre ≥2 tokens comunes o comparación normalizada completa.",
+    "special45_initiate no valida rango razonable de amount_eur (permite 0.01). Ya existe check >0, pero se podría añadir mínimo (p.ej. €50) y validación de decimales.",
+    "admin_special45_status permite pasar directamente de 'solicitado' a 'completado' sin pasar por 'aprobado' si ownership_validated=True. Considerar máquina de estados estricta.",
+    "special45_requests no tiene índice por {user_id,status} — _active_request se ejecuta en cada initiate y config; a escala conviene un índice compuesto.",
+    "Special45Page.jsx: el cálculo de age en cliente usa 365.25 días → puede diferir 1 día con el cálculo del backend (date-based). No crítico porque el gate real está en backend, pero podría mostrar '45 años' verde en cliente y ser rechazado por backend en el edge case cumpleaños-de-hoy."
+  ],
+  "updated_files": ["/app/backend/tests/test_special45.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100%"},
+  "test_credentials": "user manclic@yahoo.es / FX2026  ·  admin info@paylionsbit.es / Juan1949.",
+  "seed_data_creation": "Ninguna persistida. Se creó/consumió 1 solicitud (mismatch → validated → aprobado → completado) y 1 solicitud match (con abono TEST_FE_TXID_xyz). Todas borradas. Estado de manclic RESTAURADO a verification_status='unverified' + kyc_status='pending'.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Elevación temporal en Mongo db.users {email:'manclic@yahoo.es'} → verification_status='verified', kyc_status='approved' y RESTAURAR a 'unverified'/'pending' al terminar. Nombre real del perfil: 'Javier Moya Andres' (usar para holder que coincide). Ejemplos válidos: IBAN ES9121000418450200051332, BTC 1CzpZ62XwYA1wf72qSjffqCVCqX7PhPVbd. Cloudflare bloquea urllib; obtener token via page.request.post e inyectar localStorage token+user antes de goto. GET /api/btc-withdrawal/config NO existe — usar /quote?amount_eur=... para regresión. Password admin CON punto final: 'Juan1949.'.",
+  "rca of the issue": "N/A — sin issues."
+}
