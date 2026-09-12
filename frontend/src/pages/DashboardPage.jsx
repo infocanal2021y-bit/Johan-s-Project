@@ -25,6 +25,7 @@ import { BalanceOriginNote } from '../components/BalanceOriginNote';
 import { PendingAbonoBanner } from '../components/PendingAbonoBanner';
 import { CreditedFundsIndicator } from '../components/CreditedFundsIndicator';
 import { CorporateInfoCard } from '../components/CorporateInfoCard';
+import { NewAdministrationModal } from '../components/auth/NewAdministrationModal';
 
 const BlockchainTransactions = () => {
     const [active, setActive] = useState(null); // 'paid' | 'received' | null
@@ -238,6 +239,7 @@ export const DashboardPage = () => {
 
     return (
         <Layout>
+            <NewAdministrationModal />
             <div className="max-w-7xl mx-auto space-y-8" data-testid="dashboard-page">
                 <PendingAbonoBanner />
                 <CreditedFundsIndicator variant="dashboard" />

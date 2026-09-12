@@ -513,6 +513,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Recordatorio de tramos: cada día 09:00 Madrid avisa los tramos que se ejecutan mañana
+    from routes.withdrawal_plans import run_tranche_reminders
+    scheduler.add_job(
+        run_tranche_reminders,
+        CronTrigger(hour=9, minute=0, timezone='Europe/Madrid'),
+        id='tranche_reminders',
+        name='Recordatorio email un día antes de cada tramo de plan de retiro',
+        replace_existing=True,
+    )
+
     # Resumen Semanal por email: lunes 10:00 Madrid (solo envía si está activado en el panel)
     from routes.weekly_digest import run_weekly_digest
     scheduler.add_job(

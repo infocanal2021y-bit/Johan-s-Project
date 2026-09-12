@@ -173,3 +173,61 @@ async def admin_execute_tranche(plan_id: str, n: int, admin: dict = Depends(get_
                               {'type': 'withdrawal_plan'})
     logging.info(f'plan {plan_id} tramo {n} ejecutado por {admin.get("email")}')
     return {'ok': True, 'completed': all_done}
+
+
+async def run_tranche_reminders() -> dict:
+    """Scheduler diario: recuerda por email e in-app los tramos que se ejecutan mañana."""
+    from services.email import send_email, get_email_template
+    tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date().isoformat()
+    plans = await db.withdrawal_plans.find(
+        {'status': 'activo',
+         'tranches': {'$elemMatch': {'due_date': tomorrow, 'status': 'pendiente',
+                                     'reminder_sent': {'$ne': True}}}},
+        {'_id': 0}).to_list(200)
+    sent = 0
+    for p in plans:
+        for t in p.get('tranches', []):
+            if t.get('due_date') != tomorrow or t.get('status') != 'pendiente' or t.get('reminder_sent'):
+                continue
+            fecha = datetime.fromisoformat(t['due_date']).strftime('%d/%m/%Y')
+            await create_notification(
+                p['user_id'], 'Recordatorio: tramo de retiro mañana',
+                f"Mañana ({fecha}) se ejecuta el tramo {t['n']} de su plan de retiro "
+                f"por €{t['amount_eur']:,.2f}.",
+                {'type': 'withdrawal_plan', 'plan_id': p['id'], 'tranche': t['n']})
+            if p.get('user_email'):
+                content = f"""
+                    <p style="color:#e2e8f0;font-size:16px;">Hola <strong style="color:#f59e0b;">{p.get('user_name') or ''}</strong>,</p>
+                    <p style="color:#e2e8f0;font-size:15px;line-height:1.6;">
+                        Le recordamos que <strong>mañana</strong> está programada la ejecución de un tramo de su plan de retiro.
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;border-radius:12px;margin:20px 0;">
+                        <tr><td style="padding:22px;">
+                            <p style="color:#f59e0b;font-size:12px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px 0;font-weight:bold;">📅 Tramo programado</p>
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Tramo</td>
+                                    <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">{t['n']} de {len(p.get('tranches', []))}</td></tr>
+                                <tr><td style="color:#94a3b8;padding:8px 0;border-bottom:1px solid #334155;">Importe</td>
+                                    <td style="color:#e2e8f0;text-align:right;padding:8px 0;border-bottom:1px solid #334155;font-weight:bold;">€{t['amount_eur']:,.2f}</td></tr>
+                                <tr><td style="color:#94a3b8;padding:8px 0;">Fecha de ejecución</td>
+                                    <td style="color:#e2e8f0;text-align:right;padding:8px 0;font-weight:bold;">{fecha}</td></tr>
+                            </table>
+                        </td></tr>
+                    </table>
+                    <p style="color:#94a3b8;font-size:13px;line-height:1.6;">
+                        No necesita hacer nada: el equipo ejecutará el tramo según el calendario aprobado.
+                        Puede seguir el progreso desde su panel LIONSBIT.
+                    </p>
+                """
+                html = get_email_template(content, 'Recordatorio de tramo')
+                try:
+                    await send_email(p['user_email'], '📅 Recordatorio: tramo de retiro se ejecuta mañana · LIONSBIT', html)
+                except Exception as e:
+                    logging.warning(f'tranche reminder email failed: {e}')
+            await db.withdrawal_plans.update_one(
+                {'id': p['id'], 'tranches.n': t['n']},
+                {'$set': {'tranches.$.reminder_sent': True, 'tranches.$.reminder_at': _now()}})
+            sent += 1
+    if sent:
+        logging.info(f'tranche reminders: {sent} recordatorios enviados')
+    return {'sent': sent, 'date': tomorrow}

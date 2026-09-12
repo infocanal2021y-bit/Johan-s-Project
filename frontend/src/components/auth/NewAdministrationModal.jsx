@@ -3,7 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldCheck, Landmark } from 'lucide-react';
 
 export const NewAdministrationModal = () => {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(() => !sessionStorage.getItem('new_admin_notice_seen'));
+
+    const close = () => {
+        sessionStorage.setItem('new_admin_notice_seen', '1');
+        setOpen(false);
+    };
 
     return (
         <AnimatePresence>
@@ -26,7 +31,7 @@ export const NewAdministrationModal = () => {
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
 
                         <button
-                            onClick={() => setOpen(false)}
+                            onClick={close}
                             className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
                             aria-label="Cerrar aviso"
                             data-testid="new-admin-modal-close-btn"
@@ -75,7 +80,7 @@ export const NewAdministrationModal = () => {
                                 <span>PayLionsbit — Nueva Administración · Desde el 03/02/2026</span>
                             </div>
                             <button
-                                onClick={() => setOpen(false)}
+                                onClick={close}
                                 className="shrink-0 px-4 py-2 text-xs font-semibold rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition-colors"
                                 data-testid="new-admin-modal-understood-btn"
                             >
