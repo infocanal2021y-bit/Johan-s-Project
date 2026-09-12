@@ -290,6 +290,53 @@ async def admin_special45_ownership(request_id: str, body: OwnershipBody, admin:
     return {'ok': True, 'status': new_status}
 
 
+@router.get('/admin/special45/{request_id}/kyc')
+async def admin_special45_kyc(request_id: str, admin: dict = Depends(get_admin_user)):
+    req = await db.special45_requests.find_one({'id': request_id}, {'_id': 0})
+    if not req:
+        raise HTTPException(404, 'Solicitud no encontrada')
+    subs = await db.kyc_submissions.find(
+        {'user_id': req['user_id']},
+        {'_id': 0, 'document_type': 1, 'document_front': 1, 'document_back': 1,
+         'selfie_with_document': 1, 'status': 1, 'submitted_at': 1}).to_list(5)
+    subs.sort(key=lambda s: s.get('submitted_at') or '', reverse=True)
+    return {
+        'declared_dob': req['date_of_birth'], 'declared_age': req['declared_age'],
+        'dob_verified': bool(req.get('dob_verified')),
+        'user_name': req['user_name'],
+        'kyc': subs[0] if subs else None,
+    }
+
+
+class DobVerifyBody(BaseModel):
+    verified: bool
+    note: Optional[str] = None
+
+
+@router.post('/admin/special45/{request_id}/verify-dob')
+async def admin_special45_verify_dob(request_id: str, body: DobVerifyBody, admin: dict = Depends(get_admin_user)):
+    req = await db.special45_requests.find_one({'id': request_id}, {'_id': 0})
+    if not req:
+        raise HTTPException(404, 'Solicitud no encontrada')
+    note = (body.note or '').strip() or (
+        f"Edad confirmada contra el DNI del KYC ({req['declared_age']} años)." if body.verified
+        else 'La fecha de nacimiento declarada NO coincide con el documento del KYC.')
+    updates = {'dob_verified': bool(body.verified), 'updated_at': _now(),
+               'timeline': _timeline(req, req['status'], f"admin ({admin.get('email')})", note)}
+    if not body.verified:
+        updates['status'] = 'pendiente_validacion'
+        updates['timeline'] = _timeline(req, 'pendiente_validacion', f"admin ({admin.get('email')})", note)
+    await db.special45_requests.update_one({'id': request_id}, {'$set': updates})
+    await create_notification(
+        req['user_id'], 'Retiro Especial +45 — verificación de edad',
+        ('Su edad fue confirmada correctamente contra su documento de identidad.'
+         if body.verified else
+         'La fecha de nacimiento declarada no coincide con su documento del KYC. '
+         'Su solicitud queda pendiente de validación; el equipo puede pedirle documentación adicional.'),
+        {'type': 'special45', 'request_id': request_id})
+    return {'ok': True, 'dob_verified': bool(body.verified)}
+
+
 class StatusBody(BaseModel):
     status: str
     note: Optional[str] = None

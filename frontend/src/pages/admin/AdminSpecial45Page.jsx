@@ -3,7 +3,7 @@ import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/button';
 import api from '../../lib/api';
 import { toast } from 'sonner';
-import { Award, ShieldCheck, ShieldX, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Award, ShieldCheck, ShieldX, Loader2, ChevronDown, ChevronUp, IdCard, CheckCircle2, XCircle, Maximize2 } from 'lucide-react';
 
 const fmtEur = (n) => {
     const [int, dec] = Number(n || 0).toFixed(2).split('.');
@@ -17,6 +17,103 @@ const STATUS_STYLE = {
     procesando: 'bg-cyan-500/15 text-cyan-300',
     completado: 'bg-emerald-600/20 text-emerald-300',
     rechazado: 'bg-rose-500/15 text-rose-300',
+};
+
+const DOC_LABELS = { document_front: 'Anverso', document_back: 'Reverso', selfie_with_document: 'Selfie con documento' };
+
+const DniQuickVerify = ({ req, onAction }) => {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [zoom, setZoom] = useState(null);
+    const [busy, setBusy] = useState(false);
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const r = await api.get(`/admin/special45/${req.id}/kyc`);
+            setData(r.data);
+        } catch (e) { toast.error(e.response?.data?.detail || 'Error'); }
+        finally { setLoading(false); }
+    };
+
+    const verify = async (verified) => {
+        setBusy(true);
+        try {
+            await api.post(`/admin/special45/${req.id}/verify-dob`, { verified });
+            toast.success(verified ? 'Edad confirmada contra el DNI ✓' : 'Marcado: la fecha no coincide');
+            onAction();
+        } catch (e) { toast.error(e.response?.data?.detail || 'Error'); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-3.5" data-testid={`s45-dni-verify-${req.id}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-[10.5px] uppercase tracking-wider text-[#E5C158] font-bold flex items-center gap-1.5">
+                    <IdCard className="w-4 h-4" /> Verificación DNI rápida
+                </p>
+                {req.dob_verified
+                    ? <span className="text-emerald-400 text-[10.5px] font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Edad confirmada</span>
+                    : !data && (
+                        <Button size="sm" variant="outline" onClick={load} disabled={loading}
+                            className="h-7 text-[11px] border-slate-700 text-slate-300" data-testid={`s45-load-kyc-${req.id}`}>
+                            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Ver documento KYC'}
+                        </Button>
+                    )}
+            </div>
+
+            <div className="flex items-center gap-4 mt-2 text-[11.5px] flex-wrap">
+                <div><span className="text-slate-500">Fecha declarada:</span> <span className="text-white font-mono font-bold">{req.date_of_birth}</span></div>
+                <div><span className="text-slate-500">Edad declarada:</span> <span className="text-white font-mono font-bold">{req.declared_age} años</span></div>
+            </div>
+
+            {data && (
+                <div className="mt-3">
+                    {data.kyc ? (
+                        <>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['document_front', 'document_back', 'selfie_with_document'].map((k) => data.kyc[k] && (
+                                    <button key={k} type="button" onClick={() => setZoom(zoom === k ? null : k)}
+                                        className="relative rounded-lg overflow-hidden border border-slate-700 hover:border-[#D4AF37]/50 transition-colors group bg-slate-900"
+                                        data-testid={`s45-kyc-${k}-${req.id}`}>
+                                        <img src={data.kyc[k]} alt={DOC_LABELS[k]} className="w-full h-20 object-cover" />
+                                        <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[9px] text-slate-200 py-0.5 text-center font-semibold">
+                                            {DOC_LABELS[k]} <Maximize2 className="w-2.5 h-2.5 inline ml-0.5" />
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                            {zoom && data.kyc[zoom] && (
+                                <div className="mt-2 rounded-lg border border-[#D4AF37]/30 overflow-hidden">
+                                    <img src={data.kyc[zoom]} alt={DOC_LABELS[zoom]} className="w-full max-h-96 object-contain bg-black" />
+                                </div>
+                            )}
+                            <p className="text-[10.5px] text-slate-500 mt-2">
+                                KYC {data.kyc.status} · enviado {data.kyc.submitted_at ? new Date(data.kyc.submitted_at).toLocaleDateString('es-ES') : '—'} ·
+                                compare la fecha de nacimiento del documento con la declarada
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-amber-300 text-[11.5px] bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
+                            Este usuario no tiene documentos KYC subidos. Solicite el documento antes de confirmar la edad.
+                        </p>
+                    )}
+                    {!req.dob_verified && (
+                        <div className="flex gap-2 mt-3">
+                            <Button size="sm" disabled={busy} onClick={() => verify(true)}
+                                className="bg-emerald-600 hover:bg-emerald-500 h-8 text-xs" data-testid={`s45-dob-confirm-${req.id}`}>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Confirmar edad ✓
+                            </Button>
+                            <Button size="sm" disabled={busy} onClick={() => verify(false)}
+                                variant="outline" className="border-rose-500/40 text-rose-300 h-8 text-xs" data-testid={`s45-dob-reject-${req.id}`}>
+                                <XCircle className="w-3.5 h-3.5 mr-1" /> No coincide
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
 };
 
 const RequestCard = ({ req, statuses, onAction }) => {
@@ -82,6 +179,8 @@ const RequestCard = ({ req, statuses, onAction }) => {
                         )}
                         <div className="col-span-2 sm:col-span-3"><p className="text-slate-500">Nota de titularidad</p><p className="text-slate-300">{req.ownership_note}</p></div>
                     </div>
+
+                    <DniQuickVerify req={req} onAction={onAction} />
 
                     <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota para el usuario (opcional)"
                         className="w-full h-9 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs" data-testid={`s45-note-${req.id}`} />
