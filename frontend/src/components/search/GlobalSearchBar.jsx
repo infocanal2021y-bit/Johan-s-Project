@@ -105,7 +105,7 @@ export const GlobalSearchBar = () => {
         if (path) navigate(path);
     }, [navigate]);
 
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
     // Quick page navigation: popular shortcuts when idle, filtered matches when typing
     const pageMatches = useMemo(() => {

@@ -116,7 +116,7 @@ async def fiscal_document_content(doc_id: str, user: dict = Depends(get_current_
     doc = await db.fiscal_documents.find_one({'id': doc_id}, {'_id': 0})
     if not doc:
         raise HTTPException(404, 'Documento no encontrado')
-    if doc['user_id'] != user['id'] and user.get('role') != 'admin':
+    if doc['user_id'] != user['id'] and user.get('role') not in ('admin', 'superadmin'):
         raise HTTPException(403, 'Sin acceso a este documento')
     return {'name': doc['name'], 'mime': doc['mime'], 'content_b64': doc['content_b64']}
 

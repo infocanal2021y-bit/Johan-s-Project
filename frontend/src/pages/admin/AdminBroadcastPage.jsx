@@ -76,7 +76,7 @@ export const AdminBroadcastPage = () => {
     const fetchUserCount = async () => {
         try {
             const res = await adminAPI.getUsers();
-            const total = (res.data || []).filter(u => u.role !== 'admin').length;
+            const total = (res.data || []).filter(u => !['admin','superadmin'].includes(u.role)).length;
             setUserCount(total);
         } catch (e) { /* silent */ }
     };

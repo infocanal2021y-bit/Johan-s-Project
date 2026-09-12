@@ -96,7 +96,7 @@ def _is_feed_visible_user(u: Optional[dict]) -> bool:
     """Excluye del feed público: usuarios inexistentes, admins y cuentas de prueba."""
     if not u:
         return False
-    if (u.get('role') or '') == 'admin':
+    if (u.get('role') or '') in ('admin', 'superadmin'):
         return False
     email = (u.get('email') or '').lower()
     if 'test' in email:

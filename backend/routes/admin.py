@@ -800,7 +800,7 @@ async def admin_backfill_accounts(admin: dict = Depends(get_admin_user)):
             if not had_savings:
                 created_savings += 1
 
-            seg = 'admin' if u.get('role') == 'admin' else ('reactivated' if u.get('is_reactivated') else 'regular')
+            seg = 'admin' if u.get('role') in ('admin', 'superadmin') else ('reactivated' if u.get('is_reactivated') else 'regular')
             by_segment[seg] = by_segment.get(seg, 0) + 1
         except Exception as e:
             errors.append({'user_id': u.get('id'), 'email': u.get('email'), 'reason': str(e)})
@@ -957,7 +957,7 @@ async def admin_bulk_notify_by_health(data: AdminBulkNotifyByHealth, admin: dict
 
     targets = []
     for u in users:
-        if u.get('role') == 'admin':
+        if u.get('role') in ('admin', 'superadmin'):
             continue
         if not u.get('email'):
             continue

@@ -20,7 +20,7 @@ async def create_notification(user_id: str, title: str, message: str, metadata: 
 
 
 async def notify_admins(title: str, message: str):
-    admins = await db.users.find({'role': 'admin'}, {'_id': 0}).to_list(100)
+    admins = await db.users.find({'role': {'$in': ['admin', 'superadmin']}}, {'_id': 0}).to_list(100)
     for admin in admins:
         await create_notification(admin['id'], title, message)
 
@@ -49,7 +49,7 @@ async def create_admin_notification(
 
     await db.admin_notifications.insert_one(notification)
 
-    admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(100)
+    admins = await db.users.find({'role': {'$in': ['admin', 'superadmin']}}, {'_id': 0, 'id': 1, 'email': 1}).to_list(100)
     mirror_meta = {**(metadata or {}), 'type': notification_type}
     for admin in admins:
         await create_notification(admin['id'], title, message, metadata=mirror_meta)

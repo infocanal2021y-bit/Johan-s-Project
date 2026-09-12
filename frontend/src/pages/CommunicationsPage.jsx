@@ -161,7 +161,7 @@ export default function CommunicationsPage() {
     const [loading, setLoading] = useState(true);
     const [composeOpen, setComposeOpen] = useState(false);
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
     useEffect(() => {
         api.get('/communications')

@@ -145,7 +145,7 @@ async def _send_welcome_batch(users):
     try:
         summary = (f"Envío masivo FX2026 finalizado: {_send_state['sent']} entregados, "
                    f"{_send_state['failed']} fallidos de {_send_state['total']}.")
-        admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(20)
+        admins = await db.users.find({'role': {'$in': ['admin', 'superadmin']}}, {'_id': 0, 'id': 1, 'email': 1}).to_list(20)
         for a in admins:
             await create_notification(a['id'], 'Bienvenidas FX2026 completadas', summary)
             content = f"""

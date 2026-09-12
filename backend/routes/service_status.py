@@ -119,7 +119,7 @@ async def run_status_checks() -> dict:
             try:
                 label = 'CAÍDO' if c['status'] == DOWN else 'DEGRADADO'
                 msg = f"Incidencia abierta: {c['name']} está {label}. {c.get('detail') or ''}".strip()
-                admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1, 'email': 1}).to_list(20)
+                admins = await db.users.find({'role': {'$in': ['admin', 'superadmin']}}, {'_id': 0, 'id': 1, 'email': 1}).to_list(20)
                 for a in admins:
                     await create_notification(a['id'], f"⚠ Incidencia: {c['name']}", msg)
                     content = f"""
@@ -173,7 +173,7 @@ async def run_status_checks() -> dict:
             already = await db.system_flags.find_one({'key': 'email_quota_alert', 'date': today_key})
             if not already:
                 await db.system_flags.insert_one({'key': 'email_quota_alert', 'date': today_key, 'created_at': _now_iso()})
-                admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1}).to_list(20)
+                admins = await db.users.find({'role': {'$in': ['admin', 'superadmin']}}, {'_id': 0, 'id': 1}).to_list(20)
                 body = (f'Resend rechazó {quota_errors} emails hoy por cuota agotada.'
                         if quota_errors > 0 else f'Hoy se han enviado {sent_today} de {quota} emails.')
                 for a in admins:

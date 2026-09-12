@@ -595,7 +595,7 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
         f'Su comprobante de transferencia bancaria (Ref: {data.reference}) ha sido recibido. Estado: Pendiente de verificacion.')
     
     # Notification to admins
-    admins = await db.users.find({'role': 'admin'}, {'_id': 0, 'id': 1}).to_list(10)
+    admins = await db.users.find({'role': {'$in': ['admin', 'superadmin']}}, {'_id': 0, 'id': 1}).to_list(10)
     for admin in admins:
         await create_notification(admin['id'], 'Nueva Transferencia Bancaria',
             f'{current_user["name"]} ({current_user["email"]}) ha enviado comprobante de transferencia. Referencia: {data.reference}. Monto: 4850 EUR.')

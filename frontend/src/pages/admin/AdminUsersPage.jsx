@@ -598,8 +598,8 @@ export const AdminUsersPage = () => {
                                                         </TableCell>
                                                         <TableCell>{getScoreBadge(user.interest_score)}</TableCell>
                                                         <TableCell>
-                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${user.role === 'admin' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-300'}`}>
-                                                                {user.role === 'admin' ? 'Admin' : 'Usuario'}
+                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${['admin','superadmin'].includes(user.role) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-300'}`}>
+                                                                {user.role === 'superadmin' ? 'Superadmin' : ['admin','superadmin'].includes(user.role) ? 'Admin' : 'Usuario'}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>{getVerificationBadge(user.verification_status)}</TableCell>
@@ -640,7 +640,7 @@ export const AdminUsersPage = () => {
                                                                 </Button>
                                                                 <Button size="sm" variant="outline" className="border-slate-700 hover:bg-slate-800 h-8 px-2.5 text-xs"
                                                                     onClick={() => handleEditRole(user)} data-testid={`edit-role-${user.id}`}>
-                                                                    {user.role === 'admin' ? <Shield className="w-3.5 h-3.5 mr-1" /> : <User className="w-3.5 h-3.5 mr-1" />}Rol
+                                                                    {['admin','superadmin'].includes(user.role) ? <Shield className="w-3.5 h-3.5 mr-1" /> : <User className="w-3.5 h-3.5 mr-1" />}Rol
                                                                 </Button>
                                                                 {user.account_status === 'active' || user.account_status === 'under_review' ? (
                                                                     <Button size="sm" variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 h-8 px-2.5 text-xs"
@@ -686,7 +686,7 @@ export const AdminUsersPage = () => {
                                                     </span>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div><span className="text-slate-500">Rol:</span> <span className={`ml-1 ${user.role === 'admin' ? 'text-amber-400' : 'text-slate-300'}`}>{user.role === 'admin' ? 'Admin' : 'Usuario'}</span></div>
+                                                    <div><span className="text-slate-500">Rol:</span> <span className={`ml-1 ${['admin','superadmin'].includes(user.role) ? 'text-amber-400' : 'text-slate-300'}`}>{user.role === 'superadmin' ? 'Superadmin' : ['admin','superadmin'].includes(user.role) ? 'Admin' : 'Usuario'}</span></div>
                                                     <div><span className="text-slate-500">KYC:</span> <span className="ml-1">{getVerificationBadge(user.verification_status)}</span></div>
                                                     <div><span className="text-slate-500">USD:</span> <span className="text-emerald-400 ml-1">${checkingAcc?.balance_usd?.toFixed(2) || '0.00'}</span></div>
                                                     <div><span className="text-slate-500">EUR:</span> <span className="text-emerald-400 ml-1">{checkingAcc?.balance_eur?.toFixed(2) || '0.00'}</span></div>

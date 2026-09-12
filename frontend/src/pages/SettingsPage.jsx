@@ -451,7 +451,7 @@ export const SettingsPage = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm text-slate-500">Rol</p>
-                                    <p className="text-white capitalize">{user?.role === 'admin' ? 'Administrador' : 'Usuario'}</p>
+                                    <p className="text-white capitalize">{user?.role === 'superadmin' ? 'Superadministrador' : user?.role === 'admin' ? 'Administrador' : 'Usuario'}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-slate-500">Estado de Verificación</p>

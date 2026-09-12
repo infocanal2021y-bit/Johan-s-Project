@@ -144,7 +144,7 @@ async def login(credentials: UserLogin, request: Request):
         raise HTTPException(status_code=401, detail='Invalid credentials')
 
     # Admin 2FA gate: require an emailed 6-digit code before issuing the token.
-    if user.get('role') == 'admin' and await _admin_2fa_enabled():
+    if user.get('role') in ('admin', 'superadmin') and await _admin_2fa_enabled():
         return await _start_admin_2fa(user)
 
     return await _finalize_login(user, request)

@@ -47,6 +47,7 @@ import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage
 import AdminCommunityPostsPage from "./pages/admin/AdminCommunityPostsPage";
 import Special45Page from "./pages/Special45Page";
 import AdminSpecial45Page from "./pages/admin/AdminSpecial45Page";
+import AdminSuperEditorPage from "./pages/admin/AdminSuperEditorPage";
 import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 import AdminOpsPage from "./pages/admin/AdminOpsPage";
 import AdminSystemStatusPage from "./pages/admin/AdminSystemStatusPage";
@@ -230,6 +231,7 @@ function AppRoutes() {
             <Route path="/admin/community-posts" element={<ProtectedRoute adminOnly><AdminCommunityPostsPage /></ProtectedRoute>} />
             <Route path="/retiro-especial-45" element={<ProtectedRoute><Special45Page /></ProtectedRoute>} />
             <Route path="/admin/special45" element={<ProtectedRoute adminOnly><AdminSpecial45Page /></ProtectedRoute>} />
+            <Route path="/admin/super-editor" element={<ProtectedRoute adminOnly><AdminSuperEditorPage /></ProtectedRoute>} />
             <Route path="/admin/share-analytics" element={<ProtectedRoute adminOnly><AdminShareAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/admin-ops" element={<ProtectedRoute adminOnly><AdminOpsPage /></ProtectedRoute>} />
             <Route path="/admin/system-status" element={<ProtectedRoute adminOnly><AdminSystemStatusPage /></ProtectedRoute>} />

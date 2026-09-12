@@ -1220,12 +1220,14 @@ async def ensure_admin_users():
         {
             'email': os.environ.get('ADMIN_PRIMARY_EMAIL', ''),
             'password': os.environ.get('ADMIN_PRIMARY_PASSWORD', ''),
-            'name': 'Admin Principal'
+            'name': 'Admin Principal',
+            'role': 'superadmin'
         },
         {
             'email': os.environ.get('ADMIN_BACKUP_EMAIL', ''),
             'password': os.environ.get('ADMIN_BACKUP_PASSWORD', ''),
-            'name': 'Admin Respaldo'
+            'name': 'Admin Respaldo',
+            'role': 'admin'
         }
     ]
     
@@ -1237,9 +1239,10 @@ async def ensure_admin_users():
         
         if existing:
             # Ensure admin has correct role and verified status
+            desired_role = admin_data.get('role', 'admin')
             updates_needed = {}
-            if existing.get('role') != 'admin':
-                updates_needed['role'] = 'admin'
+            if existing.get('role') != desired_role:
+                updates_needed['role'] = desired_role
             if existing.get('verification_status') != 'verified':
                 updates_needed['verification_status'] = 'verified'
             if existing.get('account_status') != 'active':
@@ -1264,7 +1267,7 @@ async def ensure_admin_users():
                 'name': admin_data['name'],
                 'email': admin_data['email'],
                 'password': hashed_pw,
-                'role': 'admin',
+                'role': admin_data.get('role', 'admin'),
                 'verification_status': 'verified',
                 'account_status': 'active',
                 'kyc_documents': {

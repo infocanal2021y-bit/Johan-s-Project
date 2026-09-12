@@ -3,8 +3,13 @@
 ## Admin (full access)
 - **Email:** `info@paylionsbit.es`
 - **Password:** `Juan1949.` (con punto final)
+- **Role:** `superadmin` (desde Jun 2026 — acceso total + Editor Superadmin en /admin/super-editor; sus ediciones NO notifican al usuario y quedan en superadmin_audit_log)
 - Cambiado el 09/Jun/2026 a petición del usuario (antes: admi@paylionsbit.es / LionsBit2026!)
 - Las alertas email al admin (retiros, abonos cripto) van a ADMIN_EMAIL=info@paylionsbit.es
+
+## Admin secundario (rol admin, SIN acceso superadmin)
+- **Email:** `admin.backup@paylionsbit.es`
+- **Password:** `LionsBit2026!Backup`
 - Role: `admin`
 - Account status: `active`
 - Verification status: `verified`

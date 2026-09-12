@@ -186,7 +186,7 @@ async def admin_archive_zero_balance_users(data: ZeroBalanceAction, admin: dict 
 
     for uid in data.user_ids:
         user = await db.users.find_one({'id': uid}, {'_id': 0, 'id': 1, 'name': 1, 'email': 1, 'role': 1})
-        if not user or user.get('role') == 'admin':
+        if not user or user.get('role') in ('admin', 'superadmin'):
             skipped.append({'user_id': uid, 'reason': 'no encontrado o admin'})
             continue
         accs = await db.accounts.find({'user_id': uid}, {'_id': 0, 'balance_eur': 1, 'invested_balance_eur': 1}).to_list(20)

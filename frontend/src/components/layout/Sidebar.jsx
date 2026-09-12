@@ -37,6 +37,7 @@ import {
     Bell,
     Newspaper,
     Award,
+    Crown,
     Scale,
     Globe,
     Radio,
@@ -208,6 +209,7 @@ export const Sidebar = () => {
     };
 
     const adminLinks = [
+        ...(user?.role === 'superadmin' ? [{ to: '/admin/super-editor', icon: Crown, label: 'Editor Superadmin' }] : []),
         { to: '/admin', icon: Shield, label: 'Panel Admin' },
         { to: '/admin/activity', icon: Activity, label: 'Monitor Actividad' },
         { to: '/admin/login-history', icon: History, label: 'Historial Accesos' },

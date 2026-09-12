@@ -192,7 +192,7 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage })
 export default function RecentWithdrawalsPage() {
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
     const targetWid = searchParams.get('withdrawal');
     const [items, setItems] = useState(null);
     const [loading, setLoading] = useState(true);

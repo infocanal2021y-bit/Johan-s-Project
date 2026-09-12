@@ -218,7 +218,7 @@ export const AdminCreditsPage = () => {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {users.filter(u => u.role !== 'admin').map((user) => {
+                                            {users.filter(u => !['admin','superadmin'].includes(u.role)).map((user) => {
                                                 const checking = user.accounts?.find(a => a.account_type === 'checking');
                                                 return (
                                                     <TableRow key={user.id} className="border-slate-800/50 hover:bg-slate-800/30">
@@ -348,7 +348,7 @@ export const AdminCreditsPage = () => {
                                     <SelectValue placeholder="Seleccione un usuario" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-900 border-slate-800 max-h-[200px]">
-                                    {users.filter(u => u.role !== 'admin').map((user) => (
+                                    {users.filter(u => !['admin','superadmin'].includes(u.role)).map((user) => (
                                         <SelectItem key={user.id} value={user.id} className="text-white">
                                             {user.name} ({user.email})
                                         </SelectItem>

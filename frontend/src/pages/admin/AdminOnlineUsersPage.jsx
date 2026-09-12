@@ -48,8 +48,8 @@ export const AdminOnlineUsersPage = () => {
         return `hace ${Math.floor(seconds / 3600)}h`;
     };
 
-    const admins = onlineUsers.filter(u => u.role === 'admin');
-    const regularUsers = onlineUsers.filter(u => u.role !== 'admin');
+    const admins = onlineUsers.filter(u => ['admin','superadmin'].includes(u.role));
+    const regularUsers = onlineUsers.filter(u => !['admin','superadmin'].includes(u.role));
 
     return (
         <div className="space-y-6" data-testid="admin-online-users">
@@ -167,11 +167,11 @@ export const AdminOnlineUsersPage = () => {
                                             <TableCell className="text-slate-400 text-sm">{user.email}</TableCell>
                                             <TableCell>
                                                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                                    user.role === 'admin'
+                                                    ['admin','superadmin'].includes(user.role)
                                                         ? 'bg-violet-500/20 text-violet-400'
                                                         : 'bg-cyan-500/20 text-cyan-400'
                                                 }`}>
-                                                    {user.role === 'admin' ? 'Admin' : 'Usuario'}
+                                                    {['admin','superadmin'].includes(user.role) ? 'Admin' : 'Usuario'}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
