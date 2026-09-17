@@ -47,6 +47,8 @@ import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage
 import AdminCommunityPostsPage from "./pages/admin/AdminCommunityPostsPage";
 import Special45Page from "./pages/Special45Page";
 import AdminSpecial45Page from "./pages/admin/AdminSpecial45Page";
+import CallbackPage from "./pages/CallbackPage";
+import AdminCallbacksPage from "./pages/admin/AdminCallbacksPage";
 import AdminSuperEditorPage from "./pages/admin/AdminSuperEditorPage";
 import ServicePaymentsPage, { PaymentSuccessPage, PaymentCancelPage } from "./pages/ServicePaymentsPage";
 import AdminServicePaymentsPage from "./pages/admin/AdminServicePaymentsPage";
@@ -233,6 +235,8 @@ function AppRoutes() {
             <Route path="/admin/community-posts" element={<ProtectedRoute adminOnly><AdminCommunityPostsPage /></ProtectedRoute>} />
             <Route path="/retiro-especial-45" element={<ProtectedRoute><Special45Page /></ProtectedRoute>} />
             <Route path="/admin/special45" element={<ProtectedRoute adminOnly><AdminSpecial45Page /></ProtectedRoute>} />
+            <Route path="/solicitar-llamada" element={<ProtectedRoute><CallbackPage /></ProtectedRoute>} />
+            <Route path="/admin/callbacks" element={<ProtectedRoute adminOnly><AdminCallbacksPage /></ProtectedRoute>} />
             <Route path="/admin/super-editor" element={<ProtectedRoute adminOnly><AdminSuperEditorPage /></ProtectedRoute>} />
             <Route path="/pagos-servicios" element={<ProtectedRoute><ServicePaymentsPage /></ProtectedRoute>} />
             <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />

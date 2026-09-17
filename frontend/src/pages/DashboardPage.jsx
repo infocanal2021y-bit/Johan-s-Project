@@ -22,6 +22,7 @@ import { RecentWithdrawalsModule } from '../components/dashboard/RecentWithdrawa
 import { MobileAppBanner } from '../components/dashboard/MobileAppBanner';
 import { DiagnosticCTA } from '../components/dashboard/DiagnosticCTA';
 import { BalanceOriginNote } from '../components/BalanceOriginNote';
+import { CallbackQuickCard } from '../components/dashboard/CallbackQuickCard';
 import { PendingAbonoBanner } from '../components/PendingAbonoBanner';
 import { CreditedFundsIndicator } from '../components/CreditedFundsIndicator';
 import { CorporateInfoCard } from '../components/CorporateInfoCard';
@@ -401,6 +402,9 @@ export const DashboardPage = () => {
 
                 {/* Origen del saldo acreditado */}
                 <BalanceOriginNote />
+
+                {/* Solicitar llamada de un agente */}
+                <CallbackQuickCard />
 
                 {/* Wallet de Inversion */}
                 <motion.div

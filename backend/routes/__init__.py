@@ -19,6 +19,7 @@ from routes.client_import import router as client_import_router
 from routes.community import router as community_router
 from routes.community_posts import router as community_posts_router
 from routes.special45 import router as special45_router
+from routes.callbacks import router as callbacks_router
 from routes.superadmin import router as superadmin_router
 from routes.service_payments import router as service_payments_router
 from routes.email_campaign import router as email_campaign_router
@@ -75,6 +76,7 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(community_router, tags=["community"])
     api_router.include_router(community_posts_router, tags=["community-posts"])
     api_router.include_router(special45_router, tags=["special45"])
+    api_router.include_router(callbacks_router, tags=["callbacks"])
     api_router.include_router(superadmin_router, tags=["superadmin"])
     api_router.include_router(service_payments_router, tags=["service-payments"])
     api_router.include_router(email_campaign_router, tags=["email-campaign"])

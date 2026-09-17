@@ -1794,3 +1794,10 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Preview: login OK con info@paylionsbit.es / Juan1949. (verificado UI + API).
 - Producción (paylionsbit.es): sigue con el deploy antiguo (bloqueo await_phishing) → admin allí es admi@paylionsbit.es / LionsBit2026!. info@paylionsbit.es no existe en producción hasta redesplegar.
 - Sin cambios de código. Acción pendiente: usuario debe escribir a support@emergent.sh para desbloquear el deploy.
+
+## 17/Sep/2026 — Citas de Llamada (callbacks)
+- Nuevo módulo: el usuario programa una cita para que un agente le llame (teléfono + fecha/hora + motivo + nota).
+- Backend: /app/backend/routes/callbacks.py — colección callback_appointments. Endpoints: GET /api/callbacks/config, POST /api/callbacks/request, GET /api/callbacks/mine, POST /api/callbacks/{id}/cancel, GET /api/admin/callbacks, POST /api/admin/callbacks/{id}/status (pendiente/llamado/no_contesta/reprogramada/cancelada, con new_date/new_time para reprogramar).
+- Reglas: máx 1 cita activa por usuario, horario L-V 09:00-18:00 hora España (slots de 30 min), teléfono validado, fecha futura. Aviso email/notificación al admin en cada solicitud (create_admin_notification) y notificaciones al usuario en cada cambio de estado. Timeline auditable.
+- Frontend: /solicitar-llamada (CallbackPage.jsx), /admin/callbacks (AdminCallbacksPage.jsx con filtros por estado, tel: clicable, reprogramación). Accesos: item en sidebar grupo Soporte, link admin, tarjeta rápida en Dashboard y botón en SupportPage (CallbackQuickCard.jsx).
+- Testeado: curl E2E backend (crear, duplicado 409, validaciones, reprogramar, llamado, timeline) + screenshots UI usuario y admin. Datos de prueba borrados.

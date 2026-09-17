@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
+import { CallbackQuickCard } from '../components/dashboard/CallbackQuickCard';
 import { supportAPI } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -119,13 +120,16 @@ export const SupportPage = () => {
                         </h1>
                         <p className="text-slate-500 mt-1">Get help from our support team</p>
                     </div>
-                    <Button
-                        onClick={() => setCreateDialogOpen(true)}
-                        className="bg-emerald-500 hover:bg-emerald-600"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Ticket
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <CallbackQuickCard compact />
+                        <Button
+                            onClick={() => setCreateDialogOpen(true)}
+                            className="bg-emerald-500 hover:bg-emerald-600"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            New Ticket
+                        </Button>
+                    </div>
                 </motion.div>
 
                 {/* Tickets List */}
