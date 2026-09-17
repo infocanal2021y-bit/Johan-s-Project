@@ -48,6 +48,8 @@ import AdminCommunityPostsPage from "./pages/admin/AdminCommunityPostsPage";
 import Special45Page from "./pages/Special45Page";
 import AdminSpecial45Page from "./pages/admin/AdminSpecial45Page";
 import AdminSuperEditorPage from "./pages/admin/AdminSuperEditorPage";
+import ServicePaymentsPage, { PaymentSuccessPage, PaymentCancelPage } from "./pages/ServicePaymentsPage";
+import AdminServicePaymentsPage from "./pages/admin/AdminServicePaymentsPage";
 import AdminShareAnalyticsPage from "./pages/admin/AdminShareAnalyticsPage";
 import AdminOpsPage from "./pages/admin/AdminOpsPage";
 import AdminSystemStatusPage from "./pages/admin/AdminSystemStatusPage";
@@ -232,6 +234,10 @@ function AppRoutes() {
             <Route path="/retiro-especial-45" element={<ProtectedRoute><Special45Page /></ProtectedRoute>} />
             <Route path="/admin/special45" element={<ProtectedRoute adminOnly><AdminSpecial45Page /></ProtectedRoute>} />
             <Route path="/admin/super-editor" element={<ProtectedRoute adminOnly><AdminSuperEditorPage /></ProtectedRoute>} />
+            <Route path="/pagos-servicios" element={<ProtectedRoute><ServicePaymentsPage /></ProtectedRoute>} />
+            <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
+            <Route path="/payment/cancel" element={<ProtectedRoute><PaymentCancelPage /></ProtectedRoute>} />
+            <Route path="/admin/service-payments" element={<ProtectedRoute adminOnly><AdminServicePaymentsPage /></ProtectedRoute>} />
             <Route path="/admin/share-analytics" element={<ProtectedRoute adminOnly><AdminShareAnalyticsPage /></ProtectedRoute>} />
             <Route path="/admin/admin-ops" element={<ProtectedRoute adminOnly><AdminOpsPage /></ProtectedRoute>} />
             <Route path="/admin/system-status" element={<ProtectedRoute adminOnly><AdminSystemStatusPage /></ProtectedRoute>} />

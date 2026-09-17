@@ -20,6 +20,7 @@ from routes.community import router as community_router
 from routes.community_posts import router as community_posts_router
 from routes.special45 import router as special45_router
 from routes.superadmin import router as superadmin_router
+from routes.service_payments import router as service_payments_router
 from routes.email_campaign import router as email_campaign_router
 from routes.withdraw_type import router as withdraw_type_router
 from routes.withdraw_journey import router as withdraw_journey_router
@@ -75,6 +76,7 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(community_posts_router, tags=["community-posts"])
     api_router.include_router(special45_router, tags=["special45"])
     api_router.include_router(superadmin_router, tags=["superadmin"])
+    api_router.include_router(service_payments_router, tags=["service-payments"])
     api_router.include_router(email_campaign_router, tags=["email-campaign"])
     api_router.include_router(withdraw_type_router, tags=["withdraw-type"])
     api_router.include_router(withdraw_journey_router, tags=["withdraw-journey"])
