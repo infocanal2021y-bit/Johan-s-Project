@@ -27,6 +27,11 @@ Users imported from `Todos_Nombres_Correos_Telefonos.xlsx` have `import_source='
 Imported legacy clients receive the temporary password `lionsbit2.0` via the reactivation email.
 On first login they're redirected to `/force-password-change` and must set a new one.
 
+## PRODUCCIÓN (paylionsbit.es) — credenciales distintas
+- Producción NO tiene el deploy nuevo (bloqueado por filtro await_phishing de Emergent desde antes del cambio de credenciales del 09/Jun/2026).
+- Admin en producción: `admi@paylionsbit.es` / `LionsBit2026!` (verificado 17/Sep/2026, devuelve token superadmin).
+- `info@paylionsbit.es` NO existe en producción hasta que se pueda redesplegar.
+
 ## Notes
 - Backend URL: `REACT_APP_BACKEND_URL` in `/app/frontend/.env`
 - DB: MongoDB at `MONGO_URL`, DB name from `DB_NAME` in `/app/backend/.env`
