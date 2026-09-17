@@ -1801,3 +1801,7 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Reglas: máx 1 cita activa por usuario, horario L-V 09:00-18:00 hora España (slots de 30 min), teléfono validado, fecha futura. Aviso email/notificación al admin en cada solicitud (create_admin_notification) y notificaciones al usuario en cada cambio de estado. Timeline auditable.
 - Frontend: /solicitar-llamada (CallbackPage.jsx), /admin/callbacks (AdminCallbacksPage.jsx con filtros por estado, tel: clicable, reprogramación). Accesos: item en sidebar grupo Soporte, link admin, tarjeta rápida en Dashboard y botón en SupportPage (CallbackQuickCard.jsx).
 - Testeado: curl E2E backend (crear, duplicado 409, validaciones, reprogramar, llamado, timeline) + screenshots UI usuario y admin. Datos de prueba borrados.
+
+## 17/Sep/2026 — Recordatorio de Cita (víspera)
+- Job APScheduler cada hora (callback_reminders, server.py): email + notificación in-app al usuario cuando su cita de llamada es mañana (hora Madrid). Marca reminder_sent (idempotente) y añade entrada al timeline. Al reprogramar, reminder_sent se resetea para reenviar recordatorio con la nueva fecha.
+- Testeado: creación de cita para mañana + ejecución manual del job → email enviado vía Resend (rechazado solo por dominio example.com de prueba), idempotencia verificada (2ª ejecución no duplica), datos de prueba limpiados.

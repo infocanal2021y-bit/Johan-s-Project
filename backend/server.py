@@ -429,6 +429,17 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Reminder email the day before a scheduled callback appointment (hourly check).
+    from routes.callbacks import run_callback_reminders
+    scheduler.add_job(
+        run_callback_reminders,
+        IntervalTrigger(hours=1),
+        id='callback_reminders',
+        name='Email reminder the day before a call appointment',
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=90),
+        replace_existing=True
+    )
+
     # Run daily to auto-advance 2 community in-process users to step 5 (Retirado).
     # First fire happens 60s after boot (catch-up), then every 24h. The function
     # itself is idempotent by UTC date so we never double-process a single day.

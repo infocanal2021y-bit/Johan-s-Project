@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, create_admin_notification
+from services.email import send_email, get_email_template, safe_email
 
 router = APIRouter()
 
@@ -146,6 +147,87 @@ async def callbacks_cancel(appointment_id: str, user: dict = Depends(get_current
     return {'ok': True}
 
 
+# ══════════════ Recordatorio la víspera ══════════════
+
+@safe_email
+async def _send_callback_reminder_email(appt: dict):
+    d = date.fromisoformat(appt['date'])
+    date_h = d.strftime('%d/%m/%Y')
+    content = f"""
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Estimado/a <strong style="color: #10b981;">{appt.get('user_name') or ''}</strong>,
+        </p>
+        <p style="color: #e2e8f0; font-size: 16px; line-height: 1.6;">
+            Le recordamos que <strong style="color:#06b6d4;">mañana</strong> tiene programada una cita telefónica
+            con uno de nuestros agentes. Mantenga su teléfono disponible.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; border-radius: 12px; margin: 25px 0;">
+            <tr><td style="padding: 25px;">
+                <p style="color: #94a3b8; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">📞 Detalles de su cita</p>
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Fecha:</td>
+                        <td style="color: #e2e8f0; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155;">{date_h}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Hora (España):</td>
+                        <td style="color: #06b6d4; font-weight: bold; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 18px;">{appt['time']} h</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #334155;">Teléfono al que le llamaremos:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0; border-bottom: 1px solid #334155; font-family: monospace;">{appt['phone']}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #94a3b8; padding: 8px 0;">Motivo:</td>
+                        <td style="color: #e2e8f0; text-align: right; padding: 8px 0;">{appt['reason']}</td>
+                    </tr>
+                </table>
+            </td></tr>
+        </table>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
+            Si no puede atender la llamada en ese horario, cancele la cita desde su panel y programe una nueva.
+        </p>
+    """
+    import os
+    app_url = os.environ.get('APP_BASE_URL', '')
+    content += f"""
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+            <tr><td align="center">
+                <a href="{app_url}/solicitar-llamada" style="display: inline-block; background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                    Ver mi cita
+                </a>
+            </td></tr>
+        </table>
+    """
+    html = get_email_template(content, "Recordatorio de su cita de llamada")
+    await send_email(appt['user_email'], f"📞 Recordatorio: mañana le llamamos a las {appt['time']} (hora España)", html)
+
+
+async def run_callback_reminders():
+    """Runs hourly: emails users whose call appointment is tomorrow (Madrid time)."""
+    import logging
+    tomorrow = (datetime.now(MADRID).date().toordinal() + 1)
+    tomorrow_str = date.fromordinal(tomorrow).isoformat()
+    rows = await db.callback_appointments.find(
+        {'status': {'$in': ['pendiente', 'reprogramada']}, 'date': tomorrow_str,
+         'reminder_sent': {'$ne': True}}, {'_id': 0}).to_list(200)
+    for appt in rows:
+        await _send_callback_reminder_email(appt)
+        await create_notification(
+            appt['user_id'], 'Recordatorio: su cita de llamada es mañana',
+            f"Mañana {appt['date']} a las {appt['time']} (hora España) un agente le llamará al {appt['phone']}. "
+            'Mantenga su teléfono disponible.',
+            {'type': 'callback', 'appointment_id': appt['id']})
+        await db.callback_appointments.update_one(
+            {'id': appt['id']},
+            {'$set': {'reminder_sent': True, 'reminder_sent_at': _now()},
+             '$push': {'timeline': {'status': appt['status'], 'label': 'Recordatorio enviado',
+                                    'at': _now(), 'by': 'sistema',
+                                    'note': 'Email recordatorio de la víspera enviado al usuario.'}}})
+    if rows:
+        logging.info(f"callback_reminders: sent {len(rows)} reminder(s) for {tomorrow_str}")
+
+
 # ══════════════ Admin ══════════════
 
 @router.get('/admin/callbacks')
@@ -182,6 +264,7 @@ async def admin_callbacks_status(appointment_id: str, body: StatusBody, admin: d
         _validate_slot(body.new_date, body.new_time)
         updates['date'] = body.new_date
         updates['time'] = body.new_time
+        updates['reminder_sent'] = False
         note = note or f'Reprogramada para el {body.new_date} a las {body.new_time}.'
     updates['timeline'] = _timeline(doc, body.status, f"admin ({admin.get('email')})", note)
     await db.callback_appointments.update_one({'id': appointment_id}, {'$set': updates})
