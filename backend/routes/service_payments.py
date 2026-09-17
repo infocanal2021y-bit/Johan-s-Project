@@ -52,6 +52,8 @@ class CheckoutBody(BaseModel):
     lookup_key: str
     origin_url: str
     quantity: int = Field(1, ge=1, le=10)
+    context_kind: Optional[str] = None   # 'special45' | 'btc_withdrawal'
+    context_request_id: Optional[str] = None
 
 
 @router.post('/service-payments/checkout')
@@ -90,6 +92,7 @@ async def create_checkout(body: CheckoutBody, user: dict = Depends(get_current_u
         'service_name': price.product.name if hasattr(price, 'product') else body.lookup_key,
         'amount': (price.unit_amount or 0) * body.quantity, 'currency': price.currency,
         'status': 'initiated', 'payment_status': 'pending', 'receipt_sent': False,
+        'context_kind': body.context_kind, 'context_request_id': body.context_request_id,
         'created_at': _now(), 'updated_at': _now(),
     })
     return {'checkout_url': session.url, 'session_id': session.id}
@@ -106,6 +109,7 @@ async def _mark_paid(session_id: str, extra: Optional[dict] = None):
     if not tx or tx.get('receipt_sent'):
         return
     await db.payment_transactions.update_one({'session_id': session_id}, {'$set': {'receipt_sent': True}})
+    await _apply_abono_context(tx, session_id)
     try:
         from services.notifications import create_notification, create_admin_notification
         await create_notification(tx['user_id'], 'Pago confirmado',
@@ -139,6 +143,112 @@ async def _mark_paid(session_id: str, extra: Optional[dict] = None):
                                            get_email_template(content, 'Recibo de pago')))
     except Exception as e:
         logging.warning(f'service payment receipt failed: {e}')
+
+
+@router.get('/service-payments/{session_id}/invoice')
+async def download_invoice(session_id: str, user: dict = Depends(get_current_user)):
+    from fastapi.responses import Response
+    tx = await db.payment_transactions.find_one({'session_id': session_id}, {'_id': 0})
+    if not tx:
+        raise HTTPException(404, 'Transacción no encontrada')
+    if tx['user_id'] != user['id'] and user.get('role') not in ('admin', 'superadmin'):
+        raise HTTPException(403, 'Sin acceso a esta factura')
+    if tx.get('payment_status') not in ('paid', 'refunded'):
+        raise HTTPException(400, 'La factura solo está disponible para pagos confirmados.')
+    pdf = _build_invoice_pdf(tx)
+    num = f"FAC-{tx['created_at'][:10].replace('-', '')}-{session_id[-6:].upper()}"
+    return Response(content=pdf, media_type='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename="{num}.pdf"'})
+
+
+def _build_invoice_pdf(tx: dict) -> bytes:
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfgen import canvas
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    w, h = A4
+    navy, gold, slate = HexColor('#072146'), HexColor('#D4AF37'), HexColor('#64748b')
+    num = f"FAC-{tx['created_at'][:10].replace('-', '')}-{tx['session_id'][-6:].upper()}"
+    fecha = tx.get('updated_at', tx['created_at'])[:10]
+    amount = _fmt_amount(tx['amount'], tx['currency']).replace('€', 'EUR ').replace('$', 'USD ')
+
+    c.setFillColor(navy); c.rect(0, h - 110, w, 110, fill=1, stroke=0)
+    c.setFillColor(gold); c.rect(0, h - 114, w, 4, fill=1, stroke=0)
+    c.setFillColor(HexColor('#F3D372')); c.setFont('Helvetica-Bold', 22)
+    c.drawString(50, h - 55, 'LIONSBIT')
+    c.setFillColor(HexColor('#ffffff')); c.setFont('Helvetica', 9)
+    c.drawString(50, h - 72, 'PayLionsbit · Servicios financieros autorizados')
+    c.setFont('Helvetica-Bold', 14); c.drawRightString(w - 50, h - 55, 'FACTURA')
+    c.setFont('Helvetica', 9); c.drawRightString(w - 50, h - 72, num)
+
+    y = h - 160
+    c.setFillColor(slate); c.setFont('Helvetica-Bold', 8)
+    c.drawString(50, y, 'FACTURADO A'); c.drawString(320, y, 'DETALLES')
+    c.setFillColor(navy); c.setFont('Helvetica', 10)
+    c.drawString(50, y - 16, tx.get('user_name') or '')
+    c.drawString(50, y - 30, tx.get('user_email') or '')
+    c.drawString(320, y - 16, f'Fecha: {fecha}')
+    c.drawString(320, y - 30, f"Estado: {'PAGADO' if tx['payment_status'] == 'paid' else 'REEMBOLSADO'}")
+    c.setFont('Helvetica', 7); c.setFillColor(slate)
+    c.drawString(320, y - 44, f"Ref. Stripe: {tx['session_id'][:40]}…")
+
+    y -= 80
+    c.setFillColor(navy); c.rect(50, y - 8, w - 100, 24, fill=1, stroke=0)
+    c.setFillColor(HexColor('#ffffff')); c.setFont('Helvetica-Bold', 9)
+    c.drawString(60, y, 'CONCEPTO'); c.drawRightString(w - 60, y, 'IMPORTE')
+    y -= 30
+    c.setFillColor(navy); c.setFont('Helvetica', 10)
+    c.drawString(60, y, tx.get('service_name') or tx.get('lookup_key'))
+    c.drawRightString(w - 60, y, amount)
+    y -= 14
+    c.setStrokeColor(HexColor('#e2e8f0')); c.line(50, y, w - 50, y)
+    y -= 26
+    c.setFont('Helvetica-Bold', 12)
+    c.drawRightString(w - 60, y, f'TOTAL: {amount}')
+    c.setFont('Helvetica', 7); c.setFillColor(slate)
+    c.drawRightString(w - 60, y - 14, 'Impuestos gestionados y remitidos por Stripe (Managed Payments).')
+
+    c.setFillColor(slate); c.setFont('Helvetica', 7)
+    c.drawCentredString(w / 2, 60, 'Pago procesado de forma segura por Stripe. Este documento sirve como comprobante de pago del servicio indicado.')
+    c.drawCentredString(w / 2, 48, f'LIONSBIT · {fecha} · {num}')
+    c.showPage(); c.save()
+    return buf.getvalue()
+
+
+async def _apply_abono_context(tx: dict, session_id: str):
+    """Marca automáticamente el abono del retiro vinculado al pagarse con tarjeta."""
+    kind, rid = tx.get('context_kind'), tx.get('context_request_id')
+    if not kind or not rid:
+        return
+    try:
+        note = f'Abono pagado con tarjeta (Stripe) · ref {session_id[:24]}…'
+        if kind == 'special45':
+            await db.special45_requests.update_one(
+                {'id': rid, 'user_id': tx['user_id']},
+                {'$set': {'fee_informed': True, 'fee_paid_via': 'stripe',
+                          'fee_info': {'message': note, 'txid': session_id, 'coin_used': 'CARD',
+                                       'at': _now()},
+                          'updated_at': _now()}})
+        elif kind == 'btc_withdrawal':
+            import uuid as _uuid
+            req = await db.btc_withdrawal_requests.find_one({'id': rid, 'user_id': tx['user_id']}, {'_id': 0, 'status': 1})
+            if not req:
+                return
+            await db.btc_withdrawal_requests.update_one(
+                {'id': rid},
+                {'$push': {'submissions': {'id': str(_uuid.uuid4()), 'message': note,
+                                           'fee_txid': None, 'coin_used': 'CARD',
+                                           'address_used': None, 'at': _now()}},
+                 '$set': {'fee_paid_via': 'stripe', 'updated_at': _now()}})
+            if req.get('status') in ('pendiente_abono', 'accion_requerida', 'validacion_rechazada'):
+                from routes.btc_withdrawals import _set_status
+                await _set_status(rid, 'pendiente_validacion', 'stripe (pago con tarjeta)',
+                                  {'action_required_message': None})
+        logging.info(f'abono context aplicado: {kind}/{rid} via {session_id[:20]}')
+    except Exception as e:
+        logging.error(f'abono context failed for {kind}/{rid}: {e}')
 
 
 @router.get('/payments/status/{session_id}')

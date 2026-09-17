@@ -105,6 +105,20 @@ export default function AdminServicePaymentsPage() {
                             </div>
                             <span className="text-white font-mono font-bold text-sm">{fmt(t.amount, t.currency)}</span>
                             <span className={`px-2 py-1 rounded-md text-[10.5px] font-bold capitalize ${CHIP[t.payment_status] || ''}`}>{t.payment_status}</span>
+                            {['paid', 'refunded'].includes(t.payment_status) && (
+                                <button type="button" className="px-2 py-1 rounded-md bg-[#635BFF]/15 text-[#8f89ff] text-[11px] font-semibold"
+                                    onClick={async () => {
+                                        try {
+                                            const r = await api.get(`/service-payments/${t.session_id}/invoice`, { responseType: 'blob' });
+                                            const url = URL.createObjectURL(r.data);
+                                            const a = document.createElement('a');
+                                            a.href = url; a.download = `factura-${t.session_id.slice(-6)}.pdf`; a.click();
+                                            URL.revokeObjectURL(url);
+                                        } catch { toast.error('Error al descargar'); }
+                                    }} data-testid={`invoice-${t.session_id}`}>
+                                    Factura PDF
+                                </button>
+                            )}
                             {t.payment_status === 'paid' && (
                                 <button type="button" className="px-2 py-1 rounded-md bg-amber-500/10 text-amber-300 text-[11px] font-semibold"
                                     onClick={async () => {

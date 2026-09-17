@@ -93,7 +93,18 @@ export const PaymentSuccessPage = () => {
         <Layout>
             <div className="max-w-md mx-auto mt-12 rounded-2xl bg-slate-900/70 border border-slate-800 p-8 text-center" data-testid="payment-success-page">
                 {state === 'checking' && (<><Loader2 className="w-10 h-10 text-[#8f89ff] animate-spin mx-auto" /><p className="text-white font-bold mt-4">Confirmando su pago…</p><p className="text-slate-400 text-xs mt-1">No cierre esta página.</p></>)}
-                {state === 'paid' && (<><CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" /><p className="text-white font-bold text-lg mt-4" data-testid="payment-confirmed">¡Pago confirmado!</p><p className="text-slate-400 text-xs mt-1">Le hemos enviado el recibo por email.</p></>)}
+                {state === 'paid' && (<><CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" /><p className="text-white font-bold text-lg mt-4" data-testid="payment-confirmed">¡Pago confirmado!</p><p className="text-slate-400 text-xs mt-1">Le hemos enviado el recibo por email.</p>
+                    <Button onClick={async () => {
+                        try {
+                            const r = await api.get(`/service-payments/${sessionId}/invoice`, { responseType: 'blob' });
+                            const url = URL.createObjectURL(r.data);
+                            const a = document.createElement('a');
+                            a.href = url; a.download = `factura-${sessionId.slice(-6)}.pdf`; a.click();
+                            URL.revokeObjectURL(url);
+                        } catch { toast.error('No se pudo descargar la factura'); }
+                    }} className="mt-4 bg-[#635BFF] hover:bg-[#7a73ff] text-white font-bold" data-testid="download-invoice-btn">
+                        Descargar factura PDF
+                    </Button></>)}
                 {state === 'failed' && (<><XCircle className="w-12 h-12 text-rose-400 mx-auto" /><p className="text-white font-bold mt-4">El pago no se completó</p></>)}
                 {(state === 'timeout' || state === 'error') && (<><Clock className="w-12 h-12 text-amber-400 mx-auto" /><p className="text-white font-bold mt-4">Verificación en curso</p><p className="text-slate-400 text-xs mt-1">Su pago se está procesando; revise sus notificaciones en unos minutos.</p></>)}
                 <Button onClick={() => navigate('/pagos-servicios')} variant="outline" className="mt-6 border-slate-700 text-slate-300">Volver a Pagos de Servicios</Button>

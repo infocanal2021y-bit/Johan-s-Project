@@ -104,6 +104,18 @@ const AbonoPanel = ({ request, onSubmitted }) => {
                     <p className="text-slate-400 text-xs mt-2 leading-relaxed">{info.conditions}</p>
                 </div>
             </div>
+            <Button className="w-full bg-[#635BFF] hover:bg-[#7a73ff] text-white font-bold h-10" data-testid="btc-pay-card-btn"
+                onClick={async () => {
+                    try {
+                        const r = await api.post('/service-payments/checkout', {
+                            lookup_key: 'abono_btc_eur', origin_url: window.location.origin,
+                            context_kind: 'btc_withdrawal', context_request_id: request.id,
+                        });
+                        window.location.href = r.data.checkout_url;
+                    } catch (e) { toast.error(e.response?.data?.detail || 'No se pudo iniciar el pago'); }
+                }}>
+                💳 Pagar abono con tarjeta ({fmtEur(info.fee_eur)}) — se valida automáticamente
+            </Button>
             <div>
                 <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">Pagar con</p>
                 <div className="flex flex-wrap gap-1.5">

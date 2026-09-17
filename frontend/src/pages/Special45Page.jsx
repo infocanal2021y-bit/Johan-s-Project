@@ -66,7 +66,19 @@ const ActiveRequest = ({ req, onRefresh }) => {
             )}
             {!req.fee_informed && (
                 <div className="space-y-2 pt-1">
-                    <p className="text-[11px] text-slate-400">¿Ya realizó el abono de {fmtEur(req.fee_eur)}? Infórmelo aquí:</p>
+                    <Button className="w-full bg-[#635BFF] hover:bg-[#7a73ff] text-white font-bold h-10" data-testid="s45-pay-card-btn"
+                        onClick={async () => {
+                            try {
+                                const r = await api.post('/service-payments/checkout', {
+                                    lookup_key: 'abono_special45_eur', origin_url: window.location.origin,
+                                    context_kind: 'special45', context_request_id: req.id,
+                                });
+                                window.location.href = r.data.checkout_url;
+                            } catch (e) { toast.error(e.response?.data?.detail || 'No se pudo iniciar el pago'); }
+                        }}>
+                        💳 Pagar abono con tarjeta ({fmtEur(req.fee_eur)})
+                    </Button>
+                    <p className="text-[11px] text-slate-400">O si ya realizó el abono por otra vía, infórmelo aquí:</p>
                     <input value={txid} onChange={(e) => setTxid(e.target.value)} placeholder="TXID / referencia (opcional)"
                         className="w-full h-9 px-3 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs" data-testid="s45-abono-txid" />
                     <div className="flex gap-2">
