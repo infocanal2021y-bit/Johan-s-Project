@@ -73,6 +73,20 @@ export default function AdminServicePaymentsPage() {
                     </div>
                 )}
 
+                <div className="flex items-center gap-1.5 flex-wrap" data-testid="admin-catalog-chips">
+                    {data.catalog.map((s) => (
+                        <span key={s.lookup_key} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/70 border border-slate-800 text-[11px] text-slate-300">
+                            {s.name} · <span className="font-mono text-[#8f89ff]">{s.amount_label}</span>
+                            <button type="button" className="text-slate-600 hover:text-red-400 ml-0.5" title="Desactivar servicio"
+                                onClick={async () => {
+                                    if (!window.confirm(`¿Desactivar "${s.name}" (${s.amount_label})? Dejará de mostrarse a los usuarios.`)) return;
+                                    try { await api.delete(`/admin/service-payments/catalog/${s.lookup_key}`); toast.success('Servicio desactivado'); load(); }
+                                    catch (e) { toast.error(e.response?.data?.detail || 'Error'); }
+                                }} data-testid={`deactivate-${s.lookup_key}`}>✕</button>
+                        </span>
+                    ))}
+                </div>
+
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <button type="button" onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${!filter ? 'bg-[#635BFF]/20 text-[#8f89ff]' : 'text-slate-500 hover:text-white'}`}>Todas ({data.transactions.length})</button>
                     {Object.entries(data.counts).map(([k, v]) => (

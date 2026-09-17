@@ -219,6 +219,19 @@ async def admin_add_service(body: NewServiceBody, admin: dict = Depends(get_admi
     return {'ok': True}
 
 
+@router.delete('/admin/service-payments/catalog/{lookup_key}')
+async def admin_deactivate_service(lookup_key: str, admin: dict = Depends(get_admin_user)):
+    prices = stripe.Price.list(lookup_keys=[lookup_key], active=True, limit=1).data
+    if not prices:
+        raise HTTPException(404, 'Servicio no encontrado o ya inactivo.')
+    price = prices[0]
+    stripe.Price.modify(price.id, active=False)
+    others = stripe.Price.list(product=price.product, active=True, limit=1).data
+    if not others:
+        stripe.Product.modify(price.product, active=False)
+    return {'ok': True}
+
+
 @router.post('/admin/service-payments/{session_id}/refund')
 async def admin_refund(session_id: str, admin: dict = Depends(get_admin_user)):
     tx = await db.payment_transactions.find_one({'session_id': session_id}, {'_id': 0})
