@@ -17,7 +17,6 @@ from services.auth import get_current_user, get_admin_user
 router = APIRouter()
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-TAX_MODE = "full"  # España (SMP soportado) — fallback automático a calc_only si ineligible
 
 
 def _now():
@@ -69,20 +68,17 @@ async def create_checkout(body: CheckoutBody, user: dict = Depends(get_current_u
         success_url=f"{body.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{body.origin_url}/payment/cancel",
         metadata={'user_id': user['id'], 'lookup_key': body.lookup_key},
+        ui_mode='hosted',
+        billing_address_collection='auto',
+        phone_number_collection={'enabled': False},
+        automatic_tax={'enabled': False},
+        allow_promotion_codes=False,
+        submit_type='auto',
+        origin_context='web',
+        integration_identifier='hosted_web_0001',
     )
     try:
-        if TAX_MODE == 'full':
-            try:
-                session = stripe.checkout.Session.create(**kwargs, managed_payments={'enabled': True})
-            except stripe.error.InvalidRequestError as e:
-                msg = (e.user_message or '').lower()
-                if 'managed payments' in msg or 'ineligible' in msg:
-                    session = stripe.checkout.Session.create(
-                        **kwargs, automatic_tax={'enabled': True}, billing_address_collection='required')
-                else:
-                    raise
-        else:
-            session = stripe.checkout.Session.create(**kwargs)
+        session = stripe.checkout.Session.create(**kwargs)
     except stripe.error.StripeError as e:
         logging.error(f'stripe checkout error: {e}')
         raise HTTPException(502, 'No se pudo iniciar el pago. Inténtelo de nuevo.')

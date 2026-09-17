@@ -1805,3 +1805,8 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 ## 17/Sep/2026 — Recordatorio de Cita (víspera)
 - Job APScheduler cada hora (callback_reminders, server.py): email + notificación in-app al usuario cuando su cita de llamada es mañana (hora Madrid). Marca reminder_sent (idempotente) y añade entrada al timeline. Al reprogramar, reminder_sent se resetea para reenviar recordatorio con la nueva fecha.
 - Testeado: creación de cita para mañana + ejecución manual del job → email enviado vía Resend (rechazado solo por dominio example.com de prueba), idempotencia verificada (2ª ejecución no duplica), datos de prueba limpiados.
+
+## 17/Sep/2026 — Stripe Checkout Studio (plugin oficial)
+- Escenario A: se actualizaron los parámetros de la Checkout Session existente en routes/service_payments.py según Checkout Studio: ui_mode=hosted (SDK 14.4.0 < 21), billing_address_collection=auto, phone_number_collection off, automatic_tax off, allow_promotion_codes=false, submit_type=auto, origin_context=web, integration_identifier=hosted_web_0001. payment_method_collection omitido (mode=payment). Eliminado el bloque managed_payments/automatic_tax fallback (TAX_MODE).
+- Documentación: /app/STRIPE_INTEGRATION_TODO.md (fuente única de pasos restantes — ninguno pendiente, valores reales).
+- Testeado: checkout E2E vía POST /api/service-payments/checkout → sesión creada y parámetros verificados en la API de Stripe.
