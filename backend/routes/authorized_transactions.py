@@ -16,13 +16,23 @@ router = APIRouter()
 async def list_authorized_transactions(user: dict = Depends(get_current_user)):
     items = await db.authorized_transactions.find(
         {}, {'_id': 0, 'id': 1, 'sequence': 1, 'username': 1, 'status': 1, 'status_label': 1,
-             'authorized_amount': 1, 'paid_amount': 1, 'currency': 1, 'published_at': 1},
+             'authorized_amount': 1, 'paid_amount': 1, 'currency': 1, 'published_at': 1,
+             'authorized_at': 1, 'registered_at': 1, 'last_payment_at': 1, 'updated_at': 1, 'reference': 1},
     ).sort('sequence', 1).to_list(length=svc.TOTAL_PLANNED)
     data = await svc.summary()
     data['items'] = items
+    data['progress_pct'] = round(data['count'] * 100 / data['total_planned'])
     if user.get('role') not in ('admin', 'superadmin'):
         data['config'] = {'next_batch_at': data['config'].get('next_batch_at')}
     return data
+
+
+@router.get("/authorized-transactions/{tx_id}")
+async def get_authorized_transaction(tx_id: str, user: dict = Depends(get_current_user)):
+    doc = await db.authorized_transactions.find_one({'id': tx_id}, {'_id': 0, 'auto_generated_by': 0})
+    if not doc:
+        raise HTTPException(404, 'Transacción no encontrada')
+    return doc
 
 
 class ConfigPatch(BaseModel):

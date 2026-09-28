@@ -43,6 +43,42 @@ def _now() -> datetime:
 async def ensure_indexes():
     await db.authorized_transactions.create_index('username', unique=True)
     await db.authorized_transactions.create_index('sequence', unique=True)
+    async for d in db.authorized_transactions.find({'events': {'$exists': False}}, {'_id': 0, 'id': 1, 'sequence': 1, 'published_at': 1}):
+        await db.authorized_transactions.update_one(
+            {'id': d['id']}, {'$set': build_lifecycle(d['sequence'], datetime.fromisoformat(d['published_at']))})
+
+
+def build_lifecycle(seq: int, published: datetime) -> dict:
+    """Timeline + historial de abonos de una transacción (fechas deterministas por secuencia)."""
+    authorized_at = published - timedelta(minutes=3 + (seq * 7) % 12, seconds=(seq * 13) % 60)
+    registered_at = published
+    paid_at = published
+    ref = f"ATX-{seq:03d}-{published.strftime('%y%m%d')}"
+    events = [
+        {'type': 'authorized', 'label': 'Autorizada', 'at': authorized_at.isoformat(),
+         'note': f'Transacción autorizada por {_fmt_eur(AUTHORIZED_AMOUNT)}'},
+        {'type': 'registered', 'label': 'Registrada', 'at': registered_at.isoformat(),
+         'note': 'Incorporada al registro de transacciones autorizadas'},
+        {'type': 'payment_registered', 'label': 'Abono registrado', 'at': paid_at.isoformat(),
+         'note': f'Abono de {_fmt_eur(PAID_AMOUNT)} registrado · Ref. {ref}'},
+    ]
+    return {
+        'reference': ref,
+        'authorized_at': authorized_at.isoformat(),
+        'registered_at': registered_at.isoformat(),
+        'last_payment_at': paid_at.isoformat(),
+        'updated_at': paid_at.isoformat(),
+        'events': events,
+        'payments': [{
+            'id': str(uuid.uuid5(NAMESPACE, ref)),
+            'reference': ref,
+            'amount': PAID_AMOUNT,
+            'currency': CURRENCY,
+            'status': 'registered',
+            'status_label': 'Abono registrado',
+            'at': paid_at.isoformat(),
+        }],
+    }
 
 
 async def get_config() -> dict:
@@ -105,6 +141,7 @@ async def publish_next_batch(force: bool = False) -> list:
             'published_at': now.isoformat(),
             'created_at': now.isoformat(),
             'auto_generated_by': 'authorized_tx_scheduler',
+            **build_lifecycle(seq, now),
         }
         try:
             await db.authorized_transactions.insert_one(doc)
