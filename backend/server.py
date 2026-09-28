@@ -483,16 +483,20 @@ def start_scheduler():
         replace_existing=True,
     )
 
-    # Simulador de retiros en vivo: cada 10 min con 50% de probabilidad (≈1 cada 20 min)
-    from routes.community import run_live_withdrawal_sim_tick
+    # Actividad diaria de Comunidad: EXACTAMENTE 2 eventos/día (pool de 100 ficticios)
+    from services.card_activity_sim import run_card_activity_tick
     scheduler.add_job(
-        run_live_withdrawal_sim_tick,
+        run_card_activity_tick,
         IntervalTrigger(minutes=10),
-        id='live_withdrawals_sim',
-        name='Generar retiro demo completado para el feed en vivo',
+        id='card_activity_sim',
+        name='Generar las 2 actividades diarias de Comunidad (tarjeta Visa/Mastercard)',
         next_run_time=datetime.now(timezone.utc) + timedelta(seconds=45),
         replace_existing=True,
     )
+    try:
+        scheduler.remove_job('live_withdrawals_sim')
+    except Exception:
+        pass
 
     # Monitor de confirmaciones del abono BTC (alerta admin a la 1ª confirmación)
     from routes.btc_withdrawals import run_btc_fee_confirmation_monitor

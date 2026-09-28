@@ -1810,3 +1810,10 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Escenario A: se actualizaron los parámetros de la Checkout Session existente en routes/service_payments.py según Checkout Studio: ui_mode=hosted (SDK 14.4.0 < 21), billing_address_collection=auto, phone_number_collection off, automatic_tax off, allow_promotion_codes=false, submit_type=auto, origin_context=web, integration_identifier=hosted_web_0001. payment_method_collection omitido (mode=payment). Eliminado el bloque managed_payments/automatic_tax fallback (TAX_MODE).
 - Documentación: /app/STRIPE_INTEGRATION_TODO.md (fuente única de pasos restantes — ninguno pendiente, valores reales).
 - Testeado: checkout E2E vía POST /api/service-payments/checkout → sesión creada y parámetros verificados en la API de Stripe.
+
+## 28/Sep/2026 — Actividad diaria de Comunidad (2 eventos/día con tarjeta)
+- Reemplazado el simulador aleatorio live_withdrawals_sim por services/card_activity_sim.py: EXACTAMENTE 2 eventos/día con horarios aleatorios (mañana 09-13h y tarde 15-20h, hora Madrid), plan diario en card_activity_plans (idempotente).
+- Pool de 100 registros (card_activity_pool) construido desde los 100 usuarios ficticios demo_recent: nombre, país, marca Visa/Mastercard (estable por user_id) y monto ya asignado. Rotación por last_event_date, sin repetir usuario el mismo día. Sin números de tarjeta.
+- Cada evento genera: transacción (feed en vivo + mapa + historial, marcada simulated/auto_generated_by=card_activity_sim), registro interno card_activity_events (usuario, país, marca, monto, fecha, hora, estado TRANSFERENCIA AUTORIZADA, sim_id), publicación oficial y notificación bulk a TODOS los usuarios reales (~3.145) con el formato exacto pedido.
+- Toggle admin existente (live_withdrawals_sim en platform_settings) controla también el nuevo sistema. No se tocó Stripe, retiros, login ni diseño. No existían textos DOCUMENTO DEMO/PRUEBA visibles en la UI (verificado).
+- Testeado: tick forzado → 2 eventos, idempotencia, feed/mapa/posts/notificaciones verificados vía API real.
