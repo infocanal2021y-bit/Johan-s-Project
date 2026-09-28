@@ -4,7 +4,7 @@ import stripe
 from dotenv import load_dotenv
 
 load_dotenv()
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 CATALOG = [
     {"emergent_product_id": "cert_bancario", "name": "Certificado bancario oficial",

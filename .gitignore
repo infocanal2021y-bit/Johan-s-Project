@@ -289,3 +289,7 @@ frontend/node_modules/.cache/default-development/112.pack
 frontend/node_modules/.cache/default-development/7.pack
 frontend/node_modules/.cache/default-development/7.pack
 frontend/node_modules/.cache/default-development/12.pack
+
+# Local secrets / tokens (never commit)
+memory/stripe_sandbox.json
+memory/.admtoken
