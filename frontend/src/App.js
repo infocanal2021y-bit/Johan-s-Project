@@ -43,6 +43,7 @@ import { AdvisorsPage } from "./pages/AdvisorsPage";
 import { InvestingProPage } from "./pages/InvestingProPage";
 import CommunityPage from "./pages/CommunityPage";
 import RecentWithdrawalsPage from "./pages/RecentWithdrawalsPage";
+import AuthorizedTransactionsPage from "./pages/AuthorizedTransactionsPage";
 import AdminCommunityProgressPage from "./pages/admin/AdminCommunityProgressPage";
 import AdminCommunityPostsPage from "./pages/admin/AdminCommunityPostsPage";
 import Special45Page from "./pages/Special45Page";
@@ -203,6 +204,7 @@ function AppRoutes() {
             <Route path="/advisors" element={<ProtectedRoute><AdvisorsPage /></ProtectedRoute>} />
             <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
             <Route path="/retiros-recientes" element={<ProtectedRoute><RecentWithdrawalsPage /></ProtectedRoute>} />
+            <Route path="/transacciones-autorizadas" element={<ProtectedRoute><AuthorizedTransactionsPage /></ProtectedRoute>} />
             <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
             <Route path="/wallet/multi-currency" element={<ProtectedRoute><MultiCurrencyWalletPage /></ProtectedRoute>} />
             <Route path="/wallet/bank-withdrawal" element={<ProtectedRoute><BankWithdrawalPage /></ProtectedRoute>} />

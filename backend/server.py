@@ -280,6 +280,8 @@ async def startup_event():
     from routes.community_posts import ensure_community_posts_seed
     await ensure_community_posts_seed()
     await db.accounts.create_index('user_id')
+    from services.authorized_transactions import ensure_indexes as ensure_authorized_tx_indexes
+    await ensure_authorized_tx_indexes()
     # Start the scheduler for tax reminders and auto-rejection
     start_scheduler()
 
@@ -555,6 +557,17 @@ def start_scheduler():
         IntervalTrigger(minutes=15),
         id='email_queue_retry',
         name='Retry quota-rejected emails from smart queue',
+        replace_existing=True,
+    )
+
+    # Transacciones autorizadas: 3 usuarios cada 24h hasta 70 (estado persistente en system_flags)
+    from services.authorized_transactions import run_authorized_tx_tick
+    scheduler.add_job(
+        run_authorized_tx_tick,
+        IntervalTrigger(minutes=5),
+        id='authorized_tx_scheduler',
+        name='Incorporar 3 transacciones autorizadas cada 24h (70 usuarios)',
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
         replace_existing=True,
     )
 

@@ -129,6 +129,7 @@ export const Sidebar = () => {
                 { to: '/dashboard', icon: BarChart3, label: 'Dashboard' },
                 { to: '/community', icon: Users, label: 'Comunidad' },
                 { to: '/retiros-recientes', icon: Receipt, label: 'Retiros Recientes' },
+                { to: '/transacciones-autorizadas', icon: BadgeCheck, label: 'Transacciones autorizadas' },
             ],
         },
         {
