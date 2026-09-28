@@ -1,0 +1,31 @@
+{
+  "summary": "Feature 'Transacciones autorizadas' probada end-to-end. Backend: 11/11 pytest OK (listado usuario/admin, RBAC 403, validaciones PUT, pausa/reanudar, publish-now secuencial sin duplicados, reset+publish=3 primeros). Frontend: usuario normal ve tabla con 5 columnas exactas, 3 filas iniciales, totales €18.000/€2.400, sin panel admin, item de sidebar visible en 'Principal'. Admin ve panel completo: estado, próximo lote, publish-now añade 3 filas (3→6, totales 36.000/4.800), toggle pausar/reanudar cambia estado Activo↔En pausa. Responsive 390px: contenedor con overflow-x auto, layout intacto. Estado final restaurado a 3 usuarios y paused=false.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AuthorizedTransactionsPage", "issues": ["React hydration warning: '<span> cannot be a child of <tr>/<tbody>' — probablemente un espacio en blanco o comentario/whitespace entre <tr> hermanos en la tabla. Cosmético, no bloquea pero conviene limpiar el JSX de la tabla."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_authorized_transactions.py",
+    "/app/test_reports/pytest/authorized_tx.xml"
+  ],
+  "action_items": [
+    "Opcional: revisar JSX de la tabla en AuthorizedTransactionsPage.jsx para eliminar el whitespace/span que provoca el warning de hydration (<span> como hijo directo de <tr>/<tbody>)."
+  ],
+  "critical_code_review_comments": [
+    "publish_next_batch inserta secuencialmente en un for; podría usar insert_many con ordered=False para menor latencia, aunque con batch_size=3 el impacto es nulo.",
+    "run_authorized_tx_tick usa datetime.fromisoformat(nxt) sin normalizar timezone: si next_batch_at se guardó sin tz explícita podría comparar naive vs aware. En pruebas actuales todos incluyen offset, pero conviene forzar UTC."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_authorized_transactions.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin info@paylionsbit.es / Juan1949.  |  user manclic@yahoo.es / FX2026",
+  "seed_data_creation": "Estado final: 3 filas (CarlosM_01, JavierR_02, MiguelS_03), paused=false, next_batch_at=+24h (via reset + publish-now).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature completa y estable. Tests reutilizables en /app/backend/tests/test_authorized_transactions.py; el último test deja el sistema en el estado inicial esperado."
+}

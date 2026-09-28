@@ -2,6 +2,14 @@
 
 > Iteraciones recientes (103+) en /app/memory/CHANGELOG.md
 
+### Iteration 105 (Jun 2026) — Sección "Transacciones autorizadas" (3 usuarios cada 24h · 70 total)
+
+- **Backend `services/authorized_transactions.py`:** lista fija `USERNAMES` (70, orden exacto CarlosM_01→AlejandroM_70), `publish_next_batch()` (inserta siguiente lote de `batch_size` en orden, user_id=uuid5 determinista, status='authorized', status_label='Transacción autorizada', authorized_amount=6000.00, paid_amount=800.00, currency='EUR', published_at/created_at; fija `next_batch_at = now + interval_hours`, None al completar 70), `run_authorized_tx_tick()` (job APScheduler `authorized_tx_scheduler` cada 5 min: salta si paused / count>=70 / no vencido; primer lote inmediato si count==0), `summary()` (count, total_planned, completed, totals dinámicos). Estado persistente en `system_flags` key `authorized_tx_config` → sobrevive reinicios. Índices únicos `authorized_transactions.username` y `.sequence` (creados en startup).
+- **Rutas `routes/authorized_transactions.py`:** `GET /authorized-transactions` (todo usuario; no-admin sólo ve `config.next_batch_at`), admin: `GET/PUT /admin/authorized-transactions/config` (paused, batch_size 1-10, interval_hours 1-168, next_batch_at), `POST .../publish-now`, `POST .../reset`.
+- **Frontend `AuthorizedTransactionsPage.jsx`** ruta `/transacciones-autorizadas` (menú Principal → "Transacciones autorizadas", icono BadgeCheck): tabla 5 columnas exactas (# | Usuario | Estado | Monto autorizado | Monto abonado), totales TOTAL AUTORIZADO / TOTAL ABONADO (formato €18.000 · de-DE), KPIs, polling 15s + toast al detectar filas nuevas, panel admin (`authorized-tx-admin-panel`) sólo para isAdmin. Responsive (tabla scroll-x en móvil).
+- **Verificado** (autotest + testing_agent iteration_84, 11/11 backend + frontend OK): tick no publica si no vencido; publica al vencer; paused bloquea; duplicado rechazado (DuplicateKeyError); llega a 70 → totales €420.000/€56.000, último lote de 1 (AlejandroM_70), se detiene; recuperación tras reinicio; RBAC 403 para usuario normal.
+- **Estado actual:** 3 primeros incorporados (CarlosM_01, JavierR_02, MiguelS_03), próximo lote automático +24h, paused=false.
+
 ### Iteration 104 (Jun 2026) — Vault Real: anclaje a la red Bitcoin (mainnet)
 
 - **Backend `services/bitcoin_anchor.py`** (mempool.space, sin API key): `get_network_status()` (tip block altura/hash/timestamp/tx_count, fees recomendadas, precio BTC EUR/USD, mempool count; caché 60s, fallback stale), `anchor_document(sha256, retroactive)` → `btc_anchor {network, block_height, block_hash, block_timestamp, block_time_iso, block_tx_count, block_difficulty, block_merkle_root, anchor_hash=sha256(block_hash+doc_sha256), anchored_at, retroactive, explorer_url}`, `verify_anchor()` re-consulta `/block-height/{h}` + tip → `{hash_link_ok, block_on_chain, confirmations, tip_height, anchor_ok}`.
