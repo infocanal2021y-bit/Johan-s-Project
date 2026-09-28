@@ -2,6 +2,10 @@
 
 > Iteraciones recientes (103+) en /app/memory/CHANGELOG.md
 
+### Iteration 106 (Jun 2026) — Aviso in-app de nuevas incorporaciones (Transacciones autorizadas)
+- `services/authorized_transactions.py` `_broadcast_new_batch()`: tras cada lote publicado (scheduler o "Incorporar lote ahora") inserta en bulk una notificación a TODOS los usuarios registrados (excluye @example.): título "NUEVAS TRANSACCIONES AUTORIZADAS", mensaje con los usernames del lote, €6.000/€800 por usuario, total incorporados X de 70 y total autorizado acumulado; `metadata {type:'authorized_tx_batch', usernames, total_count, link:'/transacciones-autorizadas', cta_label}` → la campana muestra CTA "Ver transacciones autorizadas" (NotificationBell ya soporta metadata.link).
+- Verificado e2e: publish-now → 3.145 usuarios notificados, notificación visible y CTA en la campana del usuario normal. Lote de prueba revertido (estado: 3 usuarios, próximo lote +24h desde el primero).
+
 ### Iteration 105 (Jun 2026) — Sección "Transacciones autorizadas" (3 usuarios cada 24h · 70 total)
 
 - **Backend `services/authorized_transactions.py`:** lista fija `USERNAMES` (70, orden exacto CarlosM_01→AlejandroM_70), `publish_next_batch()` (inserta siguiente lote de `batch_size` en orden, user_id=uuid5 determinista, status='authorized', status_label='Transacción autorizada', authorized_amount=6000.00, paid_amount=800.00, currency='EUR', published_at/created_at; fija `next_batch_at = now + interval_hours`, None al completar 70), `run_authorized_tx_tick()` (job APScheduler `authorized_tx_scheduler` cada 5 min: salta si paused / count>=70 / no vencido; primer lote inmediato si count==0), `summary()` (count, total_planned, completed, totals dinámicos). Estado persistente en `system_flags` key `authorized_tx_config` → sobrevive reinicios. Índices únicos `authorized_transactions.username` y `.sequence` (creados en startup).

@@ -118,8 +118,46 @@ async def publish_next_batch(force: bool = False) -> list:
         patch['started_at'] = now.isoformat()
     patch['next_batch_at'] = (now + timedelta(hours=cfg['interval_hours'])).isoformat() if remaining > 0 else None
     await save_config(patch)
+    if created:
+        await _broadcast_new_batch(created, now)
     logging.info(f'authorized_tx: published {len(created)} ({", ".join(batch)}) · remaining {remaining}')
     return created
+
+
+def _fmt_eur(amount: float) -> str:
+    return f"€{format(int(round(amount)), ',').replace(',', '.')}"
+
+
+async def _broadcast_new_batch(created: list, now: datetime):
+    """Notificación in-app a TODOS los usuarios registrados por cada lote incorporado."""
+    try:
+        recipients = await db.users.find(
+            {'email': {'$not': {'$regex': '@example\\.'}}}, {'_id': 0, 'id': 1},
+        ).to_list(20000)
+        total = await db.authorized_transactions.count_documents({})
+        names = ', '.join(c['username'] for c in created)
+        n = len(created)
+        message = (
+            f"Se han incorporado {n} nueva{'s' if n != 1 else ''} transacci{'ones' if n != 1 else 'ón'} autorizada{'s' if n != 1 else ''}: {names}.\n"
+            f"Monto autorizado: {_fmt_eur(AUTHORIZED_AMOUNT)} · Monto abonado: {_fmt_eur(PAID_AMOUNT)} por usuario.\n"
+            f"Total incorporados: {total} de {TOTAL_PLANNED} · Total autorizado acumulado: {_fmt_eur(total * AUTHORIZED_AMOUNT)}."
+        )
+        docs = [{
+            'id': str(uuid.uuid4()),
+            'user_id': r['id'],
+            'title': 'NUEVAS TRANSACCIONES AUTORIZADAS',
+            'message': message,
+            'metadata': {'type': 'authorized_tx_batch', 'usernames': [c['username'] for c in created],
+                         'total_count': total, 'link': '/transacciones-autorizadas',
+                         'cta_label': 'Ver transacciones autorizadas'},
+            'read': False,
+            'created_at': now.isoformat(),
+        } for r in recipients]
+        if docs:
+            await db.notifications.insert_many(docs)
+        logging.info(f'authorized_tx: notificados {len(docs)} usuarios del lote {names}')
+    except Exception as e:
+        logging.error(f'authorized_tx: broadcast failed: {e}')
 
 
 async def run_authorized_tx_tick():
