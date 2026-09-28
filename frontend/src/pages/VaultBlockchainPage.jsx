@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 import {
     ShieldCheck, Upload, FileText, Hash, Clock, CheckCircle2, XCircle,
     Loader2, AlertTriangle, Copy, Check, Eye, History,
-    Lock, RefreshCw, Boxes, FileClock, Download as DownloadIcon, Pencil,
+    Lock, RefreshCw, Boxes, FileClock, Download as DownloadIcon, Pencil, Bitcoin, ExternalLink, Anchor,
 } from 'lucide-react';
+import { BitcoinNetworkBar } from '../components/vault/BitcoinNetworkBar';
 
 
 const fmtDate = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', {
@@ -43,6 +44,41 @@ const EVENT_META = {
     verified:   { label: 'Integridad verificada', color: '#a855f7', icon: CheckCircle2 },
     downloaded: { label: 'Documento descargado', color: '#f59e0b', icon: DownloadIcon },
     updated:    { label: 'Metadatos actualizados', color: '#94a3b8', icon: Pencil },
+    anchored:   { label: 'Anclado a la red Bitcoin', color: '#f97316', icon: Bitcoin },
+};
+
+
+// ─── Bitcoin anchor block (per document) ─────────────────────────
+const AnchorBlock = ({ doc, onAnchor }) => {
+    const a = doc.btc_anchor;
+    if (!a) {
+        return (
+            <div className="flex items-center justify-between gap-2 rounded-md bg-slate-800/50 ring-1 ring-slate-700/60 px-2 py-1.5" data-testid={`vault-anchor-missing-${doc.id}`}>
+                <span className="text-[10px] text-slate-400 inline-flex items-center gap-1"><Bitcoin className="w-3 h-3 text-slate-500" /> Sin anclaje Bitcoin</span>
+                <button type="button" onClick={() => onAnchor(doc)} className="text-[10px] font-bold text-orange-300 hover:text-orange-200 inline-flex items-center gap-1" data-testid={`vault-anchor-now-${doc.id}`}>
+                    <Anchor className="w-3 h-3" /> Anclar ahora
+                </button>
+            </div>
+        );
+    }
+    return (
+        <div className="rounded-md bg-orange-500/[0.06] ring-1 ring-orange-500/20 px-2 py-1.5 space-y-1" data-testid={`vault-anchor-${doc.id}`}>
+            <div className="flex items-center justify-between gap-2 text-[10.5px]">
+                <span className="text-orange-300 font-bold inline-flex items-center gap-1"><Bitcoin className="w-3 h-3" /> Bloque Bitcoin</span>
+                <a href={a.explorer_url} target="_blank" rel="noreferrer" className="font-mono font-bold text-orange-200 hover:text-white inline-flex items-center gap-1" data-testid={`vault-anchor-height-${doc.id}`}>
+                    #{Number(a.block_height).toLocaleString('es-ES')} <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[10.5px]">
+                <span className="text-slate-500">Hash anclaje</span>
+                <HashChip value={a.anchor_hash} accent="amber" />
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[10px]">
+                <span className="text-slate-500 font-mono">{fmtDate(a.block_time_iso)}</span>
+                {a.retroactive && <span className="text-slate-400 italic">anclaje posterior</span>}
+            </div>
+        </div>
+    );
 };
 
 
@@ -188,7 +224,7 @@ const UploadModal = ({ onClose, onUploaded }) => {
 
                     <div className="rounded-lg bg-cyan-500/10 ring-1 ring-cyan-500/20 p-3 text-[11px] text-cyan-200">
                         <ShieldCheck className="w-3.5 h-3.5 inline mr-1" />
-                        Al subir, generaremos un <strong>hash SHA-256</strong> inmutable + timestamp UTC. La integridad puede verificarse en cualquier momento.
+                        Al subir, generaremos un <strong>hash SHA-256</strong> inmutable y lo <strong>anclaremos al último bloque real de la red Bitcoin</strong> (altura + hash del bloque). La integridad y el anclaje pueden verificarse en cualquier momento contra la red.
                     </div>
 
                     <div className="flex gap-3">
@@ -212,7 +248,7 @@ const UploadModal = ({ onClose, onUploaded }) => {
 
 
 // ─── Document Card ───────────────────────────────────────────────
-const DocCard = ({ doc, onVerify, onDownload, onHistory }) => {
+const DocCard = ({ doc, onVerify, onDownload, onHistory, onAnchor }) => {
     const meta = STATUS_META[doc.status] || STATUS_META.pending;
     const SI = meta.icon;
     return (
@@ -253,6 +289,7 @@ const DocCard = ({ doc, onVerify, onDownload, onHistory }) => {
                     <span className="text-slate-500">Registrado</span>
                     <span className="text-slate-300 font-mono">{fmtDate(doc.created_at)}</span>
                 </div>
+                <AnchorBlock doc={doc} onAnchor={onAnchor} />
                 {doc.certified_at && (
                     <div className="flex items-center justify-between text-[10.5px]">
                         <span className="text-slate-500">Certificado</span>
@@ -354,6 +391,16 @@ const VaultBlockchainPage = () => {
         }
     };
 
+    const handleAnchor = async (doc) => {
+        try {
+            const r = await api.post(`/vault/documents/${doc.id}/anchor`);
+            toast.success(`Anclado al bloque Bitcoin #${r.data.btc_anchor.block_height}`);
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'No se pudo anclar a la red Bitcoin');
+        }
+    };
+
     const handleHistory = async (doc) => {
         setHistoryFor({ doc, events: null, loading: true });
         try {
@@ -377,7 +424,7 @@ const VaultBlockchainPage = () => {
                             Vault Blockchain
                         </h1>
                         <p className="text-slate-400 text-[13px] mt-1.5">
-                            Documentos certificados con hash SHA-256 inmutable · cadena criptográfica de integridad
+                            Documentos certificados con hash SHA-256 · anclados a bloques reales de la red Bitcoin (mainnet)
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -399,6 +446,9 @@ const VaultBlockchainPage = () => {
                     </div>
                 </div>
 
+                {/* Live Bitcoin network */}
+                <BitcoinNetworkBar />
+
                 {/* KPIs */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Card className="p-4 bg-gradient-to-br from-[#072146] to-[#004481] border-0">
@@ -414,8 +464,8 @@ const VaultBlockchainPage = () => {
                         <p className="text-amber-300 text-2xl font-bold mt-1 tabular-nums">{docs.filter(d => d.status === 'pending').length}</p>
                     </Card>
                     <Card className="p-4 bg-white/5 border-white/10">
-                        <p className="text-[9.5px] uppercase tracking-wider text-cyan-300 font-bold">Eslabones cadena</p>
-                        <p className="text-cyan-300 text-2xl font-bold mt-1 tabular-nums">{chain.length}</p>
+                        <p className="text-[9.5px] uppercase tracking-wider text-orange-300 font-bold">Anclados a Bitcoin</p>
+                        <p className="text-orange-300 text-2xl font-bold mt-1 tabular-nums" data-testid="vault-kpi-anchored">{docs.filter(d => d.btc_anchor).length}<span className="text-slate-500 text-sm font-normal"> / {chain.length}</span></p>
                     </Card>
                 </div>
 
@@ -434,7 +484,7 @@ const VaultBlockchainPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="vault-docs-grid">
                         {docs.map(d => (
-                            <DocCard key={d.id} doc={d} onVerify={handleVerify} onDownload={handleDownload} onHistory={handleHistory} />
+                            <DocCard key={d.id} doc={d} onVerify={handleVerify} onDownload={handleDownload} onHistory={handleHistory} onAnchor={handleAnchor} />
                         ))}
                     </div>
                 )}
@@ -498,6 +548,51 @@ const VaultBlockchainPage = () => {
                                             <span className="text-slate-300 font-mono text-[10.5px]">{fmtDate(verifyFor.result.verified_at)}</span>
                                         </div>
                                     </div>
+
+                                    {verifyFor.result.btc_verification && (() => {
+                                        const b = verifyFor.result.btc_verification;
+                                        const okAll = b.anchor_ok;
+                                        return (
+                                            <div className={`rounded-lg p-3.5 ring-1 space-y-2 ${okAll ? 'bg-orange-500/[0.07] ring-orange-500/30' : b.network_ok ? 'bg-rose-500/10 ring-rose-500/30' : 'bg-slate-800/60 ring-slate-700'}`} data-testid="vault-verify-btc">
+                                                <div className="flex items-center gap-2">
+                                                    <Bitcoin className={`w-4 h-4 ${okAll ? 'text-orange-400' : 'text-slate-400'}`} />
+                                                    <p className={`font-bold text-[12.5px] ${okAll ? 'text-orange-200' : b.network_ok ? 'text-rose-300' : 'text-slate-300'}`} data-testid="vault-verify-btc-status">
+                                                        {okAll ? 'Anclaje confirmado en la red Bitcoin ✓' : b.network_ok ? '⚠ Anclaje NO validado en la red' : 'Red Bitcoin no disponible ahora'}
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-1.5 text-[11px]">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-slate-400">Bloque</span>
+                                                        <a href={b.explorer_url} target="_blank" rel="noreferrer" className="font-mono font-bold text-orange-200 hover:text-white inline-flex items-center gap-1">
+                                                            #{Number(b.block_height).toLocaleString('es-ES')} <ExternalLink className="w-2.5 h-2.5" />
+                                                        </a>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-slate-400">Hash del bloque</span>
+                                                        <HashChip value={b.block_hash} accent="amber" />
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-slate-400">Bloque canónico en la red</span>
+                                                        <span className={`font-bold ${b.block_on_chain ? 'text-emerald-300' : 'text-rose-300'}`}>{b.block_on_chain == null ? '—' : b.block_on_chain ? 'Sí' : 'No'}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-slate-400">Enlace hash documento ↔ bloque</span>
+                                                        <span className={`font-bold ${b.hash_link_ok ? 'text-emerald-300' : 'text-rose-300'}`}>{b.hash_link_ok ? 'Correcto' : 'Incorrecto'}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-slate-400">Confirmaciones</span>
+                                                        <span className="text-white font-mono font-bold" data-testid="vault-verify-btc-confirmations">{b.confirmations == null ? '—' : Number(b.confirmations).toLocaleString('es-ES')}</span>
+                                                    </div>
+                                                    {b.tip_height != null && (
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="text-slate-400">Altura actual de la red</span>
+                                                            <span className="text-slate-300 font-mono">#{Number(b.tip_height).toLocaleString('es-ES')}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </>
                             )}
                             <Button onClick={() => setVerifyFor(null)} className="w-full bg-slate-800 hover:bg-slate-700 text-white">

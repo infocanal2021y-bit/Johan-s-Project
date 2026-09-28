@@ -2,6 +2,14 @@
 
 > Iteraciones recientes (103+) en /app/memory/CHANGELOG.md
 
+### Iteration 104 (Jun 2026) — Vault Real: anclaje a la red Bitcoin (mainnet)
+
+- **Backend `services/bitcoin_anchor.py`** (mempool.space, sin API key): `get_network_status()` (tip block altura/hash/timestamp/tx_count, fees recomendadas, precio BTC EUR/USD, mempool count; caché 60s, fallback stale), `anchor_document(sha256, retroactive)` → `btc_anchor {network, block_height, block_hash, block_timestamp, block_time_iso, block_tx_count, block_difficulty, block_merkle_root, anchor_hash=sha256(block_hash+doc_sha256), anchored_at, retroactive, explorer_url}`, `verify_anchor()` re-consulta `/block-height/{h}` + tip → `{hash_link_ok, block_on_chain, confirmations, tip_height, anchor_ok}`.
+- **`routes/vault.py`:** upload ancla automáticamente al último bloque real (evento `anchored`); `verify` devuelve `btc_anchor` + `btc_verification` en vivo; nuevos `GET /vault/network/status`, `POST /vault/documents/{id}/anchor` (anclaje posterior de docs sin ancla, 400 si ya anclado, 503 si red caída), `POST /admin/vault/anchor-backfill` (ejecutado: 20/20 docs existentes anclados con `retroactive=true`); `chain/audit` incluye resumen de ancla + `anchored_count`.
+- **Frontend:** `components/vault/BitcoinNetworkBar.jsx` (testids `btc-network-bar/-status/-tip-height/-tip-txs/-fees/-mempool/-price/-tip-link`, refresco 60s). `VaultBlockchainPage.jsx`: `AnchorBlock` por documento (`vault-anchor-{id}`, `vault-anchor-height-{id}` link a mempool.space, hash anclaje, "anclaje posterior"; o `vault-anchor-missing-{id}` + botón `vault-anchor-now-{id}`), KPI "Anclados a Bitcoin" (`vault-kpi-anchored`), sección Bitcoin en modal de verificación (`vault-verify-btc`, `-status`, `-confirmations`). Evento `anchored` en historial.
+- Verificado e2e (curl + screenshots): status real bloque #969026, backfill 20/20, upload→anclado, verify anchor_ok/confirmaciones, doble anclaje 400, historial con evento. Documento de prueba eliminado.
+- Pendiente opcional (P2): OpenTimestamps (TXID real on-chain).
+
 
 ### Iteration 102 (Jun 2026) — Requisitos previos al procesamiento + prueba email FX2026
 

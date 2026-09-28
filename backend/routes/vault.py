@@ -30,6 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
+from services.bitcoin_anchor import anchor_document, verify_anchor, get_network_status
 
 
 router = APIRouter()
@@ -124,6 +125,7 @@ async def upload_document(payload: dict, user: dict = Depends(get_current_user))
 
     sha = _sha256(raw)
     prev_link, prev_idx = await _get_last_chain_hash()
+    btc_anchor = await anchor_document(sha)
 
     doc = {
         'id': str(uuid.uuid4()),
@@ -138,6 +140,7 @@ async def upload_document(payload: dict, user: dict = Depends(get_current_user))
         'sha256': sha,
         'chain_prev_hash': prev_link,
         'chain_index': prev_idx + 1,
+        'btc_anchor': btc_anchor,
         'status': 'pending',
         'certified_at': None,
         'certified_by': None,
@@ -146,11 +149,18 @@ async def upload_document(payload: dict, user: dict = Depends(get_current_user))
     }
     await db.vault_documents.insert_one(doc)
 
+    anchor_note = (f" · anclado al bloque Bitcoin #{btc_anchor['block_height']}" if btc_anchor
+                   else ' · red Bitcoin no disponible, anclaje pendiente')
     await _record_event(
         doc['id'], 'created',
         user.get('email'), user.get('name') or user.get('email'),
-        note=f"Documento '{name}' subido al Vault · SHA-256 generado",
+        note=f"Documento '{name}' subido al Vault · SHA-256 generado{anchor_note}",
     )
+    if btc_anchor:
+        await _record_event(
+            doc['id'], 'anchored', 'sistema', 'Red Bitcoin',
+            note=f"Anclado al bloque #{btc_anchor['block_height']} · {_shorten(btc_anchor['block_hash'], 12, 6)}",
+        )
 
     # Return without content for lightweight responses
     response_doc = {k: v for k, v in doc.items() if k != 'content_b64'}
@@ -198,10 +208,14 @@ async def verify_document(doc_id: str, user: dict = Depends(get_current_user)):
     raw = base64.b64decode(doc['content_b64'])
     computed = _sha256(raw)
     integrity_ok = computed == doc['sha256']
+    btc = None
+    if doc.get('btc_anchor'):
+        btc = await verify_anchor(doc['btc_anchor'], doc['sha256'])
     await _record_event(
         doc_id, 'verified',
         user.get('email'), user.get('name') or user.get('email'),
-        note='Integridad verificada ✓' if integrity_ok else 'Integridad NO coincide ⚠',
+        note=('Integridad verificada ✓' if integrity_ok else 'Integridad NO coincide ⚠')
+             + (f" · bloque BTC #{btc['block_height']} {'confirmado en red' if btc.get('anchor_ok') else 'NO validado'}" if btc else ''),
     )
     return {
         'integrity_ok': integrity_ok,
@@ -211,8 +225,54 @@ async def verify_document(doc_id: str, user: dict = Depends(get_current_user)):
         'chain_index': doc.get('chain_index'),
         'certified_at': doc.get('certified_at'),
         'certified_by': doc.get('certified_by'),
+        'btc_anchor': doc.get('btc_anchor'),
+        'btc_verification': btc,
         'verified_at': _now_iso(),
     }
+
+
+@router.get("/vault/network/status")
+async def vault_network_status(user: dict = Depends(get_current_user)):
+    """Live Bitcoin mainnet status (tip block, fees, price, mempool) · cached 60s."""
+    return await get_network_status()
+
+
+async def _anchor_existing(doc: dict, retroactive: bool) -> Optional[dict]:
+    anchor = await anchor_document(doc['sha256'], retroactive=retroactive)
+    if not anchor:
+        return None
+    await db.vault_documents.update_one({'id': doc['id']}, {'$set': {'btc_anchor': anchor}})
+    await _record_event(
+        doc['id'], 'anchored', 'sistema', 'Red Bitcoin',
+        note=f"{'Anclaje posterior' if retroactive else 'Anclado'} al bloque #{anchor['block_height']} · {_shorten(anchor['block_hash'], 12, 6)}",
+    )
+    return anchor
+
+
+@router.post("/vault/documents/{doc_id}/anchor")
+async def anchor_my_document(doc_id: str, user: dict = Depends(get_current_user)):
+    """Anchor a document that has no Bitcoin anchor yet (retroactive)."""
+    doc = await db.vault_documents.find_one({'id': doc_id, 'user_id': user['id']}, {'_id': 0, 'content_b64': 0})
+    if not doc:
+        raise HTTPException(404, 'Documento no encontrado')
+    if doc.get('btc_anchor'):
+        raise HTTPException(400, 'El documento ya está anclado a la red Bitcoin')
+    anchor = await _anchor_existing(doc, retroactive=True)
+    if not anchor:
+        raise HTTPException(503, 'Red Bitcoin no disponible en este momento. Inténtelo de nuevo.')
+    return {'ok': True, 'btc_anchor': anchor}
+
+
+@router.post("/admin/vault/anchor-backfill")
+async def admin_anchor_backfill(admin: dict = Depends(get_admin_user)):
+    """Retroactively anchor every document lacking a Bitcoin anchor."""
+    cur = db.vault_documents.find({'btc_anchor': None}, {'_id': 0, 'id': 1, 'sha256': 1})
+    docs = await cur.to_list(length=5000)
+    anchored = 0
+    for d in docs:
+        if await _anchor_existing(d, retroactive=True):
+            anchored += 1
+    return {'ok': True, 'candidates': len(docs), 'anchored': anchored}
 
 
 @router.get("/vault/documents/{doc_id}/download")
@@ -367,7 +427,10 @@ async def chain_audit(user: dict = Depends(get_current_user)):
     cur = db.vault_documents.find(
         {'user_id': user['id']},
         {'_id': 0, 'id': 1, 'name': 1, 'sha256': 1, 'chain_prev_hash': 1,
-         'chain_index': 1, 'created_at': 1, 'status': 1, 'certified_at': 1},
+         'chain_index': 1, 'created_at': 1, 'status': 1, 'certified_at': 1,
+         'btc_anchor.block_height': 1, 'btc_anchor.block_hash': 1, 'btc_anchor.anchor_hash': 1,
+         'btc_anchor.retroactive': 1, 'btc_anchor.explorer_url': 1},
     ).sort('chain_index', 1)
     items = await cur.to_list(length=500)
-    return {'chain': items, 'count': len(items), 'genesis': GENESIS_HASH}
+    anchored = sum(1 for it in items if it.get('btc_anchor'))
+    return {'chain': items, 'count': len(items), 'anchored_count': anchored, 'genesis': GENESIS_HASH}
