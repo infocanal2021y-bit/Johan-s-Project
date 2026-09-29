@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import api from '../../lib/api';
@@ -7,8 +7,9 @@ import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import {
     ArrowLeft, Copy, Check, Loader2, UserCircle2, Wallet, ClipboardList, Upload, CreditCard, FileCheck,
-    MessageSquare, KeyRound, ShieldCheck, Mail, BadgeCheck, Clock, ExternalLink, Search,
+    MessageSquare, KeyRound, ShieldCheck, Mail, BadgeCheck, Clock, ExternalLink, Search, StickyNote,
 } from 'lucide-react';
+import { UserNotesPanel } from './UserNotesPanel';
 
 const fmtDate = (iso) => !iso ? '—' : new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const fmtMoney = (n, cur = 'EUR') => `${cur === 'USD' ? '$' : '€'}${Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -73,6 +74,7 @@ const TABS = [
     { id: 'documentos', label: 'Documentos', icon: FileCheck },
     { id: 'soporte', label: 'Soporte', icon: MessageSquare },
     { id: 'accesos', label: 'Accesos', icon: KeyRound },
+    { id: 'notas', label: 'Notas internas', icon: StickyNote },
 ];
 
 export const AdminUser360Page = () => {
@@ -80,6 +82,8 @@ export const AdminUser360Page = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('resumen');
+    const [notesCount, setNotesCount] = useState(null);
+    const onNotesCount = useCallback((n) => setNotesCount(n), []);
 
     useEffect(() => {
         let alive = true;
@@ -99,7 +103,8 @@ export const AdminUser360Page = () => {
         documentos: s.documents,
         soporte: s.tickets + data.support.callbacks.length + data.support.cases.length,
         accesos: data.access.logins.length,
-    }, [data, s]);
+        notas: notesCount ?? s.notes,
+    }, [data, s, notesCount]);
 
     return (
         <Layout>
@@ -303,6 +308,8 @@ export const AdminUser360Page = () => {
                                 </Section>
                             </div>
                         )}
+
+                        {tab === 'notas' && <UserNotesPanel userId={u.id} onCountChange={onNotesCount} />}
 
                         {tab === 'accesos' && (
                             <Section title="Historial de accesos" icon={KeyRound} count={data.access.logins.length}>

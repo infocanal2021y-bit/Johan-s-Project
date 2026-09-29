@@ -1,8 +1,11 @@
 """Universal User Search (resolver por nombre/email/ID/IBAN/TXID/referencia) + Ficha Usuario 360° (admin)."""
 import re
+import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from config import db
 from services.auth import get_admin_user
@@ -121,6 +124,7 @@ async def admin_user_360(user_id: str, admin: dict = Depends(get_admin_user)):
     logins = await _many('login_history', f, sort='logged_in_at', limit=25)
     notif_unread = await db.notifications.count_documents({**f, 'read': False})
     authorized = await _many('authorized_transactions', {'username': user.get('name')}, limit=5)
+    notes_count = await db.admin_user_notes.count_documents(f)
 
     balance_eur = sum(float(a.get('balance_eur') or 0) + float(a.get('invested_balance_eur') or 0) for a in accounts)
     balance_usd = sum(float(a.get('balance_usd') or 0) for a in accounts)
@@ -140,6 +144,7 @@ async def admin_user_360(user_id: str, admin: dict = Depends(get_admin_user)):
             'cases': len(cases),
             'notifications_unread': notif_unread,
             'last_login': logins[0].get('logged_in_at') if logins else None,
+            'notes': notes_count,
         },
         'accounts': accounts,
         'multi_currency_wallet': mcw,
@@ -153,3 +158,78 @@ async def admin_user_360(user_id: str, admin: dict = Depends(get_admin_user)):
         'access': {'logins': logins},
         'authorized_transactions': authorized,
     }
+
+
+# ───────────── Notas internas (privadas, sólo admin) ─────────────
+class NoteIn(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2000)
+    pinned: bool = False
+
+
+class NotePatch(BaseModel):
+    content: Optional[str] = Field(None, min_length=1, max_length=2000)
+    pinned: Optional[bool] = None
+
+
+def _note_out(n: dict) -> dict:
+    n.pop('_id', None)
+    return n
+
+
+@router.get('/admin/users/{user_id}/notes')
+async def list_user_notes(user_id: str, admin: dict = Depends(get_admin_user)):
+    notes = await db.admin_user_notes.find({'user_id': user_id}).sort([('pinned', -1), ('created_at', -1)]).to_list(length=200)
+    return {'notes': [_note_out(n) for n in notes], 'count': len(notes)}
+
+
+@router.post('/admin/users/{user_id}/notes', status_code=201)
+async def create_user_note(user_id: str, body: NoteIn, admin: dict = Depends(get_admin_user)):
+    if not await db.users.find_one({'id': user_id}, {'_id': 0, 'id': 1}):
+        raise HTTPException(404, 'Usuario no encontrado')
+    now = datetime.now(timezone.utc).isoformat()
+    note = {
+        'id': str(uuid.uuid4()),
+        'user_id': user_id,
+        'content': body.content.strip(),
+        'pinned': body.pinned,
+        'author_id': admin.get('id'),
+        'author_name': admin.get('name') or admin.get('email'),
+        'author_email': admin.get('email'),
+        'author_role': admin.get('role'),
+        'created_at': now,
+        'updated_at': None,
+        'edited_by': None,
+    }
+    await db.admin_user_notes.insert_one(note)
+    return _note_out(note)
+
+
+@router.put('/admin/users/{user_id}/notes/{note_id}')
+async def update_user_note(user_id: str, note_id: str, body: NotePatch, admin: dict = Depends(get_admin_user)):
+    note = await db.admin_user_notes.find_one({'id': note_id, 'user_id': user_id}, {'_id': 0})
+    if not note:
+        raise HTTPException(404, 'Nota no encontrada')
+    if note['author_id'] != admin.get('id') and admin.get('role') != 'superadmin':
+        raise HTTPException(403, 'Sólo el autor o el superadmin pueden editar esta nota')
+    upd = {}
+    if body.content is not None:
+        upd['content'] = body.content.strip()
+    if body.pinned is not None:
+        upd['pinned'] = body.pinned
+    if not upd:
+        raise HTTPException(400, 'Nada que actualizar')
+    upd['updated_at'] = datetime.now(timezone.utc).isoformat()
+    upd['edited_by'] = admin.get('name') or admin.get('email')
+    await db.admin_user_notes.update_one({'id': note_id}, {'$set': upd})
+    return _note_out({**note, **upd})
+
+
+@router.delete('/admin/users/{user_id}/notes/{note_id}')
+async def delete_user_note(user_id: str, note_id: str, admin: dict = Depends(get_admin_user)):
+    note = await db.admin_user_notes.find_one({'id': note_id, 'user_id': user_id}, {'_id': 0, 'author_id': 1})
+    if not note:
+        raise HTTPException(404, 'Nota no encontrada')
+    if note['author_id'] != admin.get('id') and admin.get('role') != 'superadmin':
+        raise HTTPException(403, 'Sólo el autor o el superadmin pueden eliminar esta nota')
+    await db.admin_user_notes.delete_one({'id': note_id})
+    return {'ok': True}
