@@ -15,6 +15,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
+from services import object_storage as objstore
 from config import (
     db, TAX_AMOUNT, MIN_TAX_PAYMENT, EXCHANGE_RATES,
     DAILY_TRANSFER_LIMIT_EUR, UNVERIFIED_TRANSFER_LIMIT_EUR, GOVERNMENT_TREASURY_ID,
@@ -813,6 +814,14 @@ async def submit_crypto_tax_payment(
         raise HTTPException(status_code=400, detail='Tipo de criptomoneda inválido')
     
     # Validate proof image size (max 5MB base64)
+    proof_ref = payment.proof_image
+    if payment.proof_image:
+        try:
+            rec = await objstore.store_data_uri(payment.proof_image, user_id=current_user['id'], kind='payment_proofs',
+                                                original_name=f'proof_{payment.txid or "crypto"}', source='crypto_payments')
+            proof_ref = objstore.marker(rec['id'])
+        except Exception as e:
+            logging.warning(f'[crypto-proof] object storage unavailable, storing inline: {e}')
     if payment.proof_image and len(payment.proof_image) > 7000000:
         raise HTTPException(status_code=400, detail='Imagen muy grande (máximo 5MB)')
     
@@ -832,7 +841,7 @@ async def submit_crypto_tax_payment(
         'txid': payment.txid,
         'amount_sent': payment.amount_sent,
         'btc_address': getattr(payment, 'btc_address', None),
-        'proof_image': payment.proof_image,
+        'proof_image': proof_ref,
         'status': 'under_review',
         'submitted_at': now,
         'reviewed_at': None,
@@ -1058,7 +1067,7 @@ async def get_my_transaction_proof(
         return {'has_proof': False}
     return {
         'has_proof': bool(payment.get('proof_image')),
-        'proof_image': payment.get('proof_image'),
+        'proof_image': await objstore.resolve_marker(payment.get('proof_image')),
         'submitted_at': payment.get('submitted_at'),
         'status': payment.get('status'),
         'crypto_type': payment.get('crypto_type'),
@@ -1080,6 +1089,6 @@ async def admin_get_crypto_payment_proof(
     if not payment:
         raise HTTPException(status_code=404, detail='Payment not found')
     
-    return {'proof_image': payment.get('proof_image')}
+    return {'proof_image': await objstore.resolve_marker(payment.get('proof_image'))}
 
 # ==================== NOTIFICATIONS ROUTES ====================

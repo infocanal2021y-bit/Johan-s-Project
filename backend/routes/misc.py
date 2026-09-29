@@ -581,10 +581,18 @@ async def confirm_bank_transfer(data: BankTransferConfirm, current_user: dict = 
     
     # Store proof file separately if provided (keep main record lean)
     if data.proof_file:
+        from services import object_storage as objstore
+        proof_data = data.proof_file
+        try:
+            _rec = await objstore.store_data_uri(data.proof_file, user_id=current_user['id'], kind='bank_transfer_proofs',
+                                                 original_name=data.proof_filename or 'comprobante', source='bank_transfer_payments', ref_id=record_id)
+            proof_data = objstore.marker(_rec['id'])
+        except Exception as _e:
+            logging.warning(f'[bank-transfer] object storage unavailable, storing inline: {_e}')
         await db.bank_transfer_proofs.insert_one({
             'payment_id': record_id,
             'filename': data.proof_filename,
-            'data': data.proof_file,
+            'data': proof_data,
             'created_at': now
         })
     
@@ -675,7 +683,8 @@ async def admin_get_bank_transfer_proof(
     filename = payment.get('proof_filename')
     if proof and proof.get('data'):
         filename = proof.get('filename') or filename or 'comprobante.bin'
-        raw = proof['data']
+        from services import object_storage as objstore
+        raw = await objstore.resolve_marker(proof['data'])
         if isinstance(raw, str) and raw.startswith('data:'):
             data_uri = raw
         else:

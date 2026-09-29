@@ -138,3 +138,56 @@ async def google_logout(request: Request, response: Response):
         await db.user_sessions.delete_one({'session_token': token})
     response.delete_cookie(COOKIE, path='/', secure=True, samesite='none')
     return {'ok': True}
+
+
+# ───────────── Vincular / desvincular Google desde Mi Perfil ─────────────
+from fastapi import Depends  # noqa: E402
+from services.auth import get_current_user  # noqa: E402
+
+
+@router.get('/auth/google/status')
+async def google_link_status(user: dict = Depends(get_current_user)):
+    doc = await db.users.find_one({'id': user['id']}, {'_id': 0, 'google_id': 1, 'google_email': 1, 'picture': 1, 'google_linked_at': 1, 'password': 1, 'hashed_password': 1})
+    return {
+        'linked': bool(doc.get('google_id')),
+        'google_email': doc.get('google_email') or (user.get('email') if doc.get('google_id') else None),
+        'picture': doc.get('picture'),
+        'linked_at': doc.get('google_linked_at'),
+        'has_password': bool(doc.get('password') or doc.get('hashed_password')),
+    }
+
+
+@router.post('/auth/google/link')
+async def google_link(body: GoogleSessionIn, user: dict = Depends(get_current_user)):
+    """Attach a Google identity to the CURRENT logged-in user (does not log in)."""
+    data = await _fetch_session_data(body.session_id.strip())
+    g_email = data['email'].strip().lower()
+    other = await db.users.find_one(
+        {'id': {'$ne': user['id']}, '$or': [{'google_id': data.get('id')}, {'email': {'$regex': f'^{g_email}$', '$options': 'i'}}]},
+        {'_id': 0, 'id': 1})
+    if other:
+        raise HTTPException(409, 'Esa cuenta de Google ya está asociada a otro usuario')
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({'id': user['id']}, {
+        '$set': {'google_id': data.get('id'), 'google_email': g_email, 'picture': data.get('picture'), 'google_linked_at': now},
+        '$addToSet': {'auth_providers': 'google'},
+    })
+    await create_notification(user['id'], 'Cuenta de Google vinculada',
+        f'Tu cuenta de Google ({g_email}) ha quedado vinculada. Ya puedes iniciar sesión con Google.')
+    return {'ok': True, 'linked': True, 'google_email': g_email, 'picture': data.get('picture'), 'linked_at': now}
+
+
+@router.delete('/auth/google/link')
+async def google_unlink(user: dict = Depends(get_current_user)):
+    doc = await db.users.find_one({'id': user['id']}, {'_id': 0, 'google_id': 1, 'password': 1, 'hashed_password': 1})
+    if not doc or not doc.get('google_id'):
+        raise HTTPException(400, 'No hay ninguna cuenta de Google vinculada')
+    if not (doc.get('password') or doc.get('hashed_password')):
+        raise HTTPException(400, 'Establece una contraseña antes de desvincular Google; de lo contrario perderías el acceso.')
+    await db.users.update_one({'id': user['id']}, {
+        '$unset': {'google_id': '', 'google_email': '', 'picture': '', 'google_linked_at': ''},
+        '$pull': {'auth_providers': 'google'},
+    })
+    await db.user_sessions.delete_many({'user_id': user['id'], 'provider': 'google'})
+    await create_notification(user['id'], 'Cuenta de Google desvinculada', 'Tu cuenta de Google ya no está asociada a este perfil.')
+    return {'ok': True, 'linked': False}

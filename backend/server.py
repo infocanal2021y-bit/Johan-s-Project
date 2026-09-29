@@ -282,6 +282,13 @@ async def startup_event():
     await db.accounts.create_index('user_id')
     from services.authorized_transactions import ensure_indexes as ensure_authorized_tx_indexes
     await ensure_authorized_tx_indexes()
+    await db.files.create_index('id', unique=True)
+    await db.files.create_index([('user_id', 1), ('kind', 1)])
+    try:
+        from services.object_storage import init_storage
+        await init_storage()
+    except Exception as e:
+        logging.error(f'[objstore] init failed: {e}')
     # Start the scheduler for tax reminders and auto-rejection
     start_scheduler()
 

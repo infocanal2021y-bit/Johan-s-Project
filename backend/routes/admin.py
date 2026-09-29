@@ -1678,7 +1678,11 @@ async def admin_get_kyc_submissions(admin: dict = Depends(get_admin_user)):
         }},
         {'$project': {'_id': 0, 'user_info': 0}}
     ]).to_list(100)
-    
+    from services import object_storage as objstore
+    for sub in submissions:
+        for f in ('document_front', 'document_back', 'selfie_with_document'):
+            if objstore.is_marker(sub.get(f)):
+                sub[f] = await objstore.resolve_marker(sub[f])
     return submissions
 
 @router.post("/admin/user/suspend")
@@ -1769,6 +1773,12 @@ async def admin_get_pending_kyc(admin: dict = Depends(get_admin_user)):
         {'verification_status': 'pending_verification'},
         {'_id': 0, 'password': 0}
     ).to_list(1000)
+    from services import object_storage as objstore
+    for u in users:
+        kd = u.get('kyc_documents') or {}
+        for f in ('document_front', 'document_back', 'selfie_with_document'):
+            if objstore.is_marker(kd.get(f)):
+                kd[f] = await objstore.resolve_marker(kd[f])
     return users
 
 # ==================== ADMIN CRYPTO PAYMENT ROUTES ====================
@@ -3226,6 +3236,8 @@ async def admin_get_proof_file(ptype: str, pid: str, admin: dict = Depends(get_a
     raw = doc.get(field)
     if not raw:
         raise HTTPException(status_code=404, detail='Sin archivo asociado')
+    from services import object_storage as objstore
+    raw = await objstore.resolve_marker(raw)
 
     # Already data URI? return as-is. Else build one.
     if isinstance(raw, str) and raw.startswith('data:'):

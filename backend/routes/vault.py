@@ -31,6 +31,7 @@ from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification
 from services.bitcoin_anchor import anchor_document, verify_anchor, get_network_status
+from services import object_storage as objstore
 
 
 router = APIRouter()
@@ -64,6 +65,14 @@ async def _record_event(doc_id: str, event_type: str, actor_email: str, actor_na
         })
     except Exception as e:
         log.warning("[vault] failed to log event %s on %s: %s", event_type, doc_id, e)
+
+
+async def _load_raw(doc: dict) -> bytes:
+    """Bytes from object storage (new docs) or inline base64 (legacy docs)."""
+    if doc.get('storage_file_id'):
+        data, _, _ = await objstore.read_file(doc['storage_file_id'])
+        return data
+    return base64.b64decode(doc.get('content_b64') or '')
 
 
 def _decode_b64(b64: str) -> bytes:
@@ -126,6 +135,12 @@ async def upload_document(payload: dict, user: dict = Depends(get_current_user))
     sha = _sha256(raw)
     prev_link, prev_idx = await _get_last_chain_hash()
     btc_anchor = await anchor_document(sha)
+    storage_file_id = None
+    try:
+        rec = await objstore.store_bytes(raw, mime, user_id=user['id'], kind='vault', original_name=name, source='vault_documents')
+        storage_file_id = rec['id']
+    except Exception as e:
+        logging.warning(f'[vault] object storage unavailable, falling back to inline storage: {e}')
 
     doc = {
         'id': str(uuid.uuid4()),
@@ -136,7 +151,8 @@ async def upload_document(payload: dict, user: dict = Depends(get_current_user))
         'category': category,
         'mime': mime,
         'size_bytes': len(raw),
-        'content_b64': base64.b64encode(raw).decode('ascii'),
+        'content_b64': None if storage_file_id else base64.b64encode(raw).decode('ascii'),
+        'storage_file_id': storage_file_id,
         'sha256': sha,
         'chain_prev_hash': prev_link,
         'chain_index': prev_idx + 1,
@@ -205,7 +221,7 @@ async def verify_document(doc_id: str, user: dict = Depends(get_current_user)):
     doc = await db.vault_documents.find_one({'id': doc_id, 'user_id': user['id']})
     if not doc:
         raise HTTPException(404, 'Documento no encontrado')
-    raw = base64.b64decode(doc['content_b64'])
+    raw = await _load_raw(doc)
     computed = _sha256(raw)
     integrity_ok = computed == doc['sha256']
     btc = None
@@ -289,7 +305,7 @@ async def download_document(doc_id: str, user: dict = Depends(get_current_user))
     return {
         'name': doc['name'],
         'mime': doc['mime'],
-        'data_uri': f"data:{doc['mime']};base64,{doc['content_b64']}",
+        'data_uri': f"data:{doc['mime']};base64,{base64.b64encode(await _load_raw(doc)).decode('ascii')}",
         'size_bytes': doc['size_bytes'],
     }
 

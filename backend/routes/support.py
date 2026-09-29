@@ -468,12 +468,24 @@ async def submit_kyc(kyc_data: KYCSubmission, request: Request, current_user: di
     submission_timestamp = datetime.now(timezone.utc).isoformat()
     
     # Build complete KYC record with legal information
+    from services import object_storage as objstore
+    stored = {}
+    for _field in ('document_front', 'document_back', 'selfie_with_document'):
+        _val = getattr(kyc_data, _field)
+        if not _val:
+            continue
+        try:
+            _rec = await objstore.store_data_uri(_val, user_id=current_user['id'], kind='kyc', original_name=_field, source='kyc_submissions')
+            stored[_field] = objstore.marker(_rec['id'])
+        except Exception as _e:
+            logging.warning(f'[kyc] object storage unavailable for {_field}, storing inline: {_e}')
+            stored[_field] = _val
     kyc_documents = {
         'id': str(uuid.uuid4()),
         'document_type': kyc_data.document_type,
-        'document_front': kyc_data.document_front,
-        'document_back': kyc_data.document_back,
-        'selfie_with_document': kyc_data.selfie_with_document,
+        'document_front': stored.get('document_front'),
+        'document_back': stored.get('document_back'),
+        'selfie_with_document': stored.get('selfie_with_document'),
         'digital_signature': kyc_data.digital_signature,
         'legal_consent_accepted': True,
         'legal_consent_text': 'Declaro bajo mi responsabilidad que soy el titular legítimo de la información y documentos enviados. Entiendo que proporcionar datos falsos o utilizar la identidad de otra persona sin autorización puede constituir fraude y dar lugar a acciones legales.',

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../lib/api';
 import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 
@@ -16,6 +17,7 @@ export default function AuthCallback() {
     const [twoFA, setTwoFA] = useState(null);
     const [code, setCode] = useState('');
     const [busy, setBusy] = useState(false);
+    const [linkFailed, setLinkFailed] = useState(false);
 
     useEffect(() => {
         if (hasProcessed.current) return;
@@ -24,17 +26,25 @@ export default function AuthCallback() {
         const sessionId = params.get('session_id');
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
         if (!sessionId) { navigate('/login', { replace: true }); return; }
+        const isLink = new URLSearchParams(location.search).get('link') === 'google' && !!localStorage.getItem('token');
         (async () => {
             try {
+                if (isLink) {
+                    const r = await authAPI.googleLink(sessionId);
+                    toast.success(`Cuenta de Google vinculada (${r.data.google_email})`);
+                    navigate('/settings#google', { replace: true });
+                    return;
+                }
                 const r = await authAPI.googleSession(sessionId);
                 if (r.data?.requires_2fa) { setTwoFA({ challenge_id: r.data.challenge_id, email: r.data.email }); return; }
                 setSession(r.data.token, { ...r.data.user, must_change_password: !!r.data.must_change_password });
                 navigate(r.data.must_change_password ? '/force-password-change' : '/dashboard', { replace: true, state: { user: r.data.user } });
             } catch (e) {
                 setError(e.response?.data?.detail || 'No se pudo completar el acceso con Google.');
+                if (isLink) setLinkFailed(true);
             }
         })();
-    }, [location.hash, navigate, setSession]);
+    }, [location.hash, location.search, navigate, setSession]);
 
     const submit2fa = async (e) => {
         e.preventDefault();
@@ -66,14 +76,14 @@ export default function AuthCallback() {
                 ) : error ? (
                     <div className="space-y-4" data-testid="auth-callback-error">
                         <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto" />
-                        <p className="text-white font-semibold">No se pudo iniciar sesión</p>
+                        <p className="text-white font-semibold">{linkFailed ? 'No se pudo vincular Google' : 'No se pudo iniciar sesión'}</p>
                         <p className="text-slate-400 text-[12.5px]">{error}</p>
-                        <Button onClick={() => navigate('/login', { replace: true })} className="w-full bg-[#1973B8] hover:bg-[#1F89D8] text-white" data-testid="auth-callback-back">Volver al inicio de sesión</Button>
+                        <Button onClick={() => navigate(linkFailed ? '/settings#google' : '/login', { replace: true })} className="w-full bg-[#1973B8] hover:bg-[#1F89D8] text-white" data-testid="auth-callback-back">{linkFailed ? 'Volver a Mi Perfil' : 'Volver al inicio de sesión'}</Button>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         <Loader2 className="w-7 h-7 text-[#7CB1E5] mx-auto animate-spin" />
-                        <p className="text-slate-300 text-[13px]">Completando acceso con Google…</p>
+                        <p className="text-slate-300 text-[13px]">{new URLSearchParams(location.search).get('link') === 'google' ? 'Vinculando tu cuenta de Google…' : 'Completando acceso con Google…'}</p>
                     </div>
                 )}
             </div>
