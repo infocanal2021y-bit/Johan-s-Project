@@ -11,7 +11,7 @@ export const SidebarSearch = ({ groups, t, onNavigate, accentAdmin = 'adm-' }) =
     const inputRef = useRef(null);
 
     const entries = useMemo(() => groups.flatMap((g) =>
-        [...(g.items || []), ...(g.tools || [])].map((it) => ({ ...it, group: g.label, groupId: g.id }))
+        [...(g.items || []), ...(g.tools || [])].filter((it) => it.to).map((it) => ({ ...it, group: g.label, groupId: g.id }))
     ), [groups]);
 
     const results = useMemo(() => {

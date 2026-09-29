@@ -66,7 +66,7 @@ async def global_search(
     """Unified search bar endpoint (role-aware)."""
     query = q.strip()
     pattern = re.escape(query)
-    is_admin = user.get("role") == "admin"
+    is_admin = user.get("role") in ("admin", "superadmin")
 
     # ---- CASES ----------------------------------------------------------
     case_filter_or = [
@@ -88,17 +88,8 @@ async def global_search(
     users: list[dict] = []
     user_cases: list[dict] = []
     if is_admin:
-        u_cur = db.users.find(
-            {
-                "$or": [
-                    {"name":  {"$regex": pattern, "$options": "i"}},
-                    {"email": {"$regex": pattern, "$options": "i"}},
-                    {"id":    {"$regex": f"^{pattern}", "$options": "i"}},
-                ],
-            },
-            {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "verification_status": 1, "account_status": 1},
-        ).limit(limit)
-        users = await u_cur.to_list(length=limit)
+        from routes.admin_user360 import resolve_users
+        users = await resolve_users(query, limit=limit)
 
         # Also pull the most recent cases for the matched users (max 3 per user)
         for u in users[:5]:

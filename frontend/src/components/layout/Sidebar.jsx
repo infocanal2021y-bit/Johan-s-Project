@@ -17,7 +17,7 @@ import { USER_NAV, ADMIN_NAV, ADMIN_SECTION, canAccess, findActiveGroupId } from
 import { useSidebarCollapsed } from '../../hooks/useSidebarCollapsed';
 import { SidebarSearch } from './SidebarSearch';
 
-const pathOf = (to) => to.split(/[?#]/)[0];
+const pathOf = (to) => (to || '').split(/[?#]/)[0];
 
 export const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
@@ -56,10 +56,11 @@ export const Sidebar = () => {
 
     const exactMatchExists = useMemo(() => {
         const all = [...USER_NAV, ...adminNav].flatMap((g) => [...(g.items || []), ...(g.tools || [])]);
-        return all.some((it) => it.to === fullPath);
+        return all.some((it) => it.to && it.to === fullPath);
     }, [fullPath, adminNav]);
 
     const isItemActive = (item) => {
+        if (!item.to) return false;
         if (item.to === fullPath) return true;
         if (item.end) return location.pathname === item.to && !exactMatchExists;
         return pathOf(item.to) === location.pathname && item.to === pathOf(item.to) && !exactMatchExists;
@@ -82,6 +83,16 @@ export const Sidebar = () => {
     /* ── Link ── */
     const NavItem = ({ item, accent = 'cyan', rail = false }) => {
         const collapsed = rail;
+        if (item.action === 'open-global-search') {
+            return (
+                <button type="button" title={item.hint || t(item.label)} data-testid="nav-action-global-search"
+                    onClick={() => { setMobileOpen(false); window.dispatchEvent(new CustomEvent('plb-open-global-search')); }}
+                    className={`group w-full flex items-center gap-3 ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'} rounded-md text-amber-200/90 hover:text-white bg-amber-500/[0.06] hover:bg-amber-500/15 ring-1 ring-amber-500/20 transition-colors`}>
+                    <item.icon className="w-[17px] h-[17px] flex-shrink-0 text-amber-300" />
+                    {!collapsed && <span className="text-[12.5px] lg:text-[13px] truncate text-left" style={{ fontWeight: 600 }}>{t(item.label)}</span>}
+                </button>
+            );
+        }
         const active = isItemActive(item);
         const badge = item.badgeKey ? badges[item.badgeKey] : 0;
         const tone = accent === 'amber'

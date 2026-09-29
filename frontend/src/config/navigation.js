@@ -4,7 +4,7 @@ import {
     Upload, Send, CreditCard, Award, FileText, CandlestickChart, Newspaper, Radio, RefreshCw, Scale, Globe,
     Bell, MessageSquare, PhoneCall, Megaphone, FolderKanban, HeadphonesIcon, Activity, Shield, Settings,
     UserCircle2, KeyRound, Crown, ShieldAlert, Server, Wifi, UserX, FileSpreadsheet, Mail, Vault, PlusCircle,
-    MessageCircleQuestion, Unlock, Radar, Image as ImageIcon, FileCheck, Share2, Lock,
+    MessageCircleQuestion, Unlock, Radar, Image as ImageIcon, FileCheck, Share2, Lock, Search,
 } from 'lucide-react';
 
 /* Niveles de acceso. Un único SUPERADMIN concentra el acceso administrativo total;
@@ -115,20 +115,24 @@ export const USER_NAV = [
 /* ───────────── ADMINISTRACIÓN (visible sólo para admin / superadmin) ───────────── */
 export const ADMIN_NAV = [
     {
-        id: 'adm-control', label: 'Control', icon: ShieldAlert,
+        id: 'adm-command', label: 'Command Center', icon: LayoutDashboard,
         items: [
-            { to: '/admin/super-editor', icon: Crown, label: 'Editor Superadmin', minRole: 'superadmin' },
             { to: '/admin', icon: Shield, label: 'Panel Admin', end: true },
             { to: '/admin/action-center', icon: ShieldAlert, label: 'Centro de Acciones' },
             { to: '/admin/activity', icon: Activity, label: 'Monitor Actividad' },
-            { to: '/admin/system-status', icon: Server, label: 'System Status' },
+            { to: '/admin/online-users', icon: Wifi, label: 'Usuarios Conectados' },
         ],
     },
     {
-        id: 'adm-usuarios', label: 'Usuarios', icon: Users,
+        id: 'adm-busqueda', label: 'Búsqueda Global', icon: Search,
         items: [
-            { to: '/admin/users', icon: Users, label: 'Usuarios Registrados' },
-            { to: '/admin/online-users', icon: Wifi, label: 'Usuarios Conectados' },
+            { action: 'open-global-search', icon: Search, label: 'Buscar usuario · Ctrl+K', hint: 'Nombre, email, ID, IBAN, TXID, referencia' },
+        ],
+    },
+    {
+        id: 'adm-usuarios', label: 'Usuarios 360°', icon: Users, prefixes: ['/admin/users/'],
+        items: [
+            { to: '/admin/users', icon: Users, label: 'Usuarios Registrados', end: true },
             { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },
             { to: '/admin/zero-balance', icon: UserX, label: 'Saldo Cero' },
             { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar Clientes' },
@@ -183,14 +187,6 @@ export const ADMIN_NAV = [
         ],
     },
     {
-        id: 'adm-comunidad', label: 'Comunidad', icon: Users,
-        items: [
-            { to: '/admin/community-posts', icon: Newspaper, label: 'Publicaciones Comunidad' },
-            { to: '/admin/community-progress', icon: Activity, label: 'Avance Comunidad' },
-            { to: '/admin/share-analytics', icon: Share2, label: 'Share Analytics' },
-        ],
-    },
-    {
         id: 'adm-soporte', label: 'Soporte', icon: HeadphonesIcon,
         items: [
             { to: '/admin/support', icon: MessageSquare, label: 'Tickets Soporte' },
@@ -203,32 +199,47 @@ export const ADMIN_NAV = [
             { to: '/admin/broadcast', icon: Megaphone, label: 'Difusión a Usuarios' },
             { to: '/admin/email-campaign', icon: Mail, label: 'Email · Campaña' },
             { to: '/admin/weekly-digest', icon: Newspaper, label: 'Resumen Semanal' },
+            { to: '/admin/community-posts', icon: Newspaper, label: 'Publicaciones Comunidad' },
         ],
     },
     {
-        id: 'adm-auditoria', label: 'Analítica y Auditoría', icon: FileText,
+        id: 'adm-analytics', label: 'Analytics', icon: BarChart3,
         items: [
             { to: '/admin/journey-analytics', icon: Activity, label: 'Journey Analytics' },
+            { to: '/admin/community-progress', icon: Activity, label: 'Avance Comunidad' },
+            { to: '/admin/share-analytics', icon: Share2, label: 'Share Analytics' },
+        ],
+    },
+    {
+        id: 'adm-auditoria', label: 'Auditoría', icon: FileText,
+        items: [
             { to: '/admin/admin-ops', icon: FileText, label: 'Auditoría Admin' },
             { to: '/admin/audit-history', icon: History, label: 'Historial de Auditoría' },
             { to: '/admin/login-history', icon: History, label: 'Historial de Accesos' },
+        ],
+    },
+    {
+        id: 'adm-sistema', label: 'Sistema', icon: Server,
+        items: [
+            { to: '/admin/super-editor', icon: Crown, label: 'Editor Superadmin', minRole: 'superadmin' },
+            { to: '/admin/system-status', icon: Server, label: 'System Status' },
         ],
     },
 ];
 
 export const ADMIN_SECTION = { label: 'Administración', icon: Lock, minRole: 'admin' };
 
-const pathOf = (to) => to.split(/[?#]/)[0];
+const pathOf = (to) => (to || '').split(/[?#]/)[0];
 
 export const findActiveGroupId = (groups, pathname, search = '', hash = '') => {
     const full = pathname + search + hash;
     for (const g of groups) {
         const all = [...(g.items || []), ...(g.tools || [])];
-        if (all.some((it) => it.to === full)) return g.id;
+        if (all.some((it) => it.to && it.to === full)) return g.id;
     }
     for (const g of groups) {
         const all = [...(g.items || []), ...(g.tools || [])];
-        if (all.some((it) => pathOf(it.to) === pathname)) return g.id;
+        if (all.some((it) => it.to && pathOf(it.to) === pathname)) return g.id;
     }
     for (const g of groups) {
         if ((g.prefixes || []).some((p) => pathname.startsWith(p))) return g.id;

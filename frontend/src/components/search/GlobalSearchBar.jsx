@@ -71,8 +71,10 @@ export const GlobalSearchBar = () => {
                 setOpen(false);
             }
         };
+        const onOpen = () => setOpen(true);
+        window.addEventListener('plb-open-global-search', onOpen);
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('plb-open-global-search', onOpen); };
     }, [open]);
 
     // Focus input when opened
@@ -132,7 +134,7 @@ export const GlobalSearchBar = () => {
         >
             <Search className="w-4 h-4 text-slate-300 group-hover:text-white transition-colors" />
             <span className="hidden md:inline text-[12px] text-slate-300 group-hover:text-white pr-2">
-                Buscar caso, cliente…
+                {isAdmin ? 'Buscar usuario…' : 'Buscar caso, cliente…'}
             </span>
             <kbd className="hidden md:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5
                             rounded bg-slate-950/60 text-slate-400 ring-1 ring-white/10">
@@ -168,7 +170,7 @@ export const GlobalSearchBar = () => {
                                 onChange={(e) => setQ(e.target.value)}
                                 placeholder={
                                     isAdmin
-                                        ? 'Buscar por código PLB, cliente, email, referencia…'
+                                        ? 'Nombre, email, ID, IBAN, TXID, referencia, ticket…'
                                         : 'Buscar por código PLB, referencia o concepto…'
                                 }
                                 className="flex-1 bg-transparent text-white text-[15px] outline-none placeholder-slate-500"
@@ -232,13 +234,22 @@ export const GlobalSearchBar = () => {
                                     testid={`gsearch-user-${u.id}`}
                                     icon={<UserIcon className="w-4 h-4 text-blue-300" />}
                                     primary={u.name || u.email}
-                                    secondary={u.email}
+                                    secondary={
+                                        <span className="flex items-center gap-2">
+                                            <span>{u.email}</span>
+                                            {u.matched_by && u.matched_by !== 'nombre' && u.matched_by !== 'email' && (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30 font-mono" data-testid={`gsearch-user-match-${u.id}`}>
+                                                    {u.matched_by}: {u.match_value}
+                                                </span>
+                                            )}
+                                        </span>
+                                    }
                                     right={
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded ring-1 ${statusPill(u.verification_status)}`}>
                                             {u.verification_status || 'unknown'}
                                         </span>
                                     }
-                                    onClick={() => goto(`/admin/users?q=${encodeURIComponent(u.email || u.name || '')}`)}
+                                    onClick={() => goto(`/admin/users/${u.id}`)}
                                 />
                             ))}
 
