@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/button';
@@ -91,7 +92,15 @@ export const MT5Page = () => {
     const [verifyTick, setVerifyTick] = useState(0);
     const [hubLimits, setHubLimits] = useState(null);
     const [reserveOpen, setReserveOpen] = useState(false);
-    const [mainTab, setMainTab] = useState('trading');
+    const [mainTab, setMainTab] = useState(() => {
+        const q = new URLSearchParams(window.location.search).get('tab');
+        return ['trading', 'funds', 'history', 'regulation'].includes(q) ? q : 'trading';
+    });
+    const { search: mt5Search } = useLocation();
+    useEffect(() => {
+        const q = new URLSearchParams(mt5Search).get('tab');
+        if (['trading', 'funds', 'history', 'regulation'].includes(q)) setMainTab(q);
+    }, [mt5Search]);
     const [histTab, setHistTab] = useState('history');
     const heartbeatRef = useRef(null);
 

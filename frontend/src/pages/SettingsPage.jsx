@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { authAPI, transactionsAPI } from '../lib/api';
@@ -29,6 +30,13 @@ import { toast } from 'sonner';
 export const SettingsPage = () => {
     const { user } = useAuth();
     const [loginHistory, setLoginHistory] = useState([]);
+    const { hash } = useLocation();
+
+    useEffect(() => {
+        if (!hash) return;
+        const el = document.getElementById(hash.slice(1));
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    }, [hash, loginHistory.length]);
     const [withdrawalHistory, setWithdrawalHistory] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
@@ -274,7 +282,7 @@ export const SettingsPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                 >
-                    <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                    <Card id="access" className="bg-slate-900/70 backdrop-blur-xl border-slate-800 scroll-mt-24">
                         <CardHeader>
                             <CardTitle className="text-white font-heading flex items-center gap-2">
                                 <History className="w-5 h-5 text-cyan-400" />
@@ -348,7 +356,7 @@ export const SettingsPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                 >
-                    <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-800">
+                    <Card id="security" className="bg-slate-900/70 backdrop-blur-xl border-slate-800 scroll-mt-24">
                         <CardHeader>
                             <CardTitle className="text-white font-heading flex items-center gap-2">
                                 <Lock className="w-5 h-5 text-amber-400" />
