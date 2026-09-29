@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { SpeakButton } from '../tts/SpeakButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
@@ -580,6 +581,9 @@ export const AIAssistantWidget = () => {
                                                 }`}>
                                                     {m.role === 'assistant' ? renderMarkdown(m.content) : (
                                                         <p className="text-[12.5px] whitespace-pre-wrap">{m.content}</p>
+                                                        {m.role !== 'user' && !String(m.id).startsWith('tmp-') && (
+                                                            <div className="mt-1.5"><SpeakButton text={m.content} size="xs" label="" testid={`ai-speak-${m.id}`} /></div>
+                                                        )}
                                                     )}
                                                 </div>
                                                 <p className="text-[9.5px] text-slate-500 mt-1 px-1">{fmtTime(m.created_at)}</p>

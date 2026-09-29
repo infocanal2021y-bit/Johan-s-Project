@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { SpeakButton } from './tts/SpeakButton';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, X, Loader2, Clock, CreditCard, ArrowUpRight, MessageSquare, FileCheck, UserCheck, Info, DollarSign, Send, Image as ImageIcon, Download, ExternalLink, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
@@ -412,6 +413,9 @@ export const NotificationBell = () => {
                                 <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
                                     {selectedNotif.message}
                                 </p>
+                                <div className="mt-3 flex justify-end">
+                                    <SpeakButton text={`${selectedNotif.title}. ${selectedNotif.message}`} testid="notif-speak-btn" />
+                                </div>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
                                 <Clock className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { SpeakButton } from '../components/tts/SpeakButton';
 import { motion } from 'framer-motion';
 import { Layout } from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -52,6 +53,7 @@ const CommunicationCard = ({ comm, index, defaultOpen }) => {
             {open && (
                 <div className="px-5 sm:px-7 pb-6 border-t border-white/5">
                     <div className="pt-5 space-y-4 text-sm leading-relaxed text-slate-300" data-testid={`communication-body-${comm.slug}`}>
+                        <div className="flex justify-end"><SpeakButton text={`${comm.title}. ${comm.body.join(' ')}`} testid={`communication-speak-${comm.slug}`} /></div>
                         {comm.body.map((paragraph, i) => (
                             <p key={i}>{paragraph}</p>
                         ))}

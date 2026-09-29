@@ -5,6 +5,7 @@ import { Layout } from '../components/layout/Layout';
 import { authAPI, transactionsAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { GoogleLinkCard } from '../components/auth/GoogleLinkCard';
+import { VoicePreferencesCard } from '../components/tts/VoicePreferencesCard';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -438,6 +439,8 @@ export const SettingsPage = () => {
                     </Card>
 
                     <GoogleLinkCard />
+
+                    <VoicePreferencesCard />
                 </motion.div>
 
                 {/* Account Info Card */}
