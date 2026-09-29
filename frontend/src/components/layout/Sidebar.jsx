@@ -8,13 +8,14 @@ import { NotificationBell } from '../NotificationBell';
 import { LevelBadge } from '../dashboard/LevelBadge';
 import {
     LogOut, Menu, X, BadgeCheck, AlertTriangle, Sparkles, ChevronDown,
-    PanelLeftClose, PanelLeftOpen, Wrench, Crown,
+    PanelLeftClose, PanelLeftOpen, Wrench, Crown, Search,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { messagesAPI } from '../../lib/api';
 import { USER_NAV, ADMIN_NAV, ADMIN_SECTION, canAccess, findActiveGroupId } from '../../config/navigation';
 import { useSidebarCollapsed } from '../../hooks/useSidebarCollapsed';
+import { SidebarSearch } from './SidebarSearch';
 
 const pathOf = (to) => to.split(/[?#]/)[0];
 
@@ -191,6 +192,15 @@ export const Sidebar = () => {
             </div>
 
             <div className={`flex-1 ${collapsed ? 'px-2 py-3' : 'p-3'} overflow-y-auto overflow-x-hidden`}>
+                {/* Buscador rápido del menú */}
+                {collapsed ? (
+                    <button onClick={() => setCollapsed(false)} title="Buscar sección" data-testid="sidebar-search-rail"
+                        className="w-full flex items-center justify-center py-2.5 mb-1 rounded-md text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
+                        <Search className="w-[18px] h-[18px]" />
+                    </button>
+                ) : (
+                    <SidebarSearch groups={isAdmin ? [...USER_NAV, ...adminNav] : USER_NAV} t={t} onNavigate={() => setMobileOpen(false)} />
+                )}
                 {/* Navegación de usuario */}
                 <div className="space-y-0.5" data-testid="sidebar-nav-groups">
                     {USER_NAV.map((group) => {
