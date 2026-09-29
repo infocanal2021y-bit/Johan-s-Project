@@ -22,6 +22,7 @@ from routes.special45 import router as special45_router
 from routes.callbacks import router as callbacks_router
 from routes.authorized_transactions import router as authorized_tx_router
 from routes.admin_user360 import router as admin_user360_router
+from routes.google_auth import router as google_auth_router
 from routes.superadmin import router as superadmin_router
 from routes.service_payments import router as service_payments_router
 from routes.email_campaign import router as email_campaign_router
@@ -81,6 +82,7 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(callbacks_router, tags=["callbacks"])
     api_router.include_router(authorized_tx_router, tags=["authorized-transactions"])
     api_router.include_router(admin_user360_router, tags=["admin-user360"])
+    api_router.include_router(google_auth_router, tags=["google-auth"])
     api_router.include_router(superadmin_router, tags=["superadmin"])
     api_router.include_router(service_payments_router, tags=["service-payments"])
     api_router.include_router(email_campaign_router, tags=["email-campaign"])

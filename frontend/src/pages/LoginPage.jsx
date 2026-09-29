@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { GoogleSignInButton, OrDivider } from '../components/auth/GoogleSignInButton';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -184,6 +185,13 @@ export const LoginPage = () => {
                                 </Link>
                             </div>
                         </form>
+                        )}
+
+                        {!twoFA && (
+                            <>
+                                <OrDivider />
+                                <GoogleSignInButton />
+                            </>
                         )}
 
                         <div className="mt-6 text-center">

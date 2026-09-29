@@ -43,3 +43,9 @@ On first login they're redirected to `/force-password-change` and must set a new
 - **Para testing (preview):** el código se registra en los logs del backend: `grep "ADMIN 2FA code" /var/log/supervisor/backend.*.log | tail -1`
 - Toggle: `POST /api/admin/security/2fa` (o switch en /admin/action-center). Por defecto: DESACTIVADO (petición del usuario, Sep 2 2026). Login admin directo con token.
 - Los usuarios normales NO usan 2FA (login directo con token).
+
+
+## Google Sign-In (Emergent-managed OAuth) — añadido Iteration 112
+- Sin contraseñas gestionadas por la app. Cualquier cuenta Google puede entrar; se vincula por email a un usuario existente (mantiene su rol) o crea un usuario nuevo con rol `user`.
+- Admin/superadmin con Google: si el 2FA de admin está activo, se pide el código por email igual que en el login normal.
+- Prueba sin Google: visitar `/dashboard#session_id=fake` → tarjeta de error "Sesión de Google inválida o caducada".

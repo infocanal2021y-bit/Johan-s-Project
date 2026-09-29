@@ -10,8 +10,19 @@ export const AuthProvider = ({ children }) => {
     const heartbeatRef = useRef(null);
 
     useEffect(() => {
+        // Returning from Google OAuth: AuthCallback exchanges the session_id first — skip /me check.
+        if (window.location.hash?.includes('session_id=')) {
+            setLoading(false);
+            return;
+        }
         checkAuth();
     }, []);
+
+    const setSession = (token, userData) => {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+    };
 
     // Heartbeat: send every 30 seconds while user is logged in
     useEffect(() => {
@@ -101,6 +112,7 @@ export const AuthProvider = ({ children }) => {
         try {
             await presenceAPI.logoutStatus();
         } catch {}
+        try { await authAPI.googleLogout(); } catch {}
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -116,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const value = {
+    const value = { setSession,
         user,
         loading,
         error,

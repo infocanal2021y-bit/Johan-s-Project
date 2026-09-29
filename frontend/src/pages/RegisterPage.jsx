@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { GoogleSignInButton, OrDivider } from '../components/auth/GoogleSignInButton';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -268,6 +269,9 @@ export const RegisterPage = () => {
                                 )}
                             </Button>
                         </form>
+
+                        <OrDivider />
+                        <GoogleSignInButton label="Registrarse con Google" />
 
                         <div className="mt-5 text-center">
                             <p className="text-slate-500 text-sm">

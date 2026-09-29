@@ -1,11 +1,12 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { Toaster } from "./components/ui/sonner";
 
 // Pages
 import { LoginPage } from "./pages/LoginPage";
+import AuthCallback from "./pages/AuthCallback";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -286,6 +287,11 @@ function AppRoutes() {
 function AppShell() {
     // Auto-validate token every 60s; redirect to /login if expired.
     useTokenHeartbeat();
+    const location = useLocation();
+    // Google OAuth return: process #session_id synchronously during render (before ProtectedRoute).
+    if (location.hash?.includes('session_id=')) {
+        return <><AuthCallback /><Toaster position="top-right" richColors /></>;
+    }
     return (
         <>
             <MaintenanceBanner />
