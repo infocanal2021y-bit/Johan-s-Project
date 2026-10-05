@@ -2,6 +2,10 @@
 
 > Iteraciones recientes (103+) en /app/memory/CHANGELOG.md
 
+### Iteration 116 (Jun 2026) — Alta rápida de usuarios (quick-onboard) + lote de 18 contactos
+- `routes/admin_quick_onboard.py` `POST /admin/users/quick-onboard {users:[{name,email}], send_email, existing_policy: reset_if_unchanged|notice|skip}`: crea usuarios nuevos con contraseña temporal única `PLB-XXXXXX`, `must_change_password=True`, provisiona finanzas, notificación in-app y correo con credenciales (plantilla `get_email_template`). Existentes: si nunca cambiaron la contraseña (`must_change_password` True) → nueva temporal + correo con credenciales (acción `reset`); si ya la cambiaron → correo de aviso sin credenciales (`notified`). Devuelve credenciales generadas (solo al admin) y registra en `admin_audit_log`.
+- Ejecutado para la lista del usuario: 5 creados (Santos Ortiz, Ricardo Cano Gaviria, Laura Rueda, Eduard Palliser Martínez, Josefina) y 13 existentes con `reset` (todos aún tenían la contraseña temporal del import legacy). Resultado completo con credenciales en `/app/memory/onboard_2026-06_result.json`. Correos enviados vía Resend (log "Email sent to …").
+
 ### Iteration 115 (Jun 2026) — Avatar de Google + Página admin "Archivos y Multimedia"
 - `/auth/me` y respuesta de login incluyen `picture`. Avatar Google (si existe) en: sidebar (`SidebarHealthRing` y avatar admin, testid `sidebar-avatar-img`, `referrerPolicy=no-referrer`), cabecera ficha 360 (`u360-avatar-img`) + pill "Google" si `auth_providers` incluye google.
 - `pages/admin/AdminFilesPage.jsx` ruta `/admin/files` (menú Sistema → "Archivos y Multimedia"): KPIs (nº, tamaño total, imágenes), filtros por tipo (kyc, payment_proofs, bank_transfer_proofs, vault), búsqueda local, tabla con miniatura, modal de vista previa (imagen/PDF iframe, descarga vía `/api/files/{id}?auth=<jwt>&download=1`), borrado lógico con confirmación. Testids `admin-files-*`, `admin-file-row/preview/delete-{id}`.
