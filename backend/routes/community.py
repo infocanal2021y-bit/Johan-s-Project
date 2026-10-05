@@ -526,6 +526,13 @@ async def community_recent_withdrawals_detailed(
     ]):
         q_counts[g['_id']] = g['n']
 
+    history_map = {}
+    async for h in db.withdrawal_status_history.find(
+        {'withdrawal_id': {'$in': wids}},
+        {'_id': 0, 'withdrawal_id': 1, 'from_stage': 1, 'to_stage': 1, 'actor': 1, 'reason': 1, 'at': 1},
+    ).sort('at', 1):
+        history_map.setdefault(h['withdrawal_id'], []).append(h)
+
     items = []
     for r in rows:
         u = user_map.get(r['user_id'])
@@ -538,6 +545,15 @@ async def community_recent_withdrawals_detailed(
         if tx_cur != display_cur:
             amt = amt * 1.08 if display_cur == 'USD' else amt / 1.08
         stage, stage_index = _withdrawal_stage(r.get('status'))
+        history = [{'stage': 'solicitado', 'actor': 'Cliente', 'reason': None, 'at': r.get('created_at')}]
+        logged = history_map.get(r['id'], [])
+        if logged:
+            history += [{'stage': h['to_stage'], 'actor': h.get('actor'), 'reason': h.get('reason'), 'at': h.get('at')} for h in logged]
+        elif stage == 'completado' and r.get('completed_at'):
+            history.append({'stage': 'completado', 'actor': 'Sistema', 'reason': None, 'at': r.get('completed_at')})
+        elif stage == 'cancelado' and r.get('cancelled_at'):
+            history.append({'stage': 'cancelado', 'actor': r.get('cancelled_by') or 'Administración',
+                            'reason': r.get('cancellation_reason'), 'at': r.get('cancelled_at')})
         items.append({
             'withdrawal_id': r['id'],
             'name_public': _public_first_name(u.get('name') or 'Cliente'),
@@ -558,6 +574,7 @@ async def community_recent_withdrawals_detailed(
             'cancelled_at': r.get('cancelled_at'),
             'cancelled_by': r.get('cancelled_by'),
             'cancellation_reason': r.get('cancellation_reason'),
+            'history': history,
         })
 
     return {
@@ -631,6 +648,19 @@ _STAGE_TO_STATUS = {
 }
 
 
+async def _log_withdrawal_history(withdrawal_id: str, from_stage: str, to_stage: str, admin: dict, reason: str = None):
+    await db.withdrawal_status_history.insert_one({
+        'id': str(uuid.uuid4()),
+        'withdrawal_id': withdrawal_id,
+        'from_stage': from_stage,
+        'to_stage': to_stage,
+        'actor': admin.get('name') or admin.get('email'),
+        'actor_id': admin.get('id'),
+        'reason': reason,
+        'at': datetime.now(timezone.utc).isoformat(),
+    })
+
+
 @router.post('/admin/recent-withdrawals/{withdrawal_id}/stage')
 async def admin_set_withdrawal_stage(withdrawal_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
     """Cambia el estado de un retiro del feed (Solicitado/En revisión/Procesado/Completado)."""
@@ -642,10 +672,13 @@ async def admin_set_withdrawal_stage(withdrawal_id: str, payload: dict, admin: d
         raise HTTPException(404, 'Retiro no encontrado')
     if (tx.get('status') or '').lower() == 'cancelled':
         raise HTTPException(400, 'Un retiro cancelado no puede cambiar de estado')
+    prev_stage, _ = _withdrawal_stage(tx.get('status'))
     now_iso = datetime.now(timezone.utc).isoformat()
     updates = {'status': _STAGE_TO_STATUS[stage], 'updated_at': now_iso}
     updates['completed_at'] = now_iso if stage == 'completado' else None
     await db.transactions.update_one({'id': withdrawal_id}, {'$set': updates})
+    if prev_stage != stage:
+        await _log_withdrawal_history(withdrawal_id, prev_stage, stage, admin)
     return {'ok': True, 'stage': stage, 'status': updates['status']}
 
 
@@ -680,6 +713,7 @@ async def admin_cancel_withdrawal(withdrawal_id: str, payload: dict, admin: dict
         'cancellation_reason': reason,
         'previous_status': tx.get('status'),
     }})
+    await _log_withdrawal_history(withdrawal_id, stage, 'cancelado', admin, reason)
     reference = tx.get('transaction_reference') or f"LB-{withdrawal_id[:8].upper()}"
     from services.notifications import create_notification
     await create_notification(

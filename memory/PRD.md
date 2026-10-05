@@ -1903,3 +1903,8 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - `POST /api/admin/recent-withdrawals/{id}/cancel` `{reason}` (motivo obligatorio ≥3 chars). Solo Solicitado/En revisión/Procesado; 400 si Completado o ya Cancelado. Guarda `status:'cancelled'`, `cancelled_at`, `cancelled_by` (nombre/email admin), `cancelled_by_id`, `cancellation_reason`, `previous_status`. Crea notificación in-app al usuario. Cancelación definitiva: `/stage` rechaza (400) retiros cancelados.
 - Feed `/detailed` ahora incluye `cancelled` como etapa `cancelado` (stage_index 0) y devuelve campos de cancelación.
 - UI (`RecentWithdrawalsPage.jsx`): filtro "Cancelado", badge rojo, botón "Cancelar solicitud" (admin) → `CancelWithdrawalDialog.jsx` (motivos predefinidos + detalle, "Otro" requiere texto). Tarjeta cancelada muestra fecha/hora, admin y motivo; botones de estado ocultos. `RecentWithdrawalsModule` muestra badge Cancelado. Verificado con curl + screenshot (sin testing agent).
+
+## 05/Oct/2026 — Historial de cambios por retiro (Retiros Recientes)
+- Colección `withdrawal_status_history` `{id, withdrawal_id, from_stage, to_stage, actor, actor_id, reason, at}`; `_log_withdrawal_history()` en `routes/community.py` se invoca desde `/stage` (solo si cambia de etapa) y `/cancel`.
+- Feed `/detailed` devuelve `history[]`: siempre arranca con "Solicitado · Cliente" (created_at); si no hay registros, entrada sintética "Completado · Sistema" (completed_at) o "Cancelado · admin" (cancelled_at).
+- UI: `components/dashboard/WithdrawalHistoryTimeline.jsx` (línea de tiempo vertical, punto por etapa, responsable, fecha/hora, motivo). Visible para admin y usuario en la tarjeta expandida. Verificado con curl + screenshots desktop/móvil.

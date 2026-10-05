@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { WithdrawalQuestions } from '../components/community/WithdrawalQuestions';
 import { CancelWithdrawalDialog } from '../components/dashboard/CancelWithdrawalDialog';
+import { WithdrawalHistoryTimeline } from '../components/dashboard/WithdrawalHistoryTimeline';
 import { timeAgo } from '../components/community/constants';
 
 const POLL_MS = 15000;
@@ -199,6 +200,7 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage, o
                                 )}
                             </div>
                         )}
+                        <WithdrawalHistoryTimeline history={item.history} withdrawalId={item.withdrawal_id} />
                         {item.questions_enabled ? (
                             <div className="mt-3 rounded-xl bg-white p-3">
                                 <WithdrawalQuestions withdrawalId={item.withdrawal_id} />
