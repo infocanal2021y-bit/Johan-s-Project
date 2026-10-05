@@ -482,6 +482,8 @@ def _display_currency_for(country: str, tx_currency: str) -> str:
 def _withdrawal_stage(status: str):
     """Solicitado → En revisión → Procesado → Completado (1-4)."""
     s = (status or '').lower()
+    if s == 'cancelled':
+        return 'cancelado', 0
     if s == 'completed':
         return 'completado', 4
     if s in ('approved', 'in_transfer', 'processing', 'transfer_in_progress'):
@@ -500,9 +502,10 @@ async def community_recent_withdrawals_detailed(
     España muestra EUR; México y Chile muestran USD."""
     rows = await db.transactions.find(
         {'transaction_type': 'withdraw',
-         'status': {'$nin': ['failed', 'cancelled', 'rejected']}},
+         'status': {'$nin': ['failed', 'rejected']}},
         {'_id': 0, 'id': 1, 'user_id': 1, 'amount': 1, 'currency': 1, 'status': 1,
-         'created_at': 1, 'completed_at': 1, 'transaction_reference': 1},
+         'created_at': 1, 'completed_at': 1, 'transaction_reference': 1,
+         'cancelled_at': 1, 'cancelled_by': 1, 'cancellation_reason': 1},
     ).sort('created_at', -1).limit(limit).to_list(limit)
 
     if not rows:
@@ -552,6 +555,9 @@ async def community_recent_withdrawals_detailed(
             'date': r.get('completed_at') or r.get('created_at'),
             'questions_count': q_counts.get(r['id'], 0),
             'questions_enabled': stage == 'completado',
+            'cancelled_at': r.get('cancelled_at'),
+            'cancelled_by': r.get('cancelled_by'),
+            'cancellation_reason': r.get('cancellation_reason'),
         })
 
     return {
@@ -631,14 +637,60 @@ async def admin_set_withdrawal_stage(withdrawal_id: str, payload: dict, admin: d
     stage = (payload or {}).get('stage')
     if stage not in _STAGE_TO_STATUS:
         raise HTTPException(400, f"Estado inválido. Opciones: {', '.join(_STAGE_TO_STATUS)}")
-    tx = await db.transactions.find_one({'id': withdrawal_id, 'transaction_type': 'withdraw'}, {'_id': 0, 'id': 1})
+    tx = await db.transactions.find_one({'id': withdrawal_id, 'transaction_type': 'withdraw'}, {'_id': 0, 'id': 1, 'status': 1})
     if not tx:
         raise HTTPException(404, 'Retiro no encontrado')
+    if (tx.get('status') or '').lower() == 'cancelled':
+        raise HTTPException(400, 'Un retiro cancelado no puede cambiar de estado')
     now_iso = datetime.now(timezone.utc).isoformat()
     updates = {'status': _STAGE_TO_STATUS[stage], 'updated_at': now_iso}
     updates['completed_at'] = now_iso if stage == 'completado' else None
     await db.transactions.update_one({'id': withdrawal_id}, {'$set': updates})
     return {'ok': True, 'stage': stage, 'status': updates['status']}
+
+
+_CANCELLABLE_STAGES = ('solicitado', 'en_revision', 'procesado')
+
+
+@router.post('/admin/recent-withdrawals/{withdrawal_id}/cancel')
+async def admin_cancel_withdrawal(withdrawal_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
+    """Cancela una solicitud de retiro (solo Solicitado / En revisión / Procesado)."""
+    reason = ((payload or {}).get('reason') or '').strip()
+    if len(reason) < 3:
+        raise HTTPException(400, 'El motivo de cancelación es obligatorio')
+    tx = await db.transactions.find_one(
+        {'id': withdrawal_id, 'transaction_type': 'withdraw'},
+        {'_id': 0, 'id': 1, 'status': 1, 'user_id': 1, 'amount': 1, 'currency': 1, 'transaction_reference': 1},
+    )
+    if not tx:
+        raise HTTPException(404, 'Retiro no encontrado')
+    stage, _ = _withdrawal_stage(tx.get('status'))
+    if stage == 'cancelado':
+        raise HTTPException(400, 'Este retiro ya está cancelado')
+    if stage not in _CANCELLABLE_STAGES:
+        raise HTTPException(400, 'No se puede cancelar un retiro que ya está completado')
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cancelled_by = admin.get('name') or admin.get('email')
+    await db.transactions.update_one({'id': withdrawal_id}, {'$set': {
+        'status': 'cancelled',
+        'updated_at': now_iso,
+        'cancelled_at': now_iso,
+        'cancelled_by': cancelled_by,
+        'cancelled_by_id': admin.get('id'),
+        'cancellation_reason': reason,
+        'previous_status': tx.get('status'),
+    }})
+    reference = tx.get('transaction_reference') or f"LB-{withdrawal_id[:8].upper()}"
+    from services.notifications import create_notification
+    await create_notification(
+        tx['user_id'],
+        'Solicitud de retiro cancelada',
+        f"Tu solicitud de retiro {reference} por {float(tx.get('amount') or 0):,.2f} {(tx.get('currency') or 'EUR').upper()} "
+        f"ha sido cancelada. Motivo: {reason}",
+        {'type': 'withdrawal_cancelled', 'withdrawal_id': withdrawal_id, 'reason': reason},
+    )
+    return {'ok': True, 'stage': 'cancelado', 'status': 'cancelled',
+            'cancelled_at': now_iso, 'cancelled_by': cancelled_by, 'cancellation_reason': reason}
 
 
 @router.get('/admin/live-withdrawals-sim')

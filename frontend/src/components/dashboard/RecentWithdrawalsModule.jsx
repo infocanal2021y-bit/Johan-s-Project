@@ -14,6 +14,7 @@ const STAGE_LABEL = {
     en_revision: ['En revisión', 'text-amber-300 bg-amber-500/15'],
     procesado: ['Procesado', 'text-cyan-300 bg-cyan-500/15'],
     completado: ['Completado', 'text-emerald-300 bg-emerald-500/15'],
+    cancelado: ['Cancelado', 'text-red-300 bg-red-500/15'],
 };
 
 export const RecentWithdrawalsModule = () => {

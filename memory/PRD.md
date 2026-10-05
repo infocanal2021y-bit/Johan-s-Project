@@ -1898,3 +1898,8 @@ The platform features KYC verification, an Admin Panel, a complex withdrawal sys
 - Cada evento genera: transacción (feed en vivo + mapa + historial, marcada simulated/auto_generated_by=card_activity_sim), registro interno card_activity_events (usuario, país, marca, monto, fecha, hora, estado TRANSFERENCIA AUTORIZADA, sim_id), publicación oficial y notificación bulk a TODOS los usuarios reales (~3.145) con el formato exacto pedido.
 - Toggle admin existente (live_withdrawals_sim en platform_settings) controla también el nuevo sistema. No se tocó Stripe, retiros, login ni diseño. No existían textos DOCUMENTO DEMO/PRUEBA visibles en la UI (verificado).
 - Testeado: tick forzado → 2 eventos, idempotencia, feed/mapa/posts/notificaciones verificados vía API real.
+
+## 05/Oct/2026 — Cancelar solicitud en Retiros Recientes
+- `POST /api/admin/recent-withdrawals/{id}/cancel` `{reason}` (motivo obligatorio ≥3 chars). Solo Solicitado/En revisión/Procesado; 400 si Completado o ya Cancelado. Guarda `status:'cancelled'`, `cancelled_at`, `cancelled_by` (nombre/email admin), `cancelled_by_id`, `cancellation_reason`, `previous_status`. Crea notificación in-app al usuario. Cancelación definitiva: `/stage` rechaza (400) retiros cancelados.
+- Feed `/detailed` ahora incluye `cancelled` como etapa `cancelado` (stage_index 0) y devuelve campos de cancelación.
+- UI (`RecentWithdrawalsPage.jsx`): filtro "Cancelado", badge rojo, botón "Cancelar solicitud" (admin) → `CancelWithdrawalDialog.jsx` (motivos predefinidos + detalle, "Otro" requiere texto). Tarjeta cancelada muestra fecha/hora, admin y motivo; botones de estado ocultos. `RecentWithdrawalsModule` muestra badge Cancelado. Verificado con curl + screenshot (sin testing agent).

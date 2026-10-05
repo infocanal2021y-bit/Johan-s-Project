@@ -6,9 +6,10 @@ import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import {
     Banknote, Loader2, ChevronDown, MessageCircleQuestion, CheckCircle2,
-    Clock, FileSearch, Send, RefreshCw, Search, Zap, Volume2, VolumeX,
+    Clock, FileSearch, Send, RefreshCw, Search, Zap, Volume2, VolumeX, XCircle,
 } from 'lucide-react';
 import { WithdrawalQuestions } from '../components/community/WithdrawalQuestions';
+import { CancelWithdrawalDialog } from '../components/dashboard/CancelWithdrawalDialog';
 import { timeAgo } from '../components/community/constants';
 
 const POLL_MS = 15000;
@@ -47,7 +48,12 @@ const STAGE_BADGE = {
     en_revision: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
     procesado: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
     completado: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    cancelado: 'bg-red-500/15 text-red-300 border-red-500/30',
 };
+
+const STAGE_LABEL = { ...Object.fromEntries(STAGES.map((s) => [s.key, s.label])), cancelado: 'Cancelado' };
+const FILTERS = [{ key: 'all', label: 'Todos' }, ...STAGES, { key: 'cancelado', label: 'Cancelado' }];
+const CANCELLABLE = ['solicitado', 'en_revision', 'procesado'];
 
 const fmtMoney = (n, cur) => cur === 'USD'
     ? `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
@@ -89,11 +95,13 @@ const StageBar = ({ stageIndex }) => (
     </div>
 );
 
-const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage }) => (
+const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage, onCancel }) => {
+    const isCancelled = item.stage === 'cancelado';
+    return (
     <div className={`rounded-xl bg-slate-900/70 border transition-colors overflow-hidden ${
-        isNew ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-800 hover:border-slate-700'
+        isNew ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : isCancelled ? 'border-red-500/20 hover:border-red-500/40' : 'border-slate-800 hover:border-slate-700'
     }`}
-        data-testid={`rw-row-${item.withdrawal_id}`} data-new={isNew ? 'true' : 'false'}>
+        data-testid={`rw-row-${item.withdrawal_id}`} data-new={isNew ? 'true' : 'false'} data-stage={item.stage}>
         <button type="button" onClick={onToggle}
             className="w-full text-left px-4 py-3.5 flex items-center gap-3 hover:bg-slate-800/40 transition-colors">
             <span className="text-xl leading-none flex-shrink-0">{item.country_flag}</span>
@@ -119,8 +127,9 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage })
                 <p className="text-[14px] font-semibold font-mono tabular-nums text-white leading-tight">
                     {fmtMoney(item.amount, item.currency)} <span className="text-[10px] text-slate-500">{item.currency}</span>
                 </p>
-                <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-[0.08em] ${STAGE_BADGE[item.stage]}`}>
-                    {STAGES.find((s) => s.key === item.stage)?.label}
+                <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-[0.08em] ${STAGE_BADGE[item.stage]}`}
+                    data-testid={`rw-stage-badge-${item.withdrawal_id}`}>
+                    {STAGE_LABEL[item.stage]}
                 </span>
             </div>
             <ChevronDown className={`w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
@@ -154,8 +163,19 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage })
                             </div>
                         </div>
                         <p className="text-[9px] uppercase tracking-[0.14em] text-slate-500 font-semibold">Estado del retiro</p>
-                        <StageBar stageIndex={item.stage_index} />
-                        {isAdmin && (
+                        {isCancelled ? (
+                            <div className="mt-2 rounded-lg bg-red-500/10 border border-red-500/25 p-3 text-[11px] space-y-1.5" data-testid={`rw-cancel-info-${item.withdrawal_id}`}>
+                                <p className="flex items-center gap-1.5 text-red-300 font-semibold uppercase tracking-[0.08em] text-[10px]">
+                                    <XCircle className="w-3.5 h-3.5" /> Solicitud cancelada
+                                </p>
+                                <p className="text-slate-400">Fecha y hora: <span className="text-slate-200">{fmtExact(item.cancelled_at)}</span></p>
+                                <p className="text-slate-400">Cancelado por: <span className="text-slate-200">{item.cancelled_by || 'Administración'}</span></p>
+                                <p className="text-slate-400">Motivo: <span className="text-slate-200">{item.cancellation_reason || '—'}</span></p>
+                            </div>
+                        ) : (
+                            <StageBar stageIndex={item.stage_index} />
+                        )}
+                        {isAdmin && !isCancelled && (
                             <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid={`rw-admin-stage-${item.withdrawal_id}`}>
                                 <span className="text-[9px] uppercase tracking-[0.12em] text-slate-500 font-semibold mr-1">Cambiar estado:</span>
                                 {STAGES.map((s, i) => (
@@ -170,13 +190,20 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage })
                                         {i + 1}. {s.label}
                                     </button>
                                 ))}
+                                {CANCELLABLE.includes(item.stage) && (
+                                    <button type="button" onClick={() => onCancel(item)}
+                                        className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-semibold bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20 transition-colors"
+                                        data-testid={`rw-cancel-btn-${item.withdrawal_id}`}>
+                                        <XCircle className="w-3 h-3" /> Cancelar solicitud
+                                    </button>
+                                )}
                             </div>
                         )}
                         {item.questions_enabled ? (
                             <div className="mt-3 rounded-xl bg-white p-3">
                                 <WithdrawalQuestions withdrawalId={item.withdrawal_id} />
                             </div>
-                        ) : (
+                        ) : isCancelled ? null : (
                             <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5">
                                 <MessageCircleQuestion className="w-3.5 h-3.5" />
                                 Las preguntas estarán disponibles cuando el retiro esté completado.
@@ -187,7 +214,8 @@ const WithdrawalRow = ({ item, expanded, onToggle, isNew, isAdmin, onSetStage })
             )}
         </AnimatePresence>
     </div>
-);
+    );
+};
 
 export default function RecentWithdrawalsPage() {
     const [searchParams] = useSearchParams();
@@ -202,6 +230,7 @@ export default function RecentWithdrawalsPage() {
     const [newIds, setNewIds] = useState(() => new Set());
     const [simEnabled, setSimEnabled] = useState(null);
     const [soundOn, setSoundOn] = useState(() => localStorage.getItem('rw_sound') !== 'off');
+    const [cancelTarget, setCancelTarget] = useState(null);
     const expandedRef = useRef(null);
     const knownIdsRef = useRef(null);
     const soundOnRef = useRef(soundOn);
@@ -282,10 +311,14 @@ export default function RecentWithdrawalsPage() {
     const setStage = async (wid, stage) => {
         try {
             await api.post(`/admin/recent-withdrawals/${wid}/stage`, { stage });
-            const { data } = await api.get('/community/recent-withdrawals/detailed', { params: { limit: 60 } });
-            knownIdsRef.current = new Set((data.items || []).map((i) => i.withdrawal_id));
-            setItems(data.items || []);
+            await reloadSilently();
         } catch { /* silencioso */ }
+    };
+
+    const reloadSilently = async () => {
+        const { data } = await api.get('/community/recent-withdrawals/detailed', { params: { limit: 60 } });
+        knownIdsRef.current = new Set((data.items || []).map((i) => i.withdrawal_id));
+        setItems(data.items || []);
     };
 
     useEffect(() => {
@@ -369,7 +402,7 @@ export default function RecentWithdrawalsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    {[{ key: 'all', label: 'Todos' }, ...STAGES].map((t) => (
+                    {FILTERS.map((t) => (
                         <button key={t.key} onClick={() => setFilter(t.key)}
                             className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
                                 filter === t.key ? 'bg-slate-800 border-slate-600 text-white' : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-white'
@@ -406,12 +439,18 @@ export default function RecentWithdrawalsPage() {
                                         isNew={newIds.has(it.withdrawal_id)}
                                         isAdmin={isAdmin}
                                         onSetStage={setStage}
+                                        onCancel={setCancelTarget}
                                         expanded={expandedId === it.withdrawal_id}
                                         onToggle={() => setExpandedId((c) => (c === it.withdrawal_id ? null : it.withdrawal_id))} />
                                 </motion.div>
                             ))}
                         </AnimatePresence>
                     </div>
+                )}
+                {isAdmin && (
+                    <CancelWithdrawalDialog item={cancelTarget} open={!!cancelTarget}
+                        onClose={() => setCancelTarget(null)}
+                        onCancelled={() => reloadSilently().catch(() => {})} />
                 )}
             </div>
         </Layout>
