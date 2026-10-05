@@ -26,6 +26,7 @@ from routes.google_auth import router as google_auth_router
 from routes.files import router as files_router
 from routes.tts import router as tts_router
 from routes.admin_quick_onboard import router as admin_quick_onboard_router
+from routes.crypto_treasury import router as crypto_treasury_router
 from routes.superadmin import router as superadmin_router
 from routes.service_payments import router as service_payments_router
 from routes.email_campaign import router as email_campaign_router
@@ -89,6 +90,7 @@ def register_routes(api_router: APIRouter):
     api_router.include_router(files_router, tags=["files"])
     api_router.include_router(tts_router, tags=["tts"])
     api_router.include_router(admin_quick_onboard_router, tags=["admin-quick-onboard"])
+    api_router.include_router(crypto_treasury_router, tags=["crypto-treasury"])
     api_router.include_router(superadmin_router, tags=["superadmin"])
     api_router.include_router(service_payments_router, tags=["service-payments"])
     api_router.include_router(email_campaign_router, tags=["email-campaign"])

@@ -41,11 +41,12 @@ export const USER_NAV = [
         ],
     },
     {
-        id: 'banca', label: 'Banca y Cuentas', icon: Wallet, prefixes: ['/accounts', '/wallet/multi-currency', '/wallet/vault', '/binance-wallet', '/transfer', '/bank-transfer', '/transactions'],
+        id: 'banca', label: 'Banca y Cuentas', icon: Wallet, prefixes: ['/accounts', '/depositar-crypto', '/wallet/multi-currency', '/wallet/vault', '/binance-wallet', '/transfer', '/bank-transfer', '/transactions'],
         items: [
             { to: '/accounts', icon: Wallet, label: 'Mis Cuentas Bancarias' },
             { to: '/bank-transfer', icon: Building2, label: 'Transferencias Bancarias' },
             { to: '/wallet/multi-currency', icon: Banknote, label: 'Tasas Multidivisa' },
+            { to: '/depositar-crypto', icon: Bitcoin, label: 'Depositar Crypto' },
             { to: '/transactions', icon: ClipboardList, label: 'Movimientos' },
         ],
         tools: [
@@ -144,6 +145,7 @@ export const ADMIN_NAV = [
         id: 'adm-tesoreria', label: 'Tesorería', icon: Vault,
         items: [
             { to: '/admin/treasury', icon: Vault, label: 'Tesorería' },
+            { to: '/admin/crypto-treasury', icon: Bitcoin, label: 'Crypto Treasury' },
             { to: '/admin/credits', icon: PlusCircle, label: 'Agregar Saldo' },
             { to: '/admin/pending-abonos', icon: Receipt, label: 'Abonos Pendientes' },
             { to: '/admin/wallets', icon: Wallet, label: 'Wallets de Plataforma' },

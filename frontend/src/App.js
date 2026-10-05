@@ -67,6 +67,8 @@ import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminUser360Page } from "./pages/admin/AdminUser360Page";
 import { AdminFilesPage } from "./pages/admin/AdminFilesPage";
+import { AdminCryptoTreasuryPage } from "./pages/admin/AdminCryptoTreasuryPage";
+import CryptoDepositPage from "./pages/CryptoDepositPage";
 import { AdminTransactionsPage } from "./pages/admin/AdminTransactionsPage";
 import { AdminWithdrawalsPage } from "./pages/admin/AdminWithdrawalsPage";
 import { AdminKYCPage } from "./pages/admin/AdminKYCPage";
@@ -238,6 +240,8 @@ function AppRoutes() {
             <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsersPage /></ProtectedRoute>} />
             <Route path="/admin/users/:userId" element={<ProtectedRoute adminOnly><AdminUser360Page /></ProtectedRoute>} />
             <Route path="/admin/files" element={<ProtectedRoute adminOnly><AdminFilesPage /></ProtectedRoute>} />
+            <Route path="/admin/crypto-treasury" element={<ProtectedRoute adminOnly><AdminCryptoTreasuryPage /></ProtectedRoute>} />
+            <Route path="/depositar-crypto" element={<ProtectedRoute><CryptoDepositPage /></ProtectedRoute>} />
             <Route path="/admin/community-progress" element={<ProtectedRoute adminOnly><AdminCommunityProgressPage /></ProtectedRoute>} />
             <Route path="/admin/community-posts" element={<ProtectedRoute adminOnly><AdminCommunityPostsPage /></ProtectedRoute>} />
             <Route path="/retiro-especial-45" element={<ProtectedRoute><Special45Page /></ProtectedRoute>} />
