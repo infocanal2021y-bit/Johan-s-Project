@@ -62,15 +62,15 @@ export const SidebarHealthRing = ({ user }) => {
             {score != null ? (
                 <HealthScoreRing score={score} color={color} label="" size="sm" showNumber={false} />
             ) : (
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
-                    <span className="text-sm text-white font-semibold">{initial}</span>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
+                    {user?.picture ? <img src={user.picture} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" data-testid="sidebar-avatar-img" /> : <span className="text-sm text-white font-semibold">{initial}</span>}
                 </div>
             )}
             {/* Avatar initial centered on top of the ring */}
             {score != null && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
-                        <span className="text-xs text-white font-bold">{initial}</span>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-slate-950" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
+                        {user?.picture ? <img src={user.picture} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" data-testid="sidebar-avatar-img" /> : <span className="text-xs text-white font-bold">{initial}</span>}
                     </div>
                 </div>
             )}

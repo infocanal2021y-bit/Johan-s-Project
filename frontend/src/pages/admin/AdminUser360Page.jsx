@@ -122,8 +122,8 @@ export const AdminUser360Page = () => {
                         <Card className="p-5 bg-gradient-to-br from-[#072146] to-[#04152e] border-0">
                             <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div className="flex items-start gap-4 min-w-0">
-                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
-                                        {(u.name || u.email || '?').charAt(0).toUpperCase()}
+                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0 overflow-hidden ring-1 ring-white/15" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
+                                        {u.picture ? <img src={u.picture} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" data-testid="u360-avatar-img" /> : (u.name || u.email || '?').charAt(0).toUpperCase()}
                                     </div>
                                     <div className="min-w-0">
                                         <h1 className="text-white text-xl sm:text-2xl font-bold truncate" data-testid="u360-name">{u.name || '—'}</h1>
@@ -131,6 +131,7 @@ export const AdminUser360Page = () => {
                                         <p className="text-slate-400 text-[11px] font-mono mt-1 flex items-center gap-1.5">ID <span className="text-slate-200" data-testid="u360-id">{u.id}</span> <CopyBtn value={u.id} /></p>
                                         <div className="flex flex-wrap gap-1.5 mt-2">
                                             <Pill value={u.role} /><Pill value={u.verification_status} testid="u360-verification" /><Pill value={u.account_status || 'active'} />
+                                            {(u.auth_providers || []).includes('google') && <Pill value="Google" testid="u360-google-pill" />}
                                             {u.is_online && <Pill value="online" />}
                                         </div>
                                     </div>

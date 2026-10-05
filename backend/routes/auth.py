@@ -326,7 +326,8 @@ async def _finalize_login(user: dict, request: Request) -> dict:
             'verification_status': user.get('verification_status', 'unverified'),
             'account_status': user.get('account_status', 'active'),
             'must_change_password': bool(user.get('must_change_password')),
-            'is_reactivated': bool(user.get('is_reactivated'))
+            'is_reactivated': bool(user.get('is_reactivated')),
+            'picture': user.get('picture'),
         },
         'login_info': {
             'ip': client_ip,
@@ -366,6 +367,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         'account_status': current_user.get('account_status', 'active'),
         'must_change_password': bool(current_user.get('must_change_password')),
         'is_reactivated': bool(current_user.get('is_reactivated')),
+        'picture': current_user.get('picture'),
         'created_at': current_user['created_at']
     }
 

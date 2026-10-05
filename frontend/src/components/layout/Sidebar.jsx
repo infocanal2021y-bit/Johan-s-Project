@@ -259,8 +259,8 @@ export const Sidebar = () => {
                 {!collapsed && (
                     <div className="flex items-center gap-3 px-3 py-2.5 mb-2">
                         {!isAdmin ? <SidebarHealthRing user={user} /> : (
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
-                                <span className="text-sm text-white" style={{ fontWeight: 600 }}>{user?.name?.charAt(0).toUpperCase()}</span>
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: 'linear-gradient(135deg, #1973B8, #004481)' }}>
+                                {user?.picture ? <img src={user.picture} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" data-testid="sidebar-avatar-img" /> : <span className="text-sm text-white" style={{ fontWeight: 600 }}>{user?.name?.charAt(0).toUpperCase()}</span>}
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
