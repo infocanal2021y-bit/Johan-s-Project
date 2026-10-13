@@ -1,0 +1,29 @@
+{
+  "summary": "Iter85: 4 features validated end-to-end. Backend: 11/11 pytest OK — invitations list (admin-only, correct shape), quick-onboard (temp PLB-XXXXXX, login works, must_change_password=true), existing_policy activation_link (does NOT reset password), existing_policy skip, reset-password flow (activated_at set, must_change_password cleared, invitations shows activated), resend 400 for activated users, resend 200 for pending users and invalidates previous unused token, FX2026 env guard returns {started:false,reason:'environment_mismatch',mismatch.link_host='paylionsbit.es'} without force, withdrawal cancel sends email (subject 'cancelada', status=sent to owner's email) + notification doc with metadata.withdrawal_id. Frontend: /admin/invitations page renders with stats, 4 filters, inv-table rows, resend buttons on non-activated rows; 'Activados' filter works; search 'minuna' narrows to minuna2012. Onboard form add/remove rows, policy select, submit shows onboard-result with 'Creado' + PLB-XXXXXX temp password; new user appears in table as Pendiente after refresh. FX2026 card on /admin/users: clicking fx2026-send-btn (confirmed) shows red fx2026-env-warning with correct host mismatch message, no fx2026-progress rendered. /retiros-recientes rw-filter-cancelado shows cancelled rows with red CANCELADO badge; expanding first shows rw-cancel-info and timeline rw-history with items (Solicitado/En revisión/Cancelado). Sidebar Usuarios 360° group under ADMINISTRACIÓN expanded correctly, with link to /admin/invitations labelled 'Invitaciones · Activación'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter85_invitations_cancel_fx2026.py",
+    "/app/test_reports/pytest/iter85.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "admin_quick_onboard.list_invitations loads up to 500 users then does another unindexed email_logs find per batch. For scale, add an index on email_logs.to_email + created_at (desc).",
+    "resend_invitation marks previous activation tokens used:true+superseded:true in one update, which is correct and testable; good.",
+    "fx2026_import._env_mismatch compares only host; correctly bypassable via {force:true}. Guard works as designed.",
+    "admin_cancel_withdrawal sends email via fire-and-forget send_email_background; failure path doesn't surface to the API caller (expected but note it). The test confirms email_logs row is produced with status=sent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter85_invitations_cancel_fx2026.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin info@paylionsbit.es / Juan1949.  |  user manclic@yahoo.es / FX2026",
+  "seed_data_creation": "Created and cleaned up QA users qa.invite.<rand>@example.com, qa.resend.<rand>@example.com (pytest), qa.ui.242568@example.com (frontend). All removed from users/accounts/transactions/notifications/password_resets at end. One existing 'completado' withdrawal (AUTO-WD-...) was moved through en_revision→cancelled by the cancel test; it now remains cancelled in DB (acceptable per instructions).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 features for this iteration are working. Reusable regression test at /app/backend/tests/test_iter85_invitations_cancel_fx2026.py. The FX2026 env guard safely blocks the preview from sending to 625 real users; never pass force:true from the preview environment. Each cancel test consumes one completado withdrawal — if re-running, ensure there is at least one completado left (there are many AUTO-WD-* seeded)."
+}
