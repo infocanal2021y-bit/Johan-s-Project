@@ -8,7 +8,8 @@ import re
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from urllib.parse import urlparse
 from config import db, APP_BASE_URL
 from services.auth import get_admin_user, hash_password
 from services.accounts_lifecycle import provision_full_user_finance
@@ -158,19 +159,36 @@ async def _send_welcome_batch(users):
         logging.error(f"fx2026 admin summary notification failed: {e}")
 
 
+def _env_mismatch(request: Request) -> dict | None:
+    """Los correos enlazan a APP_BASE_URL; si este backend no es ese dominio, los usuarios de ESTA BD no podrán entrar por el enlace."""
+    target = urlparse(APP_BASE_URL).hostname or ''
+    origin = request.headers.get('origin') or request.headers.get('referer') or ''
+    current = urlparse(origin).hostname or request.headers.get('host', '').split(':')[0]
+    if current and target and current != target:
+        return {'current_host': current, 'link_host': target}
+    return None
+
+
 @router.post("/admin/fx2026/send-welcome")
-async def fx2026_send_welcome(data: dict = None, admin: dict = Depends(get_admin_user)):
+async def fx2026_send_welcome(request: Request, data: dict = None, admin: dict = Depends(get_admin_user)):
     """Send the welcome email (FX2026 credentials + app link) to batch users.
 
     Body options:
       {"test_email": "x@y.com"}  -> send ONE test email only, no state changes.
       {}                          -> send to every batch user not yet welcomed (background).
+      {"force": true}             -> omitir la protección de entorno (enlaces a otro dominio).
     """
     data = data or {}
     test_email = (data.get('test_email') or '').strip()
     if test_email:
         result = await send_email(test_email, 'Sus credenciales de acceso — LIONSBIT VERIFICACION', _welcome_html('Usuario de Prueba', test_email))
         return {'test': True, 'to': test_email, 'sent': result is not None}
+
+    mismatch = _env_mismatch(request)
+    if mismatch and not data.get('force'):
+        return {'started': False, 'reason': 'environment_mismatch', 'mismatch': mismatch,
+                'message': f"Los correos enlazan a {mismatch['link_host']} pero este panel corre en {mismatch['current_host']}. "
+                           "Los usuarios de esta base de datos no podrán iniciar sesión desde ese enlace. Ejecute el envío desde el panel de producción."}
 
     if _send_state['running']:
         return {'started': False, 'reason': 'batch already running', 'progress': _send_state}

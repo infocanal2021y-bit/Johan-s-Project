@@ -4,7 +4,7 @@ import {
     Upload, Send, CreditCard, Award, FileText, CandlestickChart, Newspaper, Radio, RefreshCw, Scale, Globe,
     Bell, MessageSquare, PhoneCall, Megaphone, FolderKanban, HeadphonesIcon, Activity, Shield, Settings,
     UserCircle2, KeyRound, Crown, ShieldAlert, Server, Wifi, UserX, FileSpreadsheet, Mail, Vault, PlusCircle,
-    MessageCircleQuestion, Unlock, Radar, Image as ImageIcon, FileCheck, Share2, Lock, Search, FolderOpen,
+    MessageCircleQuestion, Unlock, Radar, Image as ImageIcon, FileCheck, Share2, Lock, Search, FolderOpen, MailCheck,
 } from 'lucide-react';
 
 /* Niveles de acceso. Un único SUPERADMIN concentra el acceso administrativo total;
@@ -134,6 +134,7 @@ export const ADMIN_NAV = [
         id: 'adm-usuarios', label: 'Usuarios 360°', icon: Users, prefixes: ['/admin/users/'],
         items: [
             { to: '/admin/users', icon: Users, label: 'Usuarios Registrados', end: true },
+            { to: '/admin/invitations', icon: MailCheck, label: 'Invitaciones · Activación' },
             { to: '/admin/kyc', icon: BadgeCheck, label: 'Solicitudes KYC' },
             { to: '/admin/zero-balance', icon: UserX, label: 'Saldo Cero' },
             { to: '/admin/client-import', icon: FileSpreadsheet, label: 'Importar Clientes' },

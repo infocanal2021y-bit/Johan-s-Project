@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from config import db, APP_BASE_URL, ADMIN_EMAIL
@@ -200,3 +200,65 @@ async def quick_onboard(body: QuickOnboardIn, admin: dict = Depends(get_admin_us
         admin_mail = await _deliver(True, ADMIN_EMAIL, 'Informe de alta de usuarios · LIONSBIT', get_email_template(_admin_report_html(admin.get('name') or admin_email, created, existing, errors), 'Informe administrativo'))
     return {'created': created, 'existing': existing, 'errors': errors, 'admin_report_email': admin_mail,
             'summary': {'created': len(created), 'existing': len(existing), 'errors': len(errors)}}
+
+
+def _token_state(tok: Optional[dict]) -> str:
+    if not tok:
+        return 'none'
+    if tok.get('used'):
+        return 'used'
+    return 'expired' if tok['expires_at'] < datetime.now(timezone.utc).isoformat() else 'valid'
+
+
+@router.get('/admin/users/invitations')
+async def list_invitations(admin: dict = Depends(get_admin_user)):
+    """Seguimiento de usuarios invitados: estado de activación, último token y último correo."""
+    token_ids = await db.password_resets.distinct('user_id', {'purpose': 'activation'})
+    users = await db.users.find(
+        {'$or': [{'onboarding_source': 'admin_quick_onboard'}, {'id': {'$in': token_ids}}]},
+        {'_id': 0, 'id': 1, 'name': 1, 'email': 1, 'phone': 1, 'created_at': 1, 'must_change_password': 1,
+         'activated_at': 1, 'last_login': 1, 'created_by_admin': 1, 'temp_password_issued_at': 1},
+    ).sort('created_at', -1).to_list(500)
+    if not users:
+        return {'count': 0, 'items': []}
+    ids = [u['id'] for u in users]
+    emails = [u['email'] for u in users]
+    latest_tok = {}
+    async for t in db.password_resets.find({'purpose': 'activation', 'user_id': {'$in': ids}}, {'_id': 0}).sort('created_at', -1):
+        latest_tok.setdefault(t['user_id'], t)
+    latest_mail = {}
+    async for m in db.email_logs.find({'to_email': {'$in': emails}}, {'_id': 0, 'to_email': 1, 'subject': 1, 'status': 1, 'created_at': 1}).sort('created_at', -1):
+        latest_mail.setdefault(m['to_email'], m)
+    items = []
+    for u in users:
+        tok = latest_tok.get(u['id'])
+        activated = bool(u.get('activated_at')) or (u.get('must_change_password') is False)
+        items.append({
+            'user_id': u['id'], 'name': u.get('name'), 'email': u['email'], 'phone': u.get('phone'),
+            'created_at': u.get('created_at'), 'invited_by': u.get('created_by_admin') or (tok or {}).get('issued_by'),
+            'invited_at': (tok or {}).get('created_at') or u.get('temp_password_issued_at') or u.get('created_at'),
+            'activation': 'activated' if activated else ('expired' if _token_state(tok) == 'expired' else 'pending'),
+            'activated_at': u.get('activated_at'), 'last_login': u.get('last_login'),
+            'token_state': _token_state(tok), 'token_expires_at': (tok or {}).get('expires_at'),
+            'last_email': latest_mail.get(u['email']),
+        })
+    return {'count': len(items), 'items': items}
+
+
+@router.post('/admin/users/invitations/{user_id}/resend')
+async def resend_invitation(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Genera un nuevo enlace de activación (7 días) y reenvía el correo. No modifica el registro del usuario."""
+    user = await db.users.find_one({'id': user_id}, {'_id': 0, 'id': 1, 'name': 1, 'email': 1, 'activated_at': 1, 'must_change_password': 1})
+    if not user:
+        raise HTTPException(404, 'Usuario no encontrado')
+    if user.get('activated_at') or user.get('must_change_password') is False:
+        raise HTTPException(400, 'El usuario ya activó su cuenta')
+    await db.password_resets.update_many({'user_id': user_id, 'purpose': 'activation', 'used': False}, {'$set': {'used': True, 'superseded': True}})
+    token = await _activation_token(user_id, user['email'], admin.get('email'))
+    login_url = f"{APP_BASE_URL}/login"
+    mail = await _deliver(True, user['email'], 'Active su cuenta · LIONSBIT VERIFICACIÓN',
+                          get_email_template(_activation_only_html(user.get('name') or user['email'], user['email'], login_url, f"{APP_BASE_URL}/reset-password?token={token}"), 'Activación de cuenta'))
+    await db.admin_audit_log.insert_one({'id': str(uuid.uuid4()), 'action': 'resend_activation', 'admin_email': admin.get('email'),
+                                         'user_id': user_id, 'email': user['email'], 'email_status': mail['status'],
+                                         'created_at': datetime.now(timezone.utc).isoformat()})
+    return {'ok': mail['status'] == 'sent', 'email': user['email'], 'email_status': mail['status'], 'email_error': mail.get('error')}

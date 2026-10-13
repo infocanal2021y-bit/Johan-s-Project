@@ -715,14 +715,30 @@ async def admin_cancel_withdrawal(withdrawal_id: str, payload: dict, admin: dict
     }})
     await _log_withdrawal_history(withdrawal_id, stage, 'cancelado', admin, reason)
     reference = tx.get('transaction_reference') or f"LB-{withdrawal_id[:8].upper()}"
+    amount_txt = f"{float(tx.get('amount') or 0):,.2f} {(tx.get('currency') or 'EUR').upper()}"
     from services.notifications import create_notification
     await create_notification(
         tx['user_id'],
         'Solicitud de retiro cancelada',
-        f"Tu solicitud de retiro {reference} por {float(tx.get('amount') or 0):,.2f} {(tx.get('currency') or 'EUR').upper()} "
-        f"ha sido cancelada. Motivo: {reason}",
+        f"Tu solicitud de retiro {reference} por {amount_txt} ha sido cancelada. Motivo: {reason}",
         {'type': 'withdrawal_cancelled', 'withdrawal_id': withdrawal_id, 'reason': reason},
     )
+    owner = await db.users.find_one({'id': tx['user_id']}, {'_id': 0, 'email': 1, 'name': 1})
+    if owner and owner.get('email'):
+        from services.email import send_email_background, get_email_template
+        from config import APP_BASE_URL, ADMIN_EMAIL
+        html = get_email_template(f"""
+        <p style="color:#e2e8f0;font-size:16px;line-height:1.6;">Estimado/a <strong style="color:#10b981;">{owner.get('name') or 'cliente'}</strong>,</p>
+        <p style="color:#e2e8f0;font-size:15px;line-height:1.6;">Le informamos que su solicitud de retiro ha sido <strong style="color:#f87171;">cancelada</strong> por nuestro equipo de administración.</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;border-radius:12px;margin:22px 0;">
+          <tr><td style="padding:10px 20px;color:#94a3b8;font-size:13px;">Referencia</td><td style="padding:10px 20px;color:#e2e8f0;font-size:13px;font-family:monospace;text-align:right;">{reference}</td></tr>
+          <tr><td style="padding:10px 20px;color:#94a3b8;font-size:13px;border-top:1px solid #1e293b;">Importe</td><td style="padding:10px 20px;color:#e2e8f0;font-size:13px;text-align:right;border-top:1px solid #1e293b;">{amount_txt}</td></tr>
+          <tr><td style="padding:10px 20px;color:#94a3b8;font-size:13px;border-top:1px solid #1e293b;">Fecha de cancelación</td><td style="padding:10px 20px;color:#e2e8f0;font-size:13px;text-align:right;border-top:1px solid #1e293b;">{now_iso[:16].replace('T', ' ')} UTC</td></tr>
+          <tr><td style="padding:10px 20px;color:#94a3b8;font-size:13px;border-top:1px solid #1e293b;">Motivo</td><td style="padding:10px 20px;color:#fbbf24;font-size:13px;text-align:right;border-top:1px solid #1e293b;">{reason}</td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:13px;line-height:1.6;">Si considera que se trata de un error o necesita más información, responda a este correo o escriba a <a href="mailto:{ADMIN_EMAIL}" style="color:#06b6d4;">{ADMIN_EMAIL}</a>. Puede revisar el estado de sus operaciones en <a href="{APP_BASE_URL}/retiros-recientes" style="color:#06b6d4;">la plataforma</a>.</p>
+        """, 'Solicitud de retiro cancelada')
+        send_email_background(owner['email'], f'Solicitud de retiro {reference} cancelada - LIONSBIT VERIFICACION', html)
     return {'ok': True, 'stage': 'cancelado', 'status': 'cancelled',
             'cancelled_at': now_iso, 'cancelled_by': cancelled_by, 'cancellation_reason': reason}
 

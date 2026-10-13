@@ -14,6 +14,7 @@ const Stat = ({ label, value, color = 'text-white', testId }) => (
 export const FX2026BatchCard = () => {
     const [status, setStatus] = useState(null);
     const [busy, setBusy] = useState('');
+    const [envWarning, setEnvWarning] = useState('');
     const pollRef = useRef(null);
 
     const load = useCallback(async () => {
@@ -55,6 +56,9 @@ export const FX2026BatchCard = () => {
             const r = await api.post('/admin/fx2026/send-welcome', {});
             if (r.data.started) {
                 toast.success(`Envío iniciado: ${r.data.pending} emails (~${r.data.estimated_minutes} min)`);
+            } else if (r.data.reason === 'environment_mismatch') {
+                setEnvWarning(r.data.message);
+                toast.warning('Envío bloqueado: entorno distinto al de los enlaces');
             } else {
                 toast.info(`No iniciado: ${r.data.reason}`);
             }
@@ -108,6 +112,16 @@ export const FX2026BatchCard = () => {
                     </>
                 )}
             </div>
+
+            {envWarning && (
+                <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-xs text-red-200 flex items-start gap-2" data-testid="fx2026-env-warning">
+                    <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="font-semibold">Envío bloqueado por protección de entorno</p>
+                        <p className="text-red-200/80 mt-0.5">{envWarning}</p>
+                    </div>
+                </div>
+            )}
 
             {running && (
                 <div className="mt-4" data-testid="fx2026-progress">
