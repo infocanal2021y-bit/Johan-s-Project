@@ -49,3 +49,7 @@ On first login they're redirected to `/force-password-change` and must set a new
 - Sin contraseñas gestionadas por la app. Cualquier cuenta Google puede entrar; se vincula por email a un usuario existente (mantiene su rol) o crea un usuario nuevo con rol `user`.
 - Admin/superadmin con Google: si el 2FA de admin está activo, se pide el código por email igual que en el login normal.
 - Prueba sin Google: visitar `/dashboard#session_id=fake` → tarjeta de error "Sesión de Google inválida o caducada".
+
+## Alta rápida 13/Oct/2026 (quick-onboard, política activation_link)
+- Nuevo: `minuna2012@gmail.com` (Miguel Núñez Navas) / temporal `PLB-SUHHBD` → must_change_password=true; enlace de activación válido hasta 20/Oct/2026.
+- Existentes sin modificar (solo enlace de activación 7 días): `ecologinet@gmail.com`, `santosortizcasar@gmail.com`.

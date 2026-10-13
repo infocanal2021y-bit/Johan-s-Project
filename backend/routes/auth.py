@@ -559,10 +559,10 @@ async def reset_password(data: PasswordResetConfirm):
         raise HTTPException(status_code=400, detail='Reset token has expired')
 
     new_hashed = hash_password(data.new_password)
-    await db.users.update_one(
-        {'id': reset_request['user_id']},
-        {'$set': {'password': new_hashed}}
-    )
+    user_updates = {'password': new_hashed, 'must_change_password': False}
+    if reset_request.get('purpose') == 'activation':
+        user_updates['activated_at'] = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({'id': reset_request['user_id']}, {'$set': user_updates})
 
     await db.password_resets.update_one(
         {'token': data.token},
