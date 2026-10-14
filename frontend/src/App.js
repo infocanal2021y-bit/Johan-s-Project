@@ -108,6 +108,8 @@ import ForcePasswordChangePage from "./pages/ForcePasswordChangePage";
 import MT5Page from "./pages/MT5Page";
 import MultiCurrencyWalletPage from "./pages/MultiCurrencyWalletPage";
 import BankWithdrawalPage from "./pages/BankWithdrawalPage";
+import PayPalWithdrawalPage from "./pages/PayPalWithdrawalPage";
+import AdminPayPalWithdrawalsPage from "./pages/admin/AdminPayPalWithdrawalsPage";
 import VaultBlockchainPage from "./pages/VaultBlockchainPage";
 import CommandCenterPage from "./pages/CommandCenterPage";
 import NotificationsCenterPage from "./pages/NotificationsCenterPage";
@@ -214,6 +216,7 @@ function AppRoutes() {
             <Route path="/investing-pro" element={<ProtectedRoute><InvestingProPage /></ProtectedRoute>} />
             <Route path="/wallet/multi-currency" element={<ProtectedRoute><MultiCurrencyWalletPage /></ProtectedRoute>} />
             <Route path="/wallet/bank-withdrawal" element={<ProtectedRoute><BankWithdrawalPage /></ProtectedRoute>} />
+            <Route path="/wallet/paypal-withdrawal" element={<ProtectedRoute><PayPalWithdrawalPage /></ProtectedRoute>} />
             <Route path="/wallet/solicitar-retiro" element={<ProtectedRoute><SolicitarRetiroPage /></ProtectedRoute>} />
             <Route path="/wallet/retiro-btc" element={<ProtectedRoute><BtcWithdrawalPage /></ProtectedRoute>} />
             <Route path="/wallet/plan-retiros" element={<ProtectedRoute><PlanRetirosPage /></ProtectedRoute>} />
@@ -274,6 +277,7 @@ function AppRoutes() {
             <Route path="/admin/partial-unlock" element={<ProtectedRoute adminOnly><AdminPartialUnlockPage /></ProtectedRoute>} />
             <Route path="/admin/exchange-rates" element={<ProtectedRoute adminOnly><AdminExchangeRatesPage /></ProtectedRoute>} />
             <Route path="/admin/bank-withdrawals" element={<ProtectedRoute adminOnly><AdminBankWithdrawalsPage /></ProtectedRoute>} />
+            <Route path="/admin/paypal-withdrawals" element={<ProtectedRoute adminOnly><AdminPayPalWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/btc-withdrawals" element={<ProtectedRoute adminOnly><AdminBtcWithdrawalsPage /></ProtectedRoute>} />
             <Route path="/admin/bank-transfers" element={<ProtectedRoute adminOnly><AdminBankTransfersPage /></ProtectedRoute>} />
             <Route path="/admin/bank-certificates" element={<ProtectedRoute adminOnly><AdminBankCertificatesPage /></ProtectedRoute>} />

@@ -24,6 +24,8 @@ IDENTIFIER_SOURCES = [
     ('mt5_invest_deposits', ['tx_hash', 'id'], 'txid'),
     ('btc_withdrawal_requests', ['txid', 'send_txid', 'fee_txid', 'reference', 'id'], 'txid'),
     ('bank_withdrawal_requests', ['bank_account', 'reference', 'id'], 'iban'),
+    ('paypal_withdrawal_requests', ['paypal_email', 'paypal_txn_id', 'reference', 'id'], 'paypal'),
+    ('paypal_accounts', ['email'], 'paypal'),
     ('bank_transfer_payments', ['reference', 'id'], 'referencia'),
     ('payment_transactions', ['session_id'], 'stripe'),
     ('support_tickets', ['ticket_number', 'id'], 'ticket'),
@@ -105,6 +107,8 @@ async def admin_user_360(user_id: str, admin: dict = Depends(get_admin_user)):
     transactions = await _many('transactions', f, limit=100)
     bank_wd = await _many('bank_withdrawal_requests', f, {'confirmation_code_hash': 0})
     btc_wd = await _many('btc_withdrawal_requests', f)
+    paypal_wd = await _many('paypal_withdrawal_requests', f, {'confirmation_code': 0})
+    paypal_account = await db.paypal_accounts.find_one(f, {'_id': 0})
     plans = await _many('withdrawal_plans', f)
     special45 = await _many('special45_requests', f)
     crypto_payments = await _many('crypto_payments', f, {'proof_image': 0}, sort='submitted_at')
@@ -136,7 +140,7 @@ async def admin_user_360(user_id: str, admin: dict = Depends(get_admin_user)):
             'balance_eur': round(balance_eur, 2),
             'balance_usd': round(balance_usd, 2),
             'transactions': len(transactions),
-            'withdrawals': len(withdrawals_full) + len(bank_wd) + len(btc_wd) + len(special45),
+            'withdrawals': len(withdrawals_full) + len(bank_wd) + len(btc_wd) + len(special45) + len(paypal_wd),
             'payments': len(crypto_payments) + len(stripe) + len(bank_transfers) + len(mt5_deposits) + len(manual_tax),
             'documents': len(kyc) + len(fiscal) + len(vault) + len(bank_certs),
             'tickets_open': sum(1 for t in tickets if t.get('status') not in ('closed', 'resolved', 'cerrado')),
@@ -150,7 +154,7 @@ async def admin_user_360(user_id: str, admin: dict = Depends(get_admin_user)):
         'multi_currency_wallet': mcw,
         'mt5_account': mt5_account,
         'transactions': transactions,
-        'withdrawals': {'full': withdrawals_full, 'bank': bank_wd, 'btc': btc_wd, 'plans': plans, 'special45': special45},
+        'withdrawals': {'full': withdrawals_full, 'bank': bank_wd, 'btc': btc_wd, 'paypal': paypal_wd, 'paypal_account': paypal_account, 'plans': plans, 'special45': special45},
         'payments': {'crypto': crypto_payments, 'intents': intents, 'manual_tax': manual_tax, 'stripe': stripe,
                      'bank_transfers': bank_transfers, 'mt5_deposits': mt5_deposits},
         'documents': {'kyc': kyc, 'fiscal': fiscal, 'vault': vault, 'bank_certificates': bank_certs},

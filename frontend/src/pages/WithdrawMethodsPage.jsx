@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Shield, Clock, X, ChevronDown, Building2, Globe, CreditCard, Banknote, Copy, Check, Loader2, CheckCircle, Info, Upload, FileText, Bitcoin, Wallet, ExternalLink, Coins, Zap, AlertTriangle, Receipt } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api, { paymentsAPI } from '../lib/api';
 import { CryptoPaymentMonitor } from '../components/crypto/CryptoPaymentMonitor';
 import { toast } from 'sonner';
@@ -180,6 +180,7 @@ const BizumLogo = () => (
 
 /* ─── Data ─── */
 const PAYMENT_METHODS = [
+    { id: 'paypal', name: 'PayPal', desc: 'Retiro directo a tu cuenta PayPal', Logo: PayPalBusinessLogo, to: '/wallet/paypal-withdrawal' },
     { id: 'visa', name: 'Visa', desc: 'Tarjeta de credito / debito', Logo: VisaLogo },
     { id: 'mastercard', name: 'Mastercard', desc: 'Tarjeta de credito / debito', Logo: MastercardLogo },
     { id: 'skrill', name: 'Skrill', desc: 'Monedero electronico', Logo: SkrillLogo },
@@ -430,6 +431,7 @@ const DEFAULT_COLORS = { border: 'border-slate-700', bg: 'bg-slate-700/40', text
 export default function WithdrawMethodsPage() {
     const { user } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     const abonoRef = new URLSearchParams(location.search).get('abono_ref');
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState('');
@@ -467,6 +469,7 @@ export default function WithdrawMethodsPage() {
     };
 
     const handleMethodClick = (method) => {
+        if (method.to) return navigate(method.to);
         openModal(method.name);
     };
 

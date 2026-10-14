@@ -56,12 +56,13 @@ export const USER_NAV = [
         ],
     },
     {
-        id: 'retiros', label: 'Retiros', icon: Upload, prefixes: ['/withdraw', '/wallet/solicitar-retiro', '/wallet/bank-withdrawal', '/wallet/retiro-btc', '/wallet/plan-retiros', '/retiro-especial-45', '/pagos-servicios', '/fiscal-documents', '/complete-withdrawal'],
+        id: 'retiros', label: 'Retiros', icon: Upload, prefixes: ['/withdraw', '/wallet/solicitar-retiro', '/wallet/bank-withdrawal', '/wallet/paypal-withdrawal', '/wallet/retiro-btc', '/wallet/plan-retiros', '/retiro-especial-45', '/pagos-servicios', '/fiscal-documents', '/complete-withdrawal'],
         items: [
             { to: '/wallet/solicitar-retiro', icon: Send, label: 'Solicitar Retiro' },
             { to: '/retiros-recientes', icon: Receipt, label: 'Retiros Recientes' },
             { to: '/transactions?filter=withdraw', icon: History, label: 'Historial de Retiros' },
             { to: '/wallet/bank-withdrawal', icon: Banknote, label: 'Retiros Bancarios' },
+            { to: '/wallet/paypal-withdrawal', icon: Wallet, label: 'Retiros PayPal' },
             { to: '/wallet/retiro-btc', icon: Bitcoin, label: 'Retiros BTC' },
             { to: '/retiro-especial-45', icon: Award, label: 'Retiros Especiales +45' },
         ],
@@ -160,6 +161,7 @@ export const ADMIN_NAV = [
             { to: '/admin/questions', icon: MessageCircleQuestion, label: 'Preguntas de Retiros' },
             { to: '/admin/partial-unlock', icon: Unlock, label: 'Desbloqueos 40%' },
             { to: '/admin/bank-withdrawals', icon: Banknote, label: 'Retiros Bancarios' },
+            { to: '/admin/paypal-withdrawals', icon: Wallet, label: 'Retiros PayPal' },
             { to: '/admin/btc-withdrawals', icon: Bitcoin, label: 'Retiros BTC' },
             { to: '/admin/special45', icon: Award, label: 'Retiros Especiales +45' },
         ],

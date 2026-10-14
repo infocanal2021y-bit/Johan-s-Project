@@ -226,6 +226,13 @@ export const AdminUser360Page = () => {
                                         { k: 'from_amount', h: 'Importe', right: true, mono: true, render: (r) => fmtMoney(r.from_amount, r.from_currency) }, { k: 'status', h: 'Estado', render: (r) => <Pill value={r.status} /> },
                                     ]} />
                                 </Section>
+                                <Section title="Retiros PayPal" icon={Upload} count={(data.withdrawals.paypal || []).length}>
+                                    {data.withdrawals.paypal_account && <p className="text-[11px] text-slate-400 mb-2" data-testid="u360-paypal-account">Cuenta vinculada: <span className="text-white font-mono">{data.withdrawals.paypal_account.email}</span> · {data.withdrawals.paypal_account.holder_name}</p>}
+                                    <Table testid="u360-wd-paypal" rows={data.withdrawals.paypal || []} cols={[
+                                        { k: 'created_at', h: 'Fecha', render: (r) => fmtDate(r.created_at) }, { k: 'reference', h: 'Referencia', mono: true }, { k: 'paypal_email', h: 'Cuenta PayPal', mono: true },
+                                        { k: 'amount', h: 'Importe', right: true, mono: true, render: (r) => fmtMoney(r.amount, r.currency) }, { k: 'paypal_txn_id', h: 'ID PayPal', mono: true, render: (r) => r.paypal_txn_id || '—' }, { k: 'status', h: 'Estado', render: (r) => <Pill value={r.status} /> },
+                                    ]} />
+                                </Section>
                                 <Section title="Retiros BTC" icon={Upload} count={data.withdrawals.btc.length}>
                                     <Table testid="u360-wd-btc" rows={data.withdrawals.btc} cols={[
                                         { k: 'created_at', h: 'Fecha', render: (r) => fmtDate(r.created_at) }, { k: 'reference', h: 'Referencia', mono: true, render: (r) => r.reference || short(r.id) },
