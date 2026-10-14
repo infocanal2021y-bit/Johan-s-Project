@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend E2E for 'Retiros a PayPal' (user page, admin queue, U360, navigation, mobile). All 8 requested flows pass end to end against the public URL. Confirmation codes were read from Mongo with /app/tests/pp_code.py. User page: linked account shows; editing works; a mismatched confirm email shows the 'Los correos no coinciden' toast; cancelling the edit works. Amount checks work: below 50 shows the minimum error, 9999 shows 'Saldo insuficiente', and 60 shows '60,00 EUR' with the button enabled. The code step shows the masked email and reference. A wrong code shows 'Código incorrecto. Intentos restantes: 4' and the correct code shows the success screen. The reset works, EUR dropped from 380 to 320, and the history row shows 'Solicitado' with the timeline and the cancel button. Admin: KPI pending=1. The requested filter works. Advance moves the request to 'En revisión' (timeline actor 'Admin LIONSBIT'). The complete-confirm button is disabled under 6 chars; with TESTPP123456 it gives 'Completado' and the timeline shows 'ID PayPal TESTPP123456'. The completed filter and search (by reference and by txn ID) work. Reject of 70 EUR with 'Prueba rechazo' gives 'Rechazado'; the user balance went back to 320 and the row shows 'Motivo: Prueba rechazo'. User self-cancel of 50 EUR with dialog accept gives 'Cancelado' and the balance went back to 320. Navigation: the user sidebar Retiros group has 'Retiros PayPal', the admin sidebar has 'Retiros PayPal' -> /admin/paypal-withdrawals, and method-card-paypal goes to /wallet/paypal-withdrawal. U360 (Retiros tab): u360-wd-paypal has 5 rows and u360-paypal-account is shown. Mobile 390: no horizontal overflow (scrollWidth=390); the account card stacks above the form.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Admin reject", "issue": "Seen once: 2.5s after clicking pp-reject-confirm, the row pill still said 'Solicitado'. The user side and an admin reload showed 'Rechazado', so this is probably just a slow reject response (the email/case is likely sent synchronously). Not reproduced. Consider sending the email in the background.", "affected_selectors": ["pp-admin-status-*"]}
+    ],
+    "design_issues": [
+      {"screen": "/wallet/paypal-withdrawal history at mobile 390px", "issues": ["Each history row puts reference, amount, pill and chevron on one line. The reference 'PP-261014-3437' wraps onto 3 lines and the date/email subline is cut to '14 oct…'. Suggested fix: add whitespace-nowrap to the reference and move the amount and status pill to a second line on small screens (flex-wrap or sm: breakpoints)."]},
+      {"screen": "Admin U360 > Retiros > Retiros PayPal table", "issues": ["Status pills show raw English values (cancelled/rejected/completed) instead of the Spanish labels (Cancelado/Rechazado/Completado). This matches the other U360 tables, but the PP_STATUS labels could be reused."]},
+      {"screen": "PayPal code step", "issues": ["After a wrong code, the earlier 'Código enviado' toast is still on screen next to the error toast. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/pp_code.py"],
+  "action_items": [
+    "Mobile: fix the cramped history row layout in PayPalWithdrawalHistory.jsx (reference wraps onto 3 lines, date/email cut off)",
+    "Optional: use Spanish status labels in the U360 Retiros PayPal table",
+    "Optional: make the admin reject/cancel email non-blocking so the admin list updates right away"
+  ],
+  "critical_code_review_comments": [
+    "PayPalWithdrawalHistory.jsx: the user cancel uses window.confirm. It works, but it doesn't match the app's styled dialogs (consider a shadcn AlertDialog).",
+    "AdminPayPalWithdrawalsPage ActionBar: 'Completar' is available straight from 'requested'/'in_review', skipping 'Procesado'. Fine if intended, but the spec lists Solicitado→En revisión→Procesado→Completado.",
+    "The page has no polling: the user's history only refreshes after their own actions or a reload."
+  ],
+  "updated_files": ["/app/tests/pp_code.py (new helper that reads the confirmation code and wallet state from Mongo)"],
+  "success_rate": {"backend": "n/a (not requested)", "frontend": "100% of requested flows (1 mobile design issue)"},
+  "seed_data_creation": "Created 3 PayPal requests for manclic@yahoo.es: PP-261014-5248 (60 EUR, completed with TESTPP123456), PP-261014-4211 (70 EUR, rejected 'Prueba rechazo'), PP-261014-3437 (50 EUR, user-cancelled). EUR balance went from 380 to 320 through the app itself (the 60 EUR completed request); no manual DB edits.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login had no 2FA (direct token). Use `python3 /app/tests/pp_code.py code` for the newest awaiting_code code and `python3 /app/tests/pp_code.py state` for the wallet and requests. U360 PayPal table is under tab u360-tab-retiros. User sidebar links only render when the group is expanded."
+}
