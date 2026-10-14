@@ -5,9 +5,9 @@ import random
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from config import db, APP_BASE_URL
+from config import db
 from services.auth import get_current_user, get_admin_user
 from services.notifications import create_notification, create_admin_notification
 from services.email import send_email, get_email_template, send_withdrawal_request_received_email, send_withdrawal_stage_email
@@ -28,6 +28,7 @@ STATUS_LABELS = {
     'requested':     {'label': 'Solicitado',       'color': '#1973B8'},
     'in_review':     {'label': 'En revisión',      'color': '#f59e0b'},
     'processing':    {'label': 'Procesado',        'color': '#06b6d4'},
+    'payout_sent':   {'label': 'Pago enviado',     'color': '#8b5cf6'},
     'completed':     {'label': 'Completado',       'color': '#10b981'},
     'rejected':      {'label': 'Rechazado',        'color': '#ef4444'},
     'cancelled':     {'label': 'Cancelado',        'color': '#ef4444'},
@@ -309,17 +310,22 @@ async def _notify_stage(rec: dict, status: str, admin: dict, note: Optional[str]
 
 @router.get('/admin/paypal-withdrawals')
 async def admin_queue(status: Optional[str] = None, limit: int = 100, admin: dict = Depends(get_admin_user)):
+    from services.paypal_payouts import settings as pp_settings
     q = {'status': status} if status and status != 'all' else {}
     items = await db.paypal_withdrawal_requests.find(q, PROJ).sort('created_at', -1).limit(max(1, min(limit, 500))).to_list(500)
     counts = {}
     async for row in db.paypal_withdrawal_requests.aggregate([{'$group': {'_id': '$status', 'n': {'$sum': 1}}}]):
         counts[row['_id']] = row['n']
-    return {'items': items, 'count': len(items), 'counts': counts, 'statuses': STATUS_LABELS}
+    s = pp_settings()
+    return {'items': items, 'count': len(items), 'counts': counts, 'statuses': STATUS_LABELS,
+            'payouts': {'configured': s['configured'], 'mode': s['mode'], 'webhook': bool(s['webhook_id'])}}
 
 
 @router.post('/admin/paypal-withdrawals/{request_id}/advance')
 async def admin_advance(request_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
     rec = await _admin_get(request_id)
+    if rec['status'] == 'payout_sent':
+        raise HTTPException(400, 'El pago ya fue enviado a PayPal; usa "Sincronizar" para confirmar su estado')
     idx = STATUS_FLOW.index(rec['status'])
     if STATUS_FLOW[idx + 1] == 'completed':
         raise HTTPException(400, 'Usa "Completar" indicando el ID de transacción PayPal')
@@ -356,6 +362,8 @@ async def _terminate(request_id: str, payload: dict, admin: dict, status: str):
         raise HTTPException(404, 'Solicitud no encontrada')
     if rec['status'] in TERMINAL:
         raise HTTPException(400, f"Esta solicitud ya está en estado terminal: {STATUS_LABELS[rec['status']]['label']}")
+    if rec['status'] == 'payout_sent' and not payload.get('force'):
+        raise HTTPException(400, 'El pago ya fue enviado a PayPal. Sincroniza primero; solo se puede anular si PayPal lo devuelve.')
     now = _now_iso()
     if rec['status'] == 'awaiting_code':
         await _release_pending(rec)
@@ -380,3 +388,124 @@ async def admin_reject(request_id: str, payload: dict, admin: dict = Depends(get
 @router.post('/admin/paypal-withdrawals/{request_id}/cancel')
 async def admin_cancel(request_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
     return await _terminate(request_id, payload, admin, 'cancelled')
+
+
+# ───────────────────────── PayPal Payouts automático ─────────────────────────
+
+async def _finalize_payout(rec: dict, info: dict, source: str) -> str:
+    """Aplica el resultado de PayPal a la solicitud. Devuelve 'success' | 'failed' | 'pending'."""
+    from services import paypal_payouts as pp
+    outcome = pp.classify(info.get('item_status'), info.get('batch_status'))
+    now = _now_iso()
+    base = {'payout_item_status': info.get('item_status'), 'payout_batch_status': info.get('batch_status'),
+            'payout_item_id': info.get('payout_item_id') or rec.get('payout_item_id'), 'payout_last_sync_at': now, 'updated_at': now}
+    system = {'name': f'PayPal ({source})', 'email': None}
+    if outcome == 'success':
+        txn = info.get('transaction_id') or rec.get('payout_batch_id')
+        await db.paypal_withdrawal_requests.update_one({'id': rec['id']}, {
+            '$set': {**base, 'status': 'completed', 'completed_at': now, 'paypal_txn_id': txn, 'payout_fee': info.get('fee')},
+            '$push': {'status_timeline': _tl('completed', 'system', system, f'Pago confirmado por PayPal · ID {txn}')}})
+        await db.transactions.update_one({'paypal_withdrawal_id': rec['id']}, {'$set': {'status': 'completed', 'completed_at': now, 'paypal_txn_id': txn}})
+        await create_notification(rec['user_id'], f"✅ Retiro {rec['reference']} completado",
+                                  f"PayPal confirmó el pago de {float(rec['net_amount']):,.2f} {rec['currency']} a {rec['paypal_email']}. ID: {txn}.")
+        await _notify_stage({**rec, 'status': 'payout_sent'}, 'completed', system, f'ID de transacción PayPal: {txn}')
+    elif outcome == 'failed':
+        reason = f"PayPal: {info.get('item_status')}" + (f" · {info['error']}" if info.get('error') else '')
+        await _refund(rec)
+        await db.transactions.update_one({'paypal_withdrawal_id': rec['id']}, {'$set': {'status': 'rejected', 'updated_at': now}})
+        await db.paypal_withdrawal_requests.update_one({'id': rec['id']}, {
+            '$set': {**base, 'status': 'rejected', 'admin_note': reason, 'rejected_at': now},
+            '$push': {'status_timeline': _tl('rejected', 'system', system, reason)}})
+        await create_notification(rec['user_id'], f"⚠️ Retiro {rec['reference']} rechazado",
+                                  f"PayPal no pudo entregar el pago ({info.get('item_status')}). Los fondos han sido devueltos a tu saldo {rec['currency']}.")
+        await _notify_stage({**rec, 'status': 'payout_sent'}, 'rejected', system, reason, rejected=True)
+    else:
+        await db.paypal_withdrawal_requests.update_one({'id': rec['id']}, {'$set': base})
+    return outcome
+
+
+@router.post('/admin/paypal-withdrawals/{request_id}/pay')
+async def admin_pay_with_paypal(request_id: str, payload: dict, admin: dict = Depends(get_admin_user)):
+    """Envía el payout real vía PayPal Payouts API y deja la solicitud en 'Pago enviado' hasta confirmación."""
+    from services import paypal_payouts as pp
+    rec = await _admin_get(request_id)
+    if rec['status'] not in ('in_review', 'processing'):
+        raise HTTPException(400, 'El pago automático solo está disponible en estados En revisión o Procesado')
+    if rec.get('payout_batch_id'):
+        raise HTTPException(400, 'Ya existe un payout enviado para esta solicitud; usa "Sincronizar"')
+    note = (payload.get('note') or '').strip()[:300] or None
+    try:
+        res = await pp.create_payout(reference=rec['reference'], receiver_email=rec['paypal_email'], amount=float(rec['net_amount']),
+                                     currency=rec['currency'], note=f"Retiro LIONSBIT {rec['reference']}", request_id=rec['id'])
+    except pp.PayPalError as e:
+        await db.paypal_withdrawal_requests.update_one({'id': request_id}, {'$set': {'payout_last_error': str(e), 'updated_at': _now_iso()},
+                                                                            '$push': {'status_timeline': _tl(rec['status'], 'admin', admin, f'Intento de pago PayPal fallido: {e}')}})
+        raise HTTPException(502 if e.name != 'NOT_CONFIGURED' else 400, str(e))
+    now = _now_iso()
+    s = pp.settings()
+    await db.paypal_withdrawal_requests.update_one({'id': request_id}, {
+        '$set': {'status': 'payout_sent', 'payout_batch_id': res['payout_batch_id'], 'payout_batch_status': res['batch_status'],
+                 'payout_mode': s['mode'], 'payout_sent_at': now, 'payout_sent_by': admin.get('name') or admin.get('email'), 'payout_last_error': None, 'updated_at': now},
+        '$push': {'status_timeline': _tl('payout_sent', 'admin', admin, f"Payout enviado a PayPal ({s['mode']}) · batch {res['payout_batch_id']}" + (f' · {note}' if note else ''))}})
+    await create_notification(rec['user_id'], f"Retiro {rec['reference']} · pago enviado",
+                              f"Hemos enviado {float(rec['net_amount']):,.2f} {rec['currency']} a tu cuenta PayPal {rec['paypal_email']}. Te avisaremos cuando PayPal lo confirme.")
+    await _notify_stage(rec, 'payout_sent', admin, note, eta='Minutos (confirmación de PayPal)')
+    fresh = await db.paypal_withdrawal_requests.find_one({'id': request_id})
+    outcome = 'pending'
+    try:
+        outcome = await _finalize_payout(fresh, await pp.get_batch(res['payout_batch_id']), 'sync')
+    except pp.PayPalError:
+        pass
+    return {'ok': True, 'outcome': outcome, 'request': await db.paypal_withdrawal_requests.find_one({'id': request_id}, PROJ)}
+
+
+@router.post('/admin/paypal-withdrawals/{request_id}/sync')
+async def admin_sync_payout(request_id: str, admin: dict = Depends(get_admin_user)):
+    from services import paypal_payouts as pp
+    rec = await db.paypal_withdrawal_requests.find_one({'id': request_id})
+    if not rec or not rec.get('payout_batch_id'):
+        raise HTTPException(400, 'Esta solicitud no tiene un payout de PayPal asociado')
+    if rec['status'] != 'payout_sent':
+        return {'ok': True, 'outcome': 'already_final', 'request': await db.paypal_withdrawal_requests.find_one({'id': request_id}, PROJ)}
+    try:
+        outcome = await _finalize_payout(rec, await pp.get_batch(rec['payout_batch_id']), 'sync')
+    except pp.PayPalError as e:
+        raise HTTPException(502, str(e))
+    return {'ok': True, 'outcome': outcome, 'request': await db.paypal_withdrawal_requests.find_one({'id': request_id}, PROJ)}
+
+
+async def poll_pending_payouts() -> dict:
+    """Job programado: consulta a PayPal los payouts en 'Pago enviado'."""
+    from services import paypal_payouts as pp
+    if not pp.settings()['configured']:
+        return {'skipped': True}
+    done = {'success': 0, 'failed': 0, 'pending': 0, 'errors': 0}
+    async for rec in db.paypal_withdrawal_requests.find({'status': 'payout_sent', 'payout_batch_id': {'$ne': None}}):
+        try:
+            done[await _finalize_payout(rec, await pp.get_batch(rec['payout_batch_id']), 'sondeo')] += 1
+        except Exception:
+            done['errors'] += 1
+    return done
+
+
+@router.post('/paypal/webhook')
+async def paypal_webhook(request: Request):
+    """Webhook de PayPal (PAYMENT.PAYOUTS-ITEM.* / PAYMENT.PAYOUTSBATCH.*). Verifica firma si hay PAYPAL_WEBHOOK_ID."""
+    from services import paypal_payouts as pp
+    body = await request.json()
+    verified = await pp.verify_webhook(dict(request.headers), body)
+    event_type = body.get('event_type', '')
+    resource = body.get('resource') or {}
+    batch_id = (resource.get('payout_batch_id') or (resource.get('batch_header') or {}).get('payout_batch_id'))
+    await db.paypal_webhook_events.insert_one({'id': str(uuid.uuid4()), 'event_id': body.get('id'), 'event_type': event_type,
+                                               'batch_id': batch_id, 'verified': verified, 'received_at': _now_iso()})
+    if not verified:
+        return {'ok': True, 'verified': False}
+    if batch_id and event_type.startswith('PAYMENT.PAYOUTS'):
+        rec = await db.paypal_withdrawal_requests.find_one({'payout_batch_id': batch_id, 'status': 'payout_sent'})
+        if rec:
+            try:
+                await _finalize_payout(rec, await pp.get_batch(batch_id), 'webhook')
+            except pp.PayPalError:
+                pass
+    return {'ok': True, 'verified': True}

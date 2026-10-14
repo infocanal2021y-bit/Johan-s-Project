@@ -343,6 +343,16 @@ def start_scheduler():
         replace_existing=True
     )
     
+    # Sondeo de payouts PayPal pendientes de confirmación
+    from routes.paypal_withdrawals import poll_pending_payouts
+    scheduler.add_job(
+        poll_pending_payouts,
+        IntervalTrigger(minutes=2),
+        id='paypal_payout_poll',
+        name='Poll PayPal payouts in payout_sent',
+        replace_existing=True
+    )
+
     # Run every 15 minutes to send balance notifications (daily budget: 30 emails)
     scheduler.add_job(
         process_balance_notifications,
